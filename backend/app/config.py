@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     # Core
     DATABASE_URL: str = "postgresql+asyncpg://dairy:dairy123@localhost:5432/dairy_ai"
     REDIS_URL: str = ""
-    JWT_SECRET: str = ""
+    JWT_SECRET: str = "test-secret-key-change-in-production"
     JWT_ALGORITHM: str = "HS256"
 
     # WhatsApp

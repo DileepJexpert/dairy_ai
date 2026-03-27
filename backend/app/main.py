@@ -15,6 +15,8 @@ from app.api.finance import router as finance_router
 from app.api.vet import router as vet_router
 from app.api.chat import router as chat_router
 from app.api.whatsapp import router as whatsapp_router
+from app.api.notifications import router as notifications_router
+from app.api.admin import router as admin_router
 from app.database import init_db
 
 
@@ -51,6 +53,8 @@ app.include_router(finance_router, prefix="/api/v1")
 app.include_router(vet_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
 app.include_router(whatsapp_router, prefix="/api/v1")
+app.include_router(notifications_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
 
 
 @app.get("/health")

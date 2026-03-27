@@ -8,3 +8,4 @@ from app.models.breeding import BreedingRecord, BreedingEventType
 from app.models.finance import Transaction, TransactionType, TransactionCategory
 from app.models.vet import VetProfile, Consultation, Prescription
 from app.models.conversation import Conversation, Channel
+from app.models.notification import Notification, NotificationType

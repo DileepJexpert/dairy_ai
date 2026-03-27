@@ -12,6 +12,9 @@ from app.api.milk import router as milk_router
 from app.api.feed import router as feed_router
 from app.api.breeding import router as breeding_router
 from app.api.finance import router as finance_router
+from app.api.vet import router as vet_router
+from app.api.chat import router as chat_router
+from app.api.whatsapp import router as whatsapp_router
 from app.database import init_db
 
 
@@ -45,6 +48,9 @@ app.include_router(milk_router, prefix="/api/v1")
 app.include_router(feed_router, prefix="/api/v1")
 app.include_router(breeding_router, prefix="/api/v1")
 app.include_router(finance_router, prefix="/api/v1")
+app.include_router(vet_router, prefix="/api/v1")
+app.include_router(chat_router, prefix="/api/v1")
+app.include_router(whatsapp_router, prefix="/api/v1")
 
 
 @app.get("/health")

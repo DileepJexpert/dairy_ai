@@ -5,7 +5,7 @@ asyncpg
 alembic
 pydantic==2.10.0
 pydantic-settings
-python-jose[cryptography]
+PyJWT[crypto]
 passlib[bcrypt]
 redis
 celery

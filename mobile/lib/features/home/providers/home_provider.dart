@@ -1,11 +1,12 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/api_client.dart';
+import 'package:dairy_ai/core/api_client.dart';
+import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../models/dashboard_model.dart';
 
 /// Provides the current farmer's dashboard stats.
-/// Fetches from GET /api/v1/farmers/me/dashboard.
+/// Fetches from GET /farmers/me/dashboard.
 final dashboardStatsProvider =
     AsyncNotifierProvider<DashboardNotifier, DashboardStats>(
   DashboardNotifier.new,
@@ -27,9 +28,7 @@ class DashboardNotifier extends AsyncNotifier<DashboardStats> {
       }
       throw Exception(body['message'] ?? 'Failed to load dashboard');
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data?['message'] ?? 'Network error loading dashboard',
-      );
+      throw Exception(dioErrorMessage(e));
     }
   }
 

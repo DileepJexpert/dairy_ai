@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
+import 'package:dairy_ai/shared/widgets/stat_card.dart';
 import '../providers/home_provider.dart';
 import '../models/dashboard_model.dart';
-import '../../../shared/widgets/stat_card.dart';
 
+/// The main farmer dashboard screen.
+///
+/// Shows a greeting, quick stats, quick-action buttons, and a recent-activity
+/// feed. All data is loaded via [dashboardStatsProvider] and supports
+/// pull-to-refresh.
 class FarmerHomeScreen extends ConsumerWidget {
   const FarmerHomeScreen({super.key});
 
@@ -40,7 +46,7 @@ class FarmerHomeScreen extends ConsumerWidget {
                 ),
               ),
               _buildActivityList(context, stats.recentActivities),
-              // Bottom padding so FAB doesn't overlap
+              // Bottom padding so FAB / nav-bar doesn't overlap content
               const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
             ],
           ),
@@ -55,6 +61,8 @@ class FarmerHomeScreen extends ConsumerWidget {
 
   SliverAppBar _buildAppBar(BuildContext context, DashboardStats stats) {
     final greeting = _greeting();
+    final theme = Theme.of(context);
+
     return SliverAppBar(
       expandedHeight: 120,
       pinned: true,
@@ -66,37 +74,34 @@ class FarmerHomeScreen extends ConsumerWidget {
           children: [
             Text(
               '$greeting,',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onPrimary
-                        .withOpacity(0.8),
-                  ),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onPrimary.withOpacity(0.8),
+              ),
             ),
             Text(
               stats.farmerName,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onPrimary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
       ),
-      backgroundColor: Theme.of(context).colorScheme.primary,
+      backgroundColor: theme.colorScheme.primary,
       actions: [
         IconButton(
           onPressed: () => context.push('/notifications'),
           icon: Icon(
             Icons.notifications_outlined,
-            color: Theme.of(context).colorScheme.onPrimary,
+            color: theme.colorScheme.onPrimary,
           ),
         ),
         IconButton(
           onPressed: () => context.push('/profile'),
           icon: Icon(
             Icons.person_outline,
-            color: Theme.of(context).colorScheme.onPrimary,
+            color: theme.colorScheme.onPrimary,
           ),
         ),
       ],
@@ -157,6 +162,7 @@ class FarmerHomeScreen extends ConsumerWidget {
 
   Widget _buildQuickActions(BuildContext context) {
     final theme = Theme.of(context);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
       child: Column(

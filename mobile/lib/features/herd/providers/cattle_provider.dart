@@ -1,7 +1,8 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/api_client.dart';
+import 'package:dairy_ai/core/api_client.dart';
+import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../models/cattle_model.dart';
 
 // ---------------------------------------------------------------------------
@@ -34,9 +35,7 @@ class CattleListNotifier extends FamilyAsyncNotifier<List<Cattle>, String> {
       }
       throw Exception(body['message'] ?? 'Failed to load cattle');
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data?['message'] ?? 'Network error loading cattle list',
-      );
+      throw Exception(dioErrorMessage(e));
     }
   }
 
@@ -59,9 +58,7 @@ class CattleListNotifier extends FamilyAsyncNotifier<List<Cattle>, String> {
       }
       throw Exception(body['message'] ?? 'Failed to add cattle');
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data?['message'] ?? 'Network error adding cattle',
-      );
+      throw Exception(dioErrorMessage(e));
     }
   }
 
@@ -84,9 +81,7 @@ class CattleListNotifier extends FamilyAsyncNotifier<List<Cattle>, String> {
       }
       throw Exception(body['message'] ?? 'Failed to update cattle');
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data?['message'] ?? 'Network error updating cattle',
-      );
+      throw Exception(dioErrorMessage(e));
     }
   }
 }
@@ -106,9 +101,7 @@ final cattleDetailProvider =
     }
     throw Exception(body['message'] ?? 'Failed to load cattle details');
   } on DioException catch (e) {
-    throw Exception(
-      e.response?.data?['message'] ?? 'Network error loading cattle details',
-    );
+    throw Exception(dioErrorMessage(e));
   }
 });
 

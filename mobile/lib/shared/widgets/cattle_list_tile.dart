@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../features/herd/models/cattle_model.dart';
+import 'package:dairy_ai/features/herd/models/cattle_model.dart';
 
 /// A reusable list tile for displaying a cattle entry.
 ///

@@ -143,9 +143,8 @@ class _AddCattleScreenState extends ConsumerState<AddCattleScreen> {
   Future<void> _pickDob() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDob ?? DateTime.now().subtract(
-        const Duration(days: 365),
-      ),
+      initialDate: _selectedDob ??
+          DateTime.now().subtract(const Duration(days: 365)),
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
       helpText: 'Select date of birth',
@@ -299,7 +298,6 @@ class _AddCattleScreenState extends ConsumerState<AddCattleScreen> {
                     labelText: 'Date of Birth',
                     prefixIcon: const Icon(Icons.calendar_today),
                     border: const OutlineInputBorder(),
-                    errorText: null,
                     suffixIcon: _selectedDob != null
                         ? IconButton(
                             icon: const Icon(Icons.clear),

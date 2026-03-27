@@ -31,8 +31,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/login',
     debugLogDiagnostics: true,
     redirect: (context, state) {
-      final isAuthenticated = authState is _Authenticated ||
-          authState.maybeWhen(
+      final isAuthenticated = authState.maybeWhen(
             authenticated: (_) => true,
             orElse: () => false,
           );

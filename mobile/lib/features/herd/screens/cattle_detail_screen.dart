@@ -56,14 +56,14 @@ class _CattleDetailBody extends StatelessWidget {
                 ),
                 PopupMenuButton<String>(
                   onSelected: (value) {
-                    // Handle menu actions
+                    // Handle menu actions (share, remove)
                   },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
                       value: 'share',
                       child: Text('Share'),
                     ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'delete',
                       child: Text('Remove'),
                     ),
@@ -132,15 +132,15 @@ class _CattleDetailBody extends StatelessWidget {
           body: TabBarView(
             children: [
               _OverviewTab(cattle: cattle, dateFormat: dateFormat),
-              _PlaceholderTab(
+              const _PlaceholderTab(
                 icon: Icons.medical_services,
                 label: 'Health records will appear here.',
               ),
-              _PlaceholderTab(
+              const _PlaceholderTab(
                 icon: Icons.water_drop,
                 label: 'Milk records will appear here.',
               ),
-              _PlaceholderTab(
+              const _PlaceholderTab(
                 icon: Icons.favorite,
                 label: 'Breeding records will appear here.',
               ),
@@ -153,7 +153,7 @@ class _CattleDetailBody extends StatelessWidget {
 }
 
 // =============================================================================
-// Hero section — photo + key info
+// Hero section -- photo + key info
 // =============================================================================
 
 class _HeroSection extends StatelessWidget {
@@ -180,7 +180,6 @@ class _HeroSection extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            // Photo
             CircleAvatar(
               radius: 50,
               backgroundColor: theme.colorScheme.surfaceContainerHighest,
@@ -188,12 +187,12 @@ class _HeroSection extends StatelessWidget {
                   ? NetworkImage(cattle.photoUrl!)
                   : null,
               child: cattle.photoUrl == null
-                  ? Icon(Icons.pets, size: 40,
+                  ? Icon(Icons.pets,
+                      size: 40,
                       color: theme.colorScheme.onSurfaceVariant)
                   : null,
             ),
             const SizedBox(height: 12),
-            // Name
             Text(
               cattle.name,
               style: theme.textTheme.headlineSmall?.copyWith(
@@ -201,7 +200,6 @@ class _HeroSection extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            // Tag + breed
             Text(
               '${cattle.tagId}  ·  ${cattle.breed}',
               style: theme.textTheme.bodyMedium?.copyWith(
@@ -217,7 +215,7 @@ class _HeroSection extends StatelessWidget {
 }
 
 // =============================================================================
-// Overview tab — basic details
+// Overview tab -- basic details
 // =============================================================================
 
 class _OverviewTab extends StatelessWidget {

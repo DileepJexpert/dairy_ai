@@ -9,6 +9,9 @@ from app.api.farmers import router as farmer_router
 from app.api.cattle import router as cattle_router
 from app.api.health import router as health_router
 from app.api.milk import router as milk_router
+from app.api.feed import router as feed_router
+from app.api.breeding import router as breeding_router
+from app.api.finance import router as finance_router
 from app.database import init_db
 
 
@@ -39,6 +42,9 @@ app.include_router(farmer_router, prefix="/api/v1")
 app.include_router(cattle_router, prefix="/api/v1")
 app.include_router(health_router, prefix="/api/v1")
 app.include_router(milk_router, prefix="/api/v1")
+app.include_router(feed_router, prefix="/api/v1")
+app.include_router(breeding_router, prefix="/api/v1")
+app.include_router(finance_router, prefix="/api/v1")
 
 
 @app.get("/health")

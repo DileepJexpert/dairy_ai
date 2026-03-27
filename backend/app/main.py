@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.auth import router as auth_router
 from app.api.farmers import router as farmer_router
 from app.api.cattle import router as cattle_router
+from app.api.health import router as health_router
+from app.api.milk import router as milk_router
 from app.database import init_db
 
 
@@ -35,6 +37,8 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(farmer_router, prefix="/api/v1")
 app.include_router(cattle_router, prefix="/api/v1")
+app.include_router(health_router, prefix="/api/v1")
+app.include_router(milk_router, prefix="/api/v1")
 
 
 @app.get("/health")

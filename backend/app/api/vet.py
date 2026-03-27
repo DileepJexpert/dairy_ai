@@ -1,0 +1,340 @@
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
+from app.dependencies import get_current_user, require_role
+from app.models.user import User, UserRole
+from app.models.vet import ConsultationStatus
+from app.repositories import vet_repo, farmer_repo
+from app.services import vet_service, consultation_service
+from app.schemas.vet import (
+    VetRegister,
+    VetUpdate,
+    VetSearchFilters,
+    ConsultationCreate,
+    ConsultationUpdate,
+    PrescriptionCreate,
+    RatingCreate,
+    AvailabilityUpdate,
+)
+
+router = APIRouter(tags=["vet"])
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _vet_to_dict(vet) -> dict:
+    return {
+        "id": str(vet.id),
+        "user_id": str(vet.user_id),
+        "license_number": vet.license_number,
+        "qualification": vet.qualification.value if hasattr(vet.qualification, "value") else vet.qualification,
+        "specializations": vet.specializations or [],
+        "experience_years": vet.experience_years,
+        "languages": vet.languages or [],
+        "consultation_fee": vet.consultation_fee,
+        "rating_avg": vet.rating_avg,
+        "total_consultations": vet.total_consultations,
+        "total_earnings": vet.total_earnings,
+        "is_verified": vet.is_verified,
+        "is_available": vet.is_available,
+        "bio": vet.bio,
+    }
+
+
+def _consultation_to_dict(c) -> dict:
+    return {
+        "id": str(c.id),
+        "farmer_id": str(c.farmer_id),
+        "cattle_id": str(c.cattle_id),
+        "vet_id": str(c.vet_id) if c.vet_id else None,
+        "consultation_type": c.consultation_type.value if hasattr(c.consultation_type, "value") else c.consultation_type,
+        "status": c.status.value if hasattr(c.status, "value") else c.status,
+        "symptoms": c.symptoms,
+        "vet_diagnosis": c.vet_diagnosis,
+        "vet_notes": c.vet_notes,
+        "agora_channel_name": c.agora_channel_name,
+        "agora_token": c.agora_token,
+        "started_at": str(c.started_at) if c.started_at else None,
+        "ended_at": str(c.ended_at) if c.ended_at else None,
+        "duration_seconds": c.duration_seconds,
+        "fee_amount": c.fee_amount,
+        "platform_fee": c.platform_fee,
+        "vet_payout": c.vet_payout,
+        "farmer_rating": c.farmer_rating,
+        "farmer_review": c.farmer_review,
+        "follow_up_date": str(c.follow_up_date) if c.follow_up_date else None,
+    }
+
+
+def _prescription_to_dict(p) -> dict:
+    return {
+        "id": str(p.id),
+        "consultation_id": str(p.consultation_id),
+        "cattle_id": str(p.cattle_id),
+        "vet_id": str(p.vet_id),
+        "medicines": p.medicines or [],
+        "instructions": p.instructions,
+        "follow_up_date": str(p.follow_up_date) if p.follow_up_date else None,
+        "is_fulfilled": p.is_fulfilled,
+    }
+
+
+async def _get_farmer_id(db: AsyncSession, user: User) -> uuid.UUID:
+    farmer = await farmer_repo.get_by_user_id(db, user.id)
+    if not farmer:
+        raise HTTPException(status_code=404, detail="Farmer profile not found")
+    return farmer.id
+
+
+async def _get_vet_profile(db: AsyncSession, user: User):
+    vet = await vet_repo.get_vet_by_user_id(db, user.id)
+    if not vet:
+        raise HTTPException(status_code=404, detail="Vet profile not found")
+    return vet
+
+
+# ---------------------------------------------------------------------------
+# Vet Profile Endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("/vets/register", status_code=201)
+async def register_vet(
+    data: VetRegister,
+    current_user: User = Depends(require_role(UserRole.vet)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    existing = await vet_repo.get_vet_by_user_id(db, current_user.id)
+    if existing:
+        raise HTTPException(status_code=400, detail="Vet profile already exists")
+    vet = await vet_service.register_vet(db, current_user.id, data)
+    return {
+        "success": True,
+        "data": _vet_to_dict(vet),
+        "message": "Vet profile registered. Awaiting verification.",
+    }
+
+
+@router.get("/vets/search")
+async def search_vets(
+    specialization: str | None = Query(None),
+    language: str | None = Query(None),
+    available: bool | None = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    filters = VetSearchFilters(
+        specialization=specialization,
+        language=language,
+        available=available,
+    )
+    vets = await vet_service.search_vets(db, filters)
+    return {
+        "success": True,
+        "data": [_vet_to_dict(v) for v in vets],
+        "message": "Vet search results",
+    }
+
+
+@router.put("/vets/me")
+async def update_vet_profile(
+    data: VetUpdate,
+    current_user: User = Depends(require_role(UserRole.vet)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    vet = await _get_vet_profile(db, current_user)
+    updated = await vet_service.update_profile(db, vet, data)
+    return {
+        "success": True,
+        "data": _vet_to_dict(updated),
+        "message": "Vet profile updated",
+    }
+
+
+@router.get("/vets/me/dashboard")
+async def vet_dashboard(
+    current_user: User = Depends(require_role(UserRole.vet)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    vet = await _get_vet_profile(db, current_user)
+    dashboard = await vet_service.get_vet_dashboard(db, vet.id)
+    return {"success": True, "data": dashboard, "message": "Vet dashboard"}
+
+
+@router.put("/vets/me/availability")
+async def update_availability(
+    data: AvailabilityUpdate,
+    current_user: User = Depends(require_role(UserRole.vet)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    vet = await _get_vet_profile(db, current_user)
+    updated = await vet_service.toggle_availability(db, vet.id, data.is_available)
+    return {
+        "success": True,
+        "data": {"is_available": updated.is_available if updated else False},
+        "message": "Availability updated",
+    }
+
+
+@router.post("/vets/{vet_id}/verify")
+async def verify_vet(
+    vet_id: str,
+    current_user: User = Depends(require_role(UserRole.admin)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    vet = await vet_service.verify_vet(db, uuid.UUID(vet_id))
+    if not vet:
+        raise HTTPException(status_code=404, detail="Vet not found")
+    return {
+        "success": True,
+        "data": _vet_to_dict(vet),
+        "message": "Vet verified",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Consultation Endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("/consultations", status_code=201)
+async def create_consultation(
+    data: ConsultationCreate,
+    current_user: User = Depends(require_role(UserRole.farmer)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    farmer_id = await _get_farmer_id(db, current_user)
+    consultation = await consultation_service.request_consultation(db, farmer_id, data)
+    return {
+        "success": True,
+        "data": _consultation_to_dict(consultation),
+        "message": "Consultation requested",
+    }
+
+
+@router.put("/consultations/{consultation_id}/accept")
+async def accept_consultation(
+    consultation_id: str,
+    current_user: User = Depends(require_role(UserRole.vet)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    vet = await _get_vet_profile(db, current_user)
+    consultation = await consultation_service.accept_consultation(
+        db, vet.id, uuid.UUID(consultation_id)
+    )
+    if not consultation:
+        raise HTTPException(status_code=404, detail="Consultation not found")
+    return {
+        "success": True,
+        "data": _consultation_to_dict(consultation),
+        "message": "Consultation accepted",
+    }
+
+
+@router.put("/consultations/{consultation_id}/start")
+async def start_consultation(
+    consultation_id: str,
+    current_user: User = Depends(require_role(UserRole.vet)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    consultation = await consultation_service.start_consultation(
+        db, uuid.UUID(consultation_id)
+    )
+    if not consultation:
+        raise HTTPException(status_code=404, detail="Consultation not found")
+    return {
+        "success": True,
+        "data": _consultation_to_dict(consultation),
+        "message": "Consultation started",
+    }
+
+
+@router.put("/consultations/{consultation_id}/end")
+async def end_consultation(
+    consultation_id: str,
+    data: ConsultationUpdate,
+    current_user: User = Depends(require_role(UserRole.vet)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    consultation = await consultation_service.end_consultation(
+        db,
+        uuid.UUID(consultation_id),
+        diagnosis=data.vet_diagnosis,
+        notes=data.vet_notes,
+    )
+    if not consultation:
+        raise HTTPException(status_code=404, detail="Consultation not found")
+    return {
+        "success": True,
+        "data": _consultation_to_dict(consultation),
+        "message": "Consultation completed",
+    }
+
+
+@router.post("/consultations/{consultation_id}/prescription", status_code=201)
+async def create_prescription(
+    consultation_id: str,
+    data: PrescriptionCreate,
+    current_user: User = Depends(require_role(UserRole.vet)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    prescription = await consultation_service.create_prescription(
+        db, uuid.UUID(consultation_id), data
+    )
+    if not prescription:
+        raise HTTPException(status_code=404, detail="Consultation not found or no vet assigned")
+    return {
+        "success": True,
+        "data": _prescription_to_dict(prescription),
+        "message": "Prescription created",
+    }
+
+
+@router.put("/consultations/{consultation_id}/rate")
+async def rate_consultation(
+    consultation_id: str,
+    data: RatingCreate,
+    current_user: User = Depends(require_role(UserRole.farmer)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    consultation = await consultation_service.rate_consultation(
+        db, uuid.UUID(consultation_id), data
+    )
+    if not consultation:
+        raise HTTPException(status_code=404, detail="Consultation not found")
+    return {
+        "success": True,
+        "data": _consultation_to_dict(consultation),
+        "message": "Consultation rated",
+    }
+
+
+@router.get("/consultations/me")
+async def farmer_consultations(
+    current_user: User = Depends(require_role(UserRole.farmer)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    farmer_id = await _get_farmer_id(db, current_user)
+    consultations = await consultation_service.get_farmer_consultations(db, farmer_id)
+    return {
+        "success": True,
+        "data": [_consultation_to_dict(c) for c in consultations],
+        "message": "Farmer consultations",
+    }
+
+
+@router.get("/consultations/queue")
+async def vet_queue(
+    current_user: User = Depends(require_role(UserRole.vet)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    vet = await _get_vet_profile(db, current_user)
+    consultations = await consultation_service.get_vet_queue(db, vet.id)
+    return {
+        "success": True,
+        "data": [_consultation_to_dict(c) for c in consultations],
+        "message": "Vet consultation queue",
+    }

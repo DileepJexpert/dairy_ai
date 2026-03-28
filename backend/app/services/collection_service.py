@@ -916,6 +916,18 @@ async def record_cold_chain_reading(db: AsyncSession, data: dict) -> ColdChainRe
             "alert_id=%s, reading_id=%s, severity=%s, temperature=%.2f°C, source=%s",
             alert.id, reading.id, severity.value, temperature, source_label,
         )
+
+        # Notify cooperative/admin about cold chain breach
+        if center_id:
+            try:
+                from app.services.alert_engine import notify_cold_chain_alert
+                await notify_cold_chain_alert(
+                    db, center_id, temperature, severity.value
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to send cold chain notification: %s", e
+                )
     else:
         logger.debug(
             "record_cold_chain_reading | temperature within safe range — no alert created | "

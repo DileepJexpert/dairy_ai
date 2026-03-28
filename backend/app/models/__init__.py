@@ -21,3 +21,19 @@ from app.models.payment import (
     PaymentCycleType, PaymentStatus, PaymentMethod,
     LoanStatus, LoanType, SubsidyStatus, SubsidyScheme, InsuranceStatus,
 )
+from app.models.marketplace import (
+    CattleListing, ListingInquiry, ListingFavorite,
+    ListingStatus, ListingCategory, InquiryStatus,
+)
+from app.models.outbreak import (
+    DiseaseReport, OutbreakZone,
+    ReportSeverity, ReportSource, ReportStatus, OutbreakSeverityLevel,
+)
+from app.models.withdrawal import WithdrawalRecord, AdministrationRoute
+from app.models.carbon import CarbonRecord, CarbonReductionAction, CarbonActionType
+from app.models.schemes import (
+    GovernmentScheme, SchemeApplication, SchemeBookmark,
+    SchemeCategory, SchemeLevel, ApplicationStatus,
+)
+from app.models.mandi import MandiPrice, CattleMarketPrice, MandiCategory
+from app.models.pashu_aadhaar import PashuAadhaar, IdentificationMethod, RegistrationStatus

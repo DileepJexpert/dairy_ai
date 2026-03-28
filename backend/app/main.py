@@ -24,6 +24,14 @@ from app.api.vendor import router as vendor_router
 from app.api.cooperative import router as cooperative_router
 from app.api.collection import router as collection_router
 from app.api.payments import router as payments_router
+from app.api.marketplace import router as marketplace_router
+from app.api.outbreak import router as outbreak_router
+from app.api.withdrawal import router as withdrawal_router
+from app.api.carbon import router as carbon_router
+from app.api.vision import router as vision_router
+from app.api.schemes import router as schemes_router
+from app.api.mandi import router as mandi_router
+from app.api.pashu_aadhaar import router as pashu_aadhaar_router
 from app.database import init_db
 
 # Configure logging for the whole app
@@ -102,8 +110,16 @@ app.include_router(vendor_router, prefix="/api/v1")
 app.include_router(cooperative_router, prefix="/api/v1")
 app.include_router(collection_router, prefix="/api/v1")
 app.include_router(payments_router, prefix="/api/v1")
+app.include_router(marketplace_router, prefix="/api/v1")
+app.include_router(outbreak_router, prefix="/api/v1")
+app.include_router(withdrawal_router, prefix="/api/v1")
+app.include_router(carbon_router, prefix="/api/v1")
+app.include_router(vision_router, prefix="/api/v1")
+app.include_router(schemes_router, prefix="/api/v1")
+app.include_router(mandi_router, prefix="/api/v1")
+app.include_router(pashu_aadhaar_router, prefix="/api/v1")
 
-logger.info("Registered routers: auth, farmers, cattle, health, milk, feed, breeding, finance, vet, chat, whatsapp, notifications, admin, super-admin, vendor, cooperative, collection, payments")
+logger.info("Registered routers: auth, farmers, cattle, health, milk, feed, breeding, finance, vet, chat, whatsapp, notifications, admin, super-admin, vendor, cooperative, collection, payments, marketplace, outbreak, withdrawal, carbon, vision, schemes, mandi, pashu-aadhaar")
 
 
 @app.get("/health")

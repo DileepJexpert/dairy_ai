@@ -41,6 +41,19 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
 
+    # Pashudhan / INAPH
+    PASHUDHAN_API_URL: str = "https://inaph.gov.in/api/v1"
+    PASHUDHAN_API_KEY: str = ""
+
+    # Firebase FCM
+    FCM_SERVER_KEY: str = ""
+    FCM_PROJECT_ID: str = ""
+
+    # SMS Gateway (MSG91 / Twilio)
+    SMS_PROVIDER: str = "msg91"  # msg91 | twilio
+    SMS_API_KEY: str = ""
+    SMS_SENDER_ID: str = "DRYAI"
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

@@ -165,6 +165,18 @@ async def verify_otp_and_login(db: AsyncSession, phone: str, otp: str) -> dict |
     access_token = create_access_token(str(user.id), user.role.value)
     refresh_token = create_refresh_token(str(user.id))
 
+    # Build role-specific dashboard routing info
+    role_dashboard_map = {
+        UserRole.farmer: "/api/v1/farmers/me/dashboard",
+        UserRole.vet: "/api/v1/vets/me/dashboard",
+        UserRole.vendor: "/api/v1/vendor/dashboard",
+        UserRole.cooperative: "/api/v1/cooperative/dashboard",
+        UserRole.admin: "/api/v1/admin/dashboard",
+        UserRole.super_admin: "/api/v1/super-admin/dashboard",
+    }
+    dashboard_url = role_dashboard_map.get(user.role, "/api/v1/farmers/me/dashboard")
+    logger.debug(f"Role-based dashboard URL resolved | role={user.role.value} | dashboard_url={dashboard_url}")
+
     logger.info(f"Login successful | user_id={user.id}, role={user.role.value}, phone={masked_phone}")
 
     return {
@@ -172,6 +184,7 @@ async def verify_otp_and_login(db: AsyncSession, phone: str, otp: str) -> dict |
         "refresh_token": refresh_token,
         "token_type": "bearer",
         "role": user.role.value,
+        "dashboard_url": dashboard_url,
     }
 
 async def refresh_access_token(db: AsyncSession, refresh_token: str) -> dict | None:

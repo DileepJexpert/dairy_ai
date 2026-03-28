@@ -20,6 +20,8 @@ from app.api.whatsapp import router as whatsapp_router
 from app.api.notifications import router as notifications_router
 from app.api.admin import router as admin_router
 from app.api.super_admin import router as super_admin_router
+from app.api.vendor import router as vendor_router
+from app.api.cooperative import router as cooperative_router
 from app.database import init_db
 
 # Configure logging for the whole app
@@ -94,8 +96,10 @@ app.include_router(whatsapp_router, prefix="/api/v1")
 app.include_router(notifications_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
 app.include_router(super_admin_router, prefix="/api/v1")
+app.include_router(vendor_router, prefix="/api/v1")
+app.include_router(cooperative_router, prefix="/api/v1")
 
-logger.info("Registered routers: auth, farmers, cattle, health, milk, feed, breeding, finance, vet, chat, whatsapp, notifications, admin, super-admin")
+logger.info("Registered routers: auth, farmers, cattle, health, milk, feed, breeding, finance, vet, chat, whatsapp, notifications, admin, super-admin, vendor, cooperative")
 
 
 @app.get("/health")

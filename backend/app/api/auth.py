@@ -66,6 +66,19 @@ async def refresh_token(request: RefreshRequest, db: AsyncSession = Depends(get_
 async def get_me(current_user: User = Depends(get_current_user)) -> dict:
     logger.info(f"GET /auth/me called | user_id={current_user.id} | role={current_user.role.value}")
     logger.debug(f"Returning user info for user_id={current_user.id}")
+
+    from app.models.user import UserRole
+    role_dashboard_map = {
+        UserRole.farmer: "/api/v1/farmers/me/dashboard",
+        UserRole.vet: "/api/v1/vets/me/dashboard",
+        UserRole.vendor: "/api/v1/vendor/dashboard",
+        UserRole.cooperative: "/api/v1/cooperative/dashboard",
+        UserRole.admin: "/api/v1/admin/dashboard",
+        UserRole.super_admin: "/api/v1/super-admin/dashboard",
+    }
+    dashboard_url = role_dashboard_map.get(current_user.role, "/api/v1/farmers/me/dashboard")
+    logger.debug(f"Dashboard URL for user | role={current_user.role.value} | dashboard_url={dashboard_url}")
+
     return {
         "success": True,
         "data": {
@@ -73,6 +86,7 @@ async def get_me(current_user: User = Depends(get_current_user)) -> dict:
             "phone": current_user.phone,
             "role": current_user.role.value,
             "is_active": current_user.is_active,
+            "dashboard_url": dashboard_url,
         },
         "message": "User info",
     }

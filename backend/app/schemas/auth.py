@@ -36,6 +36,7 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     role: str
+    dashboard_url: str
 
 class RefreshRequest(BaseModel):
     refresh_token: str

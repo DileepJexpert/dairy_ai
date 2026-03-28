@@ -72,7 +72,7 @@ async def run_triage(
     )
     logger.info(f"Triage health record saved | cattle_id={cattle_id}, severity={result.severity}")
 
-    if result.severity_level >= 3:
+    if result.severity >= 3:
         logger.warning(f"HIGH SEVERITY triage result | cattle_id={cattle_id}, severity={result.severity}, level={result.severity_level} — vet consultation recommended")
 
     return {

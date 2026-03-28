@@ -11,6 +11,7 @@ class UserRole(str, enum.Enum):
     farmer = "farmer"
     vet = "vet"
     admin = "admin"
+    super_admin = "super_admin"
 
 class User(Base):
     __tablename__ = "users"

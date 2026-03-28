@@ -93,3 +93,22 @@ async def admin_user(db_session: AsyncSession) -> User:
 async def admin_headers(admin_user: User) -> dict[str, str]:
     token = create_access_token(str(admin_user.id), admin_user.role.value)
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def super_admin_user(db_session: AsyncSession) -> User:
+    user = User(
+        id=uuid.uuid4(),
+        phone="9999900099",
+        role=UserRole.super_admin,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+    return user
+
+
+@pytest_asyncio.fixture
+async def super_admin_headers(super_admin_user: User) -> dict[str, str]:
+    token = create_access_token(str(super_admin_user.id), super_admin_user.role.value)
+    return {"Authorization": f"Bearer {token}"}

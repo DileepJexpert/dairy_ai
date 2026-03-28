@@ -9,6 +9,14 @@ import 'package:dairy_ai/features/auth/screens/otp_screen.dart';
 import 'package:dairy_ai/features/home/screens/farmer_shell.dart';
 import 'package:dairy_ai/features/home/screens/vet_shell.dart';
 import 'package:dairy_ai/features/home/screens/admin_shell.dart';
+import 'package:dairy_ai/features/vendor/screens/vendor_shell.dart';
+import 'package:dairy_ai/features/vendor/screens/vendor_dashboard_screen.dart';
+import 'package:dairy_ai/features/vendor/screens/vendor_registration_screen.dart';
+import 'package:dairy_ai/features/vendor/screens/vendor_profile_screen.dart';
+import 'package:dairy_ai/features/cooperative/screens/cooperative_shell.dart';
+import 'package:dairy_ai/features/cooperative/screens/cooperative_dashboard_screen.dart';
+import 'package:dairy_ai/features/cooperative/screens/cooperative_registration_screen.dart';
+import 'package:dairy_ai/features/cooperative/screens/cooperative_profile_screen.dart';
 
 // ---------------------------------------------------------------------------
 // Navigation keys
@@ -18,6 +26,8 @@ final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _farmerShellKey = GlobalKey<NavigatorState>();
 final _vetShellKey = GlobalKey<NavigatorState>();
 final _adminShellKey = GlobalKey<NavigatorState>();
+final _vendorShellKey = GlobalKey<NavigatorState>();
+final _cooperativeShellKey = GlobalKey<NavigatorState>();
 
 // ---------------------------------------------------------------------------
 // Router provider
@@ -222,6 +232,99 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
+
+      // ---- Vendor shell ----
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            VendorShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            navigatorKey: _vendorShellKey,
+            routes: [
+              GoRoute(
+                path: '/vendor-dashboard',
+                builder: (context, state) =>
+                    const VendorDashboardScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/vendor-orders',
+                builder: (context, state) =>
+                    const _PlaceholderScreen(title: 'Orders'),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/vendor-profile',
+                builder: (context, state) =>
+                    const VendorProfileScreen(),
+              ),
+            ],
+          ),
+        ],
+      ),
+
+      // Vendor registration (no shell)
+      GoRoute(
+        path: '/vendor-register',
+        builder: (context, state) => const VendorRegistrationScreen(),
+      ),
+
+      // ---- Cooperative shell ----
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            CooperativeShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            navigatorKey: _cooperativeShellKey,
+            routes: [
+              GoRoute(
+                path: '/coop-dashboard',
+                builder: (context, state) =>
+                    const CooperativeDashboardScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/coop-collection',
+                builder: (context, state) =>
+                    const _PlaceholderScreen(title: 'Collection'),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/coop-payments',
+                builder: (context, state) =>
+                    const _PlaceholderScreen(title: 'Payments'),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/coop-profile',
+                builder: (context, state) =>
+                    const CooperativeProfileScreen(),
+              ),
+            ],
+          ),
+        ],
+      ),
+
+      // Cooperative registration (no shell)
+      GoRoute(
+        path: '/coop-register',
+        builder: (context, state) => const CooperativeRegistrationScreen(),
+      ),
     ],
   );
 });
@@ -239,6 +342,10 @@ String _homeForRole(AuthState state) {
           return '/vet-dashboard';
         case AppConstants.roleAdmin:
           return '/admin-dashboard';
+        case AppConstants.roleVendor:
+          return '/vendor-dashboard';
+        case AppConstants.roleCooperative:
+          return '/coop-dashboard';
         case AppConstants.roleFarmer:
         default:
           return '/home';

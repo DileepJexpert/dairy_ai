@@ -1,4 +1,7 @@
+import logging
 from dataclasses import dataclass
+
+logger = logging.getLogger("dairy_ai.ml.triage")
 
 
 @dataclass
@@ -21,6 +24,12 @@ class TriageResult:
 
 def triage_score(input: TriageInput) -> TriageResult:
     """Rule-based triage scoring for MVP."""
+    logger.info("Triage scoring started: symptoms='%s', has_sensor=%s, history_count=%d, photos=%d",
+                input.symptoms[:80] if len(input.symptoms) > 80 else input.symptoms,
+                input.sensor_data is not None,
+                len(input.health_history) if input.health_history else 0,
+                len(input.photo_urls) if input.photo_urls else 0)
+
     score = 0
     reasons = []
     diagnosis = "General observation needed"
@@ -30,21 +39,28 @@ def triage_score(input: TriageInput) -> TriageResult:
         temp = input.sensor_data.get("temperature")
         hr = input.sensor_data.get("heart_rate")
         activity = input.sensor_data.get("activity_level")
+        logger.debug("Sensor data: temperature=%s, heart_rate=%s, activity_level=%s", temp, hr, activity)
 
         if temp and temp > 40.0:
             score += 3
             reasons.append(f"High temperature ({temp}°C)")
+            logger.debug("High temperature detected: %s°C, score +3 (total=%d)", temp, score)
         elif temp and temp > 39.5:
             score += 2
             reasons.append(f"Elevated temperature ({temp}°C)")
+            logger.debug("Elevated temperature detected: %s°C, score +2 (total=%d)", temp, score)
 
         if hr and hr > 80:
             score += 2
             reasons.append(f"High heart rate ({hr} bpm)")
+            logger.debug("High heart rate detected: %s bpm, score +2 (total=%d)", hr, score)
 
         if activity is not None and activity < 20:
             score += 2
             reasons.append(f"Very low activity ({activity})")
+            logger.debug("Very low activity detected: %s, score +2 (total=%d)", activity, score)
+    else:
+        logger.debug("No sensor data provided")
 
     # Check symptom keywords
     symptoms_lower = input.symptoms.lower()
@@ -62,10 +78,18 @@ def triage_score(input: TriageInput) -> TriageResult:
         "mastitis": 3, "udder": 2,
     }
 
+    matched_keywords = []
     for keyword, points in keyword_scores.items():
         if keyword in symptoms_lower:
             score += points
             reasons.append(f"Symptom: {keyword}")
+            matched_keywords.append((keyword, points))
+
+    if matched_keywords:
+        logger.debug("Matched symptom keywords: %s (score now=%d)",
+                     [(k, p) for k, p in matched_keywords], score)
+    else:
+        logger.debug("No symptom keywords matched from input")
 
     # Check health history
     if input.health_history:
@@ -73,9 +97,15 @@ def triage_score(input: TriageInput) -> TriageResult:
         if recent_issues > 0:
             score += 1
             reasons.append(f"Has {recent_issues} recent health record(s)")
+            logger.debug("Health history: %d recent issues, score +1 (total=%d)", recent_issues, score)
+    else:
+        logger.debug("No health history provided")
 
     # Clamp score
+    raw_score = score
     score = min(score, 10)
+    if raw_score != score:
+        logger.debug("Score clamped from %d to %d", raw_score, score)
 
     # Map to severity level
     if score <= 3:
@@ -90,6 +120,8 @@ def triage_score(input: TriageInput) -> TriageResult:
     else:
         level = "emergency"
         action = "emergency"
+
+    logger.debug("Severity mapping: score=%d -> level=%s, action=%s", score, level, action)
 
     # Diagnosis mapping
     if "bloat" in symptoms_lower:
@@ -110,9 +142,12 @@ def triage_score(input: TriageInput) -> TriageResult:
     elif "not eating" in symptoms_lower or "off feed" in symptoms_lower:
         diagnosis = "Possible digestive issue or general illness"
 
-    confidence = min(0.3 + len(reasons) * 0.1, 0.85)
+    logger.debug("Preliminary diagnosis: '%s'", diagnosis)
 
-    return TriageResult(
+    confidence = min(0.3 + len(reasons) * 0.1, 0.85)
+    logger.debug("Confidence calculated: %.2f (based on %d reasons)", confidence, len(reasons))
+
+    result = TriageResult(
         severity=score,
         severity_level=level,
         preliminary_diagnosis=diagnosis,
@@ -120,3 +155,9 @@ def triage_score(input: TriageInput) -> TriageResult:
         recommended_action=action,
         reasoning="; ".join(reasons) if reasons else "No specific indicators found",
     )
+
+    logger.info("Triage result: severity=%d, level=%s, diagnosis='%s', confidence=%.2f, action=%s",
+                result.severity, result.severity_level, result.preliminary_diagnosis,
+                result.confidence, result.recommended_action)
+
+    return result

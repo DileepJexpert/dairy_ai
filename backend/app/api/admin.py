@@ -1,4 +1,6 @@
+import logging
 from datetime import date, timedelta
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +14,8 @@ from app.models.vet import VetProfile, Consultation
 from app.models.milk import MilkRecord
 from app.repositories import farmer_repo
 
+logger = logging.getLogger("dairy_ai.api.admin")
+
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
@@ -20,21 +24,35 @@ async def admin_dashboard(
     current_user: User = Depends(require_role(UserRole.admin)),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    logger.info(f"GET /admin/dashboard called | admin_user_id={current_user.id}")
+    logger.debug("Fetching total farmers count")
     total_farmers = (await db.execute(select(func.count(Farmer.id)))).scalar() or 0
+    logger.debug(f"Total farmers: {total_farmers}")
+
+    logger.debug("Fetching total cattle count")
     total_cattle = (await db.execute(select(func.count(Cattle.id)))).scalar() or 0
+    logger.debug(f"Total cattle: {total_cattle}")
+
+    logger.debug("Fetching total vets count")
     total_vets = (await db.execute(select(func.count(VetProfile.id)))).scalar() or 0
+    logger.debug(f"Total vets: {total_vets}")
 
     today = date.today()
+    logger.debug("Fetching active consultations count")
     active_consults = (await db.execute(
         select(func.count(Consultation.id))
         .where(Consultation.status.in_(["requested", "assigned", "in_progress"]))
     )).scalar() or 0
+    logger.debug(f"Active consultations: {active_consults}")
 
+    logger.debug("Fetching today's milk production total")
     milk_today = (await db.execute(
         select(func.sum(MilkRecord.quantity_litres))
         .where(MilkRecord.date == today)
     )).scalar() or 0
+    logger.debug(f"Milk today (litres): {milk_today}")
 
+    logger.info(f"Admin dashboard retrieved | farmers={total_farmers} | cattle={total_cattle} | vets={total_vets} | active_consults={active_consults} | milk_today={round(float(milk_today), 2)}L")
     return {
         "success": True,
         "data": {
@@ -56,7 +74,10 @@ async def list_farmers(
     current_user: User = Depends(require_role(UserRole.admin)),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    logger.info(f"GET /admin/farmers called | admin_user_id={current_user.id} | search={search} | limit={limit} | offset={offset}")
+    logger.debug(f"Calling farmer_repo.list_all | search={search} | limit={limit} | offset={offset}")
     farmers, total = await farmer_repo.list_all(db, limit=limit, offset=offset, search=search)
+    logger.info(f"Farmers list retrieved | total={total} | returned={len(farmers)}")
     return {
         "success": True,
         "data": [
@@ -82,10 +103,12 @@ async def list_vets(
     current_user: User = Depends(require_role(UserRole.admin)),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    logger.info(f"GET /admin/vets called | admin_user_id={current_user.id} | verified={verified} | limit={limit} | offset={offset}")
     query = select(VetProfile)
     if verified is not None:
         query = query.where(VetProfile.is_verified == verified)
     query = query.offset(offset).limit(limit)
+    logger.debug(f"Executing vet query | verified_filter={verified}")
     result = await db.execute(query)
     vets = list(result.scalars().all())
 
@@ -93,6 +116,7 @@ async def list_vets(
     if verified is not None:
         count_query = count_query.where(VetProfile.is_verified == verified)
     total = (await db.execute(count_query)).scalar() or 0
+    logger.info(f"Vets list retrieved | total={total} | returned={len(vets)}")
 
     return {
         "success": True,
@@ -120,12 +144,15 @@ async def list_consultations(
     current_user: User = Depends(require_role(UserRole.admin)),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    logger.info(f"GET /admin/consultations called | admin_user_id={current_user.id} | status={status} | limit={limit} | offset={offset}")
     query = select(Consultation)
     if status:
         query = query.where(Consultation.status == status)
     query = query.order_by(Consultation.created_at.desc()).offset(offset).limit(limit)
+    logger.debug(f"Executing consultations query | status_filter={status}")
     result = await db.execute(query)
     consults = list(result.scalars().all())
+    logger.info(f"Consultations list retrieved | returned={len(consults)}")
     return {
         "success": True,
         "data": [
@@ -148,7 +175,9 @@ async def registration_analytics(
     current_user: User = Depends(require_role(UserRole.admin)),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    logger.info(f"GET /admin/analytics/registrations called | admin_user_id={current_user.id} | days={days}")
     cutoff = date.today() - timedelta(days=days)
+    logger.debug(f"Fetching registration analytics | cutoff_date={cutoff} | days={days}")
     result = await db.execute(
         select(func.date(User.created_at).label("day"), func.count(User.id).label("count"))
         .where(User.created_at >= str(cutoff))
@@ -156,4 +185,5 @@ async def registration_analytics(
         .order_by(func.date(User.created_at))
     )
     data = [{"date": str(row.day), "count": row.count} for row in result.all()]
+    logger.info(f"Registration analytics retrieved | days={days} | data_points={len(data)}")
     return {"success": True, "data": data, "message": "Registration analytics"}

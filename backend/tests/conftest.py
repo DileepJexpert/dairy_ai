@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.database import Base, get_db
 from app.main import app as fastapi_app
-from app.models import User, UserRole, Farmer, Cattle  # noqa: F401 — register models
+from app.models import User, UserRole, Farmer, Cattle, Vendor, VendorType, Cooperative, CooperativeType  # noqa: F401 — register models
 from app.services.auth_service import create_access_token, hash_otp
 
 TEST_DATABASE_URL = "sqlite+aiosqlite://"
@@ -92,4 +92,61 @@ async def admin_user(db_session: AsyncSession) -> User:
 @pytest_asyncio.fixture
 async def admin_headers(admin_user: User) -> dict[str, str]:
     token = create_access_token(str(admin_user.id), admin_user.role.value)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def super_admin_user(db_session: AsyncSession) -> User:
+    user = User(
+        id=uuid.uuid4(),
+        phone="9999900099",
+        role=UserRole.super_admin,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+    return user
+
+
+@pytest_asyncio.fixture
+async def super_admin_headers(super_admin_user: User) -> dict[str, str]:
+    token = create_access_token(str(super_admin_user.id), super_admin_user.role.value)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def vendor_user(db_session: AsyncSession) -> User:
+    user = User(
+        id=uuid.uuid4(),
+        phone="9999900077",
+        role=UserRole.vendor,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+    return user
+
+
+@pytest_asyncio.fixture
+async def vendor_headers(vendor_user: User) -> dict[str, str]:
+    token = create_access_token(str(vendor_user.id), vendor_user.role.value)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def cooperative_user(db_session: AsyncSession) -> User:
+    user = User(
+        id=uuid.uuid4(),
+        phone="9999900088",
+        role=UserRole.cooperative,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+    return user
+
+
+@pytest_asyncio.fixture
+async def cooperative_headers(cooperative_user: User) -> dict[str, str]:
+    token = create_access_token(str(cooperative_user.id), cooperative_user.role.value)
     return {"Authorization": f"Bearer {token}"}

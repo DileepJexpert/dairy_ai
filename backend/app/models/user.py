@@ -10,7 +10,10 @@ from app.database import Base
 class UserRole(str, enum.Enum):
     farmer = "farmer"
     vet = "vet"
+    vendor = "vendor"
+    cooperative = "cooperative"
     admin = "admin"
+    super_admin = "super_admin"
 
 class User(Base):
     __tablename__ = "users"

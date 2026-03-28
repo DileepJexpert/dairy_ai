@@ -58,6 +58,15 @@ class VetProfile {
   final int totalConsultations;
   final bool isAvailable;
 
+  // Location fields
+  final double? distanceKm;
+  final String? city;
+  final String? district;
+  final String? pincode;
+  final double? lat;
+  final double? lng;
+  final double? serviceRadiusKm;
+
   const VetProfile({
     required this.id,
     required this.userId,
@@ -71,7 +80,23 @@ class VetProfile {
     required this.rating,
     this.totalConsultations = 0,
     this.isAvailable = true,
+    this.distanceKm,
+    this.city,
+    this.district,
+    this.pincode,
+    this.lat,
+    this.lng,
+    this.serviceRadiusKm,
   });
+
+  /// Human-readable location string (e.g. "Jaipur, Rajasthan").
+  String? get locationLabel {
+    final parts = <String>[
+      if (city != null && city!.isNotEmpty) city!,
+      if (district != null && district!.isNotEmpty) district!,
+    ];
+    return parts.isNotEmpty ? parts.join(', ') : null;
+  }
 
   factory VetProfile.fromJson(Map<String, dynamic> json) {
     return VetProfile(
@@ -93,6 +118,13 @@ class VetProfile {
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       totalConsultations: json['total_consultations'] as int? ?? 0,
       isAvailable: json['is_available'] as bool? ?? true,
+      distanceKm: (json['distance_km'] as num?)?.toDouble(),
+      city: json['city'] as String?,
+      district: json['district'] as String?,
+      pincode: json['pincode'] as String?,
+      lat: (json['lat'] as num?)?.toDouble(),
+      lng: (json['lng'] as num?)?.toDouble(),
+      serviceRadiusKm: (json['service_radius_km'] as num?)?.toDouble(),
     );
   }
 }

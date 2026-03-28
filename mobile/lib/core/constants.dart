@@ -29,7 +29,10 @@ class AppConstants {
   // Roles
   static const String roleFarmer = 'farmer';
   static const String roleVet = 'vet';
+  static const String roleVendor = 'vendor';
+  static const String roleCooperative = 'cooperative';
   static const String roleAdmin = 'admin';
+  static const String roleSuperAdmin = 'super_admin';
 
   // Timeouts
   static const Duration connectTimeout = Duration(seconds: 15);

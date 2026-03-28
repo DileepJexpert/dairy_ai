@@ -23,18 +23,50 @@ class VetSearchFilters {
   final String? specialization;
   final String? language;
   final String? query;
+  final double? lat;
+  final double? lng;
+  final double maxDistanceKm;
+  final double? minFee;
+  final double? maxFee;
+  final String sortBy; // 'distance', 'fee_low', 'fee_high', 'rating'
 
-  const VetSearchFilters({this.specialization, this.language, this.query});
+  const VetSearchFilters({
+    this.specialization,
+    this.language,
+    this.query,
+    this.lat,
+    this.lng,
+    this.maxDistanceKm = 50.0,
+    this.minFee,
+    this.maxFee,
+    this.sortBy = 'distance',
+  });
+
+  bool get hasLocation => lat != null && lng != null;
 
   VetSearchFilters copyWith({
     String? specialization,
     String? language,
     String? query,
+    double? lat,
+    double? lng,
+    double? maxDistanceKm,
+    double? minFee,
+    double? maxFee,
+    String? sortBy,
+    bool clearLocation = false,
+    bool clearFeeRange = false,
   }) =>
       VetSearchFilters(
         specialization: specialization ?? this.specialization,
         language: language ?? this.language,
         query: query ?? this.query,
+        lat: clearLocation ? null : (lat ?? this.lat),
+        lng: clearLocation ? null : (lng ?? this.lng),
+        maxDistanceKm: maxDistanceKm ?? this.maxDistanceKm,
+        minFee: clearFeeRange ? null : (minFee ?? this.minFee),
+        maxFee: clearFeeRange ? null : (maxFee ?? this.maxFee),
+        sortBy: sortBy ?? this.sortBy,
       );
 
   Map<String, dynamic> toQueryParams() => {
@@ -42,6 +74,12 @@ class VetSearchFilters {
           'specialization': specialization,
         if (language != null && language!.isNotEmpty) 'language': language,
         if (query != null && query!.isNotEmpty) 'q': query,
+        if (lat != null) 'lat': lat,
+        if (lng != null) 'lng': lng,
+        if (lat != null && lng != null) 'max_distance_km': maxDistanceKm,
+        if (minFee != null) 'min_fee': minFee,
+        if (maxFee != null) 'max_fee': maxFee,
+        'sort_by': sortBy,
         'available': true,
       };
 }
@@ -58,6 +96,22 @@ class VetSearchFiltersNotifier extends StateNotifier<VetSearchFilters> {
   void setLanguage(String? value) => state = state.copyWith(language: value);
 
   void setQuery(String? value) => state = state.copyWith(query: value);
+
+  void setLocation(double lat, double lng) =>
+      state = state.copyWith(lat: lat, lng: lng);
+
+  void clearLocation() => state = state.copyWith(clearLocation: true);
+
+  void setMaxDistance(double km) => state = state.copyWith(maxDistanceKm: km);
+
+  void setFeeRange(double? min, double? max) =>
+      state = state.copyWith(
+        minFee: min,
+        maxFee: max,
+        clearFeeRange: min == null && max == null,
+      );
+
+  void setSortBy(String sort) => state = state.copyWith(sortBy: sort);
 
   void clear() => state = const VetSearchFilters();
 }
@@ -76,7 +130,7 @@ final vetSearchProvider =
   final dio = ref.watch(_dioProvider);
   final filters = ref.watch(vetSearchFiltersProvider);
   final response = await dio.get(
-    '/vet-profiles',
+    '/vets/search',
     queryParameters: filters.toQueryParams(),
   );
   final body = response.data as Map<String, dynamic>;

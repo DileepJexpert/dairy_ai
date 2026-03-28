@@ -9,6 +9,11 @@ import 'package:dairy_ai/features/auth/screens/otp_screen.dart';
 import 'package:dairy_ai/features/home/screens/farmer_shell.dart';
 import 'package:dairy_ai/features/home/screens/vet_shell.dart';
 import 'package:dairy_ai/features/home/screens/admin_shell.dart';
+import 'package:dairy_ai/features/collection/screens/collection_centers_screen.dart';
+import 'package:dairy_ai/features/collection/screens/create_center_screen.dart';
+import 'package:dairy_ai/features/collection/screens/center_dashboard_screen.dart';
+import 'package:dairy_ai/features/collection/screens/record_milk_screen.dart';
+import 'package:dairy_ai/features/collection/screens/cold_chain_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/vendor_shell.dart';
 import 'package:dairy_ai/features/vendor/screens/vendor_dashboard_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/vendor_registration_screen.dart';
@@ -324,6 +329,39 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/coop-register',
         builder: (context, state) => const CooperativeRegistrationScreen(),
+      ),
+
+      // ---- Collection Center routes ----
+      GoRoute(
+        path: '/collection/centers',
+        builder: (context, state) => const CollectionCentersScreen(),
+      ),
+      GoRoute(
+        path: '/collection/centers/create',
+        builder: (context, state) => const CreateCenterScreen(),
+      ),
+      GoRoute(
+        path: '/collection/centers/:centerId',
+        builder: (context, state) {
+          final centerId = state.pathParameters['centerId']!;
+          return CenterDashboardScreen(centerId: centerId);
+        },
+        routes: [
+          GoRoute(
+            path: 'record-milk',
+            builder: (context, state) {
+              final centerId = state.pathParameters['centerId']!;
+              return RecordMilkScreen(centerId: centerId);
+            },
+          ),
+          GoRoute(
+            path: 'cold-chain',
+            builder: (context, state) {
+              final centerId = state.pathParameters['centerId']!;
+              return ColdChainScreen(centerId: centerId);
+            },
+          ),
+        ],
       ),
     ],
   );

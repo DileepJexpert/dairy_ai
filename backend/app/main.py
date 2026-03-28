@@ -22,6 +22,8 @@ from app.api.admin import router as admin_router
 from app.api.super_admin import router as super_admin_router
 from app.api.vendor import router as vendor_router
 from app.api.cooperative import router as cooperative_router
+from app.api.collection import router as collection_router
+from app.api.payments import router as payments_router
 from app.database import init_db
 
 # Configure logging for the whole app
@@ -98,8 +100,10 @@ app.include_router(admin_router, prefix="/api/v1")
 app.include_router(super_admin_router, prefix="/api/v1")
 app.include_router(vendor_router, prefix="/api/v1")
 app.include_router(cooperative_router, prefix="/api/v1")
+app.include_router(collection_router, prefix="/api/v1")
+app.include_router(payments_router, prefix="/api/v1")
 
-logger.info("Registered routers: auth, farmers, cattle, health, milk, feed, breeding, finance, vet, chat, whatsapp, notifications, admin, super-admin, vendor, cooperative")
+logger.info("Registered routers: auth, farmers, cattle, health, milk, feed, breeding, finance, vet, chat, whatsapp, notifications, admin, super-admin, vendor, cooperative, collection, payments")
 
 
 @app.get("/health")

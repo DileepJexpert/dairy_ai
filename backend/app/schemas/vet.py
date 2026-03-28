@@ -12,6 +12,15 @@ class VetRegister(BaseModel):
     languages: list[str] = []
     consultation_fee: float = 0.0
     bio: Optional[str] = None
+    # Location fields for onboarding
+    pincode: Optional[str] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
+    state: Optional[str] = None
+    address: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    service_radius_km: float = 25.0
 
 
 class VetUpdate(BaseModel):
@@ -26,12 +35,31 @@ class VetUpdate(BaseModel):
     certificate_url: Optional[str] = None
     availability_start: Optional[str] = None
     availability_end: Optional[str] = None
+    # Location update fields
+    pincode: Optional[str] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
+    state: Optional[str] = None
+    address: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    service_radius_km: Optional[float] = None
 
 
 class VetSearchFilters(BaseModel):
     specialization: Optional[str] = None
     language: Optional[str] = None
     available: Optional[bool] = None
+    # Location-based search
+    pincode: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    max_distance_km: float = 50.0
+    # Fee filter
+    min_fee: Optional[float] = None
+    max_fee: Optional[float] = None
+    # Sorting: "distance", "fee_low", "fee_high", "rating"
+    sort_by: str = "distance"
 
 
 class ConsultationCreate(BaseModel):

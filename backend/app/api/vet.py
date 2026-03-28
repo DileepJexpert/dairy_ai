@@ -30,8 +30,8 @@ router = APIRouter(tags=["vet"])
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _vet_to_dict(vet) -> dict:
-    return {
+def _vet_to_dict(vet, distance_km: float | None = None) -> dict:
+    data = {
         "id": str(vet.id),
         "user_id": str(vet.user_id),
         "license_number": vet.license_number,
@@ -46,7 +46,18 @@ def _vet_to_dict(vet) -> dict:
         "is_verified": vet.is_verified,
         "is_available": vet.is_available,
         "bio": vet.bio,
+        "pincode": vet.pincode,
+        "city": vet.city,
+        "district": vet.district,
+        "state": vet.state,
+        "address": vet.address,
+        "lat": vet.lat,
+        "lng": vet.lng,
+        "service_radius_km": vet.service_radius_km,
     }
+    if distance_km is not None:
+        data["distance_km"] = distance_km
+    return data
 
 
 def _consultation_to_dict(c) -> dict:
@@ -139,25 +150,44 @@ async def register_vet(
 
 @router.get("/vets/search")
 async def search_vets(
-    specialization: str | None = Query(None),
-    language: str | None = Query(None),
-    available: bool | None = Query(None),
+    specialization: str | None = Query(None, description="Filter by specialization (e.g. 'cattle', 'poultry')"),
+    language: str | None = Query(None, description="Filter by language (e.g. 'hi', 'en', 'ta')"),
+    available: bool | None = Query(None, description="Only show available vets"),
+    pincode: str | None = Query(None, description="Filter by exact pincode"),
+    lat: float | None = Query(None, description="Farmer's latitude for distance search"),
+    lng: float | None = Query(None, description="Farmer's longitude for distance search"),
+    max_distance_km: float = Query(50.0, description="Max distance in km (default 50)"),
+    min_fee: float | None = Query(None, description="Minimum consultation fee"),
+    max_fee: float | None = Query(None, description="Maximum consultation fee"),
+    sort_by: str = Query("distance", description="Sort by: distance, fee_low, fee_high, rating"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    logger.info(f"GET /vets/search called | user_id={current_user.id} | specialization={specialization} | language={language} | available={available}")
+    logger.info(
+        f"GET /vets/search called | user_id={current_user.id} | specialization={specialization} | "
+        f"language={language} | available={available} | pincode={pincode} | "
+        f"lat={lat} | lng={lng} | max_distance_km={max_distance_km} | "
+        f"min_fee={min_fee} | max_fee={max_fee} | sort_by={sort_by}"
+    )
     filters = VetSearchFilters(
         specialization=specialization,
         language=language,
         available=available,
+        pincode=pincode,
+        lat=lat,
+        lng=lng,
+        max_distance_km=max_distance_km,
+        min_fee=min_fee,
+        max_fee=max_fee,
+        sort_by=sort_by,
     )
     logger.debug(f"Calling vet_service.search_vets with filters: {filters}")
-    vets = await vet_service.search_vets(db, filters)
-    logger.info(f"Vet search completed | results_count={len(vets)}")
+    results = await vet_service.search_vets(db, filters)
+    logger.info(f"Vet search completed | results_count={len(results)} | sort_by={sort_by}")
     return {
         "success": True,
-        "data": [_vet_to_dict(v) for v in vets],
-        "message": "Vet search results",
+        "data": [_vet_to_dict(r["vet"], r.get("distance_km")) for r in results],
+        "message": f"Found {len(results)} vets",
     }
 
 

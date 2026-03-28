@@ -1,4 +1,5 @@
 import logging
+import math
 import uuid
 from typing import Optional
 
@@ -13,6 +14,20 @@ from app.models.vet import (
 )
 
 logger = logging.getLogger("dairy_ai.repos.vet")
+
+
+def haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Calculate distance between two lat/lng points in kilometers using Haversine formula."""
+    R = 6371.0  # Earth's radius in km
+    d_lat = math.radians(lat2 - lat1)
+    d_lng = math.radians(lng2 - lng1)
+    a = (
+        math.sin(d_lat / 2) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(d_lng / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    distance = R * c
+    return round(distance, 2)
 
 
 # ---------------------------------------------------------------------------
@@ -69,31 +84,102 @@ async def search_vets(
     specialization: Optional[str] = None,
     language: Optional[str] = None,
     available_only: bool = False,
-) -> list[VetProfile]:
-    logger.debug("Searching vets: specialization=%s, language=%s, available_only=%s",
-                 specialization, language, available_only)
+    pincode: Optional[str] = None,
+    farmer_lat: Optional[float] = None,
+    farmer_lng: Optional[float] = None,
+    max_distance_km: float = 50.0,
+    min_fee: Optional[float] = None,
+    max_fee: Optional[float] = None,
+    sort_by: str = "distance",
+) -> list[dict]:
+    """
+    Search vets with location, fee, specialization, language filters.
+    Returns list of dicts with vet profile + distance_km.
+    """
+    logger.info(
+        "search_vets called | specialization=%s, language=%s, available_only=%s, "
+        "pincode=%s, farmer_lat=%s, farmer_lng=%s, max_distance_km=%s, "
+        "min_fee=%s, max_fee=%s, sort_by=%s",
+        specialization, language, available_only, pincode,
+        farmer_lat, farmer_lng, max_distance_km, min_fee, max_fee, sort_by,
+    )
+
     query = select(VetProfile).where(VetProfile.is_verified == True)  # noqa: E712
 
     if available_only:
+        logger.debug("Applying available_only filter")
         query = query.where(VetProfile.is_available == True)  # noqa: E712
+
+    # Pincode filter (exact match)
+    if pincode:
+        logger.debug("Applying pincode filter: %s", pincode)
+        query = query.where(VetProfile.pincode == pincode)
+
+    # Fee range filter
+    if min_fee is not None:
+        logger.debug("Applying min_fee filter: ₹%s", min_fee)
+        query = query.where(VetProfile.consultation_fee >= min_fee)
+    if max_fee is not None:
+        logger.debug("Applying max_fee filter: ₹%s", max_fee)
+        query = query.where(VetProfile.consultation_fee <= max_fee)
 
     result = await db.execute(query)
     vets = list(result.scalars().all())
     logger.debug("Found %d verified vets from DB before in-memory filtering", len(vets))
 
-    # Filter by JSON contains in Python (SQLite compatible)
+    # In-memory: specialization filter (JSON field — SQLite compatible)
     if specialization:
         before_count = len(vets)
         vets = [v for v in vets if v.specializations and specialization in v.specializations]
         logger.debug("Specialization filter '%s': %d -> %d vets", specialization, before_count, len(vets))
+
+    # In-memory: language filter (JSON field — SQLite compatible)
     if language:
         before_count = len(vets)
         vets = [v for v in vets if v.languages and language in v.languages]
         logger.debug("Language filter '%s': %d -> %d vets", language, before_count, len(vets))
 
-    logger.info("Search returned %d vets (specialization=%s, language=%s, available_only=%s)",
-                len(vets), specialization, language, available_only)
-    return vets
+    # Compute distance if farmer lat/lng is provided
+    vet_results = []
+    for vet in vets:
+        distance_km = None
+        if farmer_lat is not None and farmer_lng is not None and vet.lat is not None and vet.lng is not None:
+            distance_km = haversine_distance(farmer_lat, farmer_lng, vet.lat, vet.lng)
+            logger.debug(
+                "Distance calculated | vet_id=%s, vet_pincode=%s, distance=%.2f km",
+                vet.id, vet.pincode, distance_km,
+            )
+            # Filter by max distance
+            if distance_km > max_distance_km:
+                logger.debug("Vet %s excluded — distance %.2f km > max %.2f km", vet.id, distance_km, max_distance_km)
+                continue
+
+        vet_results.append({"vet": vet, "distance_km": distance_km})
+
+    logger.debug("After distance filter: %d vets remain", len(vet_results))
+
+    # Sort results
+    if sort_by == "distance":
+        logger.debug("Sorting by distance (nearest first)")
+        vet_results.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else float("inf"))
+    elif sort_by == "fee_low":
+        logger.debug("Sorting by fee (lowest first)")
+        vet_results.sort(key=lambda x: x["vet"].consultation_fee)
+    elif sort_by == "fee_high":
+        logger.debug("Sorting by fee (highest first)")
+        vet_results.sort(key=lambda x: x["vet"].consultation_fee, reverse=True)
+    elif sort_by == "rating":
+        logger.debug("Sorting by rating (highest first)")
+        vet_results.sort(key=lambda x: x["vet"].rating_avg, reverse=True)
+    else:
+        logger.debug("Unknown sort_by '%s', defaulting to distance", sort_by)
+        vet_results.sort(key=lambda x: x["distance_km"] if x["distance_km"] is not None else float("inf"))
+
+    logger.info(
+        "search_vets completed | results=%d, sort_by=%s, filters=(specialization=%s, language=%s, pincode=%s, fee=%s-%s)",
+        len(vet_results), sort_by, specialization, language, pincode, min_fee, max_fee,
+    )
+    return vet_results
 
 
 # ---------------------------------------------------------------------------

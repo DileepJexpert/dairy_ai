@@ -19,6 +19,10 @@ async def register_vet(
     logger.debug(f"Vet registration details | specializations={data.specializations}, experience={data.experience_years}yrs, languages={data.languages}, fee=₹{data.consultation_fee}")
 
     logger.debug(f"Creating vet profile in database | user_id={user_id}")
+    logger.debug(
+        f"Location data | pincode={data.pincode}, city={data.city}, district={data.district}, "
+        f"state={data.state}, lat={data.lat}, lng={data.lng}, service_radius_km={data.service_radius_km}"
+    )
     vet = await vet_repo.create_vet_profile(
         db,
         user_id=user_id,
@@ -29,8 +33,19 @@ async def register_vet(
         languages=data.languages,
         consultation_fee=data.consultation_fee,
         bio=data.bio,
+        pincode=data.pincode,
+        city=data.city,
+        district=data.district,
+        state=data.state,
+        address=data.address,
+        lat=data.lat,
+        lng=data.lng,
+        service_radius_km=data.service_radius_km,
     )
-    logger.info(f"Vet profile created (unverified) | vet_id={vet.id}, user_id={user_id}, license={data.license_number}")
+    logger.info(
+        f"Vet profile created (unverified) | vet_id={vet.id}, user_id={user_id}, "
+        f"license={data.license_number}, pincode={data.pincode}, district={data.district}"
+    )
     return vet
 
 
@@ -50,17 +65,33 @@ async def verify_vet(db: AsyncSession, vet_id: uuid.UUID) -> VetProfile | None:
     return updated
 
 
-async def search_vets(db: AsyncSession, filters: VetSearchFilters) -> list[VetProfile]:
-    """Search for available verified vets with optional filters."""
-    logger.info(f"search_vets called | specialization={filters.specialization}, language={filters.language}, available_only={filters.available}")
+async def search_vets(db: AsyncSession, filters: VetSearchFilters) -> list[dict]:
+    """Search for available verified vets with location, fee, and other filters."""
+    logger.info(
+        f"search_vets called | specialization={filters.specialization}, language={filters.language}, "
+        f"available_only={filters.available}, pincode={filters.pincode}, "
+        f"lat={filters.lat}, lng={filters.lng}, max_distance_km={filters.max_distance_km}, "
+        f"min_fee={filters.min_fee}, max_fee={filters.max_fee}, sort_by={filters.sort_by}"
+    )
 
     results = await vet_repo.search_vets(
         db,
         specialization=filters.specialization,
         language=filters.language,
         available_only=filters.available if filters.available is not None else False,
+        pincode=filters.pincode,
+        farmer_lat=filters.lat,
+        farmer_lng=filters.lng,
+        max_distance_km=filters.max_distance_km,
+        min_fee=filters.min_fee,
+        max_fee=filters.max_fee,
+        sort_by=filters.sort_by,
     )
-    logger.info(f"Vet search completed | results_count={len(results)}, filters={{specialization={filters.specialization}, language={filters.language}}}")
+    logger.info(
+        f"Vet search completed | results_count={len(results)}, sort_by={filters.sort_by}, "
+        f"filters=(specialization={filters.specialization}, language={filters.language}, "
+        f"pincode={filters.pincode}, fee={filters.min_fee}-{filters.max_fee})"
+    )
     return results
 
 

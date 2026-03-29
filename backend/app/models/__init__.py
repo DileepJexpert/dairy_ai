@@ -37,3 +37,8 @@ from app.models.schemes import (
 )
 from app.models.mandi import MandiPrice, CattleMarketPrice, MandiCategory
 from app.models.pashu_aadhaar import PashuAadhaar, IdentificationMethod, RegistrationStatus
+from app.models.milk_purity import (
+    MilkBrand, LabReport, FSSAIViolation, PurityScore,
+    PurityWaitlist, BrandRequest, PurityScoreAlert,
+    ScoreBand, MilkVariant, ViolationSeverity, LabReportStatus, BrandRequestStatus,
+)

@@ -10,6 +10,7 @@ from app.dependencies import get_current_user
 from app.models.user import User
 from app.repositories import farmer_repo, cattle_repo, health_repo
 from app.services import health_service
+from app.services import alert_engine
 from app.schemas.health import HealthRecordCreate, VaccinationCreate, SensorDataCreate
 
 logger = logging.getLogger("dairy_ai.api.health")
@@ -140,13 +141,20 @@ async def ingest_sensor_data(
         logger.info(f"Sensor data ingested | cattle_id={cid} | time={reading.time}")
         logger.debug(f"Checking for anomalies | cattle_id={cid}")
         alerts = await health_service.check_anomalies(db, cid)
+        notifications_sent = []
         if alerts:
             logger.warning(f"Anomaly alerts detected for cattle_id={cid}: {alerts}")
+            notifications_sent = await alert_engine.process_sensor_alerts(db, cid, alerts)
+            logger.info(f"Notifications sent for cattle_id={cid}: {len(notifications_sent)}")
         else:
             logger.debug(f"No anomalies detected for cattle_id={cid}")
         return {
             "success": True,
-            "data": {"time": str(reading.time), "alerts": alerts},
+            "data": {
+                "time": str(reading.time),
+                "alerts": alerts,
+                "notifications_sent": len(notifications_sent),
+            },
             "message": "Sensor data recorded",
         }
     except Exception as e:

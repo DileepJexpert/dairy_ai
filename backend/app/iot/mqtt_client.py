@@ -11,8 +11,12 @@ logger = logging.getLogger("dairy_ai.iot.mqtt")
 class MQTTSubscriber:
     """MQTT subscriber for cattle sensor data.
 
-    Subscribes to dairy/cattle/+/sensors topics and routes messages
-    through SensorProcessor for validation, storage, and anomaly detection.
+    Subscribes to dairy/cattle/+/sensors topics.
+    When a message arrives:
+      1. Parse cattle_id + sensor payload
+      2. Get a DB session
+      3. Call SensorProcessor.process() to validate, store, check anomalies
+      4. Call alert_engine.process_sensor_alerts() to notify farmer if needed
     """
 
     def __init__(self, broker_host: str = "", broker_port: int = 1883):
@@ -74,45 +78,44 @@ class MQTTSubscriber:
             logger.error(f"MQTT: Error processing message: {e}")
 
     async def _process_message(self, cattle_id_str: str, payload: dict) -> None:
-        """Process sensor message: validate, store, detect anomalies, notify."""
-        from app.database import async_session_factory
-        from app.iot.sensor_processor import SensorProcessor
-        from app.services import notification_service
-        from app.repositories import cattle_repo, farmer_repo
-
+        """Process sensor message: validate, store, check anomalies, notify."""
         logger.info(f"MQTT: Processing sensor data for cattle {cattle_id_str}")
+        try:
+            from app.database import async_session_factory
+            from app.iot.sensor_processor import SensorProcessor
+            from app.services import alert_engine
 
-        async with async_session_factory() as db:
-            try:
-                cattle_id = uuid.UUID(cattle_id_str)
+            cattle_id = uuid.UUID(cattle_id_str)
 
-                result = await SensorProcessor.process(db, cattle_id, payload)
-                await db.commit()
+            async with async_session_factory() as db:
+                try:
+                    result = await SensorProcessor.process(db, cattle_id, payload)
+                    alerts = result.get("alerts", [])
 
-                # If alerts detected, notify the farmer
-                if result.get("alerts"):
-                    cattle = await cattle_repo.get_by_id(db, cattle_id)
-                    if cattle:
-                        farmer = await farmer_repo.get_by_id(db, cattle.farmer_id)
-                        if farmer:
-                            for alert in result["alerts"]:
-                                await notification_service.notify_farmer(
-                                    db,
-                                    farmer.user_id,
-                                    type="health_alert",
-                                    title=f"Alert: {alert['alert_type'].replace('_', ' ').title()}",
-                                    body=alert["message"],
-                                    data=alert,
-                                )
-                            await db.commit()
-                            logger.info(
-                                f"MQTT: Sent {len(result['alerts'])} alert(s) to farmer {farmer.user_id}"
-                            )
-            except ValueError as e:
-                logger.warning(f"MQTT: Validation error for cattle {cattle_id_str}: {e}")
-            except Exception as e:
-                logger.error(f"MQTT: Failed to process message for cattle {cattle_id_str}: {e}")
-                await db.rollback()
+                    if alerts:
+                        logger.warning(
+                            f"MQTT: {len(alerts)} alert(s) for cattle {cattle_id_str}"
+                        )
+                        sent = await alert_engine.process_sensor_alerts(
+                            db, cattle_id, alerts
+                        )
+                        logger.info(
+                            f"MQTT: {len(sent)} notification(s) sent for cattle {cattle_id_str}"
+                        )
+
+                    await db.commit()
+                    logger.info(
+                        f"MQTT: Sensor data processed and committed for cattle {cattle_id_str}"
+                    )
+                except Exception as e:
+                    await db.rollback()
+                    logger.error(
+                        f"MQTT: DB error processing cattle {cattle_id_str}: {e}"
+                    )
+        except ValueError:
+            logger.error(f"MQTT: Invalid cattle UUID: {cattle_id_str}")
+        except Exception as e:
+            logger.error(f"MQTT: Error processing sensor data: {e}")
 
     def _on_disconnect(self, client, userdata, rc) -> None:
         if rc != 0:

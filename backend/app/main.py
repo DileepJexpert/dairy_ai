@@ -43,10 +43,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Initializing database...")
     await init_db()
     logger.info("Database initialized successfully")
+
+    # Start MQTT subscriber if broker configured
+    from app.config import settings
+    from app.iot.mqtt_client import mqtt_subscriber
+    if settings.MQTT_BROKER_HOST:
+        logger.info(f"Starting MQTT subscriber → {settings.MQTT_BROKER_HOST}:{settings.MQTT_BROKER_PORT}")
+        await mqtt_subscriber.connect()
+    else:
+        logger.info("MQTT: No broker configured, skipping MQTT subscriber")
+
     logger.info("All routers registered. API is ready to serve requests!")
     logger.info("=" * 60)
     yield
     logger.info("DairyAI API shutting down...")
+    if mqtt_subscriber.is_connected:
+        await mqtt_subscriber.disconnect()
     logger.info("=" * 60)
 
 

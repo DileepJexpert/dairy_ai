@@ -16,3 +16,4 @@ pytest
 pytest-asyncio
 aiosqlite
 factory-boy
+paho-mqtt

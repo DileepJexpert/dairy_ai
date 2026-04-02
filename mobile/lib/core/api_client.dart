@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dairy_ai/core/constants.dart';
 import 'package:dairy_ai/core/storage.dart';
 
@@ -94,6 +95,24 @@ Future<bool> _tryRefreshToken(
     return false;
   }
 }
+
+/// Riverpod provider for the Dio client.
+/// Usage: final dio = ref.read(apiClientProvider);
+final apiClientProvider = Provider<Dio>((ref) {
+  // In production this would use the real SecureStorageService.
+  // For now, return a basic configured Dio that can be overridden in tests.
+  return Dio(
+    BaseOptions(
+      baseUrl: AppConstants.baseUrl,
+      connectTimeout: AppConstants.connectTimeout,
+      receiveTimeout: AppConstants.receiveTimeout,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    ),
+  );
+});
 
 /// Extracts a human-friendly error message from a [DioException].
 String dioErrorMessage(DioException error) {

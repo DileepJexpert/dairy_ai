@@ -4,24 +4,65 @@ import 'package:go_router/go_router.dart';
 import 'package:dairy_ai/core/constants.dart';
 import 'package:dairy_ai/features/auth/models/auth_state.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
+
+// Auth
 import 'package:dairy_ai/features/auth/screens/login_screen.dart';
 import 'package:dairy_ai/features/auth/screens/otp_screen.dart';
+
+// Shells
 import 'package:dairy_ai/features/home/screens/farmer_shell.dart';
 import 'package:dairy_ai/features/home/screens/vet_shell.dart';
 import 'package:dairy_ai/features/home/screens/admin_shell.dart';
+import 'package:dairy_ai/features/vendor/screens/vendor_shell.dart';
+import 'package:dairy_ai/features/cooperative/screens/cooperative_shell.dart';
+
+// Farmer screens
+import 'package:dairy_ai/features/home/screens/farmer_home_screen.dart';
+import 'package:dairy_ai/features/herd/screens/herd_list_screen.dart';
+import 'package:dairy_ai/features/herd/screens/cattle_detail_screen.dart';
+import 'package:dairy_ai/features/herd/screens/add_cattle_screen.dart';
+import 'package:dairy_ai/features/health/screens/health_dashboard_screen.dart';
+import 'package:dairy_ai/features/health/screens/health_record_screen.dart';
+import 'package:dairy_ai/features/health/screens/sensor_live_screen.dart';
+import 'package:dairy_ai/features/health/screens/vaccination_screen.dart';
+import 'package:dairy_ai/features/health/screens/triage_result_screen.dart';
+import 'package:dairy_ai/features/finance/screens/finance_dashboard_screen.dart';
+import 'package:dairy_ai/features/finance/screens/add_transaction_screen.dart';
+import 'package:dairy_ai/features/milk/screens/milk_record_screen.dart';
+import 'package:dairy_ai/features/milk/screens/milk_summary_screen.dart';
+import 'package:dairy_ai/features/feed/screens/feed_plan_screen.dart';
+import 'package:dairy_ai/features/breeding/screens/breeding_screen.dart';
+import 'package:dairy_ai/features/chat/screens/chat_screen.dart';
+import 'package:dairy_ai/features/profile/screens/profile_screen.dart';
+import 'package:dairy_ai/features/notifications/screens/notifications_screen.dart';
+
+// Vet screens
+import 'package:dairy_ai/features/vet_doctor/screens/vet_dashboard_screen.dart';
+import 'package:dairy_ai/features/vet_doctor/screens/vet_consultation_screen.dart';
+import 'package:dairy_ai/features/vet_farmer/screens/vet_search_screen.dart';
+import 'package:dairy_ai/features/vet_farmer/screens/consultation_request_screen.dart';
+
+// Admin screens
+import 'package:dairy_ai/features/admin/screens/admin_dashboard_screen.dart';
+import 'package:dairy_ai/features/admin/screens/admin_farmers_screen.dart';
+import 'package:dairy_ai/features/admin/screens/admin_vets_screen.dart';
+
+// Vendor screens
+import 'package:dairy_ai/features/vendor/screens/vendor_dashboard_screen.dart';
+import 'package:dairy_ai/features/vendor/screens/vendor_registration_screen.dart';
+import 'package:dairy_ai/features/vendor/screens/vendor_profile_screen.dart';
+
+// Cooperative screens
+import 'package:dairy_ai/features/cooperative/screens/cooperative_dashboard_screen.dart';
+import 'package:dairy_ai/features/cooperative/screens/cooperative_registration_screen.dart';
+import 'package:dairy_ai/features/cooperative/screens/cooperative_profile_screen.dart';
+
+// Collection screens
 import 'package:dairy_ai/features/collection/screens/collection_centers_screen.dart';
 import 'package:dairy_ai/features/collection/screens/create_center_screen.dart';
 import 'package:dairy_ai/features/collection/screens/center_dashboard_screen.dart';
 import 'package:dairy_ai/features/collection/screens/record_milk_screen.dart';
 import 'package:dairy_ai/features/collection/screens/cold_chain_screen.dart';
-import 'package:dairy_ai/features/vendor/screens/vendor_shell.dart';
-import 'package:dairy_ai/features/vendor/screens/vendor_dashboard_screen.dart';
-import 'package:dairy_ai/features/vendor/screens/vendor_registration_screen.dart';
-import 'package:dairy_ai/features/vendor/screens/vendor_profile_screen.dart';
-import 'package:dairy_ai/features/cooperative/screens/cooperative_shell.dart';
-import 'package:dairy_ai/features/cooperative/screens/cooperative_dashboard_screen.dart';
-import 'package:dairy_ai/features/cooperative/screens/cooperative_registration_screen.dart';
-import 'package:dairy_ai/features/cooperative/screens/cooperative_profile_screen.dart';
 
 // ---------------------------------------------------------------------------
 // Navigation keys
@@ -47,23 +88,15 @@ final routerProvider = Provider<GoRouter>((ref) {
     debugLogDiagnostics: true,
     redirect: (context, state) {
       final isAuthenticated = authState.maybeWhen(
-            authenticated: (_) => true,
-            orElse: () => false,
-          );
+        authenticated: (_) => true,
+        orElse: () => false,
+      );
 
       final isAuthRoute = state.matchedLocation == '/login' ||
           state.matchedLocation == '/otp-verify';
 
-      // Not logged in and not on auth page → go to login.
-      if (!isAuthenticated && !isAuthRoute) {
-        return '/login';
-      }
-
-      // Logged in and still on auth page → redirect to role home.
-      if (isAuthenticated && isAuthRoute) {
-        return _homeForRole(authState);
-      }
-
+      if (!isAuthenticated && !isAuthRoute) return '/login';
+      if (isAuthenticated && isAuthRoute) return _homeForRole(authState);
       return null;
     },
     routes: [
@@ -85,79 +118,125 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, navigationShell) =>
             FarmerShell(navigationShell: navigationShell),
         branches: [
+          // Tab 0: Home
           StatefulShellBranch(
             navigatorKey: _farmerShellKey,
             routes: [
               GoRoute(
                 path: '/home',
-                builder: (context, state) =>
-                    const _PlaceholderScreen(title: 'Home'),
+                builder: (context, state) => const FarmerHomeScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'notifications',
+                    builder: (context, state) => const NotificationsScreen(),
+                  ),
+                ],
               ),
             ],
           ),
+          // Tab 1: Herd
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/herd',
-                builder: (context, state) =>
-                    const _PlaceholderScreen(title: 'My Herd'),
+                builder: (context, state) => const HerdListScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'add',
+                    builder: (context, state) => const AddCattleScreen(),
+                  ),
+                  GoRoute(
+                    path: ':cattleId',
+                    builder: (context, state) {
+                      final id = state.pathParameters['cattleId']!;
+                      return CattleDetailScreen(cattleId: id);
+                    },
+                    routes: [
+                      GoRoute(
+                        path: 'sensors',
+                        builder: (context, state) {
+                          final id = state.pathParameters['cattleId']!;
+                          final name = state.uri.queryParameters['name'];
+                          return SensorLiveScreen(
+                            cattleId: id,
+                            cattleName: name,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),
+          // Tab 2: Health
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/health',
-                builder: (context, state) =>
-                    const _PlaceholderScreen(title: 'Health'),
+                builder: (context, state) => const HealthDashboardScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'add-record',
+                    builder: (context, state) => const HealthRecordScreen(),
+                  ),
+                  GoRoute(
+                    path: 'vaccinations',
+                    builder: (context, state) => const VaccinationScreen(),
+                  ),
+                ],
               ),
             ],
           ),
+          // Tab 3: Finance
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/finance',
-                builder: (context, state) =>
-                    const _PlaceholderScreen(title: 'Finance'),
+                builder: (context, state) => const FinanceDashboardScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'add',
+                    builder: (context, state) => const AddTransactionScreen(),
+                  ),
+                ],
               ),
             ],
           ),
+          // Tab 4: More
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/more',
-                builder: (context, state) =>
-                    const _PlaceholderScreen(title: 'More'),
+                builder: (context, state) => const _MoreMenuScreen(),
                 routes: [
                   GoRoute(
                     path: 'milk',
-                    builder: (context, state) =>
-                        const _PlaceholderScreen(title: 'Milk Records'),
+                    builder: (context, state) => const MilkRecordScreen(),
+                  ),
+                  GoRoute(
+                    path: 'milk-summary',
+                    builder: (context, state) => const MilkSummaryScreen(),
                   ),
                   GoRoute(
                     path: 'feed',
-                    builder: (context, state) =>
-                        const _PlaceholderScreen(title: 'Feed Plans'),
+                    builder: (context, state) => const FeedPlanScreen(),
                   ),
                   GoRoute(
                     path: 'breeding',
-                    builder: (context, state) =>
-                        const _PlaceholderScreen(title: 'Breeding'),
+                    builder: (context, state) => const BreedingScreen(),
                   ),
                   GoRoute(
                     path: 'vet',
-                    builder: (context, state) =>
-                        const _PlaceholderScreen(title: 'Vet Consult'),
+                    builder: (context, state) => const VetSearchScreen(),
                   ),
                   GoRoute(
                     path: 'chat',
-                    builder: (context, state) =>
-                        const _PlaceholderScreen(title: 'AI Chat'),
+                    builder: (context, state) => const ChatScreen(),
                   ),
                   GoRoute(
                     path: 'profile',
-                    builder: (context, state) =>
-                        const _PlaceholderScreen(title: 'Profile'),
+                    builder: (context, state) => const ProfileScreen(),
                   ),
                 ],
               ),
@@ -176,8 +255,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/vet-dashboard',
-                builder: (context, state) =>
-                    const _PlaceholderScreen(title: 'Vet Dashboard'),
+                builder: (context, state) => const VetDashboardScreen(),
               ),
             ],
           ),
@@ -185,8 +263,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/vet-consultations',
-                builder: (context, state) =>
-                    const _PlaceholderScreen(title: 'Consultations'),
+                builder: (context, state) => const VetConsultationScreen(),
               ),
             ],
           ),
@@ -194,8 +271,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/vet-profile',
-                builder: (context, state) =>
-                    const _PlaceholderScreen(title: 'Vet Profile'),
+                builder: (context, state) => const ProfileScreen(),
               ),
             ],
           ),
@@ -212,8 +288,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/admin-dashboard',
-                builder: (context, state) =>
-                    const _PlaceholderScreen(title: 'Admin Dashboard'),
+                builder: (context, state) => const AdminDashboardScreen(),
               ),
             ],
           ),
@@ -221,8 +296,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/admin-farmers',
-                builder: (context, state) =>
-                    const _PlaceholderScreen(title: 'Manage Farmers'),
+                builder: (context, state) => const AdminFarmersScreen(),
               ),
             ],
           ),
@@ -230,8 +304,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/admin-vets',
-                builder: (context, state) =>
-                    const _PlaceholderScreen(title: 'Manage Vets'),
+                builder: (context, state) => const AdminVetsScreen(),
               ),
             ],
           ),
@@ -248,8 +321,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/vendor-dashboard',
-                builder: (context, state) =>
-                    const VendorDashboardScreen(),
+                builder: (context, state) => const VendorDashboardScreen(),
               ),
             ],
           ),
@@ -266,15 +338,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/vendor-profile',
-                builder: (context, state) =>
-                    const VendorProfileScreen(),
+                builder: (context, state) => const VendorProfileScreen(),
               ),
             ],
           ),
         ],
       ),
 
-      // Vendor registration (no shell)
       GoRoute(
         path: '/vendor-register',
         builder: (context, state) => const VendorRegistrationScreen(),
@@ -290,8 +360,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/coop-dashboard',
-                builder: (context, state) =>
-                    const CooperativeDashboardScreen(),
+                builder: (context, state) => const CooperativeDashboardScreen(),
               ),
             ],
           ),
@@ -299,8 +368,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/coop-collection',
-                builder: (context, state) =>
-                    const _PlaceholderScreen(title: 'Collection'),
+                builder: (context, state) => const CollectionCentersScreen(),
               ),
             ],
           ),
@@ -317,15 +385,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/coop-profile',
-                builder: (context, state) =>
-                    const CooperativeProfileScreen(),
+                builder: (context, state) => const CooperativeProfileScreen(),
               ),
             ],
           ),
         ],
       ),
 
-      // Cooperative registration (no shell)
       GoRoute(
         path: '/coop-register',
         builder: (context, state) => const CooperativeRegistrationScreen(),
@@ -371,7 +437,6 @@ final routerProvider = Provider<GoRouter>((ref) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Determine the landing route based on user role.
 String _homeForRole(AuthState state) {
   return state.maybeWhen(
     authenticated: (user) {
@@ -394,7 +459,83 @@ String _homeForRole(AuthState state) {
 }
 
 // ---------------------------------------------------------------------------
-// Placeholder screen — used until feature screens are built
+// More menu — list of additional features
+// ---------------------------------------------------------------------------
+
+class _MoreMenuScreen extends StatelessWidget {
+  const _MoreMenuScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('More')),
+      body: ListView(
+        children: [
+          _MoreTile(
+            icon: Icons.water_drop,
+            label: 'Milk Records',
+            onTap: () => context.go('/more/milk'),
+          ),
+          _MoreTile(
+            icon: Icons.bar_chart,
+            label: 'Milk Summary',
+            onTap: () => context.go('/more/milk-summary'),
+          ),
+          _MoreTile(
+            icon: Icons.grass,
+            label: 'Feed Plans',
+            onTap: () => context.go('/more/feed'),
+          ),
+          _MoreTile(
+            icon: Icons.favorite,
+            label: 'Breeding',
+            onTap: () => context.go('/more/breeding'),
+          ),
+          _MoreTile(
+            icon: Icons.local_hospital,
+            label: 'Find a Vet',
+            onTap: () => context.go('/more/vet'),
+          ),
+          _MoreTile(
+            icon: Icons.smart_toy,
+            label: 'AI Chat',
+            onTap: () => context.go('/more/chat'),
+          ),
+          _MoreTile(
+            icon: Icons.person,
+            label: 'Profile',
+            onTap: () => context.go('/more/profile'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MoreTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _MoreTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(label),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: onTap,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Placeholder screen — used for features not yet built
 // ---------------------------------------------------------------------------
 
 class _PlaceholderScreen extends StatelessWidget {
@@ -412,15 +553,9 @@ class _PlaceholderScreen extends StatelessWidget {
           children: [
             Icon(Icons.construction, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
-            Text(
-              'Coming soon',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            Text('Coming soon', style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       ),

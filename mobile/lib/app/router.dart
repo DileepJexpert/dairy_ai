@@ -64,6 +64,11 @@ import 'package:dairy_ai/features/collection/screens/center_dashboard_screen.dar
 import 'package:dairy_ai/features/collection/screens/record_milk_screen.dart';
 import 'package:dairy_ai/features/collection/screens/cold_chain_screen.dart';
 
+// Milk Purity Checker (public, no auth required)
+import 'package:dairy_ai/features/milk_purity/screens/purity_home_screen.dart';
+import 'package:dairy_ai/features/milk_purity/screens/brand_detail_screen.dart';
+import 'package:dairy_ai/features/milk_purity/screens/compare_screen.dart';
+
 // ---------------------------------------------------------------------------
 // Navigation keys
 // ---------------------------------------------------------------------------
@@ -94,8 +99,9 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final isAuthRoute = state.matchedLocation == '/login' ||
           state.matchedLocation == '/otp-verify';
+      final isPublicRoute = state.matchedLocation.startsWith('/purity');
 
-      if (!isAuthenticated && !isAuthRoute) return '/login';
+      if (!isAuthenticated && !isAuthRoute && !isPublicRoute) return '/login';
       if (isAuthenticated && isAuthRoute) return _homeForRole(authState);
       return null;
     },
@@ -111,6 +117,25 @@ final routerProvider = Provider<GoRouter>((ref) {
           final phone = state.uri.queryParameters['phone'] ?? '';
           return OtpScreen(phone: phone);
         },
+      ),
+
+      // ---- Milk Purity Checker (public, no auth) ----
+      GoRoute(
+        path: '/purity',
+        builder: (context, state) => const PurityHomeScreen(),
+        routes: [
+          GoRoute(
+            path: 'brand/:brandSlug',
+            builder: (context, state) {
+              final slug = state.pathParameters['brandSlug']!;
+              return BrandDetailScreen(brandSlug: slug);
+            },
+          ),
+          GoRoute(
+            path: 'compare',
+            builder: (context, state) => const CompareScreen(),
+          ),
+        ],
       ),
 
       // ---- Farmer shell ----
@@ -500,6 +525,11 @@ class _MoreMenuScreen extends StatelessWidget {
             icon: Icons.smart_toy,
             label: 'AI Chat',
             onTap: () => context.go('/more/chat'),
+          ),
+          _MoreTile(
+            icon: Icons.verified,
+            label: 'Milk Purity Checker',
+            onTap: () => context.push('/purity'),
           ),
           _MoreTile(
             icon: Icons.person,

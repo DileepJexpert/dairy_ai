@@ -16,9 +16,10 @@ Score bands:
 import logging
 import re
 import uuid
+import hashlib
 from datetime import datetime, date, timedelta
 
-from sqlalchemy import select, func, or_, desc
+from sqlalchemy import select, func, and_, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.milk_purity import (
@@ -254,14 +255,21 @@ async def search_brands(
         .where(MilkBrand.is_active.is_(True))
         .where(MilkBrand.name.ilike(f"%{query}%"))
         .order_by(MilkBrand.name)
-        .limit(limit)
     )
-
-    if state:
-        stmt = stmt.where(MilkBrand.available_states.contains([state]))
+    # State filtering is done in Python: JSON-array containment is not portable
+    # (PostgreSQL plain JSON has no @> operator, and SQLite differs again).
+    # Only push the LIMIT into SQL when we are NOT post-filtering by state.
+    if not state:
+        stmt = stmt.limit(limit)
 
     result = await db.execute(stmt)
-    brands = result.scalars().all()
+    brands = list(result.scalars().all())
+
+    if state:
+        brands = [
+            b for b in brands
+            if b.available_states and state in b.available_states
+        ][:limit]
 
     items = []
     for b in brands:
@@ -392,23 +400,37 @@ async def get_top_brands(
     state: str | None = None,
     limit: int = 10,
 ) -> list[dict]:
-    """Get top-scored brands. Public."""
+    """Get top-scored brands by their LATEST score version. Public."""
+    # Latest score version per brand, so stale historical scores never rank.
+    latest = (
+        select(
+            PurityScore.brand_id.label("brand_id"),
+            func.max(PurityScore.version).label("max_version"),
+        )
+        .group_by(PurityScore.brand_id)
+        .subquery()
+    )
     stmt = (
         select(PurityScore, MilkBrand)
         .join(MilkBrand, PurityScore.brand_id == MilkBrand.id)
+        .join(
+            latest,
+            and_(
+                PurityScore.brand_id == latest.c.brand_id,
+                PurityScore.version == latest.c.max_version,
+            ),
+        )
         .where(MilkBrand.is_active.is_(True))
         .order_by(desc(PurityScore.overall_score))
-        .limit(limit)
     )
     result = await db.execute(stmt)
     rows = result.all()
 
     items = []
-    seen_brands = set()
     for score, brand in rows:
-        if brand.id in seen_brands:
+        # State filtered in Python (JSON-array membership is not portable SQL).
+        if state and not (brand.available_states and state in brand.available_states):
             continue
-        seen_brands.add(brand.id)
         band_info = _band_label(score.band)
         items.append({
             "rank": len(items) + 1,
@@ -420,6 +442,8 @@ async def get_top_brands(
             "band_color": band_info["color"],
             "logo_url": brand.logo_url,
         })
+        if len(items) >= limit:
+            break
     return items
 
 
@@ -740,6 +764,7 @@ async def seed_demo_brands(db: AsyncSession) -> int:
     ]
 
     count = 0
+    created: list[MilkBrand] = []
     for bd in brands_data:
         slug = _slugify(bd["name"])
         existing = await db.execute(select(MilkBrand).where(MilkBrand.slug == slug))
@@ -757,8 +782,60 @@ async def seed_demo_brands(db: AsyncSession) -> int:
             fssai_licence_no=bd.get("fssai_licence_no"),
         )
         db.add(brand)
+        created.append(brand)
         count += 1
 
     await db.flush()
-    logger.info(f"Seeded {count} milk brands")
+
+    # Attach one clean, illustrative lab report per newly-created brand so the
+    # leaderboard and scores are populated on launch. IMPORTANT: seed data is
+    # deliberately clean (no adulterants, no FSSAI violations) — fabricating
+    # negatives against real brand names would be defamatory (see BRD legal
+    # section). Real positive/negative data must be entered by admin from
+    # actual NABL lab reports and FSSAI orders.
+    for brand in created:
+        lab = _demo_lab_values(brand.slug, brand.label_fat_pct, brand.label_snf_pct)
+        db.add(LabReport(
+            brand_id=brand.id,
+            lab_name="DairyAI Reference Lab (illustrative)",
+            lab_accreditation="NABL",
+            report_date=date.today(),
+            status=LabReportStatus.completed,
+            actual_fat_pct=lab["actual_fat_pct"],
+            actual_snf_pct=lab["actual_snf_pct"],
+            total_plate_count=lab["total_plate_count"],
+            coliform_count=lab["coliform_count"],
+            notes="Seed/illustrative reference values — replace with real lab report.",
+        ))
+    await db.flush()
+
+    # Persist a baseline score version for each brand so /purity/top works.
+    for brand in created:
+        await admin_recalculate_score(db, brand.id)
+
+    logger.info(f"Seeded {count} milk brands with baseline scores")
     return count
+
+
+def _demo_lab_values(slug: str, label_fat: float | None, label_snf: float | None) -> dict:
+    """Deterministic, realistic, CLEAN lab values for seed data.
+
+    Derived from a hash of the slug so each brand gets a stable but varied
+    profile (no randomness across re-seeds). Produces a natural spread of
+    Good–Excellent scores. Contains no adulterants and no violations.
+    """
+    h = int(hashlib.md5(slug.encode()).hexdigest(), 16)
+    base_fat = label_fat if label_fat is not None else 3.0
+    base_snf = label_snf if label_snf is not None else 8.5
+
+    fat_dev = ((h % 7) - 3) * 0.1          # -0.3 .. +0.3 around label
+    snf_dev = ((h >> 3) % 5) * 0.1         # 0 .. 0.4 below label
+    tpc = 15_000 + (h % 65_000)            # 15k .. 80k (excellent–good band)
+    coliform = (h >> 5) % 4                # 0 .. 3 (within limit)
+
+    return {
+        "actual_fat_pct": round(base_fat + fat_dev, 2),
+        "actual_snf_pct": round(max(base_snf - snf_dev, 8.0), 2),
+        "total_plate_count": tpc,
+        "coliform_count": coliform,
+    }

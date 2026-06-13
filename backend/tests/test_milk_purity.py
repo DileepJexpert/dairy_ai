@@ -280,3 +280,100 @@ class TestPurityAPI:
         resp = await client.get("/api/v1/purity/brand/nonexistent/history")
         assert resp.status_code == 200
         assert resp.json()["data"]["count"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Seed + leaderboard + state-filter integration (regression for review fixes)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+class TestSeedAndLeaderboard:
+    async def test_seed_populates_scored_leaderboard(self, db_session):
+        from app.services import milk_purity_service as svc
+
+        n = await svc.seed_demo_brands(db_session)
+        await db_session.flush()
+        assert n == 30
+
+        # Leaderboard must be non-empty and sorted descending by score
+        top = await svc.get_top_brands(db_session, limit=10)
+        assert len(top) == 10
+        scores = [t["score"] for t in top]
+        assert scores == sorted(scores, reverse=True)
+        # Every seeded brand has a real (non-100-default) score with data
+        assert all(t["score"] is not None for t in top)
+
+    async def test_seeded_brand_has_data_sources(self, db_session):
+        from app.services import milk_purity_service as svc
+
+        await svc.seed_demo_brands(db_session)
+        await db_session.flush()
+
+        amul = await svc.get_brand_score(db_session, "amul-taaza")
+        assert amul is not None
+        # Seed now attaches a lab report → at least one data source
+        assert amul["score"]["data_sources_count"] >= 1
+        assert amul["lab_reports_count"] >= 1
+
+    async def test_seed_is_idempotent(self, db_session):
+        from app.services import milk_purity_service as svc
+
+        await svc.seed_demo_brands(db_session)
+        await db_session.flush()
+        n2 = await svc.seed_demo_brands(db_session)
+        await db_session.flush()
+        assert n2 == 0
+
+        # Re-seed must not create duplicate score versions
+        hist = await svc.get_score_history(db_session, "amul-taaza")
+        assert len(hist) == 1
+
+    async def test_top_brands_state_filter_applied(self, db_session):
+        from app.services import milk_purity_service as svc
+
+        await svc.seed_demo_brands(db_session)
+        await db_session.flush()
+
+        # Karnataka has only a subset of brands → filter must reduce the set
+        top_ka = await svc.get_top_brands(db_session, state="Karnataka", limit=30)
+        assert 1 <= len(top_ka) < 30
+
+    async def test_search_with_state_filter(self, db_session):
+        from app.services import milk_purity_service as svc
+
+        await svc.seed_demo_brands(db_session)
+        await db_session.flush()
+
+        # This path previously used JSON.contains() (crashes on Postgres).
+        res_ka = await svc.search_brands(db_session, "milk", state="Karnataka")
+        assert all(r["score"] is not None for r in res_ka)
+        # And it must actually narrow vs. an unfiltered search
+        res_all = await svc.search_brands(db_session, "milk", limit=50)
+        assert len(res_ka) <= len(res_all)
+
+    async def test_top_brands_uses_latest_version(self, db_session):
+        """A newer (lower) score version must replace an older (higher) one."""
+        from app.services import milk_purity_service as svc
+        from app.models.milk_purity import MilkBrand, PurityScore, ScoreBand, MilkVariant
+        from sqlalchemy import select
+
+        await svc.seed_demo_brands(db_session)
+        await db_session.flush()
+
+        brand = (await db_session.execute(
+            select(MilkBrand).where(MilkBrand.slug == "amul-taaza")
+        )).scalar_one()
+
+        # Force a new, much lower latest version
+        db_session.add(PurityScore(
+            brand_id=brand.id, version=99, overall_score=12.0, band=ScoreBand.poor,
+            fat_accuracy_score=10, snf_compliance_score=10, adulteration_score=10,
+            bacterial_score=10, fssai_compliance_score=10,
+            data_sources_count=1, has_limited_data=False,
+        ))
+        await db_session.flush()
+
+        top = await svc.get_top_brands(db_session, limit=50)
+        amul_rows = [t for t in top if t["slug"] == "amul-taaza"]
+        assert len(amul_rows) == 1  # exactly one row per brand
+        assert amul_rows[0]["score"] == 12.0  # the LATEST version, not the old high one

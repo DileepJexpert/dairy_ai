@@ -5,7 +5,7 @@ from datetime import datetime, date
 
 from sqlalchemy import (
     String, Float, Integer, Boolean, DateTime, Date, Text,
-    ForeignKey, Enum as SAEnum, UniqueConstraint, Index,
+    ForeignKey, Enum as SAEnum, UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSON

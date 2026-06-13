@@ -202,6 +202,12 @@ class FarmerHomeScreen extends ConsumerWidget {
                 color: Colors.purple,
                 onTap: () => context.push('/chat'),
               ),
+              _QuickActionButton(
+                icon: Icons.verified_outlined,
+                label: 'Milk Purity',
+                color: Colors.teal,
+                onTap: () => context.push('/purity'),
+              ),
             ],
           ),
         ],

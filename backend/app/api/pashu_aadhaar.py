@@ -2,6 +2,7 @@
 import logging
 import uuid
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -12,15 +13,41 @@ logger = logging.getLogger("dairy_ai.api.pashu_aadhaar")
 router = APIRouter(prefix="/pashu-aadhaar", tags=["Pashu Aadhaar"])
 
 
+# ---------------------------------------------------------------------------
+# Pydantic schemas
+# ---------------------------------------------------------------------------
+
+
+class RegisterCattleRequest(BaseModel):
+    cattle_id: uuid.UUID
+    farmer_id: uuid.UUID
+    pashu_aadhaar_number: str | None = None
+    ear_tag_number: str | None = None
+    identification_method: str = "ear_tag"
+    muzzle_print_hash: str | None = None
+    photo_front_url: str | None = None
+    photo_side_url: str | None = None
+    ear_tag_photo_url: str | None = None
+    species: str = "cattle"
+    breed_govt: str | None = None
+    color: str | None = None
+    horn_type: str | None = None
+    special_marks: str | None = None
+    owner_name: str | None = None
+    owner_aadhaar_last4: str | None = None
+    village_code: str | None = None
+    block_code: str | None = None
+    district_code: str | None = None
+
+
 @router.post("/register")
 async def register_cattle(
-    data: dict,
+    body: RegisterCattleRequest,
     db: AsyncSession = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    cattle_id = uuid.UUID(data.pop("cattle_id"))
-    farmer_id = uuid.UUID(data.pop("farmer_id"))
-    record = await pashu_aadhaar_service.register_cattle(db, cattle_id, farmer_id, data)
+    extra_data = body.model_dump(exclude={"cattle_id", "farmer_id"})
+    record = await pashu_aadhaar_service.register_cattle(db, body.cattle_id, body.farmer_id, extra_data)
     await db.commit()
     return {
         "success": True,
@@ -42,7 +69,7 @@ async def get_by_cattle(
 ):
     record = await pashu_aadhaar_service.get_by_cattle(db, cattle_id)
     if not record:
-        return {"success": False, "data": None, "message": "No Pashu Aadhaar found for this cattle"}
+        raise HTTPException(status_code=404, detail="No Pashu Aadhaar found for this cattle")
     return {
         "success": True,
         "data": {
@@ -73,7 +100,7 @@ async def lookup_by_uid(
     if not record:
         record = await pashu_aadhaar_service.get_by_ear_tag(db, uid)
     if not record:
-        return {"success": False, "data": None, "message": "No cattle found with this ID"}
+        raise HTTPException(status_code=404, detail="No cattle found with this ID")
     return {
         "success": True,
         "data": {
@@ -100,7 +127,7 @@ async def get_my_cattle(
     result = await db.execute(select(Farmer).where(Farmer.user_id == user.id))
     farmer = result.scalar_one_or_none()
     if not farmer:
-        return {"success": False, "data": None, "message": "Farmer profile not found"}
+        raise HTTPException(status_code=404, detail="Farmer profile not found")
 
     records = await pashu_aadhaar_service.get_farmer_cattle(db, farmer.id)
     return {
@@ -134,7 +161,7 @@ async def verify_registration(
         raise HTTPException(403, "Only admin or vet can verify")
     record = await pashu_aadhaar_service.verify_registration(db, record_id, f"user:{user.id}")
     if not record:
-        return {"success": False, "data": None, "message": "Record not found"}
+        raise HTTPException(status_code=404, detail="Record not found")
     await db.commit()
     return {"success": True, "data": {"status": record.status.value}, "message": "Registration verified"}
 

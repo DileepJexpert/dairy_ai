@@ -2,10 +2,11 @@ import uuid
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user, require_role
+from app.dependencies import get_current_user, require_role, parse_uuid
 from app.models.user import User, UserRole
 from app.models.outbreak import ReportStatus
 from app.repositories import farmer_repo
@@ -14,6 +15,29 @@ from app.services import outbreak_service
 logger = logging.getLogger("dairy_ai.api.outbreak")
 
 router = APIRouter(prefix="/outbreak", tags=["Disease Outbreak"])
+
+
+# ---------------------------------------------------------------------------
+# Pydantic schemas
+# ---------------------------------------------------------------------------
+
+
+class ReportDiseaseRequest(BaseModel):
+    disease_name: str
+    severity: str
+    lat: float
+    lng: float
+    cattle_id: str | None = None
+    symptoms: list[str] | None = None
+    village: str | None = None
+    district: str | None = None
+    state: str | None = None
+    source: str | None = None
+
+
+class ConfirmReportRequest(BaseModel):
+    status: str = "confirmed"
+    confirmed_by: str | None = None
 
 
 async def _get_farmer_id(db: AsyncSession, user: User) -> uuid.UUID:
@@ -32,7 +56,7 @@ async def _get_farmer(db: AsyncSession, user: User):
 
 @router.post("/report", status_code=201)
 async def report_disease(
-    data: dict,
+    body: ReportDiseaseRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -40,14 +64,8 @@ async def report_disease(
     logger.info(f"POST /outbreak/report called | user_id={current_user.id}")
     farmer_id = await _get_farmer_id(db, current_user)
 
-    required_fields = ["disease_name", "severity", "lat", "lng"]
-    for field in required_fields:
-        if field not in data:
-            logger.warning(f"Missing required field: {field}")
-            raise HTTPException(status_code=422, detail=f"Missing required field: {field}")
-
     try:
-        report = await outbreak_service.report_disease(db, farmer_id, data)
+        report = await outbreak_service.report_disease(db, farmer_id, body.model_dump())
         logger.info(f"Disease report created | report_id={report.id}")
         return {
             "success": True,
@@ -140,15 +158,15 @@ async def get_disease_trends(
 @router.put("/reports/{report_id}/confirm")
 async def confirm_report(
     report_id: str,
-    data: dict,
+    body: ConfirmReportRequest,
     current_user: User = Depends(require_role(UserRole.vet, UserRole.admin)),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Vet or admin confirms a disease report."""
     logger.info(f"PUT /outbreak/reports/{report_id}/confirm called | user_id={current_user.id}")
 
-    status_str = data.get("status", "confirmed")
-    confirmed_by = data.get("confirmed_by", current_user.phone)
+    status_str = body.status
+    confirmed_by = body.confirmed_by or current_user.phone
 
     try:
         report_status = ReportStatus(status_str)
@@ -157,7 +175,7 @@ async def confirm_report(
 
     try:
         report = await outbreak_service.update_report_status(
-            db, uuid.UUID(report_id), report_status, confirmed_by,
+            db, parse_uuid(report_id, "report_id"), report_status, confirmed_by,
         )
         logger.info(f"Report confirmed | report_id={report.id} | status={report.status.value}")
         return {

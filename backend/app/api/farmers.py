@@ -6,7 +6,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user, require_role
+from app.dependencies import get_current_user, require_role, parse_uuid
 from app.models.user import User, UserRole
 from app.models.cattle import Cattle
 from app.models.milk import MilkRecord
@@ -100,10 +100,9 @@ async def get_farmer(
     current_user: User = Depends(require_role(UserRole.admin)),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    import uuid as _uuid
     logger.info(f"GET /farmers/{farmer_id} called | admin_user_id={current_user.id}")
     logger.debug(f"Looking up farmer by id={farmer_id}")
-    farmer = await farmer_repo.get_by_id(db, _uuid.UUID(farmer_id))
+    farmer = await farmer_repo.get_by_id(db, parse_uuid(farmer_id, "farmer_id"))
     if not farmer:
         logger.warning(f"Farmer not found | farmer_id={farmer_id}")
         raise HTTPException(status_code=404, detail="Farmer not found")

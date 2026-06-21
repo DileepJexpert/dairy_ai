@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date
 
 from app.database import get_db
-from app.dependencies import get_current_user, require_role
+from app.dependencies import get_current_user, require_role, parse_uuid
 from app.models.user import User, UserRole
 from app.models.collection import (
     CollectionCenter, MilkCollection, CollectionRoute,
@@ -150,7 +150,7 @@ async def center_dashboard(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     logger.info(f"GET /collection/centers/{center_id}/dashboard called | user_id={current_user.id}")
-    dashboard = await collection_service.get_center_dashboard(db, uuid.UUID(center_id))
+    dashboard = await collection_service.get_center_dashboard(db, parse_uuid(center_id, "center_id"))
     if not dashboard:
         logger.warning(f"Center not found | center_id={center_id}")
         raise HTTPException(status_code=404, detail="Collection center not found")
@@ -204,9 +204,9 @@ async def list_collections(
     )
     query = select(MilkCollection)
     if center_id:
-        query = query.where(MilkCollection.center_id == uuid.UUID(center_id))
+        query = query.where(MilkCollection.center_id == parse_uuid(center_id, "center_id"))
     if farmer_id:
-        query = query.where(MilkCollection.farmer_id == uuid.UUID(farmer_id))
+        query = query.where(MilkCollection.farmer_id == parse_uuid(farmer_id, "farmer_id"))
     if collection_date:
         query = query.where(MilkCollection.date == collection_date)
     query = query.order_by(MilkCollection.created_at.desc()).limit(100)
@@ -259,7 +259,7 @@ async def list_alerts(
     logger.info(f"GET /collection/cold-chain/alerts called | center_id={center_id} | status={status_filter}")
     query = select(ColdChainAlert)
     if center_id:
-        query = query.where(ColdChainAlert.center_id == uuid.UUID(center_id))
+        query = query.where(ColdChainAlert.center_id == parse_uuid(center_id, "center_id"))
     if status_filter:
         query = query.where(ColdChainAlert.status == status_filter)
     query = query.order_by(ColdChainAlert.created_at.desc()).limit(50)
@@ -311,7 +311,7 @@ async def create_route(
     logger.debug(f"Fetching center coordinates for route optimization | center_count={len(data.center_ids)}")
     center_data = []
     for cid in data.center_ids:
-        result = await db.execute(select(CollectionCenter).where(CollectionCenter.id == uuid.UUID(cid)))
+        result = await db.execute(select(CollectionCenter).where(CollectionCenter.id == parse_uuid(cid, "center_id")))
         center = result.scalar_one_or_none()
         if center and center.lat and center.lng:
             center_data.append({"id": str(center.id), "lat": center.lat, "lng": center.lng, "name": center.name})
@@ -370,7 +370,7 @@ async def get_forecast(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     logger.info(f"GET /collection/centers/{center_id}/forecast called | days={days}")
-    forecast = await forecast_demand(db, uuid.UUID(center_id), days)
+    forecast = await forecast_demand(db, parse_uuid(center_id, "center_id"), days)
     logger.info(f"Forecast generated | center_id={center_id} | days={len(forecast)}")
     return {
         "success": True,
@@ -387,7 +387,7 @@ async def check_anomaly(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     logger.info(f"GET /collection/centers/{center_id}/anomaly called | today_litres={today_litres}")
-    result = await detect_collection_anomaly(db, uuid.UUID(center_id), today_litres)
+    result = await detect_collection_anomaly(db, parse_uuid(center_id, "center_id"), today_litres)
     logger.info(f"Anomaly check done | center_id={center_id} | is_anomaly={result.get('is_anomaly')}")
     return {
         "success": True,

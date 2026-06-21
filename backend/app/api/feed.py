@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, parse_uuid
 from app.models.user import User
 from app.repositories import farmer_repo, cattle_repo
 from app.services import feed_service
@@ -27,7 +27,7 @@ async def generate_feed_plan(
     if not farmer:
         logger.warning(f"Farmer profile not found | user_id={current_user.id}")
         raise HTTPException(status_code=404, detail="Farmer profile not found")
-    cid = uuid.UUID(cattle_id)
+    cid = parse_uuid(cattle_id, "cattle_id")
     logger.debug(f"Verifying cattle ownership | cattle_id={cid} | farmer_id={farmer.id}")
     cattle = await cattle_repo.get_by_id(db, cid)
     if not cattle or cattle.farmer_id != farmer.id:
@@ -64,7 +64,7 @@ async def get_current_plan(
     if not farmer:
         logger.warning(f"Farmer profile not found | user_id={current_user.id}")
         raise HTTPException(status_code=404, detail="Farmer profile not found")
-    cid = uuid.UUID(cattle_id)
+    cid = parse_uuid(cattle_id, "cattle_id")
     logger.debug(f"Verifying cattle ownership | cattle_id={cid} | farmer_id={farmer.id}")
     cattle = await cattle_repo.get_by_id(db, cid)
     if not cattle or cattle.farmer_id != farmer.id:

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, parse_uuid
 from app.models.user import User
 from app.repositories import farmer_repo, cattle_repo
 from app.services.triage_service import run_triage
@@ -45,7 +45,7 @@ async def triage(
         logger.warning(f"Farmer profile not found for triage | user_id={current_user.id}")
         raise HTTPException(status_code=404, detail="Farmer profile not found")
 
-    cattle_id = uuid.UUID(data.cattle_id)
+    cattle_id = parse_uuid(data.cattle_id, "cattle_id")
     logger.debug(f"Verifying cattle ownership | cattle_id={cattle_id} | farmer_id={farmer.id}")
     cattle = await cattle_repo.get_by_id(db, cattle_id)
     if not cattle or cattle.farmer_id != farmer.id:
@@ -74,7 +74,7 @@ async def chat_message(
     context = None
     if data.cattle_id:
         logger.debug(f"Looking up cattle context | cattle_id={data.cattle_id}")
-        cattle = await cattle_repo.get_by_id(db, uuid.UUID(data.cattle_id))
+        cattle = await cattle_repo.get_by_id(db, parse_uuid(data.cattle_id, "cattle_id"))
         if cattle:
             breed = cattle.breed.value if hasattr(cattle.breed, 'value') else cattle.breed
             status = cattle.status.value if hasattr(cattle.status, 'value') else cattle.status

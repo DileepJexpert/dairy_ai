@@ -1,6 +1,9 @@
 """Mandi price API — feed ingredients and cattle market prices."""
 import logging
-from fastapi import APIRouter, Depends, Query
+from datetime import date
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -10,6 +13,25 @@ from app.services import mandi_service
 
 logger = logging.getLogger("dairy_ai.api.mandi")
 router = APIRouter(prefix="/mandi", tags=["Mandi Prices"])
+
+
+# ---------------------------------------------------------------------------
+# Pydantic schemas
+# ---------------------------------------------------------------------------
+
+
+class RecordFeedPriceRequest(BaseModel):
+    ingredient_name: str
+    category: str
+    price_per_kg: float
+    unit: str = "kg"
+    mandi_name: str | None = None
+    district: str | None = None
+    state: str | None = None
+    date: date
+    source: str | None = None
+    min_price: float | None = None
+    max_price: float | None = None
 
 
 @router.get("/feed-prices")
@@ -27,11 +49,11 @@ async def get_feed_prices(
 
 @router.post("/feed-prices")
 async def record_feed_price(
-    data: dict,
+    body: RecordFeedPriceRequest,
     db: AsyncSession = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    price = await mandi_service.record_feed_price(db, data)
+    price = await mandi_service.record_feed_price(db, body.model_dump())
     await db.commit()
     return {"success": True, "data": {"id": str(price.id)}, "message": "Price recorded"}
 
@@ -69,7 +91,7 @@ async def seed_prices(
 ):
     """Admin: seed default feed prices for testing."""
     if user.role.value not in ("admin", "super_admin"):
-        return {"success": False, "data": None, "message": "Admin access required"}
+        raise HTTPException(status_code=403, detail="Admin access required")
     count = await mandi_service.seed_default_prices(db, district)
     await db.commit()
     return {"success": True, "data": {"seeded": count, "district": district}, "message": f"Seeded {count} prices"}

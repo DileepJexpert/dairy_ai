@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, parse_uuid
 from app.models.user import User
 from app.repositories import farmer_repo, cattle_repo, health_repo
 from app.services import health_service
@@ -24,7 +24,7 @@ async def _verify_cattle_ownership(db: AsyncSession, user: User, cattle_id_str: 
     if not farmer:
         logger.warning(f"Farmer profile not found during cattle ownership check | user_id={user.id}")
         raise HTTPException(status_code=404, detail="Farmer profile not found")
-    cattle_id = uuid.UUID(cattle_id_str)
+    cattle_id = parse_uuid(cattle_id_str, "cattle_id")
     cattle = await cattle_repo.get_by_id(db, cattle_id)
     if not cattle or cattle.farmer_id != farmer.id:
         logger.warning(f"Cattle not found or ownership mismatch | cattle_id={cattle_id_str} | farmer_id={farmer.id}")

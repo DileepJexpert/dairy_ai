@@ -3,6 +3,7 @@ import logging
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -14,6 +15,23 @@ from app.services import carbon_service
 logger = logging.getLogger("dairy_ai.api.carbon")
 
 router = APIRouter(prefix="/carbon", tags=["Carbon Footprint"])
+
+
+# ---------------------------------------------------------------------------
+# Pydantic schemas
+# ---------------------------------------------------------------------------
+
+
+class CalculateFootprintRequest(BaseModel):
+    period_start: date
+    period_end: date
+
+
+class RecordReductionActionRequest(BaseModel):
+    action_type: str
+    start_date: date
+    description: str | None = None
+    estimated_reduction_kg_co2: float | None = None
 
 
 async def _get_farmer_id(db: AsyncSession, user: User) -> uuid.UUID:
@@ -32,7 +50,7 @@ async def _get_farmer(db: AsyncSession, user: User):
 
 @router.post("/calculate", status_code=201)
 async def calculate_footprint(
-    data: dict,
+    body: CalculateFootprintRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -40,23 +58,8 @@ async def calculate_footprint(
     logger.info(f"POST /carbon/calculate called | user_id={current_user.id}")
     farmer_id = await _get_farmer_id(db, current_user)
 
-    required_fields = ["period_start", "period_end"]
-    for field in required_fields:
-        if field not in data:
-            raise HTTPException(status_code=422, detail=f"Missing required field: {field}")
-
     try:
-        period_start = data["period_start"]
-        period_end = data["period_end"]
-        if isinstance(period_start, str):
-            period_start = date.fromisoformat(period_start)
-        if isinstance(period_end, str):
-            period_end = date.fromisoformat(period_end)
-    except (ValueError, TypeError) as e:
-        raise HTTPException(status_code=422, detail=f"Invalid date format: {e}")
-
-    try:
-        record = await carbon_service.calculate_footprint(db, farmer_id, period_start, period_end)
+        record = await carbon_service.calculate_footprint(db, farmer_id, body.period_start, body.period_end)
         logger.info(f"Footprint calculated | record_id={record.id} | co2_per_litre={record.co2_per_litre}")
         return {
             "success": True,
@@ -184,7 +187,7 @@ async def get_suggestions(
 
 @router.post("/actions", status_code=201)
 async def record_reduction_action(
-    data: dict,
+    body: RecordReductionActionRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -192,13 +195,8 @@ async def record_reduction_action(
     logger.info(f"POST /carbon/actions called | user_id={current_user.id}")
     farmer_id = await _get_farmer_id(db, current_user)
 
-    required_fields = ["action_type", "start_date"]
-    for field in required_fields:
-        if field not in data:
-            raise HTTPException(status_code=422, detail=f"Missing required field: {field}")
-
     try:
-        action = await carbon_service.record_reduction_action(db, farmer_id, data)
+        action = await carbon_service.record_reduction_action(db, farmer_id, body.model_dump())
         logger.info(f"Reduction action recorded | action_id={action.id}")
         return {
             "success": True,

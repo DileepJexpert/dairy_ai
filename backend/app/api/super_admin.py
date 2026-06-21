@@ -7,7 +7,7 @@ from sqlalchemy import select, func, update, delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import require_role
+from app.dependencies import require_role, parse_uuid
 from app.models.user import User, UserRole
 from app.models.farmer import Farmer
 from app.models.cattle import Cattle

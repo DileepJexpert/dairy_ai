@@ -35,7 +35,7 @@ async def receive_webhook(request: Request) -> dict:
         logger.debug(f"WhatsApp webhook payload received | keys={list(payload.keys()) if isinstance(payload, dict) else 'non-dict'}")
         await handle_incoming(payload)
         logger.info("WhatsApp webhook processed successfully")
-        return {"success": True, "message": "Processed"}
+        return {"success": True, "data": {}, "message": "Processed"}
     except Exception as e:
         logger.error(f"Failed to process WhatsApp webhook: {e}")
         raise

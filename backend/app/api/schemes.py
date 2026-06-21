@@ -1,7 +1,7 @@
 """Government Scheme Navigator API."""
 import logging
 import uuid
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -45,7 +45,7 @@ async def get_scheme(
     """Get full details of a scheme."""
     scheme = await scheme_service.get_scheme_detail(db, scheme_id)
     if not scheme:
-        return {"success": False, "data": None, "message": "Scheme not found"}
+        raise HTTPException(status_code=404, detail="Scheme not found")
     return {
         "success": True,
         "data": {
@@ -148,9 +148,11 @@ async def update_application_status(
     user=Depends(get_current_user),
 ):
     """Update application status (admin/vet only)."""
+    if user.role.value not in ("admin", "super_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
     app = await scheme_service.update_application_status(db, application_id, status, notes)
     if not app:
-        return {"success": False, "data": None, "message": "Application not found"}
+        raise HTTPException(status_code=404, detail="Application not found")
     await db.commit()
     return {
         "success": True,
@@ -200,7 +202,7 @@ async def seed_schemes(
 ):
     """Admin: seed government schemes data."""
     if user.role.value not in ("admin", "super_admin"):
-        return {"success": False, "data": None, "message": "Admin access required"}
+        raise HTTPException(status_code=403, detail="Admin access required")
     count = await scheme_service.seed_schemes(db)
     await db.commit()
     return {"success": True, "data": {"seeded": count}, "message": f"Seeded {count} government schemes"}

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, parse_uuid
 from app.models.user import User
 from app.dependencies import require_role
 from app.models.user import UserRole
@@ -55,7 +55,7 @@ async def mark_notification_read(
     logger.info(f"PUT /notifications/{notification_id}/read called | user_id={current_user.id}")
     logger.debug(f"Calling notification_service.mark_read | notification_id={notification_id} | user_id={current_user.id}")
     try:
-        await notification_service.mark_read(db, uuid.UUID(notification_id), current_user.id)
+        await notification_service.mark_read(db, parse_uuid(notification_id, "notification_id"), current_user.id)
         logger.info(f"Notification marked as read | notification_id={notification_id} | user_id={current_user.id}")
         return {"success": True, "data": {}, "message": "Marked as read"}
     except Exception as e:

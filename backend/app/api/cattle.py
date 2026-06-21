@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, parse_uuid
 from app.models.user import User
 from app.repositories import farmer_repo, cattle_repo
 from app.services import cattle_service
@@ -110,7 +110,7 @@ async def get_cattle(
     logger.info(f"GET /cattle/{cattle_id} called | user_id={current_user.id}")
     farmer_id = await _get_farmer_id(db, current_user)
     logger.debug(f"Fetching cattle by id={cattle_id}")
-    cattle = await cattle_repo.get_by_id(db, uuid.UUID(cattle_id))
+    cattle = await cattle_repo.get_by_id(db, parse_uuid(cattle_id, "cattle_id"))
     if not cattle or cattle.farmer_id != farmer_id:
         logger.warning(f"Cattle not found or ownership mismatch | cattle_id={cattle_id} | farmer_id={farmer_id}")
         raise HTTPException(status_code=404, detail="Cattle not found")
@@ -142,7 +142,7 @@ async def update_cattle(
     logger.info(f"PUT /cattle/{cattle_id} called | user_id={current_user.id}")
     farmer_id = await _get_farmer_id(db, current_user)
     logger.debug(f"Fetching cattle for update | cattle_id={cattle_id}")
-    cattle = await cattle_repo.get_by_id(db, uuid.UUID(cattle_id))
+    cattle = await cattle_repo.get_by_id(db, parse_uuid(cattle_id, "cattle_id"))
     if not cattle or cattle.farmer_id != farmer_id:
         logger.warning(f"Cattle not found or ownership mismatch for update | cattle_id={cattle_id} | farmer_id={farmer_id}")
         raise HTTPException(status_code=404, detail="Cattle not found")
@@ -165,7 +165,7 @@ async def delete_cattle(
     logger.info(f"DELETE /cattle/{cattle_id} called | user_id={current_user.id}")
     farmer_id = await _get_farmer_id(db, current_user)
     logger.debug(f"Fetching cattle for deletion | cattle_id={cattle_id}")
-    cattle = await cattle_repo.get_by_id(db, uuid.UUID(cattle_id))
+    cattle = await cattle_repo.get_by_id(db, parse_uuid(cattle_id, "cattle_id"))
     if not cattle or cattle.farmer_id != farmer_id:
         logger.warning(f"Cattle not found or ownership mismatch for delete | cattle_id={cattle_id} | farmer_id={farmer_id}")
         raise HTTPException(status_code=404, detail="Cattle not found")

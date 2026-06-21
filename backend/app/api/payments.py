@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date
 
 from app.database import get_db
-from app.dependencies import get_current_user, require_role
+from app.dependencies import get_current_user, require_role, parse_uuid
 from app.models.user import User, UserRole
 from app.models.payment import (
     PaymentCycle, FarmerPayment, Loan, SubsidyApplication, CattleInsurance,

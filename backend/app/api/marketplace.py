@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, parse_uuid
 from app.models.user import User
 from app.services import marketplace_service
 from app.schemas.marketplace import (
@@ -161,7 +161,7 @@ async def get_listing_detail(
     """Get a listing detail with seller info and health summary."""
     logger.info(f"GET /marketplace/listings/{listing_id} | user_id={current_user.id}")
     detail = await marketplace_service.get_listing_detail(
-        db, uuid.UUID(listing_id), viewer_id=current_user.id,
+        db, parse_uuid(listing_id, "listing_id"), viewer_id=current_user.id,
     )
     return {
         "success": True,
@@ -180,7 +180,7 @@ async def update_listing(
     """Update a listing (seller only)."""
     logger.info(f"PUT /marketplace/listings/{listing_id} | user_id={current_user.id}")
     listing = await marketplace_service.update_listing(
-        db, uuid.UUID(listing_id), current_user.id, data,
+        db, parse_uuid(listing_id, "listing_id"), current_user.id, data,
     )
     return {
         "success": True,
@@ -199,7 +199,7 @@ async def delete_listing(
     logger.info(f"DELETE /marketplace/listings/{listing_id} | user_id={current_user.id}")
     from app.schemas.marketplace import ListingUpdate as LU
     listing = await marketplace_service.update_listing(
-        db, uuid.UUID(listing_id), current_user.id, LU(status="cancelled"),
+        db, parse_uuid(listing_id, "listing_id"), current_user.id, LU(status="cancelled"),
     )
     return {
         "success": True,
@@ -221,7 +221,7 @@ async def create_inquiry(
     """Send an inquiry on a listing."""
     logger.info(f"POST /marketplace/listings/{listing_id}/inquiries | user_id={current_user.id}")
     inquiry = await marketplace_service.create_inquiry(
-        db, uuid.UUID(listing_id), current_user.id, data,
+        db, parse_uuid(listing_id, "listing_id"), current_user.id, data,
     )
     return {
         "success": True,
@@ -240,7 +240,7 @@ async def respond_to_inquiry(
     """Seller responds to an inquiry (accept/reject)."""
     logger.info(f"PUT /marketplace/inquiries/{inquiry_id}/respond | user_id={current_user.id}")
     inquiry = await marketplace_service.respond_to_inquiry(
-        db, uuid.UUID(inquiry_id), current_user.id, data.response, data.status,
+        db, parse_uuid(inquiry_id, "inquiry_id"), current_user.id, data.response, data.status,
     )
     return {
         "success": True,
@@ -261,7 +261,7 @@ async def toggle_favorite(
     """Toggle favorite on a listing (add/remove)."""
     logger.info(f"POST /marketplace/listings/{listing_id}/favorite | user_id={current_user.id}")
     result = await marketplace_service.toggle_favorite(
-        db, uuid.UUID(listing_id), current_user.id,
+        db, parse_uuid(listing_id, "listing_id"), current_user.id,
     )
     return {
         "success": True,
@@ -282,9 +282,9 @@ async def mark_as_sold(
 ) -> dict:
     """Mark a listing as sold (seller only)."""
     logger.info(f"POST /marketplace/listings/{listing_id}/sold | user_id={current_user.id}")
-    buyer_uuid = uuid.UUID(buyer_id) if buyer_id else None
+    buyer_uuid = parse_uuid(buyer_id, "buyer_id") if buyer_id else None
     listing = await marketplace_service.mark_as_sold(
-        db, uuid.UUID(listing_id), current_user.id, buyer_uuid,
+        db, parse_uuid(listing_id, "listing_id"), current_user.id, buyer_uuid,
     )
     return {
         "success": True,

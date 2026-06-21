@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user, require_role
+from app.dependencies import get_current_user, require_role, parse_uuid
 from app.models.user import User, UserRole
 from app.models.vet import ConsultationStatus
 from app.repositories import vet_repo, farmer_repo
@@ -252,7 +252,7 @@ async def verify_vet(
 ) -> dict:
     logger.info(f"POST /vets/{vet_id}/verify called | admin_user_id={current_user.id}")
     logger.debug(f"Calling vet_service.verify_vet | vet_id={vet_id}")
-    vet = await vet_service.verify_vet(db, uuid.UUID(vet_id))
+    vet = await vet_service.verify_vet(db, parse_uuid(vet_id, "vet_id"))
     if not vet:
         logger.warning(f"Vet not found for verification | vet_id={vet_id}")
         raise HTTPException(status_code=404, detail="Vet not found")
@@ -300,7 +300,7 @@ async def accept_consultation(
     vet = await _get_vet_profile(db, current_user)
     logger.debug(f"Calling consultation_service.accept_consultation | vet_id={vet.id} | consultation_id={consultation_id}")
     consultation = await consultation_service.accept_consultation(
-        db, vet.id, uuid.UUID(consultation_id)
+        db, vet.id, parse_uuid(consultation_id, "consultation_id")
     )
     if not consultation:
         logger.warning(f"Consultation not found for accept | consultation_id={consultation_id}")
@@ -320,13 +320,16 @@ async def start_consultation(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     logger.info(f"PUT /consultations/{consultation_id}/start called | user_id={current_user.id}")
+    vet_profile = await _get_vet_profile(db, current_user)
     logger.debug(f"Calling consultation_service.start_consultation | consultation_id={consultation_id}")
     consultation = await consultation_service.start_consultation(
-        db, uuid.UUID(consultation_id)
+        db, parse_uuid(consultation_id, "consultation_id")
     )
     if not consultation:
         logger.warning(f"Consultation not found for start | consultation_id={consultation_id}")
         raise HTTPException(status_code=404, detail="Consultation not found")
+    if consultation.vet_id != vet_profile.id:
+        raise HTTPException(status_code=403, detail="Not assigned to this consultation")
     logger.info(f"Consultation started | consultation_id={consultation.id} | started_at={consultation.started_at}")
     return {
         "success": True,
@@ -343,16 +346,19 @@ async def end_consultation(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     logger.info(f"PUT /consultations/{consultation_id}/end called | user_id={current_user.id}")
+    vet_profile = await _get_vet_profile(db, current_user)
     logger.debug(f"Calling consultation_service.end_consultation | consultation_id={consultation_id} | has_diagnosis={bool(data.vet_diagnosis)}")
     consultation = await consultation_service.end_consultation(
         db,
-        uuid.UUID(consultation_id),
+        parse_uuid(consultation_id, "consultation_id"),
         diagnosis=data.vet_diagnosis,
         notes=data.vet_notes,
     )
     if not consultation:
         logger.warning(f"Consultation not found for end | consultation_id={consultation_id}")
         raise HTTPException(status_code=404, detail="Consultation not found")
+    if consultation.vet_id != vet_profile.id:
+        raise HTTPException(status_code=403, detail="Not assigned to this consultation")
     logger.info(f"Consultation completed | consultation_id={consultation.id} | duration={consultation.duration_seconds}s | fee={consultation.fee_amount}")
     return {
         "success": True,
@@ -371,7 +377,7 @@ async def create_prescription(
     logger.info(f"POST /consultations/{consultation_id}/prescription called | user_id={current_user.id}")
     logger.debug(f"Calling consultation_service.create_prescription | consultation_id={consultation_id} | medicines_count={len(data.medicines) if data.medicines else 0}")
     prescription = await consultation_service.create_prescription(
-        db, uuid.UUID(consultation_id), data
+        db, parse_uuid(consultation_id, "consultation_id"), data
     )
     if not prescription:
         logger.warning(f"Consultation not found or no vet assigned for prescription | consultation_id={consultation_id}")
@@ -394,7 +400,7 @@ async def rate_consultation(
     logger.info(f"PUT /consultations/{consultation_id}/rate called | user_id={current_user.id} | rating={data.rating}")
     logger.debug(f"Calling consultation_service.rate_consultation | consultation_id={consultation_id}")
     consultation = await consultation_service.rate_consultation(
-        db, uuid.UUID(consultation_id), data
+        db, parse_uuid(consultation_id, "consultation_id"), data
     )
     if not consultation:
         logger.warning(f"Consultation not found for rating | consultation_id={consultation_id}")

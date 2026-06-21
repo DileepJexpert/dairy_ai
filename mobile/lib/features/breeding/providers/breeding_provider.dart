@@ -3,7 +3,9 @@ import 'package:dio/dio.dart';
 import 'package:dairy_ai/core/constants.dart';
 import 'package:dairy_ai/features/breeding/models/breeding_models.dart';
 import 'package:dairy_ai/features/feed/models/feed_models.dart';
-import 'package:dairy_ai/features/feed/providers/feed_provider.dart' show dioProvider, cattleListProvider;
+import 'package:dairy_ai/features/auth/providers/auth_provider.dart' show dioProvider;
+import 'package:dairy_ai/features/feed/providers/feed_provider.dart' show cattleRefListProvider;
+import 'package:dairy_ai/features/feed/models/feed_models.dart' show CattleRef;
 
 // ---------------------------------------------------------------------------
 // Breeding records provider — optionally filtered by cattle.

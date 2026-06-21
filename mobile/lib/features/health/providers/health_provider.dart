@@ -20,7 +20,7 @@ final _dioProvider = Provider<Dio>((ref) {
 // ---------------------------------------------------------------------------
 // Cattle list provider (lightweight list for dropdowns).
 // ---------------------------------------------------------------------------
-final cattleListProvider =
+final cattleRefListProvider =
     FutureProvider.autoDispose<List<CattleRef>>((ref) async {
   final dio = ref.watch(_dioProvider);
   final response = await dio.get('/cattle');

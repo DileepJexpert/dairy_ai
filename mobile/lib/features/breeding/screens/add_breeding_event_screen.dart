@@ -5,7 +5,7 @@ import 'package:dairy_ai/core/extensions.dart';
 import 'package:dairy_ai/features/breeding/models/breeding_models.dart';
 import 'package:dairy_ai/features/breeding/providers/breeding_provider.dart';
 import 'package:dairy_ai/features/feed/providers/feed_provider.dart'
-    show cattleListProvider;
+    show cattleRefListProvider;
 
 class AddBreedingEventScreen extends ConsumerStatefulWidget {
   final String? preselectedCattleId;
@@ -44,7 +44,7 @@ class _AddBreedingEventScreenState
 
   @override
   Widget build(BuildContext context) {
-    final cattleAsync = ref.watch(cattleListProvider);
+    final cattleAsync = ref.watch(cattleRefListProvider);
     final actionState = ref.watch(breedingActionProvider);
     final dateFormat = DateFormat('dd MMM yyyy');
 

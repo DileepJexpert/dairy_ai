@@ -7,7 +7,7 @@ import 'package:dairy_ai/features/breeding/providers/breeding_provider.dart';
 import 'package:dairy_ai/features/breeding/screens/add_breeding_event_screen.dart';
 import 'package:dairy_ai/features/feed/models/feed_models.dart';
 import 'package:dairy_ai/features/feed/providers/feed_provider.dart'
-    show cattleListProvider;
+    show cattleRefListProvider;
 
 class BreedingScreen extends ConsumerStatefulWidget {
   const BreedingScreen({super.key});
@@ -21,7 +21,7 @@ class _BreedingScreenState extends ConsumerState<BreedingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cattleAsync = ref.watch(cattleListProvider);
+    final cattleAsync = ref.watch(cattleRefListProvider);
     final recordsAsync = ref.watch(breedingRecordsProvider(_selectedCattleId));
 
     return Scaffold(

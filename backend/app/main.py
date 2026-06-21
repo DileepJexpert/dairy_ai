@@ -36,8 +36,10 @@ from app.api.milk_purity import router as milk_purity_router
 from app.database import init_db
 
 # Configure logging for the whole app
+import os
+
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO),
     format="%(asctime)s | %(levelname)-8s | %(name)-30s | %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
@@ -78,10 +80,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials="*" not in _cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

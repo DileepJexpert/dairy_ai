@@ -11,7 +11,7 @@ from app.models.marketplace import (
     CattleListing, ListingInquiry, ListingFavorite,
     ListingStatus, ListingCategory, InquiryStatus,
 )
-from app.models.cattle import Cattle
+from app.models.cattle import Cattle, CattleStatus
 from app.models.health import HealthRecord, Vaccination
 from app.models.farmer import Farmer
 from app.models.user import User
@@ -527,7 +527,7 @@ async def respond_to_inquiry(
         type=NotificationType.general,
         title=f"Your inquiry was {status}",
         body=f"The seller responded to your inquiry on: {listing.title}",
-        data={"listing_id": str(listing.listing_id), "inquiry_id": str(inquiry_id)},
+        data={"listing_id": str(listing.id), "inquiry_id": str(inquiry_id)},
     )
     db.add(notification)
 
@@ -684,7 +684,7 @@ async def mark_as_sold(
         )
         cattle = cattle_result.scalar_one_or_none()
         if cattle:
-            cattle.status = "sold"
+            cattle.status = CattleStatus.sold
             logger.info(f"Cattle status updated to sold | cattle_id={listing.cattle_id}")
 
     # Notify buyer if provided

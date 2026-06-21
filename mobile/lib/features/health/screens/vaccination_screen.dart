@@ -20,7 +20,7 @@ class _VaccinationScreenState extends ConsumerState<VaccinationScreen> {
   @override
   Widget build(BuildContext context) {
     final vaccinationsAsync = ref.watch(vaccinationsProvider(_filterCattleId));
-    final cattleAsync = ref.watch(cattleListProvider);
+    final cattleAsync = ref.watch(cattleRefListProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -362,7 +362,7 @@ class _AddVaccinationFormState extends ConsumerState<_AddVaccinationForm> {
 
   @override
   Widget build(BuildContext context) {
-    final cattleAsync = ref.watch(cattleListProvider);
+    final cattleAsync = ref.watch(cattleRefListProvider);
     final dateFormat = DateFormat('dd MMM yyyy');
 
     return SingleChildScrollView(

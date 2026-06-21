@@ -1,5 +1,5 @@
 import logging
-import random
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -17,7 +17,7 @@ logger = logging.getLogger("dairy_ai.services.auth")
 
 
 def generate_otp() -> str:
-    otp = f"{random.randint(0, 999999):06d}"
+    otp = f"{secrets.randbelow(1_000_000):06d}"
     logger.debug(f"Generated new OTP (length={len(otp)})")
     return otp
 

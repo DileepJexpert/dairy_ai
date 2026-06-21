@@ -31,7 +31,7 @@ class _FeedPlanScreenState extends ConsumerState<FeedPlanScreen>
 
   @override
   Widget build(BuildContext context) {
-    final cattleAsync = ref.watch(cattleListProvider);
+    final cattleAsync = ref.watch(cattleRefListProvider);
 
     return Scaffold(
       appBar: AppBar(

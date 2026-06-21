@@ -66,4 +66,4 @@ settings = Settings()
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    return settings

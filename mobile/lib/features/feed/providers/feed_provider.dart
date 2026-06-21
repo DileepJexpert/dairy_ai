@@ -1,25 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
-import 'package:dairy_ai/core/constants.dart';
+import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import 'package:dairy_ai/features/feed/models/feed_models.dart';
-
-// ---------------------------------------------------------------------------
-// Dio provider — reuse across features (shared singleton).
-// ---------------------------------------------------------------------------
-final dioProvider = Provider<Dio>((ref) {
-  final dio = Dio(BaseOptions(
-    baseUrl: AppConstants.baseUrl,
-    connectTimeout: AppConstants.connectTimeout,
-    receiveTimeout: AppConstants.receiveTimeout,
-    headers: {'Content-Type': 'application/json'},
-  ));
-  return dio;
-});
 
 // ---------------------------------------------------------------------------
 // Cattle list provider — lightweight list for dropdowns.
 // ---------------------------------------------------------------------------
-final cattleListProvider =
+final cattleRefListProvider =
     FutureProvider.autoDispose<List<CattleRef>>((ref) async {
   final dio = ref.watch(dioProvider);
   final response = await dio.get('/cattle');

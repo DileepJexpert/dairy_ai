@@ -1,4 +1,5 @@
 import logging
+import uuid as _uuid
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -40,8 +41,15 @@ async def get_current_user(
         logger.warning(f"User not found or inactive: user_id={user_id}")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
 
-    logger.info(f"Authenticated user: id={user.id}, phone={user.phone}, role={user.role.value}")
+    logger.info(f"Authenticated user: id={user.id}, role={user.role.value}")
     return user
+
+def parse_uuid(value: str, name: str = "id") -> _uuid.UUID:
+    try:
+        return _uuid.UUID(value)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail=f"Invalid {name}: {value!r}")
+
 
 def require_role(*roles: UserRole):
     role_names = [r.value for r in roles]

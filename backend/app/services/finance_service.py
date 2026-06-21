@@ -113,8 +113,12 @@ async def get_monthly_summary(db: AsyncSession, farmer_id: uuid.UUID, months: in
     summaries = []
     today = date.today()
     for i in range(months):
-        month_start = date(today.year, today.month, 1) - timedelta(days=30 * i)
-        month_start = date(month_start.year, month_start.month, 1)
+        year = today.year
+        month = today.month - i
+        while month <= 0:
+            month += 12
+            year -= 1
+        month_start = date(year, month, 1)
         if month_start.month == 12:
             month_end = date(month_start.year + 1, 1, 1)
         else:

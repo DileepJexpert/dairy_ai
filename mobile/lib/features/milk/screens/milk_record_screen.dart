@@ -124,7 +124,7 @@ class _SingleEntryFormState extends ConsumerState<_SingleEntryForm> {
 
   @override
   Widget build(BuildContext context) {
-    final cattleAsync = ref.watch(cattleListProvider);
+    final cattleAsync = ref.watch(cattleRefListProvider);
 
     return Form(
       key: _formKey,
@@ -408,7 +408,7 @@ class _QuickEntryViewState extends ConsumerState<_QuickEntryView> {
 
   @override
   Widget build(BuildContext context) {
-    final cattleAsync = ref.watch(cattleListProvider);
+    final cattleAsync = ref.watch(cattleRefListProvider);
 
     return Column(
       children: [

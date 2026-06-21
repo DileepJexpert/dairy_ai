@@ -66,7 +66,7 @@ async def process_payment_cycle(
 ) -> dict:
     logger.info(f"POST /payments/cycles/{cycle_id}/process called | user_id={current_user.id}")
     try:
-        cycle = await payment_service.process_payment_cycle(db, uuid.UUID(cycle_id))
+        cycle = await payment_service.process_payment_cycle(db, parse_uuid(cycle_id, "cycle_id"))
         logger.info(
             f"Payment cycle processed | cycle_id={cycle.id} | "
             f"farmers={cycle.farmers_count} | net_payout=₹{cycle.net_payout}"
@@ -130,7 +130,7 @@ async def farmer_ledger(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     logger.info(f"GET /payments/ledger/{farmer_id} called | user_id={current_user.id}")
-    ledger = await payment_service.get_farmer_ledger(db, uuid.UUID(farmer_id))
+    ledger = await payment_service.get_farmer_ledger(db, parse_uuid(farmer_id, "farmer_id"))
     logger.info(f"Farmer ledger retrieved | farmer_id={farmer_id}")
     return {"success": True, "data": ledger, "message": "Farmer ledger"}
 
@@ -175,7 +175,7 @@ async def approve_loan(
 ) -> dict:
     logger.info(f"PUT /payments/loans/{loan_id}/approve called | user_id={current_user.id}")
     try:
-        loan = await payment_service.approve_loan(db, uuid.UUID(loan_id), data.model_dump())
+        loan = await payment_service.approve_loan(db, parse_uuid(loan_id, "loan_id"), data.model_dump())
         logger.info(f"Loan approved | loan_id={loan.id} | emi=₹{loan.emi_amount}")
         return {
             "success": True,
@@ -200,7 +200,7 @@ async def list_loans(
     logger.info(f"GET /payments/loans called | farmer_id={farmer_id}")
     query = select(Loan)
     if farmer_id:
-        query = query.where(Loan.farmer_id == uuid.UUID(farmer_id))
+        query = query.where(Loan.farmer_id == parse_uuid(farmer_id, "farmer_id"))
     query = query.order_by(Loan.created_at.desc()).limit(20)
     result = await db.execute(query)
     loans = list(result.scalars().all())
@@ -265,7 +265,7 @@ async def file_claim(
 ) -> dict:
     logger.info(f"POST /payments/insurance/{insurance_id}/claim called | amount=₹{data.claim_amount}")
     try:
-        insurance = await payment_service.file_insurance_claim(db, uuid.UUID(insurance_id), data.model_dump())
+        insurance = await payment_service.file_insurance_claim(db, parse_uuid(insurance_id, "insurance_id"), data.model_dump())
         logger.info(f"Insurance claim filed | id={insurance.id} | claim_amount=₹{insurance.claim_amount}")
         return {
             "success": True,
@@ -291,7 +291,7 @@ async def list_insurance(
     logger.info(f"GET /payments/insurance called | farmer_id={farmer_id}")
     query = select(CattleInsurance)
     if farmer_id:
-        query = query.where(CattleInsurance.farmer_id == uuid.UUID(farmer_id))
+        query = query.where(CattleInsurance.farmer_id == parse_uuid(farmer_id, "farmer_id"))
     query = query.order_by(CattleInsurance.created_at.desc()).limit(20)
     result = await db.execute(query)
     policies = list(result.scalars().all())
@@ -354,7 +354,7 @@ async def update_subsidy(
 ) -> dict:
     logger.info(f"PUT /payments/subsidies/{subsidy_id}/status called | new_status={data.status}")
     try:
-        subsidy = await payment_service.update_subsidy_status(db, uuid.UUID(subsidy_id), data.model_dump())
+        subsidy = await payment_service.update_subsidy_status(db, parse_uuid(subsidy_id, "subsidy_id"), data.model_dump())
         logger.info(f"Subsidy status updated | id={subsidy.id} | status={subsidy.status}")
         return {
             "success": True,
@@ -379,7 +379,7 @@ async def list_subsidies(
     logger.info(f"GET /payments/subsidies called | farmer_id={farmer_id}")
     query = select(SubsidyApplication)
     if farmer_id:
-        query = query.where(SubsidyApplication.farmer_id == uuid.UUID(farmer_id))
+        query = query.where(SubsidyApplication.farmer_id == parse_uuid(farmer_id, "farmer_id"))
     query = query.order_by(SubsidyApplication.created_at.desc()).limit(20)
     result = await db.execute(query)
     subsidies = list(result.scalars().all())

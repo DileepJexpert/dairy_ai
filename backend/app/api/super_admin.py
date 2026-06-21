@@ -215,7 +215,7 @@ async def change_user_role(
         logger.warning(f"Invalid role: {new_role}")
         raise HTTPException(status_code=400, detail=f"Invalid role: {new_role}. Valid: {[r.value for r in UserRole]}")
 
-    result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+    result = await db.execute(select(User).where(User.id == parse_uuid(user_id, "user_id")))
     user = result.scalar_one_or_none()
     if not user:
         logger.warning(f"User not found: {user_id}")
@@ -242,7 +242,7 @@ async def toggle_user_active(
     """Activate or deactivate a user account."""
     logger.info(f"Toggle active status for user_id={user_id} | by super_admin={current_user.id}")
 
-    result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+    result = await db.execute(select(User).where(User.id == parse_uuid(user_id, "user_id")))
     user = result.scalar_one_or_none()
     if not user:
         logger.warning(f"User not found: {user_id}")
@@ -306,7 +306,7 @@ async def verify_vet(
     """Verify a vet profile."""
     logger.info(f"Verifying vet_id={vet_id} | by super_admin={current_user.id}")
 
-    result = await db.execute(select(VetProfile).where(VetProfile.id == uuid.UUID(vet_id)))
+    result = await db.execute(select(VetProfile).where(VetProfile.id == parse_uuid(vet_id, "vet_id")))
     vet = result.scalar_one_or_none()
     if not vet:
         logger.warning(f"Vet not found: {vet_id}")
@@ -333,7 +333,7 @@ async def reject_vet(
     """Reject a vet verification (keeps profile but unverified)."""
     logger.info(f"Rejecting vet_id={vet_id} | reason={reason} | by super_admin={current_user.id}")
 
-    result = await db.execute(select(VetProfile).where(VetProfile.id == uuid.UUID(vet_id)))
+    result = await db.execute(select(VetProfile).where(VetProfile.id == parse_uuid(vet_id, "vet_id")))
     vet = result.scalar_one_or_none()
     if not vet:
         raise HTTPException(status_code=404, detail="Vet not found")

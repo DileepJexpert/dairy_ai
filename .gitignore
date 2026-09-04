@@ -42,6 +42,10 @@ logs/
 # Node (if applicable)
 node_modules/
 
+# Flutter generated files
+mobile/.dart_tool/
+mobile/.flutter-plugins-dependencies
+
 # Coverage
 htmlcov/
 .coverage

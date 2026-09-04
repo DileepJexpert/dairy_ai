@@ -33,6 +33,9 @@ from app.api.schemes import router as schemes_router
 from app.api.mandi import router as mandi_router
 from app.api.pashu_aadhaar import router as pashu_aadhaar_router
 from app.api.milk_purity import router as milk_purity_router
+from app.api.products import router as products_router
+from app.api.cart import router as cart_router
+from app.api.delivery_addresses import router as delivery_address_router
 from app.database import init_db
 
 # Configure logging for the whole app
@@ -132,6 +135,9 @@ app.include_router(schemes_router, prefix="/api/v1")
 app.include_router(mandi_router, prefix="/api/v1")
 app.include_router(pashu_aadhaar_router, prefix="/api/v1")
 app.include_router(milk_purity_router, prefix="/api/v1")
+app.include_router(products_router, prefix="/api/v1")
+app.include_router(cart_router, prefix="/api/v1")
+app.include_router(delivery_address_router, prefix="/api/v1")
 
 logger.info("Registered routers: auth, farmers, cattle, health, milk, feed, breeding, finance, vet, chat, whatsapp, notifications, admin, super-admin, vendor, cooperative, collection, payments, marketplace, outbreak, withdrawal, carbon, vision, schemes, mandi, pashu-aadhaar, milk-purity")
 

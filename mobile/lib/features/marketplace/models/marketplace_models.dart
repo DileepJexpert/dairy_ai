@@ -1,79 +1,13 @@
 import 'package:flutter/foundation.dart';
 
-/// Categories of marketplace listings.
-enum ListingCategory { cattle, equipment, feed }
+enum ListingCategory { cow, buffalo, bull, calf, heifer }
+enum ListingStatus { active, sold, cancelled, expired }
 
-/// Status of a listing.
-enum ListingStatus { active, sold, expired }
-
-/// A single marketplace listing.
 @immutable
-class Listing {
-  final int id;
-  final String title;
-  final String description;
-  final ListingCategory category;
-  final double price;
-  final String? imageUrl;
-  final String sellerName;
-  final String? sellerPhone;
-  final String? location;
-  final ListingStatus status;
-  final DateTime createdAt;
-
-  const Listing({
-    required this.id,
-    required this.title,
-    required this.description,
-    required this.category,
-    required this.price,
-    this.imageUrl,
-    required this.sellerName,
-    this.sellerPhone,
-    this.location,
-    required this.status,
-    required this.createdAt,
-  });
-
-  factory Listing.fromJson(Map<String, dynamic> json) {
-    return Listing(
-      id: json['id'] as int,
-      title: json['title'] as String? ?? '',
-      description: json['description'] as String? ?? '',
-      category: ListingCategory.values.firstWhere(
-        (e) => e.name == json['category'],
-        orElse: () => ListingCategory.cattle,
-      ),
-      price: (json['price'] as num?)?.toDouble() ?? 0.0,
-      imageUrl: json['image_url'] as String?,
-      sellerName: json['seller_name'] as String? ?? 'Unknown',
-      sellerPhone: json['seller_phone'] as String?,
-      location: json['location'] as String?,
-      status: ListingStatus.values.firstWhere(
-        (e) => e.name == json['status'],
-        orElse: () => ListingStatus.active,
-      ),
-      createdAt: DateTime.parse(json['created_at'] as String),
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-        'title': title,
-        'description': description,
-        'category': category.name,
-        'price': price,
-        'image_url': imageUrl,
-        'location': location,
-      };
-
-  String get categoryLabel {
-    switch (category) {
-      case ListingCategory.cattle:
-        return 'Cattle for Sale';
-      case ListingCategory.equipment:
-        return 'Equipment';
-      case ListingCategory.feed:
-        return 'Feed Supplies';
-    }
-  }
+class MarketplaceListing {
+  const MarketplaceListing({required this.id,required this.sellerId,this.cattleId,required this.category,required this.title,required this.price,required this.status,required this.createdAt,this.breed,this.ageMonths,this.weightKg,this.milkYieldLitres,this.fatPct,this.lactationNumber,this.isPregnant=false,this.monthsPregnant,this.healthVerified=false,this.vaccinationVerified=false,this.description,this.isNegotiable=true,this.photos=const [],this.locationVillage,this.locationDistrict,this.locationState,this.distanceKm,this.viewsCount=0,this.inquiriesCount=0,this.sellerName,this.sellerPhone,this.isFavorited=false});
+  final String id,sellerId,title; final String? cattleId,breed,description,locationVillage,locationDistrict,locationState,sellerName,sellerPhone; final ListingCategory category; final ListingStatus status; final double price; final int? ageMonths,lactationNumber,monthsPregnant; final double? weightKg,milkYieldLitres,fatPct,distanceKm; final bool isPregnant,healthVerified,vaccinationVerified,isNegotiable,isFavorited; final List<String> photos; final int viewsCount,inquiriesCount; final DateTime createdAt;
+  factory MarketplaceListing.fromJson(Map<String,dynamic> j)=>MarketplaceListing(id:j['id'].toString(),sellerId:j['seller_id'].toString(),cattleId:j['cattle_id']?.toString(),category:ListingCategory.values.byName(j['category'] as String),title:j['title'] as String? ?? '',price:(j['price'] as num?)?.toDouble() ?? 0,status:ListingStatus.values.byName(j['status'] as String? ?? 'active'),createdAt:DateTime.parse(j['created_at'] as String),breed:j['breed'] as String?,ageMonths:j['age_months'] as int?,weightKg:(j['weight_kg'] as num?)?.toDouble(),milkYieldLitres:(j['milk_yield_litres'] as num?)?.toDouble(),fatPct:(j['fat_pct'] as num?)?.toDouble(),lactationNumber:j['lactation_number'] as int?,isPregnant:j['is_pregnant'] as bool? ?? false,monthsPregnant:j['months_pregnant'] as int?,healthVerified:j['health_verified'] as bool? ?? false,vaccinationVerified:j['vaccination_verified'] as bool? ?? false,description:j['description'] as String?,isNegotiable:j['is_negotiable'] as bool? ?? true,photos:(j['photos'] as List? ?? []).map((x)=>x.toString()).toList(),locationVillage:j['location_village'] as String?,locationDistrict:j['location_district'] as String?,locationState:j['location_state'] as String?,distanceKm:(j['distance_km'] as num?)?.toDouble(),viewsCount:j['views_count'] as int? ?? 0,inquiriesCount:j['inquiries_count'] as int? ?? 0,sellerName:j['seller_name'] as String?,sellerPhone:j['seller_phone'] as String?,isFavorited:j['is_favorited'] as bool? ?? false);
+  MarketplaceListing copyWith({bool? isFavorited})=>MarketplaceListing(id:id,sellerId:sellerId,cattleId:cattleId,category:category,title:title,price:price,status:status,createdAt:createdAt,breed:breed,ageMonths:ageMonths,weightKg:weightKg,milkYieldLitres:milkYieldLitres,fatPct:fatPct,lactationNumber:lactationNumber,isPregnant:isPregnant,monthsPregnant:monthsPregnant,healthVerified:healthVerified,vaccinationVerified:vaccinationVerified,description:description,isNegotiable:isNegotiable,photos:photos,locationVillage:locationVillage,locationDistrict:locationDistrict,locationState:locationState,distanceKm:distanceKm,viewsCount:viewsCount,inquiriesCount:inquiriesCount,sellerName:sellerName,sellerPhone:sellerPhone,isFavorited:isFavorited ?? this.isFavorited);
 }
+@immutable class MarketplaceFilter {const MarketplaceFilter({this.category,this.breed,this.minPrice,this.maxPrice,this.state,this.district,this.isPregnant,this.healthVerified,this.sort='newest'});final ListingCategory? category;final String? breed,state,district,sort;final double? minPrice,maxPrice;final bool? isPregnant,healthVerified;Map<String,dynamic> get query=>{'category':category?.name,'breed':breed,'min_price':minPrice,'max_price':maxPrice,'state':state,'district':district,'is_pregnant':isPregnant,'health_verified':healthVerified}..removeWhere((_,v)=>v==null||v=='');}

@@ -68,6 +68,14 @@ import 'package:dairy_ai/features/collection/screens/cold_chain_screen.dart';
 import 'package:dairy_ai/features/milk_purity/screens/purity_home_screen.dart';
 import 'package:dairy_ai/features/milk_purity/screens/brand_detail_screen.dart';
 import 'package:dairy_ai/features/milk_purity/screens/compare_screen.dart';
+import 'package:dairy_ai/features/marketplace/screens/marketplace_screen.dart';
+import 'package:dairy_ai/features/marketplace/screens/marketplace_detail_screen.dart';
+import 'package:dairy_ai/features/marketplace/screens/sell_cattle_screen.dart';
+import 'package:dairy_ai/features/marketplace/screens/product_list_screen.dart';
+import 'package:dairy_ai/features/marketplace/screens/product_detail_screen.dart';
+import 'package:dairy_ai/features/marketplace/models/product_models.dart';
+import 'package:dairy_ai/features/cart/screens/cart_screen.dart';
+import 'package:dairy_ai/features/cart/screens/delivery_addresses_screen.dart';
 
 // ---------------------------------------------------------------------------
 // Navigation keys
@@ -136,6 +144,44 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const CompareScreen(),
           ),
         ],
+      ),
+      GoRoute(
+        path: '/marketplace',
+        builder: (context, state) => const MarketplaceScreen(),
+      ),
+      GoRoute(
+        path: '/marketplace/sell',
+        builder: (context, state) => const SellCattleScreen(),
+      ),
+      GoRoute(
+        path: '/marketplace/listing/:listingId',
+        builder: (context, state) => MarketplaceDetailScreen(
+          listingId: state.pathParameters['listingId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/marketplace/feed',
+        builder: (context, state) =>
+            const ProductListScreen(category: ProductCategory.feedNutrition),
+      ),
+      GoRoute(
+        path: '/marketplace/equipment',
+        builder: (context, state) =>
+            const ProductListScreen(category: ProductCategory.equipment),
+      ),
+      GoRoute(
+        path: '/marketplace/product/:productId',
+        builder: (context, state) => ProductDetailScreen(
+          productId: state.pathParameters['productId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/marketplace/cart',
+        builder: (context, state) => const CartScreen(),
+      ),
+      GoRoute(
+        path: '/marketplace/addresses',
+        builder: (context, state) => const DeliveryAddressesScreen(),
       ),
 
       // ---- Farmer shell ----

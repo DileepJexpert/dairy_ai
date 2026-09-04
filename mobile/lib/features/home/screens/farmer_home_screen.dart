@@ -27,8 +27,7 @@ class FarmerHomeScreen extends ConsumerWidget {
           onRetry: () => ref.read(dashboardStatsProvider.notifier).refresh(),
         ),
         data: (stats) => RefreshIndicator(
-          onRefresh: () =>
-              ref.read(dashboardStatsProvider.notifier).refresh(),
+          onRefresh: () => ref.read(dashboardStatsProvider.notifier).refresh(),
           child: CustomScrollView(
             slivers: [
               _buildAppBar(context, stats),
@@ -91,14 +90,14 @@ class FarmerHomeScreen extends ConsumerWidget {
       backgroundColor: theme.colorScheme.primary,
       actions: [
         IconButton(
-          onPressed: () => context.push('/notifications'),
+          onPressed: () => context.push('/home/notifications'),
           icon: Icon(
             Icons.notifications_outlined,
             color: theme.colorScheme.onPrimary,
           ),
         ),
         IconButton(
-          onPressed: () => context.push('/profile'),
+          onPressed: () => context.push('/more/profile'),
           icon: Icon(
             Icons.person_outline,
             color: theme.colorScheme.onPrimary,
@@ -135,7 +134,7 @@ class FarmerHomeScreen extends ConsumerWidget {
             label: "Today's Milk",
             value: '${stats.todayMilkLitres.toStringAsFixed(1)} L',
             color: Colors.blue,
-            onTap: () => context.push('/milk'),
+            onTap: () => context.push('/more/milk-summary'),
           ),
           StatCard(
             icon: Icons.warning_amber_rounded,
@@ -149,7 +148,7 @@ class FarmerHomeScreen extends ConsumerWidget {
             label: 'Vaccinations Due',
             value: '${stats.upcomingVaccinations}',
             color: Colors.orange,
-            onTap: () => context.push('/vaccinations'),
+            onTap: () => context.push('/health/vaccinations'),
           ),
         ],
       ),
@@ -182,25 +181,25 @@ class FarmerHomeScreen extends ConsumerWidget {
                 icon: Icons.water_drop_outlined,
                 label: 'Add Milk',
                 color: Colors.blue,
-                onTap: () => context.push('/milk/add'),
+                onTap: () => context.push('/more/milk'),
               ),
               _QuickActionButton(
                 icon: Icons.medical_services_outlined,
                 label: 'Health Check',
                 color: Colors.red,
-                onTap: () => context.push('/health/triage'),
+                onTap: () => context.push('/health/add-record'),
               ),
               _QuickActionButton(
                 icon: Icons.video_call_outlined,
                 label: 'Call Vet',
                 color: Colors.green,
-                onTap: () => context.push('/vet'),
+                onTap: () => context.push('/more/vet'),
               ),
               _QuickActionButton(
                 icon: Icons.smart_toy_outlined,
                 label: 'AI Chat',
                 color: Colors.purple,
-                onTap: () => context.push('/chat'),
+                onTap: () => context.push('/more/chat'),
               ),
               _QuickActionButton(
                 icon: Icons.verified_outlined,

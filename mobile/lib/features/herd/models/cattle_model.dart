@@ -32,19 +32,19 @@ class Cattle with _$Cattle {
     required String name,
     required String breed,
     required CattleSex sex,
-    required DateTime dob,
+    DateTime? dob,
     @JsonKey(name: 'photo_url') String? photoUrl,
     @Default(CattleStatus.active) CattleStatus status,
     @JsonKey(name: 'created_at') DateTime? createdAt,
   }) = _Cattle;
 
-  factory Cattle.fromJson(Map<String, dynamic> json) =>
-      _$CattleFromJson(json);
+  factory Cattle.fromJson(Map<String, dynamic> json) => _$CattleFromJson(json);
 
   String get age {
+    if (dob == null) return 'Age not recorded';
     final now = DateTime.now();
-    final years = now.year - dob.year;
-    final months = now.month - dob.month + (years * 12);
+    final years = now.year - dob!.year;
+    final months = now.month - dob!.month + (years * 12);
     final displayYears = months ~/ 12;
     final displayMonths = months % 12;
     if (displayYears > 0 && displayMonths > 0) {

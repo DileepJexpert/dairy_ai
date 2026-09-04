@@ -94,6 +94,7 @@ final _cooperativeShellKey = GlobalKey<NavigatorState>();
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
+  final currentUser = ref.watch(currentUserProvider);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
@@ -210,11 +211,15 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/herd',
-                builder: (context, state) => const HerdListScreen(),
+                builder: (context, state) => HerdListScreen(
+                  farmerId: currentUser?.id ?? '',
+                ),
                 routes: [
                   GoRoute(
                     path: 'add',
-                    builder: (context, state) => const AddCattleScreen(),
+                    builder: (context, state) => AddCattleScreen(
+                      farmerId: currentUser?.id ?? '',
+                    ),
                   ),
                   GoRoute(
                     path: ':cattleId',

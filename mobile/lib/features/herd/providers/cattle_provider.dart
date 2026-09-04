@@ -68,7 +68,7 @@ class CattleListNotifier extends FamilyAsyncNotifier<List<Cattle>, String> {
     final dio = ref.read(dioProvider);
     try {
       final response =
-          await dio.patch('/cattle/$cattleId', data: request.toJson());
+          await dio.put('/cattle/$cattleId', data: request.toJson());
       final body = response.data as Map<String, dynamic>;
       if (body['success'] == true) {
         final updated = Cattle.fromJson(body['data'] as Map<String, dynamic>);
@@ -109,8 +109,7 @@ final cattleDetailProvider =
 // Filter state for the herd list screen
 // ---------------------------------------------------------------------------
 
-final cattleStatusFilterProvider =
-    StateProvider<CattleStatus?>((ref) => null);
+final cattleStatusFilterProvider = StateProvider<CattleStatus?>((ref) => null);
 
 final cattleSearchQueryProvider = StateProvider<String>((ref) => '');
 

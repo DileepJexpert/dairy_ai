@@ -16,6 +16,23 @@ logger = logging.getLogger("dairy_ai.api.cattle")
 router = APIRouter(prefix="/cattle", tags=["cattle"])
 
 
+def _cattle_payload(cattle) -> dict:
+    """Return the complete cattle representation consumed by the mobile app."""
+    return {
+        "id": str(cattle.id),
+        "farmer_id": str(cattle.farmer_id),
+        "tag_id": cattle.tag_id,
+        "name": cattle.name or cattle.tag_id,
+        "breed": cattle.breed.value if hasattr(cattle.breed, "value") else cattle.breed,
+        "sex": cattle.sex.value if hasattr(cattle.sex, "value") else cattle.sex,
+        "dob": str(cattle.dob) if cattle.dob else None,
+        "weight_kg": cattle.weight_kg,
+        "photo_url": cattle.photo_url,
+        "status": cattle.status.value if hasattr(cattle.status, "value") else cattle.status,
+        "created_at": cattle.created_at.isoformat() if cattle.created_at else None,
+    }
+
+
 async def _get_farmer_id(db: AsyncSession, user: User) -> uuid.UUID:
     logger.debug(f"Looking up farmer profile for user_id={user.id}")
     farmer = await farmer_repo.get_by_user_id(db, user.id)
@@ -40,12 +57,7 @@ async def create_cattle(
         logger.info(f"Cattle registered successfully | cattle_id={cattle.id} | tag_id={cattle.tag_id} | name={cattle.name}")
         return {
             "success": True,
-            "data": {
-                "id": str(cattle.id),
-                "tag_id": cattle.tag_id,
-                "name": cattle.name,
-                "breed": cattle.breed.value if hasattr(cattle.breed, 'value') else cattle.breed,
-            },
+            "data": _cattle_payload(cattle),
             "message": "Cattle registered",
         }
     except Exception as e:
@@ -72,15 +84,7 @@ async def list_cattle(
     return {
         "success": True,
         "data": [
-            {
-                "id": str(c.id),
-                "farmer_id": str(c.farmer_id),
-                "tag_id": c.tag_id,
-                "name": c.name,
-                "breed": c.breed.value if hasattr(c.breed, 'value') else c.breed,
-                "sex": c.sex.value if hasattr(c.sex, 'value') else c.sex,
-                "status": c.status.value if hasattr(c.status, 'value') else c.status,
-            }
+            _cattle_payload(c)
             for c in cattle_list
         ],
         "total": total,
@@ -117,17 +121,7 @@ async def get_cattle(
     logger.info(f"Cattle found | cattle_id={cattle.id} | tag_id={cattle.tag_id} | name={cattle.name}")
     return {
         "success": True,
-        "data": {
-            "id": str(cattle.id),
-            "farmer_id": str(cattle.farmer_id),
-            "tag_id": cattle.tag_id,
-            "name": cattle.name,
-            "breed": cattle.breed.value if hasattr(cattle.breed, 'value') else cattle.breed,
-            "sex": cattle.sex.value if hasattr(cattle.sex, 'value') else cattle.sex,
-            "dob": str(cattle.dob) if cattle.dob else None,
-            "weight_kg": cattle.weight_kg,
-            "status": cattle.status.value if hasattr(cattle.status, 'value') else cattle.status,
-        },
+        "data": _cattle_payload(cattle),
         "message": "Cattle details",
     }
 
@@ -150,7 +144,7 @@ async def update_cattle(
     try:
         updated = await cattle_service.update_cattle(db, cattle, data)
         logger.info(f"Cattle updated successfully | cattle_id={updated.id}")
-        return {"success": True, "data": {"id": str(updated.id)}, "message": "Cattle updated"}
+        return {"success": True, "data": _cattle_payload(updated), "message": "Cattle updated"}
     except Exception as e:
         logger.error(f"Failed to update cattle | cattle_id={cattle_id}: {e}")
         raise

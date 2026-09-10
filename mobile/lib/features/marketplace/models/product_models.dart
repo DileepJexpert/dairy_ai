@@ -11,6 +11,8 @@ class Product {
       this.brand,
       this.packSize,
       this.description,
+      this.taxonomy,
+      this.taxonomyEnabled = false,
       this.specifications = const {},
       this.inStock = false,
       this.availableQuantity = 0,
@@ -24,6 +26,8 @@ class Product {
   final ProductCategory category;
   final double price;
   final String? brand, packSize, description;
+  final Map<String, dynamic>? taxonomy;
+  final bool taxonomyEnabled;
   final Map<String, dynamic> specifications;
   final bool inStock, isRentable;
   final int availableQuantity, minOrderQuantity;
@@ -43,6 +47,10 @@ class Product {
       brand: j['brand'],
       packSize: j['pack_size'],
       description: j['description'],
+      taxonomyEnabled: j.containsKey('taxonomy'),
+      taxonomy: j['taxonomy'] == null
+          ? null
+          : Map<String, dynamic>.from(j['taxonomy']),
       specifications: Map<String, dynamic>.from(j['specifications'] ?? {}),
       inStock: j['in_stock'] ?? false,
       availableQuantity: j['available_quantity'] ?? 0,

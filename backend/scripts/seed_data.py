@@ -25,8 +25,9 @@ async def seed():
         print("Seeding database...")
 
         # === ADMIN USER ===
+        demo_otp_expiry = (datetime.now(timezone.utc) + timedelta(days=365)).replace(tzinfo=None)
         admin = User(id=uuid.uuid4(), phone="9999900000", role=UserRole.admin, is_active=True,
-                     otp_hash=hash_otp("123456"), otp_expires_at=datetime.now(timezone.utc) + timedelta(days=365))
+                     otp_hash=hash_otp("123456"), otp_expires_at=demo_otp_expiry)
         db.add(admin)
 
         # === DEMO FARMERS ===
@@ -39,7 +40,7 @@ async def seed():
         farmer_objs = []
         for fd in farmers_data:
             user = User(id=uuid.uuid4(), phone=fd["phone"], role=UserRole.farmer, is_active=True,
-                        otp_hash=hash_otp("123456"), otp_expires_at=datetime.now(timezone.utc) + timedelta(days=365))
+                        otp_hash=hash_otp("123456"), otp_expires_at=demo_otp_expiry)
             db.add(user)
             await db.flush()
 
@@ -100,7 +101,7 @@ async def seed():
                     ))
 
         # === SENSOR READINGS (last 7 days, every 4 hours) ===
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         for cattle in cattle_objs[:4]:
             for h in range(0, 168, 4):  # 7 days * 24h / 4h = 42 readings
                 t = now - timedelta(hours=h)
@@ -155,7 +156,7 @@ async def seed():
             {"name": "Dr. Priya Verma", "phone": "9999900011", "license": "HR-VET-001", "qual": "bvsc", "spec": ["cattle", "reproduction"], "fee": 150},
         ]):
             vet_user = User(id=uuid.uuid4(), phone=vd["phone"], role=UserRole.vet, is_active=True,
-                            otp_hash=hash_otp("123456"), otp_expires_at=datetime.now(timezone.utc) + timedelta(days=365))
+                            otp_hash=hash_otp("123456"), otp_expires_at=demo_otp_expiry)
             db.add(vet_user)
             await db.flush()
             db.add(VetProfile(

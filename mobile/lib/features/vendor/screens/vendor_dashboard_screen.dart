@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:dairy_ai/app/theme.dart';
 import 'package:dairy_ai/core/extensions.dart';
@@ -16,7 +17,12 @@ class VendorDashboardScreen extends ConsumerWidget {
         NumberFormat.currency(locale: 'en_IN', symbol: '\u20B9');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Vendor Dashboard')),
+      appBar: AppBar(title: const Text('Vendor Dashboard'), actions: [
+        IconButton(
+            onPressed: () => context.push('/vendor/products'),
+            icon: const Icon(Icons.inventory_2),
+            tooltip: 'My products')
+      ]),
       body: dashboardAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => _ErrorView(
@@ -91,12 +97,10 @@ class VendorDashboardScreen extends ConsumerWidget {
                   ),
                 )
               else
-                ...dashboard.recentOrders
-                    .map((order) => _OrderCard(
-                          order: order,
-                          currencyFormat: currencyFormat,
-                        ))
-                    ,
+                ...dashboard.recentOrders.map((order) => _OrderCard(
+                      order: order,
+                      currencyFormat: currencyFormat,
+                    )),
             ],
           ),
         ),
@@ -259,7 +263,8 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: context.colorScheme.error),
+            Icon(Icons.error_outline,
+                size: 64, color: context.colorScheme.error),
             const SizedBox(height: 16),
             Text(
               message,

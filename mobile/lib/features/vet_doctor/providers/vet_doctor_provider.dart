@@ -180,7 +180,7 @@ final vetConsultationProvider = StateNotifierProvider.autoDispose<
 // ---------------------------------------------------------------------------
 // Action: Accept a consultation request.
 // ---------------------------------------------------------------------------
-Future<void> acceptConsultation(Ref ref, {required int consultationId}) async {
+Future<void> acceptConsultation(WidgetRef ref, {required int consultationId}) async {
   final dio = ref.read(_dioProvider);
   final response = await dio.patch(
     '/consultations/$consultationId',
@@ -198,7 +198,7 @@ Future<void> acceptConsultation(Ref ref, {required int consultationId}) async {
 // ---------------------------------------------------------------------------
 // Action: Start a consultation (move to in_progress).
 // ---------------------------------------------------------------------------
-Future<void> startConsultation(Ref ref, {required int consultationId}) async {
+Future<void> startConsultation(WidgetRef ref, {required int consultationId}) async {
   final dio = ref.read(_dioProvider);
   final response = await dio.patch(
     '/consultations/$consultationId/start',
@@ -217,7 +217,7 @@ Future<void> startConsultation(Ref ref, {required int consultationId}) async {
 // Action: End a consultation.
 // ---------------------------------------------------------------------------
 Future<void> endConsultation(
-  Ref ref, {
+  WidgetRef ref, {
   required int consultationId,
   String? vetDiagnosis,
 }) async {
@@ -242,7 +242,7 @@ Future<void> endConsultation(
 // Action: Submit a prescription.
 // ---------------------------------------------------------------------------
 Future<Prescription> submitPrescription(
-  Ref ref, {
+  WidgetRef ref, {
   required PrescriptionPayload payload,
 }) async {
   final dio = ref.read(_dioProvider);
@@ -258,7 +258,7 @@ Future<Prescription> submitPrescription(
 // Action: Toggle vet availability.
 // ---------------------------------------------------------------------------
 Future<void> toggleVetAvailability(
-  Ref ref, {
+  WidgetRef ref, {
   required bool isAvailable,
 }) async {
   final dio = ref.read(_dioProvider);

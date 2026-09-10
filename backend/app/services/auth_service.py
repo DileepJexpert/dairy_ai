@@ -16,6 +16,14 @@ from app.models.user import User, UserRole
 logger = logging.getLogger("dairy_ai.services.auth")
 
 
+def normalize_phone(phone: str) -> str:
+    """Store and query Indian mobile numbers in the existing 10-digit format."""
+    compact = phone.replace(" ", "").replace("-", "")
+    if compact.startswith("+91") and len(compact) == 13:
+        return compact[3:]
+    return compact
+
+
 def generate_otp() -> str:
     otp = f"{random.randint(0, 999999):06d}"
     logger.debug(f"Generated new OTP (length={len(otp)})")
@@ -93,13 +101,14 @@ async def get_user_by_id(db: AsyncSession, user_id: str) -> User | None:
 
 async def send_otp(db: AsyncSession, phone: str) -> str:
     """Generate OTP and store hash. For dev: phone starting with 99999 uses OTP 123456."""
+    phone = normalize_phone(phone)
     masked_phone = f"****{phone[-4:]}" if len(phone) >= 4 else "****"
     logger.info(f"send_otp called | phone={masked_phone}")
 
     user = await get_user_by_phone(db, phone)
 
     # Dev mode: phones starting with 99999 always use 123456
-    if phone.startswith("99999"):
+    if get_settings().APP_ENV.lower() in {"development", "test"} and phone.startswith("99999"):
         otp = "123456"
         logger.debug(f"Dev mode: using fixed OTP 123456 for phone={masked_phone}")
     else:
@@ -107,7 +116,9 @@ async def send_otp(db: AsyncSession, phone: str) -> str:
         logger.debug(f"Generated OTP for phone={masked_phone}")
 
     otp_hashed = hash_otp(otp)
-    expires = datetime.now(timezone.utc) + timedelta(minutes=5)
+    # PostgreSQL stores this legacy column as TIMESTAMP WITHOUT TIME ZONE.
+    # Keep UTC semantics while passing a naive UTC timestamp to asyncpg.
+    expires = (datetime.now(timezone.utc) + timedelta(minutes=5)).replace(tzinfo=None)
     logger.debug(f"OTP expires at {expires.isoformat()}")
 
     if user is None:
@@ -130,6 +141,7 @@ async def send_otp(db: AsyncSession, phone: str) -> str:
 
 async def verify_otp_and_login(db: AsyncSession, phone: str, otp: str) -> dict | None:
     """Verify OTP and return tokens if valid."""
+    phone = normalize_phone(phone)
     masked_phone = f"****{phone[-4:]}" if len(phone) >= 4 else "****"
     logger.info(f"verify_otp_and_login called | phone={masked_phone}")
 

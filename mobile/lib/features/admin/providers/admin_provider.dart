@@ -136,7 +136,7 @@ final adminVetsProvider =
 // ---------------------------------------------------------------------------
 // Verify vet action.
 // ---------------------------------------------------------------------------
-Future<bool> verifyVet(Ref ref, int vetId) async {
+Future<bool> verifyVet(WidgetRef ref, int vetId) async {
   final dio = ref.read(_dioProvider);
   final response = await dio.post('/vet-profiles/verify', data: {
     'vet_id': vetId,

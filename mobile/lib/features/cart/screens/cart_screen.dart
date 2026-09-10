@@ -116,7 +116,7 @@ class CartScreen extends ConsumerWidget {
             SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                    onPressed: () => context.push('/marketplace/addresses'),
-                    child: const Text('Choose delivery address')))
+                    onPressed: () => context.push('/marketplace/checkout'),
+                    child: const Text('Checkout')))
           ])));
 }

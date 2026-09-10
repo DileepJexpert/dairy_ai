@@ -63,7 +63,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = const AuthState.loading();
     try {
       final response = await _dio.post('/auth/send-otp', data: {
-        'phone': '${AppConstants.phonePrefix}$phone',
+        // The API stores and validates Indian mobile numbers as 10 digits.
+        'phone': phone,
       });
       final body = response.data as Map<String, dynamic>;
       if (body['success'] == true) {
@@ -83,19 +84,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = const AuthState.loading();
     try {
       final response = await _dio.post('/auth/verify-otp', data: {
-        'phone': '${AppConstants.phonePrefix}$phone',
+        'phone': phone,
         'otp': otp,
       });
       final body = response.data as Map<String, dynamic>;
-      if (body['success'] == true) {
-        final data = body['data'] as Map<String, dynamic>;
+      if (body['access_token'] is String && body['refresh_token'] is String) {
+        final accessToken = body['access_token'] as String;
+        final profileResponse = await Dio(
+          BaseOptions(
+            baseUrl: AppConstants.baseUrl,
+            headers: {'Authorization': 'Bearer $accessToken'},
+          ),
+        ).get('/auth/me');
+        final profile = profileResponse.data['data'] as Map<String, dynamic>;
         final user = UserModel(
-          id: data['user']['id'] as String,
-          phone: data['user']['phone'] as String,
-          role: data['user']['role'] as String,
-          name: data['user']['name'] as String?,
-          accessToken: data['access_token'] as String,
-          refreshToken: data['refresh_token'] as String,
+          id: profile['id'] as String,
+          phone: profile['phone'] as String,
+          role: profile['role'] as String,
+          accessToken: accessToken,
+          refreshToken: body['refresh_token'] as String,
         );
 
         // Persist tokens and user data.

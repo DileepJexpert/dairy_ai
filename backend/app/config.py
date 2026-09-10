@@ -5,10 +5,16 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Core
+    APP_ENV: str = "development"
+    LOG_LEVEL: str = "INFO"
     DATABASE_URL: str = "postgresql+asyncpg://dairy:dairy123@localhost:5432/dairy_ai"
     REDIS_URL: str = ""
     JWT_SECRET: str = "test-secret-key-change-in-production"
     JWT_ALGORITHM: str = "HS256"
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5000,http://localhost:8000"
+    INIT_DB_ON_STARTUP: bool = True
+    # Enable after an explicit local full rebuild (see scripts/rebuild_local_database.py).
+    COMMERCE_TAXONOMY_ENABLED: bool = False
 
     # WhatsApp
     WHATSAPP_TOKEN: str = ""
@@ -59,6 +65,29 @@ class Settings(BaseSettings):
         "env_file_encoding": "utf-8",
         "extra": "ignore",
     }
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [origin.strip().rstrip("/") for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
+    @property
+    def cors_origin_regex(self) -> str | None:
+        # Flutter's local web runner chooses a dynamic localhost port. Keep this
+        # convenience strictly outside production, where origins are explicit.
+        if self.APP_ENV.lower() == "production":
+            return None
+        return r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
+
+    def validate_production_settings(self) -> None:
+        """Fail closed when a production process is started with demo settings."""
+        if self.APP_ENV.lower() != "production":
+            return
+        if self.JWT_SECRET == "test-secret-key-change-in-production" or len(self.JWT_SECRET) < 32:
+            raise RuntimeError("JWT_SECRET must be a unique value of at least 32 characters in production")
+        if not self.cors_origins or "*" in self.cors_origins:
+            raise RuntimeError("CORS_ORIGINS must list explicit HTTPS origins in production")
+        if any(not origin.startswith("https://") for origin in self.cors_origins):
+            raise RuntimeError("CORS_ORIGINS must use HTTPS origins in production")
 
 
 settings = Settings()

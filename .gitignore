@@ -47,6 +47,7 @@ mobile/.dart_tool/
 mobile/.flutter-plugins-dependencies
 
 # Coverage
+.pytest_cache/
 htmlcov/
 .coverage
 .coverage.*

@@ -1,0 +1,18 @@
+{
+  "name": "Milterra",
+  "short_name": "Milterra",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f6f5ef",
+  "theme_color": "#163c30",
+  "description": "Explore ghee and dairy essentials from Milterra.",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -43,7 +43,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // React to state changes.
     ref.listen<AuthState>(authProvider, (prev, next) {
       next.maybeWhen(
-        otpSent: (phone) => context.go('/otp-verify?phone=$phone'),
+        otpSent: (phone) {
+          final nextPath = GoRouterState.of(context).uri.queryParameters['next'];
+          final nextQuery = nextPath == null ? '' : '&next=${Uri.encodeComponent(nextPath)}';
+          context.go('/otp-verify?phone=$phone$nextQuery');
+        },
         error: (message) => showErrorDialog(context, message: message),
         orElse: () {},
       );

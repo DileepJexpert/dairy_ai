@@ -73,7 +73,7 @@ async def setup():
                 role=UserRole.farmer,
                 is_active=True,
                 otp_hash=hash_otp("123456"),
-                otp_expires_at=datetime.now(timezone.utc) + timedelta(days=365),
+                otp_expires_at=(datetime.now(timezone.utc) + timedelta(days=365)).replace(tzinfo=None),
             )
             db.add(user)
             await db.flush()

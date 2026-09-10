@@ -363,7 +363,7 @@ final farmerConsultationsProvider =
 // Action: request a new consultation.
 // ---------------------------------------------------------------------------
 Future<Consultation> requestConsultation(
-  Ref ref, {
+  WidgetRef ref, {
   required ConsultationRequest request,
 }) async {
   final dio = ref.read(_dioProvider);

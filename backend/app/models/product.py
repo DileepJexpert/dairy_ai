@@ -19,7 +19,11 @@ class Product(Base):
     sku: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     slug: Mapped[str] = mapped_column(String(240), index=True, nullable=False)
-    category: Mapped[ProductCategory] = mapped_column(SAEnum(ProductCategory), index=True, nullable=False)
+    category: Mapped[ProductCategory] = mapped_column(
+        SAEnum(ProductCategory, values_callable=lambda members: [member.value for member in members]),
+        index=True,
+        nullable=False,
+    )
     subcategory: Mapped[str | None] = mapped_column(String(100)); brand: Mapped[str | None] = mapped_column(String(100))
     description: Mapped[str | None] = mapped_column(Text); short_description: Mapped[str | None] = mapped_column(String(500))
     base_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)

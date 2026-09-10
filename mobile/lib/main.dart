@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dairy_ai/app/router.dart';
-import 'package:dairy_ai/app/theme.dart';
+import 'package:dairy_ai/app/store_theme.dart';
 import 'package:dairy_ai/core/constants.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 
@@ -33,7 +33,7 @@ class _DairyAIAppState extends ConsumerState<DairyAIApp> {
 
     return MaterialApp.router(
       title: AppConstants.appName,
-      theme: DairyTheme.lightTheme,
+      theme: StoreTheme.light,
       debugShowCheckedModeBanner: false,
       routerConfig: router,
     );

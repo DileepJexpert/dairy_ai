@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../app/shopping_navigation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
@@ -14,8 +15,9 @@ import 'package:dairy_ai/shared/widgets/error_dialog.dart';
 
 class OtpScreen extends ConsumerStatefulWidget {
   final String phone;
+  final String? nextPath;
 
-  const OtpScreen({super.key, required this.phone});
+  const OtpScreen({super.key, required this.phone, this.nextPath});
 
   @override
   ConsumerState<OtpScreen> createState() => _OtpScreenState();
@@ -82,8 +84,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     ref.listen<AuthState>(authProvider, (prev, next) {
       next.maybeWhen(
         authenticated: (_) {
-          // Router redirect will handle navigation based on role.
-          context.go('/home');
+          context.go(shoppingReturnPath(widget.nextPath));
         },
         error: (message) => showErrorDialog(context, message: message),
         orElse: () {},
@@ -118,7 +119,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                 Icon(
                   Icons.sms_outlined,
                   size: 64,
-                  color: DairyTheme.primaryGreen.withOpacity(0.7),
+                  color: DairyTheme.primaryGreen.withValues(alpha: 0.7),
                 ),
                 const SizedBox(height: 24),
                 Text(

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'shopping_navigation.dart';
+import '../features/commerce/screens/commerce_categories_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dairy_ai/core/constants.dart';
-import 'package:dairy_ai/features/auth/models/auth_state.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 
 // Auth
@@ -25,7 +25,6 @@ import 'package:dairy_ai/features/health/screens/health_dashboard_screen.dart';
 import 'package:dairy_ai/features/health/screens/health_record_screen.dart';
 import 'package:dairy_ai/features/health/screens/sensor_live_screen.dart';
 import 'package:dairy_ai/features/health/screens/vaccination_screen.dart';
-import 'package:dairy_ai/features/health/screens/triage_result_screen.dart';
 import 'package:dairy_ai/features/finance/screens/finance_dashboard_screen.dart';
 import 'package:dairy_ai/features/finance/screens/add_transaction_screen.dart';
 import 'package:dairy_ai/features/milk/screens/milk_record_screen.dart';
@@ -40,7 +39,6 @@ import 'package:dairy_ai/features/notifications/screens/notifications_screen.dar
 import 'package:dairy_ai/features/vet_doctor/screens/vet_dashboard_screen.dart';
 import 'package:dairy_ai/features/vet_doctor/screens/vet_consultation_screen.dart';
 import 'package:dairy_ai/features/vet_farmer/screens/vet_search_screen.dart';
-import 'package:dairy_ai/features/vet_farmer/screens/consultation_request_screen.dart';
 
 // Admin screens
 import 'package:dairy_ai/features/admin/screens/admin_dashboard_screen.dart';
@@ -51,6 +49,8 @@ import 'package:dairy_ai/features/admin/screens/admin_vets_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/vendor_dashboard_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/vendor_registration_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/vendor_profile_screen.dart';
+import 'package:dairy_ai/features/vendor/screens/vendor_orders_screen.dart';
+import 'package:dairy_ai/features/vendor/screens/vendor_products_screen.dart';
 
 // Cooperative screens
 import 'package:dairy_ai/features/cooperative/screens/cooperative_dashboard_screen.dart';
@@ -76,6 +76,8 @@ import 'package:dairy_ai/features/marketplace/screens/product_detail_screen.dart
 import 'package:dairy_ai/features/marketplace/models/product_models.dart';
 import 'package:dairy_ai/features/cart/screens/cart_screen.dart';
 import 'package:dairy_ai/features/cart/screens/delivery_addresses_screen.dart';
+import 'package:dairy_ai/features/cart/screens/checkout_screen.dart';
+import 'package:dairy_ai/features/cart/screens/orders_screen.dart';
 
 // ---------------------------------------------------------------------------
 // Navigation keys
@@ -98,7 +100,8 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/login',
+    // Customers should be able to browse the catalogue before creating an account.
+    initialLocation: '/shop',
     debugLogDiagnostics: true,
     redirect: (context, state) {
       final isAuthenticated = authState.maybeWhen(
@@ -108,13 +111,38 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final isAuthRoute = state.matchedLocation == '/login' ||
           state.matchedLocation == '/otp-verify';
-      final isPublicRoute = state.matchedLocation.startsWith('/purity');
+      final location = state.uri.path;
+      final isPublicRoute = location == '/shop' ||
+          location == '/' ||
+          location.startsWith('/purity') ||
+          location == '/marketplace' ||
+          location.startsWith('/marketplace/listing/') ||
+          location == '/marketplace/feed' ||
+          location == '/marketplace/equipment' ||
+          location.startsWith('/marketplace/product/');
 
-      if (!isAuthenticated && !isAuthRoute && !isPublicRoute) return '/login';
-      if (isAuthenticated && isAuthRoute) return _homeForRole(authState);
+      if (!isAuthenticated && !isAuthRoute && !isPublicRoute) {
+        return Uri(path: '/login', queryParameters: {
+          'next': shoppingReturnPath(state.uri.toString())
+        }).toString();
+      }
+      if (isAuthenticated && isAuthRoute) {
+        final next = state.uri.queryParameters['next'];
+        return shoppingReturnPath(next);
+      }
       return null;
     },
     routes: [
+      GoRoute(path: '/', redirect: (_, __) => '/shop'),
+      GoRoute(
+          path: '/shop',
+          builder: (_, state) => ProductListScreen(
+              initialQuery: state.uri.queryParameters['query'] ?? '',
+              initialCategory:
+                  state.uri.queryParameters['category'] ?? 'All products')),
+      GoRoute(
+          path: '/admin/commerce',
+          builder: (_, __) => const CommerceCategoriesScreen()),
       // ---- Auth routes (no shell) ----
       GoRoute(
         path: '/login',
@@ -124,7 +152,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/otp-verify',
         builder: (context, state) {
           final phone = state.uri.queryParameters['phone'] ?? '';
-          return OtpScreen(phone: phone);
+          return OtpScreen(
+            phone: phone,
+            nextPath: state.uri.queryParameters['next'],
+          );
         },
       ),
 
@@ -184,6 +215,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/marketplace/addresses',
         builder: (context, state) => const DeliveryAddressesScreen(),
       ),
+      GoRoute(
+          path: '/marketplace/checkout',
+          builder: (context, state) => const CheckoutScreen()),
+      GoRoute(
+          path: '/marketplace/orders',
+          builder: (context, state) => const OrdersScreen()),
 
       // ---- Farmer shell ----
       StatefulShellRoute.indexedStack(
@@ -339,7 +376,19 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/vet-consultations',
-                builder: (context, state) => const VetConsultationScreen(),
+                builder: (context, state) {
+                  final consultationId = int.tryParse(
+                    state.uri.queryParameters['consultationId'] ?? '',
+                  );
+                  if (consultationId == null) {
+                    return const Scaffold(
+                      body: Center(
+                          child: Text(
+                              'Select a consultation from the dashboard.')),
+                    );
+                  }
+                  return VetConsultationScreen(consultationId: consultationId);
+                },
               ),
             ],
           ),
@@ -405,8 +454,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/vendor-orders',
-                builder: (context, state) =>
-                    const _PlaceholderScreen(title: 'Orders'),
+                builder: (context, state) => const VendorOrdersScreen(),
               ),
             ],
           ),
@@ -425,6 +473,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/vendor-register',
         builder: (context, state) => const VendorRegistrationScreen(),
       ),
+      GoRoute(
+          path: '/vendor/products',
+          builder: (context, state) => const VendorProductsScreen()),
 
       // ---- Cooperative shell ----
       StatefulShellRoute.indexedStack(
@@ -512,27 +563,6 @@ final routerProvider = Provider<GoRouter>((ref) {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-String _homeForRole(AuthState state) {
-  return state.maybeWhen(
-    authenticated: (user) {
-      switch (user.role) {
-        case AppConstants.roleVet:
-          return '/vet-dashboard';
-        case AppConstants.roleAdmin:
-          return '/admin-dashboard';
-        case AppConstants.roleVendor:
-          return '/vendor-dashboard';
-        case AppConstants.roleCooperative:
-          return '/coop-dashboard';
-        case AppConstants.roleFarmer:
-        default:
-          return '/home';
-      }
-    },
-    orElse: () => '/login',
-  );
-}
 
 // ---------------------------------------------------------------------------
 // More menu — list of additional features

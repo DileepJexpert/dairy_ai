@@ -86,7 +86,7 @@ final milkPricesProvider =
 // Action: record milk (single entry).
 // ---------------------------------------------------------------------------
 Future<MilkRecord> recordMilk(
-  Ref ref, {
+  WidgetRef ref, {
   required int cattleId,
   required DateTime date,
   required MilkSession session,
@@ -129,7 +129,7 @@ Future<MilkRecord> recordMilk(
 // Action: batch record milk for multiple cattle.
 // ---------------------------------------------------------------------------
 Future<List<MilkRecord>> recordMilkBatch(
-  Ref ref, {
+  WidgetRef ref, {
   required List<MilkRecord> records,
 }) async {
   final dio = ref.read(_dioProvider);

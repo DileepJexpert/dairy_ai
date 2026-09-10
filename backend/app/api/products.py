@@ -5,9 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user,require_role
 from app.models.user import User,UserRole
+from app.models.product import ProductCategory
 from app.repositories import product_repo,vendor_repo
 from app.schemas.product import ProductCreate,ProductUpdate,InventoryUpdate,ProductMediaCreate
 from app.services import product_service
+from app.config import settings
+from app.services import commerce_taxonomy_service as taxonomy
 router=APIRouter(tags=["products"])
 def uid(value:str,label:str):
  try:return uuid.UUID(value)
@@ -17,14 +20,32 @@ async def vendor(db,user):
  if not v:raise HTTPException(404,"Vendor profile not found")
  if not v.is_active:raise HTTPException(403,"Vendor profile is inactive")
  return v
-async def enrich(db,p):return product_service.serialize(p,await product_repo.inventory(db,p.id),await product_repo.media(db,p.id),await vendor_repo.get_by_id(db,p.vendor_id))
+async def enrich(db,p):
+ result = product_service.serialize(p,await product_repo.inventory(db,p.id),await product_repo.media(db,p.id),await vendor_repo.get_by_id(db,p.vendor_id))
+ if settings.COMMERCE_TAXONOMY_ENABLED:
+  result['taxonomy'] = (await taxonomy.product_metadata(db,[p.id])).get(str(p.id))
+ return result
 @router.get("/marketplace/products")
-async def products(category:str|None=None,subcategory:str|None=None,brand:str|None=None,query:str|None=None,min_price:Decimal|None=Query(None,ge=0),max_price:Decimal|None=Query(None,ge=0),vendor_id:str|None=None,in_stock:bool|None=None,is_rentable:bool|None=None,sort_by:str="newest",page:int=Query(1,ge=1),per_page:int=Query(20,ge=1,le=100),db:AsyncSession=Depends(get_db)):
- items,total=await product_repo.search(db,{"category":category,"brand":brand,"query":query,"min_price":min_price,"max_price":max_price,"vendor_id":uid(vendor_id,"vendor") if vendor_id else None,"sort_by":sort_by},page,per_page)
- if subcategory:items=[x for x in items if x.subcategory==subcategory]
- if is_rentable is not None:items=[x for x in items if x.is_rentable==is_rentable]
+async def products(category:str|None=None,subcategory:str|None=None,brand:str|None=None,query:str|None=None,min_price:Decimal|None=Query(None,ge=0),max_price:Decimal|None=Query(None,ge=0),vendor_id:str|None=None,in_stock:bool|None=None,is_rentable:bool|None=None,sort_by:str="newest",page:int=Query(1,ge=1),per_page:int=Query(20,ge=1,le=100),taxonomy_id:uuid.UUID|None=None,db:AsyncSession=Depends(get_db)):
+ product_category = None
+ if category:
+  try:
+   product_category = ProductCategory(category)
+  except ValueError as exc:
+   raise HTTPException(422, "Invalid product category") from exc
+ if taxonomy_id and not settings.COMMERCE_TAXONOMY_ENABLED:
+  raise HTTPException(503,"Commerce categories are not enabled")
+ category_ids = None
+ if taxonomy_id:
+  public = await taxonomy.public_nodes(db)
+  if not any(n['id'] == str(taxonomy_id) for n in public):
+   raise HTTPException(404,"Category not found")
+  category_ids = {str(taxonomy_id)}
+  for _ in public:
+   category_ids.update(n['id'] for n in public if n['parent_id'] in category_ids)
+  category_ids = [uuid.UUID(x) for x in category_ids]
+ items,total=await product_repo.search(db,{"category":product_category,"brand":brand,"query":query,"min_price":min_price,"max_price":max_price,"vendor_id":uid(vendor_id,"vendor") if vendor_id else None,"sort_by":sort_by,"taxonomy_ids":category_ids,"subcategory":subcategory,"in_stock":in_stock,"is_rentable":is_rentable},page,per_page)
  data=[await enrich(db,x) for x in items]
- if in_stock is not None:data=[x for x in data if x["in_stock"]==in_stock]
  return {"success":True,"data":data,"total":total,"page":page,"per_page":per_page,"message":"Products"}
 @router.get("/marketplace/products/{product_id}")
 async def product_detail(product_id:str,db:AsyncSession=Depends(get_db)):

@@ -4,5 +4,62 @@ import 'package:go_router/go_router.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../models/marketplace_models.dart';
 import '../providers/marketplace_provider.dart';
-class SellCattleScreen extends ConsumerStatefulWidget { const SellCattleScreen({super.key}); @override ConsumerState<SellCattleScreen> createState() => _SellCattleScreenState(); }
-class _SellCattleScreenState extends ConsumerState<SellCattleScreen> { final title = TextEditingController(), price = TextEditingController(), breed = TextEditingController(); ListingCategory category = ListingCategory.cow; bool saving = false; @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Sell cattle')), body: Padding(padding: const EdgeInsets.all(20), child: Column(children: [DropdownButtonFormField<ListingCategory>(initialValue: category, items: ListingCategory.values.map((x) => DropdownMenuItem(value: x, child: Text(x.name))).toList(), onChanged: (x) => setState(() => category = x!)), TextField(controller: title, decoration: const InputDecoration(labelText: 'Listing title')), TextField(controller: breed, decoration: const InputDecoration(labelText: 'Breed')), TextField(controller: price, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Price (₹)')), const SizedBox(height: 20), ElevatedButton(onPressed: saving ? null : _save, child: Text(saving ? 'Saving...' : 'Publish listing'))]))); Future<void> _save() async { if (title.text.length < 3 || double.tryParse(price.text) == null) return; setState(() => saving = true); try { await ref.read(dioProvider).post('/marketplace/listings', data: {'category': category.name, 'title': title.text, 'breed': breed.text.isEmpty ? null : breed.text, 'price': double.parse(price.text), 'is_pregnant': false, 'photos': []}); ref.invalidate(marketplaceListingsProvider); if (mounted) context.pop(); } finally { if (mounted) setState(() => saving = false); } } }
+
+class SellCattleScreen extends ConsumerStatefulWidget {
+  const SellCattleScreen({super.key});
+  @override
+  ConsumerState<SellCattleScreen> createState() => _SellCattleScreenState();
+}
+
+class _SellCattleScreenState extends ConsumerState<SellCattleScreen> {
+  final title = TextEditingController(),
+      price = TextEditingController(),
+      breed = TextEditingController();
+  ListingCategory category = ListingCategory.cow;
+  bool saving = false;
+  @override
+  Widget build(BuildContext context) => Scaffold(
+      appBar: AppBar(title: const Text('Sell cattle')),
+      body: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(children: [
+            DropdownButtonFormField<ListingCategory>(
+                initialValue: category,
+                items: ListingCategory.values
+                    .map((x) => DropdownMenuItem(value: x, child: Text(x.name)))
+                    .toList(),
+                onChanged: (x) => setState(() => category = x!)),
+            TextField(
+                controller: title,
+                decoration: const InputDecoration(labelText: 'Listing title')),
+            TextField(
+                controller: breed,
+                decoration: const InputDecoration(labelText: 'Breed')),
+            TextField(
+                controller: price,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Price (₹)')),
+            const SizedBox(height: 20),
+            ElevatedButton(
+                onPressed: saving ? null : _save,
+                child: Text(saving ? 'Saving...' : 'Publish listing'))
+          ])));
+  Future<void> _save() async {
+    if (title.text.length < 3 || double.tryParse(price.text) == null) return;
+    setState(() => saving = true);
+    try {
+      await ref.read(dioProvider).post('/marketplace/listings', data: {
+        'category': category.name,
+        'title': title.text,
+        'breed': breed.text.isEmpty ? null : breed.text,
+        'price': double.parse(price.text),
+        'is_pregnant': false,
+        'photos': []
+      });
+      ref.invalidate(marketplaceListingsProvider);
+      if (mounted) context.pop();
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+}

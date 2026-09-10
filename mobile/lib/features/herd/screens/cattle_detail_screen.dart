@@ -236,8 +236,9 @@ class _OverviewTab extends StatelessWidget {
         _DetailRow(
             label: 'Sex',
             value: cattle.sex == CattleSex.female ? 'Female' : 'Male'),
-        _DetailRow(
-            label: 'Date of Birth', value: dateFormat.format(cattle.dob)),
+        if (cattle.dob != null)
+          _DetailRow(
+              label: 'Date of Birth', value: dateFormat.format(cattle.dob!)),
         _DetailRow(label: 'Age', value: cattle.age),
         _DetailRow(label: 'Status', value: cattle.statusLabel),
         if (cattle.createdAt != null)

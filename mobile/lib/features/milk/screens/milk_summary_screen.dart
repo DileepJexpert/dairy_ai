@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -346,7 +347,7 @@ class _BarChartPainter extends CustomPainter {
           text: labelVal,
           style: TextStyle(fontSize: 10, color: labelColor),
         ),
-        textDirection: TextDirection.ltr,
+        textDirection: ui.TextDirection.ltr,
       )..layout();
       tp.paint(canvas, Offset(leftPadding - tp.width - 4, y - tp.height / 2));
     }
@@ -382,7 +383,7 @@ class _BarChartPainter extends CustomPainter {
             text: label,
             style: TextStyle(fontSize: 9, color: labelColor),
           ),
-          textDirection: TextDirection.ltr,
+          textDirection: ui.TextDirection.ltr,
         )..layout();
         tp.paint(
           canvas,

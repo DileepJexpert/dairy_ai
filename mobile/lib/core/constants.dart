@@ -2,8 +2,8 @@
 class AppConstants {
   AppConstants._();
 
-  static const String appName = 'DairyAI';
-  static const String appTagline = 'Smart Dairy Management';
+  static const String appName = 'Milterra';
+  static const String appTagline = 'A little goodness, every day.';
 
   // API
   static const String apiBaseUrl = String.fromEnvironment(

@@ -34,13 +34,16 @@ from app.api.mandi import router as mandi_router
 from app.api.pashu_aadhaar import router as pashu_aadhaar_router
 from app.api.milk_purity import router as milk_purity_router
 from app.api.products import router as products_router
+from app.api.commerce_taxonomy import router as commerce_taxonomy_router
 from app.api.cart import router as cart_router
 from app.api.delivery_addresses import router as delivery_address_router
+from app.api.orders import router as order_router
 from app.database import init_db
+from app.config import settings
 
 # Configure logging for the whole app
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
     format="%(asctime)s | %(levelname)-8s | %(name)-30s | %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
@@ -49,15 +52,18 @@ logger = logging.getLogger("dairy_ai.main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    settings.validate_production_settings()
     logger.info("=" * 60)
     logger.info("DairyAI API starting up...")
     logger.info("=" * 60)
-    logger.info("Initializing database...")
-    await init_db()
-    logger.info("Database initialized successfully")
+    if settings.INIT_DB_ON_STARTUP:
+        logger.info("Initializing database...")
+        await init_db()
+        logger.info("Database initialized successfully")
+    else:
+        logger.info("Skipping schema creation; migrations must be applied before startup")
 
     # Start MQTT subscriber if broker configured
-    from app.config import settings
     from app.iot.mqtt_client import mqtt_subscriber
     if settings.MQTT_BROKER_HOST:
         logger.info(f"Starting MQTT subscriber → {settings.MQTT_BROKER_HOST}:{settings.MQTT_BROKER_PORT}")
@@ -83,7 +89,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins,
+    allow_origin_regex=settings.cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -136,8 +143,10 @@ app.include_router(mandi_router, prefix="/api/v1")
 app.include_router(pashu_aadhaar_router, prefix="/api/v1")
 app.include_router(milk_purity_router, prefix="/api/v1")
 app.include_router(products_router, prefix="/api/v1")
+app.include_router(commerce_taxonomy_router, prefix="/api/v1")
 app.include_router(cart_router, prefix="/api/v1")
 app.include_router(delivery_address_router, prefix="/api/v1")
+app.include_router(order_router, prefix="/api/v1")
 
 logger.info("Registered routers: auth, farmers, cattle, health, milk, feed, breeding, finance, vet, chat, whatsapp, notifications, admin, super-admin, vendor, cooperative, collection, payments, marketplace, outbreak, withdrawal, carbon, vision, schemes, mandi, pashu-aadhaar, milk-purity")
 

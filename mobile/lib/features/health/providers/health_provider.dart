@@ -189,7 +189,7 @@ final triageProvider =
 // Action: add a health record and optionally trigger triage.
 // ---------------------------------------------------------------------------
 Future<HealthRecord> addHealthRecord(
-  Ref ref, {
+  WidgetRef ref, {
   required int cattleId,
   required HealthRecordType type,
   required List<String> symptoms,
@@ -236,7 +236,7 @@ Future<HealthRecord> addHealthRecord(
 // Action: add a vaccination.
 // ---------------------------------------------------------------------------
 Future<Vaccination> addVaccination(
-  Ref ref, {
+  WidgetRef ref, {
   required int cattleId,
   required String vaccineName,
   required DateTime dateGiven,

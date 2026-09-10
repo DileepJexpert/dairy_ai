@@ -25,7 +25,6 @@ mixin _$AuthState {
     required TResult Function(String message) error,
   }) =>
       throw _privateConstructorUsedError;
-
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? unauthenticated,
@@ -35,7 +34,6 @@ mixin _$AuthState {
     TResult? Function(String message)? error,
   }) =>
       throw _privateConstructorUsedError;
-
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? unauthenticated,
@@ -43,10 +41,9 @@ mixin _$AuthState {
     TResult Function(String phone)? otpSent,
     TResult Function(UserModel user)? authenticated,
     TResult Function(String message)? error,
-    required TResult Function() orElse,
+    required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
-
   @optionalTypeArgs
   TResult map<TResult extends Object?>({
     required TResult Function(_Unauthenticated value) unauthenticated,
@@ -56,7 +53,6 @@ mixin _$AuthState {
     required TResult Function(_Error value) error,
   }) =>
       throw _privateConstructorUsedError;
-
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(_Unauthenticated value)? unauthenticated,
@@ -66,7 +62,6 @@ mixin _$AuthState {
     TResult? Function(_Error value)? error,
   }) =>
       throw _privateConstructorUsedError;
-
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
     TResult Function(_Unauthenticated value)? unauthenticated,
@@ -74,7 +69,7 @@ mixin _$AuthState {
     TResult Function(_OtpSent value)? otpSent,
     TResult Function(_Authenticated value)? authenticated,
     TResult Function(_Error value)? error,
-    required TResult Function() orElse,
+    required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
 }
@@ -90,8 +85,13 @@ class _$AuthStateCopyWithImpl<$Res, $Val extends AuthState>
     implements $AuthStateCopyWith<$Res> {
   _$AuthStateCopyWithImpl(this._value, this._then);
 
+  // ignore: unused_field
   final $Val _value;
+  // ignore: unused_field
   final $Res Function($Val) _then;
+
+  /// Create a copy of AuthState
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
@@ -108,9 +108,13 @@ class __$$UnauthenticatedImplCopyWithImpl<$Res>
   __$$UnauthenticatedImplCopyWithImpl(
       _$UnauthenticatedImpl _value, $Res Function(_$UnauthenticatedImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of AuthState
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
+
 class _$UnauthenticatedImpl implements _Unauthenticated {
   const _$UnauthenticatedImpl();
 
@@ -160,7 +164,7 @@ class _$UnauthenticatedImpl implements _Unauthenticated {
     TResult Function(String phone)? otpSent,
     TResult Function(UserModel user)? authenticated,
     TResult Function(String message)? error,
-    required TResult Function() orElse,
+    required TResult orElse(),
   }) {
     if (unauthenticated != null) {
       return unauthenticated();
@@ -200,7 +204,7 @@ class _$UnauthenticatedImpl implements _Unauthenticated {
     TResult Function(_OtpSent value)? otpSent,
     TResult Function(_Authenticated value)? authenticated,
     TResult Function(_Error value)? error,
-    required TResult Function() orElse,
+    required TResult orElse(),
   }) {
     if (unauthenticated != null) {
       return unauthenticated(this);
@@ -227,9 +231,13 @@ class __$$LoadingImplCopyWithImpl<$Res>
   __$$LoadingImplCopyWithImpl(
       _$LoadingImpl _value, $Res Function(_$LoadingImpl) _then)
       : super(_value, _then);
+
+  /// Create a copy of AuthState
+  /// with the given fields replaced by the non-null parameter values.
 }
 
 /// @nodoc
+
 class _$LoadingImpl implements _Loading {
   const _$LoadingImpl();
 
@@ -279,7 +287,7 @@ class _$LoadingImpl implements _Loading {
     TResult Function(String phone)? otpSent,
     TResult Function(UserModel user)? authenticated,
     TResult Function(String message)? error,
-    required TResult Function() orElse,
+    required TResult orElse(),
   }) {
     if (loading != null) {
       return loading();
@@ -319,7 +327,7 @@ class _$LoadingImpl implements _Loading {
     TResult Function(_OtpSent value)? otpSent,
     TResult Function(_Authenticated value)? authenticated,
     TResult Function(_Error value)? error,
-    required TResult Function() orElse,
+    required TResult orElse(),
   }) {
     if (loading != null) {
       return loading(this);
@@ -349,18 +357,24 @@ class __$$OtpSentImplCopyWithImpl<$Res>
       _$OtpSentImpl _value, $Res Function(_$OtpSentImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of AuthState
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? phone = null,
   }) {
     return _then(_$OtpSentImpl(
-      phone: null == phone ? _value.phone : phone as String,
+      phone: null == phone
+          ? _value.phone
+          : phone // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
 
 /// @nodoc
+
 class _$OtpSentImpl implements _OtpSent {
   const _$OtpSentImpl({required this.phone});
 
@@ -383,7 +397,9 @@ class _$OtpSentImpl implements _OtpSent {
   @override
   int get hashCode => Object.hash(runtimeType, phone);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of AuthState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$OtpSentImplCopyWith<_$OtpSentImpl> get copyWith =>
@@ -421,7 +437,7 @@ class _$OtpSentImpl implements _OtpSent {
     TResult Function(String phone)? otpSent,
     TResult Function(UserModel user)? authenticated,
     TResult Function(String message)? error,
-    required TResult Function() orElse,
+    required TResult orElse(),
   }) {
     if (otpSent != null) {
       return otpSent(phone);
@@ -461,7 +477,7 @@ class _$OtpSentImpl implements _OtpSent {
     TResult Function(_OtpSent value)? otpSent,
     TResult Function(_Authenticated value)? authenticated,
     TResult Function(_Error value)? error,
-    required TResult Function() orElse,
+    required TResult orElse(),
   }) {
     if (otpSent != null) {
       return otpSent(this);
@@ -474,7 +490,10 @@ abstract class _OtpSent implements AuthState {
   const factory _OtpSent({required final String phone}) = _$OtpSentImpl;
 
   String get phone;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of AuthState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$OtpSentImplCopyWith<_$OtpSentImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -486,6 +505,7 @@ abstract class _$$AuthenticatedImplCopyWith<$Res> {
       __$$AuthenticatedImplCopyWithImpl<$Res>;
   @useResult
   $Res call({UserModel user});
+
   $UserModelCopyWith<$Res> get user;
 }
 
@@ -497,16 +517,23 @@ class __$$AuthenticatedImplCopyWithImpl<$Res>
       _$AuthenticatedImpl _value, $Res Function(_$AuthenticatedImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of AuthState
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? user = null,
   }) {
     return _then(_$AuthenticatedImpl(
-      user: null == user ? _value.user : user as UserModel,
+      user: null == user
+          ? _value.user
+          : user // ignore: cast_nullable_to_non_nullable
+              as UserModel,
     ));
   }
 
+  /// Create a copy of AuthState
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $UserModelCopyWith<$Res> get user {
@@ -517,6 +544,7 @@ class __$$AuthenticatedImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
+
 class _$AuthenticatedImpl implements _Authenticated {
   const _$AuthenticatedImpl({required this.user});
 
@@ -539,7 +567,9 @@ class _$AuthenticatedImpl implements _Authenticated {
   @override
   int get hashCode => Object.hash(runtimeType, user);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of AuthState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$AuthenticatedImplCopyWith<_$AuthenticatedImpl> get copyWith =>
@@ -577,7 +607,7 @@ class _$AuthenticatedImpl implements _Authenticated {
     TResult Function(String phone)? otpSent,
     TResult Function(UserModel user)? authenticated,
     TResult Function(String message)? error,
-    required TResult Function() orElse,
+    required TResult orElse(),
   }) {
     if (authenticated != null) {
       return authenticated(user);
@@ -617,7 +647,7 @@ class _$AuthenticatedImpl implements _Authenticated {
     TResult Function(_OtpSent value)? otpSent,
     TResult Function(_Authenticated value)? authenticated,
     TResult Function(_Error value)? error,
-    required TResult Function() orElse,
+    required TResult orElse(),
   }) {
     if (authenticated != null) {
       return authenticated(this);
@@ -631,7 +661,10 @@ abstract class _Authenticated implements AuthState {
       _$AuthenticatedImpl;
 
   UserModel get user;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of AuthState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$AuthenticatedImplCopyWith<_$AuthenticatedImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
@@ -653,18 +686,24 @@ class __$$ErrorImplCopyWithImpl<$Res>
       _$ErrorImpl _value, $Res Function(_$ErrorImpl) _then)
       : super(_value, _then);
 
+  /// Create a copy of AuthState
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? message = null,
   }) {
     return _then(_$ErrorImpl(
-      message: null == message ? _value.message : message as String,
+      message: null == message
+          ? _value.message
+          : message // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
 
 /// @nodoc
+
 class _$ErrorImpl implements _Error {
   const _$ErrorImpl({required this.message});
 
@@ -687,7 +726,9 @@ class _$ErrorImpl implements _Error {
   @override
   int get hashCode => Object.hash(runtimeType, message);
 
-  @JsonKey(ignore: true)
+  /// Create a copy of AuthState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
   _$$ErrorImplCopyWith<_$ErrorImpl> get copyWith =>
@@ -725,7 +766,7 @@ class _$ErrorImpl implements _Error {
     TResult Function(String phone)? otpSent,
     TResult Function(UserModel user)? authenticated,
     TResult Function(String message)? error,
-    required TResult Function() orElse,
+    required TResult orElse(),
   }) {
     if (error != null) {
       return error(message);
@@ -765,7 +806,7 @@ class _$ErrorImpl implements _Error {
     TResult Function(_OtpSent value)? otpSent,
     TResult Function(_Authenticated value)? authenticated,
     TResult Function(_Error value)? error,
-    required TResult Function() orElse,
+    required TResult orElse(),
   }) {
     if (error != null) {
       return error(this);
@@ -778,7 +819,10 @@ abstract class _Error implements AuthState {
   const factory _Error({required final String message}) = _$ErrorImpl;
 
   String get message;
-  @JsonKey(ignore: true)
+
+  /// Create a copy of AuthState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   _$$ErrorImplCopyWith<_$ErrorImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

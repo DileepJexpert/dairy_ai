@@ -20,6 +20,9 @@ services:
     restart: unless-stopped
     ports:
       - "6379:6379"
+    profiles:
+      - iot
+      - all
 
   mosquitto:
     image: eclipse-mosquitto:2
@@ -30,6 +33,9 @@ services:
       - "9001:9001"
     volumes:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    profiles:
+      - iot
+      - all
 
   backend:
     build:
@@ -41,7 +47,6 @@ services:
       - "8000:8000"
     depends_on:
       - postgres
-      - redis
     env_file:
       - ../.env
 

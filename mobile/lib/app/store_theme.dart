@@ -3,7 +3,13 @@ import 'package:flutter/material.dart';
 // Single source of truth for the application brand and storefront design system.
 // Screens define their content and layout; reusable visual rules live here.
 const storeGreen = Color(0xff163c30);
+const storeDarkGreenNav = Color(0xff112c24);
+const storeSubNav = Color(0xff1b4537);
 const storeGold = Color(0xffb39358);
+const storeAmber = Color(0xfff0a828);
+const storeAmberDark = Color(0xffc58514);
+const storeOrange = Color(0xffe07e1b);
+const storeStarGold = Color(0xfff5a623);
 const storeCream = Color(0xfffaf8f3);
 const storeMuted = Color(0xff65736b);
 const storeBorder = Color(0xffe8e4da);
@@ -44,10 +50,11 @@ abstract final class StorePalette {
 }
 
 abstract final class StoreLayout {
-  static const double maxWidth = 1320,
+  static const double maxWidth = 1560,
       mobile = 600,
       tablet = 760,
-      desktop = 1000;
+      desktop = 960,
+      wide = 1280;
   static const double xxs = 4, xs = 8, sm = 12, md = 16, lg = 24, xl = 32;
   static const double radius = 8, controlRadius = 5;
   static const double heroDesktop = 1120;
@@ -135,6 +142,24 @@ abstract final class StoreType {
       color: storeGreen);
   static const label =
       TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: storeGreen);
+  static const amazonTopLine = TextStyle(
+      fontSize: 10.5,
+      color: Color(0xffd2ded6),
+      fontWeight: FontWeight.w400,
+      height: 1.1);
+  static const amazonBottomLine = TextStyle(
+      fontSize: 12.2,
+      color: storeWhite,
+      fontWeight: FontWeight.w700,
+      height: 1.2);
+  static const amazonRatingText = TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      color: Color(0xff007185));
+  static const amazonBadge = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      color: storeWhite);
   static const caption = TextStyle(fontSize: 10, color: storeMuted);
   static const stock = TextStyle(fontSize: 12, color: storeSuccess);
   static const hero = TextStyle(

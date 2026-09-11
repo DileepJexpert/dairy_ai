@@ -14,15 +14,19 @@ class TaxonomyNode {
   final int sortOrder, version;
   final bool isActive;
   factory TaxonomyNode.fromJson(Map<String, dynamic> j) => TaxonomyNode(
-      id: j['id'],
-      kind: j['kind'],
-      name: j['name'],
-      slug: j['slug'],
-      parentId: j['parent_id'],
-      description: j['description'] ?? '',
-      sortOrder: j['sort_order'] ?? 0,
-      isActive: j['is_active'] ?? true,
-      version: j['version'] ?? 1);
+      id: (j['id'] ?? '').toString(),
+      kind: (j['kind'] ?? '').toString(),
+      name: (j['name'] ?? '').toString(),
+      slug: (j['slug'] ?? '').toString(),
+      parentId: j['parent_id']?.toString(),
+      description: (j['description'] ?? '').toString(),
+      sortOrder: j['sort_order'] is int
+          ? (j['sort_order'] as int)
+          : (int.tryParse('${j['sort_order']}') ?? 0),
+      isActive: j['is_active'] != false,
+      version: j['version'] is int
+          ? (j['version'] as int)
+          : (int.tryParse('${j['version']}') ?? 1));
   Map<String, dynamic> editableFields() => {
         'name': name,
         'slug': slug,

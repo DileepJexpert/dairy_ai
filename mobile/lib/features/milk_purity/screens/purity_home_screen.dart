@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/milk_purity_provider.dart';
-import '../models/milk_purity_models.dart';
 import '../widgets/brand_list_tile.dart';
 
 class PurityHomeScreen extends ConsumerStatefulWidget {
@@ -38,6 +37,16 @@ class _PurityHomeScreenState extends ConsumerState<PurityHomeScreen> {
         title: const Text('Milk Purity Checker'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            tooltip: 'AI Strip Scanner',
+            onPressed: () => context.push('/purity/scan'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.verified_outlined),
+            tooltip: 'Batch Certificate',
+            onPressed: () => context.push('/purity/certificate/BATCH-2026-0911A'),
+          ),
+          IconButton(
             icon: const Icon(Icons.compare_arrows),
             tooltip: 'Compare brands',
             onPressed: () => context.push('/purity/compare'),
@@ -57,13 +66,13 @@ class _PurityHomeScreenState extends ConsumerState<PurityHomeScreen> {
               cursorColor: Colors.white,
               decoration: InputDecoration(
                 hintText: 'Search milk brand (e.g. Amul, Mother Dairy)...',
-                hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
                 prefixIcon:
-                    Icon(Icons.search, color: Colors.white.withOpacity(0.8)),
+                    Icon(Icons.search, color: Colors.white.withValues(alpha: 0.8)),
                 suffixIcon: _searchQuery != null
                     ? IconButton(
                         icon: Icon(Icons.clear,
-                            color: Colors.white.withOpacity(0.8)),
+                            color: Colors.white.withValues(alpha: 0.8)),
                         onPressed: () {
                           _searchController.clear();
                           _onSearch('');
@@ -71,13 +80,48 @@ class _PurityHomeScreenState extends ConsumerState<PurityHomeScreen> {
                       )
                     : null,
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.15),
+                fillColor: Colors.white.withValues(alpha: 0.15),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
                 contentPadding: const EdgeInsets.symmetric(vertical: 12),
               ),
+            ),
+          ),
+
+          // Quick Tools: AI Scanner & Batch Certificate
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: Colors.white,
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () => context.push('/purity/scan'),
+                    icon: const Icon(Icons.qr_code_scanner, size: 18),
+                    label: const Text('Scan Test Strip',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () => context.push('/purity/certificate/BATCH-2026-0911A'),
+                    icon: const Icon(Icons.verified_outlined, size: 18),
+                    label: const Text('Batch Certificate',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
             ),
           ),
 

@@ -7,6 +7,8 @@ enum NotificationType {
   vaccinationDue,
   consultation,
   payment,
+  orderUpdate,
+  courierTracking,
   general;
 
   factory NotificationType.fromString(String value) {
@@ -19,6 +21,10 @@ enum NotificationType {
         return NotificationType.consultation;
       case 'payment':
         return NotificationType.payment;
+      case 'order_update':
+        return NotificationType.orderUpdate;
+      case 'courier_tracking':
+        return NotificationType.courierTracking;
       default:
         return NotificationType.general;
     }
@@ -34,6 +40,10 @@ enum NotificationType {
         return 'consultation';
       case NotificationType.payment:
         return 'payment';
+      case NotificationType.orderUpdate:
+        return 'order_update';
+      case NotificationType.courierTracking:
+        return 'courier_tracking';
       case NotificationType.general:
         return 'general';
     }
@@ -49,6 +59,10 @@ enum NotificationType {
         return Icons.video_call_outlined;
       case NotificationType.payment:
         return Icons.currency_rupee;
+      case NotificationType.orderUpdate:
+        return Icons.inventory_2_outlined;
+      case NotificationType.courierTracking:
+        return Icons.local_shipping_outlined;
       case NotificationType.general:
         return Icons.notifications_outlined;
     }
@@ -64,6 +78,10 @@ enum NotificationType {
         return DairyTheme.primaryGreen;
       case NotificationType.payment:
         return const Color(0xFF1565C0);
+      case NotificationType.orderUpdate:
+        return const Color(0xFF067D62);
+      case NotificationType.courierTracking:
+        return const Color(0xFFE67A00);
       case NotificationType.general:
         return DairyTheme.subtleGrey;
     }
@@ -79,6 +97,10 @@ enum NotificationType {
         return 'Consultation';
       case NotificationType.payment:
         return 'Payment';
+      case NotificationType.orderUpdate:
+        return 'Order Update';
+      case NotificationType.courierTracking:
+        return 'Courier Tracking';
       case NotificationType.general:
         return 'General';
     }

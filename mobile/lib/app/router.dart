@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'shopping_navigation.dart';
 import '../features/commerce/screens/commerce_categories_screen.dart';
+import '../features/commerce/screens/commerce_products_screen.dart';
+import '../features/commerce/screens/commerce_orders_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
@@ -27,6 +29,7 @@ import 'package:dairy_ai/features/health/screens/sensor_live_screen.dart';
 import 'package:dairy_ai/features/health/screens/vaccination_screen.dart';
 import 'package:dairy_ai/features/finance/screens/finance_dashboard_screen.dart';
 import 'package:dairy_ai/features/finance/screens/add_transaction_screen.dart';
+import 'package:dairy_ai/features/finance/screens/milterra_wallet_screen.dart';
 import 'package:dairy_ai/features/milk/screens/milk_record_screen.dart';
 import 'package:dairy_ai/features/milk/screens/milk_summary_screen.dart';
 import 'package:dairy_ai/features/feed/screens/feed_plan_screen.dart';
@@ -44,18 +47,24 @@ import 'package:dairy_ai/features/vet_farmer/screens/vet_search_screen.dart';
 import 'package:dairy_ai/features/admin/screens/admin_dashboard_screen.dart';
 import 'package:dairy_ai/features/admin/screens/admin_farmers_screen.dart';
 import 'package:dairy_ai/features/admin/screens/admin_vets_screen.dart';
+import 'package:dairy_ai/features/admin/screens/ecommerce_admin_panel_screen.dart';
+import 'package:dairy_ai/features/auth/screens/admin_login_screen.dart';
+import 'package:dairy_ai/features/auth/screens/seller_login_screen.dart';
 
-// Vendor screens
+// Vendor / Seller screens
 import 'package:dairy_ai/features/vendor/screens/vendor_dashboard_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/vendor_registration_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/vendor_profile_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/vendor_orders_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/vendor_products_screen.dart';
+import 'package:dairy_ai/features/vendor/screens/seller_onboarding_screen.dart';
+import 'package:dairy_ai/features/vendor/screens/seller_portal_screen.dart';
 
 // Cooperative screens
 import 'package:dairy_ai/features/cooperative/screens/cooperative_dashboard_screen.dart';
 import 'package:dairy_ai/features/cooperative/screens/cooperative_registration_screen.dart';
 import 'package:dairy_ai/features/cooperative/screens/cooperative_profile_screen.dart';
+import 'package:dairy_ai/features/cooperative/screens/milk_intake_screen.dart';
 
 // Collection screens
 import 'package:dairy_ai/features/collection/screens/collection_centers_screen.dart';
@@ -68,16 +77,25 @@ import 'package:dairy_ai/features/collection/screens/cold_chain_screen.dart';
 import 'package:dairy_ai/features/milk_purity/screens/purity_home_screen.dart';
 import 'package:dairy_ai/features/milk_purity/screens/brand_detail_screen.dart';
 import 'package:dairy_ai/features/milk_purity/screens/compare_screen.dart';
+import 'package:dairy_ai/features/milk_purity/screens/purity_scanner_screen.dart';
+import 'package:dairy_ai/features/milk_purity/screens/batch_certificate_screen.dart';
+import 'package:dairy_ai/features/herd/screens/cattle_lifecycle_screen.dart';
+import 'package:dairy_ai/features/vet_farmer/screens/tele_vet_booking_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/marketplace_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/marketplace_detail_screen.dart';
-import 'package:dairy_ai/features/marketplace/screens/sell_cattle_screen.dart';
+import 'package:dairy_ai/features/marketplace/screens/sell_on_milterra_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/product_list_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/product_detail_screen.dart';
+import 'package:dairy_ai/features/marketplace/screens/deals_screen.dart';
 import 'package:dairy_ai/features/marketplace/models/product_models.dart';
 import 'package:dairy_ai/features/cart/screens/cart_screen.dart';
 import 'package:dairy_ai/features/cart/screens/delivery_addresses_screen.dart';
 import 'package:dairy_ai/features/cart/screens/checkout_screen.dart';
 import 'package:dairy_ai/features/cart/screens/orders_screen.dart';
+import 'package:dairy_ai/features/cart/screens/order_tracking_screen.dart';
+import 'package:dairy_ai/features/cart/screens/wishlist_screen.dart';
+import 'package:dairy_ai/features/marketplace/screens/about_milterra_screen.dart';
+import 'package:dairy_ai/features/marketplace/screens/help_support_screen.dart';
 
 // ---------------------------------------------------------------------------
 // Navigation keys
@@ -102,7 +120,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     navigatorKey: _rootNavigatorKey,
     // Customers should be able to browse the catalogue before creating an account.
     initialLocation: '/shop',
-    debugLogDiagnostics: true,
+    debugLogDiagnostics: false,
     redirect: (context, state) {
       final isAuthenticated = authState.maybeWhen(
         authenticated: (_) => true,
@@ -110,16 +128,50 @@ final routerProvider = Provider<GoRouter>((ref) {
       );
 
       final isAuthRoute = state.matchedLocation == '/login' ||
+          state.matchedLocation == '/register' ||
           state.matchedLocation == '/otp-verify';
       final location = state.uri.path;
       final isPublicRoute = location == '/shop' ||
+          location.startsWith('/shop/') ||
+          location.startsWith('/product/') ||
           location == '/' ||
+          location == '/wishlist' ||
+          location == '/shop/wishlist' ||
+          location == '/marketplace/wishlist' ||
+          location == '/about' ||
+          location == '/shop/about' ||
+          location == '/help' ||
+          location == '/shop/help' ||
+          location == '/register' ||
+          location == '/profile' ||
+          location == '/account' ||
+          location == '/shop/profile' ||
+          location == '/shop/account' ||
           location.startsWith('/purity') ||
           location == '/marketplace' ||
+          location == '/marketplace/sell' ||
+          location == '/sell' ||
+          location == '/shop/sell' ||
           location.startsWith('/marketplace/listing/') ||
           location == '/marketplace/feed' ||
           location == '/marketplace/equipment' ||
-          location.startsWith('/marketplace/product/');
+          location == '/marketplace/deals' ||
+          location.startsWith('/marketplace/product/') ||
+          location == '/cart' ||
+          location == '/shop/cart' ||
+          location == '/marketplace/cart' ||
+          location == '/addresses' ||
+          location == '/shop/addresses' ||
+          location == '/marketplace/addresses' ||
+          location == '/balance' ||
+          location == '/wallet' ||
+          location == '/shop/balance' ||
+          location == '/shop/wallet' ||
+          location == '/marketplace/balance' ||
+          location == '/marketplace/wallet' ||
+          location.startsWith('/cooperative') ||
+          location.startsWith('/herd/lifecycle') ||
+          location.startsWith('/vet/booking');
 
       if (!isAuthenticated && !isAuthRoute && !isPublicRoute) {
         return Uri(path: '/login', queryParameters: {
@@ -135,6 +187,98 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/', redirect: (_, __) => '/shop'),
       GoRoute(
+        path: '/shop/product/:productId',
+        builder: (context, state) => ProductDetailScreen(
+          productId: state.pathParameters['productId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/product/:productId',
+        redirect: (context, state) =>
+            '/shop/product/${state.pathParameters['productId']}',
+      ),
+      GoRoute(
+        path: '/cart',
+        redirect: (_, __) => '/marketplace/cart',
+      ),
+      GoRoute(
+        path: '/shop/cart',
+        redirect: (_, __) => '/marketplace/cart',
+      ),
+      GoRoute(
+        path: '/checkout',
+        redirect: (_, __) => '/marketplace/checkout',
+      ),
+      GoRoute(
+        path: '/addresses',
+        redirect: (_, __) => '/marketplace/addresses',
+      ),
+      GoRoute(
+        path: '/shop/addresses',
+        redirect: (_, __) => '/marketplace/addresses',
+      ),
+      GoRoute(
+        path: '/orders',
+        redirect: (_, __) => '/marketplace/orders',
+      ),
+      GoRoute(
+        path: '/shop/orders',
+        redirect: (_, __) => '/marketplace/orders',
+      ),
+      GoRoute(
+        path: '/shop/order/:orderId',
+        redirect: (context, state) =>
+            '/marketplace/orders/${state.pathParameters['orderId']}',
+      ),
+      GoRoute(
+        path: '/balance',
+        builder: (context, state) => const MilterraWalletScreen(),
+      ),
+      GoRoute(
+        path: '/wallet',
+        redirect: (_, __) => '/balance',
+      ),
+      GoRoute(
+        path: '/shop/balance',
+        redirect: (_, __) => '/balance',
+      ),
+      GoRoute(
+        path: '/shop/wallet',
+        redirect: (_, __) => '/balance',
+      ),
+      GoRoute(
+        path: '/marketplace/balance',
+        redirect: (_, __) => '/balance',
+      ),
+      GoRoute(
+        path: '/marketplace/wallet',
+        redirect: (_, __) => '/balance',
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/account',
+        redirect: (_, __) => '/profile',
+      ),
+      GoRoute(
+        path: '/shop/profile',
+        redirect: (_, __) => '/profile',
+      ),
+      GoRoute(
+        path: '/shop/account',
+        redirect: (_, __) => '/profile',
+      ),
+      GoRoute(
+        path: '/shop/deals',
+        builder: (_, __) => const DealsScreen(),
+      ),
+      GoRoute(
+        path: '/marketplace/deals',
+        redirect: (_, __) => '/shop/deals',
+      ),
+      GoRoute(
           path: '/shop',
           builder: (_, state) => ProductListScreen(
               initialQuery: state.uri.queryParameters['query'] ?? '',
@@ -143,6 +287,44 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/admin/commerce',
           builder: (_, __) => const CommerceCategoriesScreen()),
+      GoRoute(
+          path: '/admin/commerce/products',
+          builder: (_, __) => const CommerceProductsScreen()),
+      GoRoute(
+          path: '/admin/commerce/orders',
+          builder: (_, __) => const CommerceOrdersScreen()),
+      GoRoute(
+        path: '/wishlist',
+        builder: (context, state) => const WishlistScreen(),
+      ),
+      GoRoute(
+        path: '/shop/wishlist',
+        redirect: (_, __) => '/wishlist',
+      ),
+      GoRoute(
+        path: '/marketplace/wishlist',
+        redirect: (_, __) => '/wishlist',
+      ),
+      GoRoute(
+        path: '/about',
+        builder: (context, state) => const AboutMilterraScreen(),
+      ),
+      GoRoute(
+        path: '/shop/about',
+        redirect: (_, __) => '/about',
+      ),
+      GoRoute(
+        path: '/help',
+        builder: (context, state) => const HelpSupportScreen(),
+      ),
+      GoRoute(
+        path: '/shop/help',
+        redirect: (_, __) => '/help',
+      ),
+      GoRoute(
+        path: '/register',
+        builder: (context, state) => const LoginScreen(initialTab: 1),
+      ),
       // ---- Auth routes (no shell) ----
       GoRoute(
         path: '/login',
@@ -165,6 +347,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const PurityHomeScreen(),
         routes: [
           GoRoute(
+            path: 'scan',
+            builder: (context, state) => const PurityScannerScreen(),
+          ),
+          GoRoute(
+            path: 'certificate/:batchId',
+            builder: (context, state) {
+              final batchId = state.pathParameters['batchId']!;
+              return BatchCertificateScreen(batchId: batchId);
+            },
+          ),
+          GoRoute(
             path: 'brand/:brandSlug',
             builder: (context, state) {
               final slug = state.pathParameters['brandSlug']!;
@@ -178,12 +371,41 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(
+        path: '/cooperative/intake',
+        builder: (context, state) => const MilkIntakeScreen(),
+      ),
+      GoRoute(
+        path: '/herd/lifecycle/:cattleId',
+        builder: (context, state) {
+          final cattleId = state.pathParameters['cattleId'] ?? 'MIL-2024-0842';
+          return CattleLifecycleScreen(cattleId: cattleId);
+        },
+      ),
+      GoRoute(
+        path: '/vet/booking',
+        builder: (context, state) {
+          final cattleId = state.uri.queryParameters['cattleId'];
+          return TeleVetBookingScreen(initialCattleId: cattleId);
+        },
+      ),
+      GoRoute(
         path: '/marketplace',
         builder: (context, state) => const MarketplaceScreen(),
       ),
       GoRoute(
+        path: '/sell',
+        redirect: (_, __) => '/marketplace/sell',
+      ),
+      GoRoute(
+        path: '/shop/sell',
+        redirect: (_, __) => '/marketplace/sell',
+      ),
+      GoRoute(
         path: '/marketplace/sell',
-        builder: (context, state) => const SellCattleScreen(),
+        builder: (context, state) {
+          final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+          return SellOnMilterraScreen(initialTab: tab);
+        },
       ),
       GoRoute(
         path: '/marketplace/listing/:listingId',
@@ -221,6 +443,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/marketplace/orders',
           builder: (context, state) => const OrdersScreen()),
+      GoRoute(
+          path: '/marketplace/orders/:orderId',
+          builder: (context, state) => OrderTrackingScreen(
+                orderId: state.pathParameters['orderId']!,
+              )),
 
       // ---- Farmer shell ----
       StatefulShellRoute.indexedStack(
@@ -555,6 +782,28 @@ final routerProvider = Provider<GoRouter>((ref) {
             },
           ),
         ],
+      ),
+
+      // ---- Ecommerce Admin Panel & Multi-Seller Portal Routes ----
+      GoRoute(
+        path: '/admin/login',
+        builder: (context, state) => const AdminLoginScreen(),
+      ),
+      GoRoute(
+        path: '/admin/ecommerce',
+        builder: (context, state) => const EcommerceAdminPanelScreen(),
+      ),
+      GoRoute(
+        path: '/seller/login',
+        builder: (context, state) => const SellerLoginScreen(),
+      ),
+      GoRoute(
+        path: '/seller/onboarding',
+        builder: (context, state) => const SellerOnboardingScreen(),
+      ),
+      GoRoute(
+        path: '/seller/dashboard',
+        builder: (context, state) => const SellerPortalScreen(),
       ),
     ],
   );

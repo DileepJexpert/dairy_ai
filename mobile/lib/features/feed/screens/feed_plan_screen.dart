@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:dairy_ai/core/extensions.dart';
 import 'package:dairy_ai/features/feed/models/feed_models.dart';
@@ -51,7 +52,7 @@ class _FeedPlanScreenState extends ConsumerState<FeedPlanScreen>
             padding: const EdgeInsets.all(16),
             child: cattleAsync.when(
               data: (cattleList) => DropdownButtonFormField<String>(
-                value: _selectedCattleId,
+                initialValue: _selectedCattleId,
                 decoration: const InputDecoration(
                   labelText: 'Select Cattle',
                   border: OutlineInputBorder(),
@@ -283,7 +284,7 @@ class _FeedPlanCard extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
+                  color: Colors.green.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.green.shade300),
                 ),
@@ -345,6 +346,43 @@ class _FeedPlanCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(plan.notes!, style: context.textTheme.bodySmall),
             ],
+
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xfff0fbf4),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xffb7ebd1)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.eco, color: Color(0xff067d62)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Milterra Verified Cattle Nutrition',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xff067d62))),
+                        Text('Order 20% bypass pellets, chelated minerals & calcium drench with free farm delivery.',
+                            style: TextStyle(fontSize: 11, color: Colors.grey[700])),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xffffb81c),
+                      foregroundColor: const Color(0xff0d3b2e),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    onPressed: () => context.go('/shop?category=Animal nutrition'),
+                    child: const Text('Order Feed', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

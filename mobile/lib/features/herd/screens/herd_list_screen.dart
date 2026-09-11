@@ -65,6 +65,41 @@ class _HerdListScreenState extends ConsumerState<HerdListScreen> {
               ref.read(cattleStatusFilterProvider.notifier).state = status;
             },
           ),
+
+          // Quick Shortcuts: 305-Day Lactation Curves & Tele-Vet Clinic
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: Colors.grey.shade50,
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () => context.push('/herd/lifecycle/MIL-2024-0842'),
+                    icon: const Icon(Icons.analytics_outlined, size: 16),
+                    label: const Text('Lactation Analytics',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () => context.push('/vet/booking'),
+                    icon: const Icon(Icons.video_call_outlined, size: 16),
+                    label: const Text('Tele-Vet Clinic',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
           // Cattle list
           Expanded(
             child: filteredAsync.when(

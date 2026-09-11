@@ -77,34 +77,60 @@ class _CattleDetailBody extends StatelessWidget {
             // Quick action bar
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Column(
                   children: [
-                    Expanded(
-                      child: _ActionChip(
-                        icon: Icons.water_drop_outlined,
-                        label: 'Record Milk',
-                        onTap: () =>
-                            context.push('/milk/add?cattle_id=${cattle.id}'),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _ActionChip(
+                            icon: Icons.analytics_outlined,
+                            label: 'Lactation & Lifecycle',
+                            onTap: () =>
+                                context.push('/herd/lifecycle/${cattle.id}'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _ActionChip(
+                            icon: Icons.video_call_outlined,
+                            label: 'Book Tele-Vet',
+                            onTap: () =>
+                                context.push('/vet/booking?cattleId=${cattle.id}'),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _ActionChip(
-                        icon: Icons.medical_services_outlined,
-                        label: 'Health Check',
-                        onTap: () => context
-                            .push('/health/triage?cattle_id=${cattle.id}'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _ActionChip(
-                        icon: Icons.edit_outlined,
-                        label: 'Edit',
-                        onTap: () =>
-                            context.push('/herd/${cattle.id}/edit'),
-                      ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _ActionChip(
+                            icon: Icons.water_drop_outlined,
+                            label: 'Record Milk',
+                            onTap: () =>
+                                context.push('/milk/add?cattle_id=${cattle.id}'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _ActionChip(
+                            icon: Icons.medical_services_outlined,
+                            label: 'Health Check',
+                            onTap: () => context
+                                .push('/health/triage?cattle_id=${cattle.id}'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _ActionChip(
+                            icon: Icons.edit_outlined,
+                            label: 'Edit',
+                            onTap: () =>
+                                context.push('/herd/${cattle.id}/edit'),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

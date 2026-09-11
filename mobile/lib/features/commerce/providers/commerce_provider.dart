@@ -3,13 +3,21 @@ import '../../auth/providers/auth_provider.dart';
 import '../models/taxonomy.dart';
 
 final taxonomyProvider = FutureProvider<TaxonomyCatalogue>((ref) async {
-  final body = (await ref.watch(dioProvider).get('/marketplace/taxonomy')).data
-      as Map<String, dynamic>;
-  return TaxonomyCatalogue(
-      enabled: body['enabled'] == true,
-      nodes: (body['data'] as List)
-          .map((n) => TaxonomyNode.fromJson(Map<String, dynamic>.from(n)))
-          .toList());
+  try {
+    final response = await ref.watch(dioProvider).get('/marketplace/taxonomy');
+    final body = response.data;
+    if (body is Map && body['enabled'] == true && body['data'] is List) {
+      return TaxonomyCatalogue(
+          enabled: true,
+          nodes: (body['data'] as List)
+              .map((n) =>
+                  TaxonomyNode.fromJson(Map<String, dynamic>.from(n as Map)))
+              .toList());
+    }
+    return const TaxonomyCatalogue(enabled: false, nodes: []);
+  } catch (_) {
+    return const TaxonomyCatalogue(enabled: false, nodes: []);
+  }
 });
 
 final commerceAccessProvider =

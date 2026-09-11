@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dairy_ai/core/constants.dart';
 import 'package:dairy_ai/core/storage.dart';
@@ -49,17 +50,27 @@ Dio createDioClient(SecureStorageService storage) {
     ),
   );
 
-  // --- Logging interceptor (debug builds only) ---
+  // --- Detailed Logging interceptor ---
   dio.interceptors.add(
-    LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-      logPrint: (obj) {
-        assert(() {
-          // ignore: avoid_print
-          print(obj);
-          return true;
-        }());
+    InterceptorsWrapper(
+      onRequest: (options, handler) {
+        debugPrint(
+            '[HTTP REQ] ${options.method} ${options.baseUrl}${options.path} data: ${options.data} query: ${options.queryParameters}');
+        return handler.next(options);
+      },
+      onResponse: (response, handler) {
+        debugPrint(
+            '[HTTP RES] ${response.statusCode} ${response.requestOptions.method} ${response.requestOptions.path}');
+        return handler.next(response);
+      },
+      onError: (error, handler) {
+        debugPrint(
+            '[HTTP ERR] ${error.response?.statusCode} ${error.requestOptions.method} ${error.requestOptions.path}: ${error.message}');
+        if (error.response?.data != null) {
+          debugPrint('[HTTP ERR BODY] ${error.response?.data}');
+        }
+        debugPrint('[HTTP ERR STACK] ${error.stackTrace}');
+        return handler.next(error);
       },
     ),
   );

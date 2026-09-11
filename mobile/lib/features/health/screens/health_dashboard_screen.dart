@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:dairy_ai/core/extensions.dart';
 import 'package:dairy_ai/features/health/models/health_models.dart';
 import 'package:dairy_ai/features/health/providers/health_provider.dart';
@@ -41,7 +42,7 @@ class HealthDashboardScreen extends ConsumerWidget {
             const SizedBox(height: 20),
 
             // --- Sensor Alerts ---
-            _SectionHeader(
+            const _SectionHeader(
               title: 'Sensor Alerts',
               icon: Icons.sensors,
               iconColor: Colors.orange,
@@ -51,17 +52,21 @@ class HealthDashboardScreen extends ConsumerWidget {
             const SizedBox(height: 20),
 
             // --- Active Health Issues ---
-            _SectionHeader(
+            const _SectionHeader(
               title: 'Active Health Issues',
               icon: Icons.warning_amber_rounded,
               iconColor: Colors.red,
             ),
             const SizedBox(height: 8),
             _ActiveIssuesSection(),
+            const SizedBox(height: 16),
+
+            // --- Agri-Hub Herd Care Supplies ---
+            const _AgriHubHerdCareBanner(),
             const SizedBox(height: 20),
 
             // --- Upcoming Vaccinations ---
-            _SectionHeader(
+            const _SectionHeader(
               title: 'Upcoming Vaccinations',
               icon: Icons.vaccines,
               iconColor: Colors.blue,
@@ -132,7 +137,7 @@ class _TriageQuickAccessCard extends StatelessWidget {
                       'Report symptoms and get instant AI diagnosis',
                       style: context.textTheme.bodySmall?.copyWith(
                         color: context.colorScheme.onPrimaryContainer
-                            .withOpacity(0.8),
+                            .withValues(alpha: 0.8),
                       ),
                     ),
                   ],
@@ -192,10 +197,10 @@ class _SensorAlertsSection extends ConsumerWidget {
 
     return alertsAsync.when(
       loading: () => const _ShimmerPlaceholder(height: 80),
-      error: (err, _) => _ErrorTile(message: 'Could not load sensor alerts'),
+      error: (err, _) => const _ErrorTile(message: 'Could not load sensor alerts'),
       data: (alerts) {
         if (alerts.isEmpty) {
-          return _EmptyTile(
+          return const _EmptyTile(
             icon: Icons.check_circle_outline,
             message: 'No sensor alerts. All cattle vitals are normal.',
           );
@@ -220,7 +225,7 @@ class _SensorAlertTile extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: (isTemp ? Colors.red : Colors.orange).withOpacity(0.15),
+          backgroundColor: (isTemp ? Colors.red : Colors.orange).withValues(alpha: 0.15),
           child: Icon(
             isTemp ? Icons.thermostat : Icons.monitor_heart,
             color: isTemp ? Colors.red : Colors.orange,
@@ -259,10 +264,10 @@ class _ActiveIssuesSection extends ConsumerWidget {
 
     return issuesAsync.when(
       loading: () => const _ShimmerPlaceholder(height: 80),
-      error: (err, _) => _ErrorTile(message: 'Could not load health issues'),
+      error: (err, _) => const _ErrorTile(message: 'Could not load health issues'),
       data: (issues) {
         if (issues.isEmpty) {
-          return _EmptyTile(
+          return const _EmptyTile(
             icon: Icons.favorite,
             message: 'No active health issues. Great job!',
           );
@@ -286,7 +291,7 @@ class _HealthIssueTile extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: Colors.red.withOpacity(0.15),
+          backgroundColor: Colors.red.withValues(alpha: 0.15),
           child: const Icon(Icons.sick, color: Colors.red),
         ),
         title: Text(
@@ -333,7 +338,7 @@ class _TypeChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: bg.withOpacity(0.15),
+        color: bg.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
@@ -355,10 +360,10 @@ class _UpcomingVaccinationsSection extends ConsumerWidget {
     return vacAsync.when(
       loading: () => const _ShimmerPlaceholder(height: 80),
       error: (err, _) =>
-          _ErrorTile(message: 'Could not load vaccination schedule'),
+          const _ErrorTile(message: 'Could not load vaccination schedule'),
       data: (vaccinations) {
         if (vaccinations.isEmpty) {
-          return _EmptyTile(
+          return const _EmptyTile(
             icon: Icons.vaccines,
             message: 'No upcoming vaccinations.',
           );
@@ -386,7 +391,7 @@ class _VaccinationTile extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor:
-              (isOverdue ? Colors.red : Colors.blue).withOpacity(0.15),
+              (isOverdue ? Colors.red : Colors.blue).withValues(alpha: 0.15),
           child: Icon(
             Icons.vaccines,
             color: isOverdue ? Colors.red : Colors.blue,
@@ -400,7 +405,7 @@ class _VaccinationTile extends StatelessWidget {
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: (isOverdue ? Colors.red : Colors.blue).withOpacity(0.15),
+            color: (isOverdue ? Colors.red : Colors.blue).withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
@@ -484,6 +489,146 @@ class _ShimmerPlaceholder extends StatelessWidget {
       child: SizedBox(
         height: height,
         child: const Center(child: CircularProgressIndicator.adaptive()),
+      ),
+    );
+  }
+}
+
+class _AgriHubHerdCareBanner extends StatelessWidget {
+  const _AgriHubHerdCareBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xfff5f8f5),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xff1b4332).withValues(alpha: 0.2),
+          width: 1.2,
+        ),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xff1b4332).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.medical_services_outlined,
+                  color: Color(0xff1b4332),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Milterra Agri-Hub Veterinary & Care Supplies',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xff1b4332),
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Emergency drench, mineral nutrition & hygiene supplies',
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Keep your herd protected. Rapid delivery of high-potency oral calcium, chelated trace minerals with live yeast, and herbal udder hygiene solutions.',
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.35,
+              color: Color(0xff333333),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ActionChip(
+                avatar: const Icon(
+                  Icons.local_pharmacy,
+                  size: 16,
+                  color: Color(0xff1b4332),
+                ),
+                label: const Text('Cal-Gold Drench (₹1,150)'),
+                labelStyle: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xff1b4332),
+                ),
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(
+                    color: const Color(0xff1b4332).withValues(alpha: 0.3),
+                  ),
+                ),
+                onPressed: () => context.push('/shop/product/feed-calcium-5l'),
+              ),
+              ActionChip(
+                avatar: const Icon(
+                  Icons.shield_outlined,
+                  size: 16,
+                  color: Color(0xff1b4332),
+                ),
+                label: const Text('Chelated Minerals (₹890)'),
+                labelStyle: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xff1b4332),
+                ),
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(
+                    color: const Color(0xff1b4332).withValues(alpha: 0.3),
+                  ),
+                ),
+                onPressed: () => context.push('/shop/product/feed-mineral-5'),
+              ),
+              ActionChip(
+                avatar: const Icon(
+                  Icons.storefront,
+                  size: 16,
+                  color: Color(0xff1b4332),
+                ),
+                label: const Text('All Farm Essentials →'),
+                labelStyle: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xff1b4332),
+                ),
+                backgroundColor: const Color(0xff1b4332).withValues(alpha: 0.1),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(
+                    color: const Color(0xff1b4332).withValues(alpha: 0.4),
+                  ),
+                ),
+                onPressed: () => context.push('/shop?category=Animal nutrition'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

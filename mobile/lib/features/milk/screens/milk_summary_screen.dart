@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:dairy_ai/core/extensions.dart';
 import 'package:dairy_ai/features/milk/models/milk_models.dart';
@@ -140,6 +141,13 @@ class _SummaryContent extends StatelessWidget {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 16),
+
+        // --- Milk Quality & Fat % Optimization Card ---
+        _MilkQualityOptimizerCard(
+          avgFat: summary.avgFatPct,
+          avgSnf: summary.avgSnfPct,
         ),
         const SizedBox(height: 24),
 
@@ -294,8 +302,8 @@ class _MilkBarChart extends StatelessWidget {
       painter: _BarChartPainter(
         entries: entries,
         barColor: context.colorScheme.primary,
-        labelColor: context.colorScheme.onSurface.withOpacity(0.6),
-        gridColor: Colors.grey.withOpacity(0.15),
+        labelColor: context.colorScheme.onSurface.withValues(alpha: 0.6),
+        gridColor: Colors.grey.withValues(alpha: 0.15),
       ),
       child: const SizedBox.expand(),
     );
@@ -332,7 +340,7 @@ class _BarChartPainter extends CustomPainter {
     final gridPaint = Paint()
       ..color = gridColor
       ..strokeWidth = 1;
-    final gridCount = 4;
+    const gridCount = 4;
     for (var i = 0; i <= gridCount; i++) {
       final y = topPadding + chartHeight * (1 - i / gridCount);
       canvas.drawLine(
@@ -399,4 +407,159 @@ class _BarChartPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _BarChartPainter oldDelegate) =>
       entries != oldDelegate.entries;
+}
+
+class _MilkQualityOptimizerCard extends StatelessWidget {
+  const _MilkQualityOptimizerCard({
+    required this.avgFat,
+    required this.avgSnf,
+  });
+
+  final double avgFat;
+  final double avgSnf;
+
+  @override
+  Widget build(BuildContext context) {
+    final isLowFat = avgFat < 4.2;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xfff7fbf8),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xff2d6a4f).withValues(alpha: 0.25),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xff2d6a4f).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome,
+                  color: Color(0xff2d6a4f),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'Agri-Hub Fat & SNF Booster',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xff1b4332),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xffe9d8a6),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'AI ADVISORY',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xff7f5539),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isLowFat
+                          ? 'Current Fat ${avgFat.toStringAsFixed(1)}% is below cooperative premium threshold (4.2%+)'
+                          : 'Optimal Fat ${avgFat.toStringAsFixed(1)}% & SNF ${avgSnf.toStringAsFixed(1)}% detected',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            isLowFat
+                ? 'Supplementing with Milterra 84% Rumen Bypass Fat powder and Chelated Agromin Minerals elevates butterfat by +0.4% - 0.7% in 14 days, maximizing your cooperative milk procurement rate.'
+                : 'Maintain sustained high lactation yield and prevent negative energy balance with Milterra 20% Crude Protein cattle pellets and Chelated Minerals.',
+            style: const TextStyle(
+              fontSize: 13,
+              height: 1.4,
+              color: Color(0xff2d3748),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xff2d6a4f),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                onPressed: () => context.push('/shop/product/feed-bypass-fat'),
+                icon: const Icon(Icons.flash_on, size: 16),
+                label: const Text('Order Bypass Fat (₹480)'),
+              ),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xff1b4332),
+                  side: const BorderSide(color: Color(0xff2d6a4f)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                onPressed: () => context.push('/shop?category=Animal nutrition'),
+                icon: const Icon(Icons.storefront, size: 16),
+                label: const Text('Visit Agri-Hub Store'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }

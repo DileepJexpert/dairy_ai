@@ -118,6 +118,13 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
       await loadNotifications();
     }
   }
+
+  /// Push an instant notification (e.g. order update, courier milestone).
+  void pushNotification(NotificationItem item) {
+    state = state.copyWith(
+      notifications: [item, ...state.notifications],
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

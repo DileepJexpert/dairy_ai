@@ -275,7 +275,7 @@ class _NotificationTile extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: item.type.color.withOpacity(0.12),
+                  color: item.type.color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -328,7 +328,7 @@ class _NotificationTile extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: item.type.color.withOpacity(0.1),
+                            color: item.type.color.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -345,7 +345,7 @@ class _NotificationTile extends StatelessWidget {
                           Container(
                             width: 8,
                             height: 8,
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               shape: BoxShape.circle,
                               color: DairyTheme.primaryGreen,
                             ),
@@ -381,7 +381,7 @@ class _EmptyView extends StatelessWidget {
           Icon(
             Icons.notifications_off_outlined,
             size: 64,
-            color: DairyTheme.subtleGrey.withOpacity(0.5),
+            color: DairyTheme.subtleGrey.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -414,7 +414,7 @@ class _ErrorView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.error_outline, size: 48, color: DairyTheme.errorRed),
+          const Icon(Icons.error_outline, size: 48, color: DairyTheme.errorRed),
           const SizedBox(height: 12),
           Text(
             message,

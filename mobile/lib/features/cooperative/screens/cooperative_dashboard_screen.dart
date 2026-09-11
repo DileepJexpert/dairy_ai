@@ -5,6 +5,7 @@ import 'package:dairy_ai/app/theme.dart';
 import 'package:dairy_ai/core/extensions.dart';
 import 'package:dairy_ai/features/cooperative/models/cooperative_models.dart';
 import 'package:dairy_ai/features/cooperative/providers/cooperative_provider.dart';
+import 'package:go_router/go_router.dart';
 
 class CooperativeDashboardScreen extends ConsumerWidget {
   const CooperativeDashboardScreen({super.key});
@@ -16,7 +17,16 @@ class CooperativeDashboardScreen extends ConsumerWidget {
         NumberFormat.currency(locale: 'en_IN', symbol: '\u20B9');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Cooperative Dashboard')),
+      appBar: AppBar(
+        title: const Text('Cooperative Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.note_add_outlined),
+            tooltip: 'Record Milk Intake',
+            onPressed: () => context.push('/cooperative/intake'),
+          ),
+        ],
+      ),
       body: dashboardAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => _ErrorView(
@@ -114,6 +124,56 @@ class CooperativeDashboardScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // ---- Quick Intake Passbook Action ----
+              Card(
+                color: DairyTheme.primaryGreen,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white12,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.local_shipping_outlined, color: Colors.amber, size: 28),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Milk Intake & Direct Payouts',
+                              style: context.textTheme.titleMedium?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Record member shifts, compute Fat/SNF rates & credit Milterra Wallets instantly.',
+                              style: context.textTheme.bodySmall?.copyWith(color: Colors.white70),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          foregroundColor: DairyTheme.primaryGreen,
+                        ),
+                        onPressed: () => context.push('/cooperative/intake'),
+                        child: const Text('Record Intake', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),

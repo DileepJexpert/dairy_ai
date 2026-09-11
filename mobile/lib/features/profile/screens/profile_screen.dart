@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:dairy_ai/app/theme.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import 'package:dairy_ai/features/chat/models/chat_models.dart';
@@ -82,56 +83,119 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile header.
-            Center(
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 44,
-                    backgroundColor: DairyTheme.primaryGreen.withOpacity(0.1),
-                    child: Icon(
-                      Icons.person_outline,
-                      size: 48,
-                      color: DairyTheme.primaryGreen,
-                    ),
+            if (user == null) ...[
+              Card(
+                color: const Color(0xfffbf7ee),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: Color(0xffe8e4da)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.account_circle_outlined,
+                          size: 52, color: DairyTheme.primaryGreen),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Welcome to Milterra',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: DairyTheme.primaryGreen),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Sign in or create an account to view your orders, addresses, and wishlist.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 13, color: DairyTheme.subtleGrey),
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: DairyTheme.primaryGreen,
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () => context.go('/login'),
+                            child: const Text('Sign In'),
+                          ),
+                          const SizedBox(width: 12),
+                          OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: DairyTheme.primaryGreen,
+                              side: const BorderSide(
+                                  color: DairyTheme.primaryGreen),
+                            ),
+                            onPressed: () => context.go('/register'),
+                            child: const Text('Create Account'),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    user?.name ?? 'Farmer',
-                    style: theme.textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    user?.phone ?? '',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: DairyTheme.subtleGrey,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: DairyTheme.primaryGreen.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      (user?.role ?? 'farmer').toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 24),
+            ] else ...[
+              // Profile header.
+              Center(
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 44,
+                      backgroundColor:
+                          DairyTheme.primaryGreen.withValues(alpha: 0.1),
+                      child: const Icon(
+                        Icons.person_outline,
+                        size: 48,
                         color: DairyTheme.primaryGreen,
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    Text(
+                      user.name ?? 'Customer',
+                      style: theme.textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      user.phone,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: DairyTheme.subtleGrey,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: DairyTheme.primaryGreen.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        user.role.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: DairyTheme.primaryGreen,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+              const SizedBox(height: 24),
+            ],
 
+            // Account & Commerce Hub shortcuts
+            _buildAccountQuickHub(context),
             const SizedBox(height: 24),
 
             // Personal information section.
-            _SectionHeader(title: 'Personal Information'),
+            const _SectionHeader(title: 'Personal Information'),
             const SizedBox(height: 12),
             _isEditing
                 ? _buildEditableFields()
@@ -140,28 +204,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(height: 24),
 
             // Language preference.
-            _SectionHeader(title: 'Language Preference'),
+            const _SectionHeader(title: 'Language Preference'),
             const SizedBox(height: 12),
             _buildLanguageSelector(theme),
 
             const SizedBox(height: 24),
 
             // Notification settings.
-            _SectionHeader(title: 'Notification Settings'),
+            const _SectionHeader(title: 'Notification Settings'),
             const SizedBox(height: 12),
             _buildNotificationSettings(),
 
             const SizedBox(height: 24),
 
             // App info.
-            _SectionHeader(title: 'About'),
+            const _SectionHeader(title: 'About'),
             const SizedBox(height: 12),
             Card(
               child: Column(
                 children: [
-                  ListTile(
-                    leading: const Icon(Icons.info_outline),
-                    title: const Text('App Version'),
+                  const ListTile(
+                    leading: Icon(Icons.info_outline),
+                    title: Text('App Version'),
                     trailing: Text(
                       '1.0.0',
                       style: TextStyle(color: DairyTheme.subtleGrey),
@@ -211,6 +275,124 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildAccountQuickHub(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionHeader(title: 'Milterra Account & Commerce'),
+        const SizedBox(height: 12),
+        Card(
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: DairyTheme.primaryGreen.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.receipt_long_outlined,
+                      color: DairyTheme.primaryGreen),
+                ),
+                title: const Text('Your Orders',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text('Track packages, review past dairy & feed orders'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/marketplace/orders'),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xfffef3d6),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.account_balance_wallet_outlined,
+                      color: Color(0xffb7791f)),
+                ),
+                title: const Text('Milterra Wallet & Milk Payouts',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text('₹4,850 Available · Milk earnings & store credit'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/balance'),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.location_on_outlined,
+                      color: Colors.blue),
+                ),
+                title: const Text('Delivery Addresses',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text('Edit saved home & farm addresses'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/marketplace/addresses'),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.favorite_border,
+                      color: Colors.redAccent),
+                ),
+                title: const Text('Your Wishlist',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text('Saved items, favorites & price alerts'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/wishlist'),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.teal.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.help_outline, color: Colors.teal),
+                ),
+                title: const Text('Help & Customer Support',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text('FAQs, order returns & helpline'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/help'),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.storefront_outlined,
+                      color: Colors.purple),
+                ),
+                title: const Text('Continue Shopping',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle:
+                    const Text('Explore gourmet dairy, feed & farm machinery'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.go('/shop'),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -313,7 +495,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             return ChoiceChip(
               label: Text(lang.nativeName),
               selected: isSelected,
-              selectedColor: DairyTheme.primaryGreen.withOpacity(0.2),
+              selectedColor: DairyTheme.primaryGreen.withValues(alpha: 0.2),
               checkmarkColor: DairyTheme.primaryGreen,
               onSelected: (selected) {
                 if (selected) {
@@ -332,32 +514,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       child: Column(
         children: [
           SwitchListTile(
-            secondary: Icon(Icons.warning_amber_rounded,
+            secondary: const Icon(Icons.warning_amber_rounded,
                 color: DairyTheme.errorRed),
             title: const Text('Health Alerts'),
             subtitle: const Text('Cattle health warnings'),
             value: _notifyHealth,
-            activeColor: DairyTheme.primaryGreen,
+            activeTrackColor: DairyTheme.primaryGreen.withValues(alpha: 0.5),
             onChanged: (v) => setState(() => _notifyHealth = v),
           ),
           const Divider(height: 1),
           SwitchListTile(
-            secondary: Icon(Icons.vaccines_outlined,
+            secondary: const Icon(Icons.vaccines_outlined,
                 color: DairyTheme.accentOrange),
             title: const Text('Vaccination Reminders'),
             subtitle: const Text('Upcoming and overdue vaccinations'),
             value: _notifyVaccination,
-            activeColor: DairyTheme.primaryGreen,
+            activeTrackColor: DairyTheme.primaryGreen.withValues(alpha: 0.5),
             onChanged: (v) => setState(() => _notifyVaccination = v),
           ),
           const Divider(height: 1),
           SwitchListTile(
-            secondary: Icon(Icons.video_call_outlined,
+            secondary: const Icon(Icons.video_call_outlined,
                 color: DairyTheme.primaryGreen),
             title: const Text('Consultation Updates'),
             subtitle: const Text('Vet call and prescription updates'),
             value: _notifyConsultation,
-            activeColor: DairyTheme.primaryGreen,
+            activeTrackColor: DairyTheme.primaryGreen.withValues(alpha: 0.5),
             onChanged: (v) => setState(() => _notifyConsultation = v),
           ),
           const Divider(height: 1),
@@ -367,7 +549,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             title: const Text('Payment Notifications'),
             subtitle: const Text('Transaction and payment alerts'),
             value: _notifyPayment,
-            activeColor: DairyTheme.primaryGreen,
+            activeTrackColor: DairyTheme.primaryGreen.withValues(alpha: 0.5),
             onChanged: (v) => setState(() => _notifyPayment = v),
           ),
         ],

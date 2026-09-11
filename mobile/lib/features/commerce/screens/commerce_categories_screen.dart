@@ -18,7 +18,20 @@ class CommerceCategoriesScreen extends ConsumerWidget {
             leading: IconButton(
                 tooltip: 'Back to shop',
                 onPressed: () => context.go('/shop'),
-                icon: const Icon(Icons.storefront_outlined))),
+                icon: const Icon(Icons.storefront_outlined)),
+            actions: [
+              TextButton.icon(
+                onPressed: () => context.go('/admin/commerce/products'),
+                icon: const Icon(Icons.inventory_2_outlined, color: storeAmber, size: 18),
+                label: const Text('Products & Stock', style: TextStyle(color: storeWhite)),
+              ),
+              TextButton.icon(
+                onPressed: () => context.go('/admin/commerce/orders'),
+                icon: const Icon(Icons.local_shipping_outlined, color: storeAmber, size: 18),
+                label: const Text('Orders & Shipments', style: TextStyle(color: storeWhite)),
+              ),
+              const SizedBox(width: 12),
+            ]),
         body: ref.watch(commerceAccessProvider).when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (_, __) => _accessMessage(context, ref,

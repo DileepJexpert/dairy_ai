@@ -34,6 +34,20 @@ flutter:
 
   assets:
     - assets/store/
+    - assets/store/buffalo-ghee.png
+    - assets/store/cow-ghee.png
+    - assets/store/paneer.png
+    - assets/store/hero.png
+    - assets/store/farm-pasture.jpg
+    - assets/store/farm-bilona.jpg
+    - assets/store/farm-milking.jpg
+    - assets/store/minera-360-jar.jpg
+    - assets/store/minera-360-vitamin.jpg
+    - assets/store/nutrition-lineup.jpg
+    - assets/store/calci-feed-combo.jpg
+    - assets/store/feed-janam-42.jpg
+    - assets/store/feed-bovine-gold.jpg
+    - assets/store/feed-bypass-fat.jpg
 
   fonts:
     - family: CormorantGaramond

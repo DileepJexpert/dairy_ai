@@ -7,6 +7,7 @@ import '../models/product_models.dart';
 import '../providers/product_provider.dart';
 import '../widgets/store_design.dart';
 import '../widgets/store_product_card.dart';
+import '../widgets/hero_split_showcase.dart';
 import '../../cart/widgets/store_cart_drawer.dart';
 import '../../commerce/models/taxonomy.dart';
 import '../../commerce/providers/commerce_provider.dart';
@@ -26,31 +27,56 @@ class ProductListScreen extends ConsumerStatefulWidget {
 class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   final _search = TextEditingController();
   final _catalogueKey = GlobalKey();
+  final _minPriceCtrl = TextEditingController();
+  final _maxPriceCtrl = TextEditingController();
+
   String _category = 'All products', _sort = 'Featured';
   bool _inStock = false;
-  double _price = 0;
+  double _minRating = 0;
+  double _priceMin = 0, _priceMax = 0;
   final Set<String> _adding = {};
   TaxonomyCatalogue? _taxonomy;
+
   String _label(String value) {
+    final lower = value.toLowerCase();
     if (_taxonomy?.enabled == true && value != 'All products') {
       for (final node in _taxonomy!.nodes) {
-        if (node.id == value) return node.name;
+        if (node.id == value || node.slug == value) {
+          final nLower = node.name.toLowerCase();
+          if (nLower.contains('animal') || nLower.contains('nutrition') || nLower.contains('feed')) {
+            return 'MILTERRA Cattle Nutrition Solutions';
+          }
+          return node.name;
+        }
       }
     }
-    return value;
+    if (lower.contains('animal') ||
+        lower.contains('cattle nutrition') ||
+        lower == 'animal-nutrition' ||
+        lower == 'cat-animal-nutrition') {
+      return 'MILTERRA Cattle Nutrition Solutions';
+    }
+    return switch (value) {
+      'Dairy Foods' => 'Dairy Foods',
+      'Animal nutrition' ||
+      'Cattle Nutrition' ||
+      'MILTERRA Cattle Nutrition Solutions' =>
+        'MILTERRA Cattle Nutrition Solutions',
+      'Pashu Aahar / Cattle Feed' => 'Pashu Aahar / Cattle Feed',
+      'Stage-Based Nutrition Courses' ||
+      'Stage-Based Nutrition' =>
+        'Stage-Based Nutrition',
+      'Supplements' ||
+      'Supplements & Minerals' =>
+        'Supplements & Minerals',
+      'Equipment' => 'Dairy & Farm Equipment',
+      'Cow ghee' => 'A2 Desi Cow Ghee',
+      'Buffalo ghee' => 'Rich Buffalo Ghee',
+      'Paneer' => 'Fresh Malai Paneer',
+      'Other products' => 'White Butter (Makhan)',
+      _ => value,
+    };
   }
-
-  List<String> get _categories => _taxonomy?.enabled == true
-      ? ['All products', ..._taxonomy!.nodes.map((n) => n.id)]
-      : widget.category == ProductCategory.equipment
-          ? ['All products', 'Equipment']
-          : [
-              'All products',
-              'Cow ghee',
-              'Buffalo ghee',
-              'Paneer',
-              'Other products'
-            ];
 
   @override
   void initState() {
@@ -75,6 +101,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   @override
   void dispose() {
     _search.dispose();
+    _minPriceCtrl.dispose();
+    _maxPriceCtrl.dispose();
     super.dispose();
   }
 
@@ -85,18 +113,36 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       Scrollable.ensureVisible(target,
           duration: const Duration(milliseconds: 350));
     }
+    final params = <String, String>{};
+    if (category != 'All products' && category != 'All') {
+      params['category'] = category;
+    }
+    if (_search.text.trim().isNotEmpty) {
+      params['query'] = _search.text.trim();
+    }
+    context.go(Uri(
+      path: '/shop',
+      queryParameters: params.isEmpty ? null : params,
+    ).toString());
   }
 
-  void _reset() => setState(() {
-        _search.clear();
-        _category = 'All products';
-        _price = 0;
-        _inStock = false;
-        _sort = 'Featured';
-      });
+  void _reset() {
+    setState(() {
+      _search.clear();
+      _category = 'All products';
+      _priceMin = 0;
+      _priceMax = 0;
+      _minPriceCtrl.clear();
+      _maxPriceCtrl.clear();
+      _inStock = false;
+      _sort = 'Featured';
+    });
+    context.go('/shop');
+  }
+
   Future<void> _add(Product p) async {
     if (ref.read(currentUserProvider) == null) {
-      context.go('/login?next=/marketplace/product/${p.id}');
+      context.go('/login?next=/shop/product/${p.id}');
       return;
     }
     setState(() => _adding.add(p.id));
@@ -119,422 +165,1002 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   Widget build(BuildContext context) {
     _taxonomy = ref.watch(taxonomyProvider).valueOrNull;
     final catalogue = ref.watch(productsProvider(widget.category));
-    return Scaffold(body: LayoutBuilder(builder: (context, size) {
-      final desktop = size.maxWidth >= StoreLayout.desktop;
-      final small = size.maxWidth < StoreLayout.mobile;
-      return Column(children: [
-        StoreHeader(
-            search: SizedBox(
-                height: 43,
-                child: TextField(
-                  controller: _search,
-                  onChanged: (_) => setState(() {}),
-                  onSubmitted: (_) => _browse(_category),
-                  style: StoreType.body,
-                  decoration: InputDecoration(
-                      hintText: 'Search ghee, paneer and more…',
-                      filled: true,
-                      fillColor: storeWhite,
-                      prefixIcon:
-                          const Icon(Icons.search, color: storeMuted, size: 22),
-                      suffixIcon: _search.text.isEmpty
-                          ? null
-                          : IconButton(
-                              tooltip: 'Clear search',
-                              icon: const Icon(Icons.close, size: 18),
-                              onPressed: () => setState(() => _search.clear())),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: StoreLayout.md),
-                      border: OutlineInputBorder(
-                          borderSide: BorderSide.none,
-                          borderRadius:
-                              BorderRadius.circular(StoreLayout.controlRadius)),
-                      enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide.none,
-                          borderRadius: BorderRadius.circular(
-                              StoreLayout.controlRadius))),
-                ))),
-        StoreCategoryNavigation(
-            selected: _category,
-            onSelected: _browse,
-            legacyEquipment: widget.category == ProductCategory.equipment),
-        Expanded(
-            child: SingleChildScrollView(
+
+    return Scaffold(
+      backgroundColor: storeCream,
+      body: LayoutBuilder(builder: (context, size) {
+        final isDesktop = size.maxWidth >= StoreLayout.desktop;
+        final isMobile = size.maxWidth < StoreLayout.mobile;
+
+        return Column(
+          children: [
+            // Top Amazon Header & Subnav
+            StoreHeader(
+              currentCategory: _label(_category),
+            ),
+            StoreCategoryNavigation(
+              selected: _category,
+              onSelected: _browse,
+              legacyEquipment: widget.category == ProductCategory.equipment,
+            ),
+
+            // Main Scrollable Content Area
+            Expanded(
+              child: SingleChildScrollView(
                 key: const PageStorageKey('store-catalogue-scroll'),
-                child: Column(children: [
-                  Center(
+                child: Column(
+                  children: [
+                    Center(
                       child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                              maxWidth: StoreLayout.maxWidth),
-                          child: Padding(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal:
-                                      small ? StoreLayout.md : StoreLayout.xl),
-                              child: Column(
+                        constraints: const BoxConstraints(
+                            maxWidth: StoreLayout.maxWidth),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isMobile ? 12 : 24,
+                            vertical: 16,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Hero Banner & Categories (Home / Unfiltered view)
+                              if (_search.text.isEmpty &&
+                                  (_category == 'All products' ||
+                                      _category == 'All')) ...[
+                                _hero(size.maxWidth),
+                                const SizedBox(height: 14),
+                                _buildThreeCategoryEntryCards(isMobile),
+                                const SizedBox(height: 18),
+                              ],
+
+                              // Amazon Catalogue Section (Results Bar + Sidebar + Grid)
+                              Container(
+                                key: _catalogueKey,
+                                child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const SizedBox(height: StoreLayout.lg),
-                                    if (_search.text.isEmpty &&
-                                        _category == 'All products') ...[
-                                      _hero(size.maxWidth <
-                                          StoreLayout.heroDesktop),
-                                      const SizedBox(height: StoreLayout.lg),
+                                    // Desktop Faceted Filter Sidebar
+                                    if (isDesktop) ...[
+                                      SizedBox(
+                                        width: 260,
+                                        child: _filters(() => setState(() {})),
+                                      ),
+                                      const SizedBox(width: 24),
                                     ],
-                                    const SizedBox(height: StoreLayout.lg),
-                                    Row(children: [
-                                      const Expanded(
-                                          child: Text('Shop by category',
-                                              style: StoreType.title)),
-                                      TextButton(
-                                          onPressed: () {
-                                            _reset();
-                                            _browse('All products');
-                                          },
-                                          child: const Text('Explore all →'))
-                                    ]),
-                                    const SizedBox(height: StoreLayout.sm),
-                                    _categoryCards(small),
-                                    const SizedBox(height: StoreLayout.xl),
-                                    Container(
-                                        key: _catalogueKey,
-                                        child: Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              if (desktop) ...[
-                                                SizedBox(
-                                                    width: 185,
-                                                    child: _filters(() {})),
-                                                const SizedBox(
-                                                    width: StoreLayout.lg)
-                                              ],
-                                              Expanded(
-                                                  child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                    Row(children: [
-                                                      Expanded(
-                                                          child: Column(
-                                                              crossAxisAlignment:
-                                                                  CrossAxisAlignment
-                                                                      .start,
-                                                              children: [
-                                                            const Text(
-                                                                'THE MILTERRA COLLECTION',
-                                                                style: StoreType
-                                                                    .eyebrow),
-                                                            const SizedBox(
-                                                                height:
-                                                                    StoreLayout
-                                                                        .xs),
-                                                            Text(
-                                                                _category ==
-                                                                        'All products'
-                                                                    ? 'Goodness for your kitchen'
-                                                                    : _label(
-                                                                        _category),
-                                                                style: StoreType
-                                                                    .collectionHeading(
-                                                                        small)),
-                                                          ])),
-                                                      if (!desktop)
-                                                        IconButton(
-                                                            tooltip:
-                                                                'Filter products',
-                                                            onPressed:
-                                                                _showFilters,
-                                                            icon: const Icon(
-                                                                Icons.tune))
-                                                    ]),
-                                                    const SizedBox(
-                                                        height: StoreLayout.md),
-                                                    catalogue.when(
-                                                        loading: () =>
-                                                            const SizedBox(
-                                                                height: 280,
-                                                                child: Center(
-                                                                    child:
-                                                                        CircularProgressIndicator())),
-                                                        error: (_, __) => _message(
-                                                            Icons
-                                                                .cloud_off_outlined,
-                                                            'We couldn’t load the collection',
-                                                            'Please check your connection and try again.',
-                                                            'Try again',
-                                                            () => ref.invalidate(
-                                                                productsProvider(
-                                                                    widget
-                                                                        .category))),
-                                                        data: (items) =>
-                                                            _products(
-                                                                items, small)),
-                                                  ])),
-                                            ])),
-                                    const SizedBox(
-                                        height: StoreLayout.sectionSpace),
-                                    _editorial(small),
-                                    const SizedBox(height: StoreLayout.xl),
-                                    Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.all(
-                                            StoreLayout.lg),
-                                        decoration: BoxDecoration(
-                                            color: storeSage,
-                                            borderRadius: StoreLayout.corners),
-                                        child: Wrap(
-                                            alignment:
-                                                WrapAlignment.spaceBetween,
-                                            spacing: 30,
-                                            runSpacing: 20,
-                                            children: [
-                                              _benefit(
-                                                  Icons.inventory_2_outlined,
-                                                  'Find your perfect pack',
-                                                  'Compare sizes before you choose.'),
-                                              _benefit(
-                                                  Icons.storefront_outlined,
-                                                  'Know your seller',
-                                                  'Seller details on every product.'),
-                                              _benefit(
-                                                  Icons.receipt_long_outlined,
-                                                  'Keep track of your orders',
-                                                  'Your purchases, all in one place.'),
-                                            ])),
-                                    const SizedBox(height: StoreLayout.xl),
-                                  ])))),
-                  const StoreFooter(),
-                ]))),
-      ]);
-    }));
-  }
 
-  Widget _hero(bool small) {
-    Widget copy() => Padding(
-        padding: EdgeInsets.all(small ? 24 : 44),
-        child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('WELCOME TO MILTERRA', style: StoreType.eyebrow),
-              const SizedBox(height: 20),
-              Text('A spoonful of goodness.\nA kitchen full of joy.',
-                  style: StoreType.heroHeading(small)),
-              const SizedBox(height: 18),
-              const Text(
-                  'Explore ghee and dairy essentials\nfor the food you love to make.',
-                  style: StoreType.heroBody),
-              const SizedBox(height: 26),
-              FilledButton(
-                  onPressed: () => _browse('All products'),
-                  child: const Text('Shop the collection   →')),
-            ]));
-    return ClipRRect(
-        borderRadius: StoreLayout.corners,
-        child: ColoredBox(
-            color: storeWarm,
-            child: small
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                        copy(),
-                        SizedBox(
-                            height: 250,
-                            child: Image.asset(StoreImages.hero,
-                                fit: BoxFit.cover,
-                                alignment: Alignment.centerRight)),
-                      ])
-                : SizedBox(
-                    height: StoreLayout.heroHeight,
-                    child: Row(children: [
-                      Expanded(flex: 5, child: copy()),
-                      Expanded(
-                          flex: 6,
-                          child: Image.asset(StoreImages.hero,
-                              height: double.infinity,
-                              fit: BoxFit.cover,
-                              alignment: Alignment.centerRight)),
-                    ]))));
-  }
+                                    // Products Grid Column
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          // Dedicated Category/Department Landing Banner (when filtered)
+                                          if (_category != 'All products' &&
+                                              _category != 'All') ...[
+                                            _buildDepartmentLandingBanner(isMobile),
+                                            const SizedBox(height: 14),
+                                          ],
 
-  Widget _categoryCards(bool small) {
-    final entries = _taxonomy?.enabled == true
-        ? _taxonomy!.nodes
-            .map((n) => (
-                  n.id,
-                  n.description.isEmpty
-                      ? n.kind == 'department'
-                          ? 'Explore department'
-                          : 'Explore products'
-                      : n.description,
-                  n.kind == 'department'
-                      ? Icons.storefront_outlined
-                      : Icons.category_outlined,
-                  StorePalette.categoryAll
-                ))
-            .toList()
-        : widget.category == ProductCategory.equipment
-            ? [
-                (
-                  'Equipment',
-                  'Explore equipment',
-                  Icons.agriculture_outlined,
-                  StorePalette.categoryAll
-                )
-              ]
-            : [
-                (
-                  'All products',
-                  'Explore the collection',
-                  Icons.grid_view_rounded,
-                  StorePalette.categoryAll
-                ),
-                (
-                  'Cow ghee',
-                  'For everyday cooking',
-                  Icons.bakery_dining_outlined,
-                  StorePalette.categoryCow
-                ),
-                (
-                  'Buffalo ghee',
-                  'Discover a richer flavour',
-                  Icons.water_drop_outlined,
-                  StorePalette.categoryBuffalo
-                ),
-                (
-                  'Paneer',
-                  'Fresh ideas for mealtimes',
-                  Icons.restaurant_outlined,
-                  StorePalette.categoryPaneer
-                ),
-              ];
-    return LayoutBuilder(builder: (context, bounds) {
-      final columns = small ? 2 : 4;
-      return Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: entries
-              .map((e) => SizedBox(
-                  width: (bounds.maxWidth - 12 * (columns - 1)) / columns,
-                  child: Material(
-                      color: storeWhite,
-                      borderRadius: StoreLayout.corners,
-                      child: InkWell(
-                          onTap: () => _browse(e.$1),
-                          borderRadius: StoreLayout.corners,
-                          child: Container(
-                              padding: const EdgeInsets.all(StoreLayout.md),
-                              decoration: BoxDecoration(
-                                  border: Border.all(
-                                      color: _category == e.$1
-                                          ? storeGreen
-                                          : storeBorder),
-                                  borderRadius: StoreLayout.corners),
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                          // Amazon Results & Sort Header Bar
+                                          _buildResultsHeader(isDesktop),
+                                          const SizedBox(height: 14),
+
+                                          // Catalogue State
+                                          catalogue.when(
+                                            loading: () => const SizedBox(
+                                              height: 320,
+                                              child: Center(
+                                                child:
+                                                    CircularProgressIndicator(),
+                                              ),
+                                            ),
+                                            error: (_, __) => _message(
+                                              Icons.cloud_off_outlined,
+                                              'We couldn’t load the collection',
+                                              'Please check your connection and try again.',
+                                              'Try again',
+                                              () => ref.invalidate(
+                                                  productsProvider(
+                                                      widget.category)),
+                                            ),
+                                            data: (items) =>
+                                                _products(items, isMobile),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(height: 36),
+                              _editorial(isMobile),
+                              const SizedBox(height: 24),
+
+                              // Amazon-style Assurance Footer Strip
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24, vertical: 20),
+                                decoration: BoxDecoration(
+                                  color: storeSage,
+                                  borderRadius:
+                                      BorderRadius.circular(StoreLayout.radius),
+                                  border: Border.all(color: storeBorder),
+                                ),
+                                child: Wrap(
+                                  alignment: WrapAlignment.spaceBetween,
+                                  spacing: 24,
+                                  runSpacing: 16,
                                   children: [
-                                    SizedBox(
-                                        height: small ? 110 : 150,
-                                        width: double.infinity,
-                                        child: StoreImages.category(
-                                                    _label(e.$1)) !=
-                                                null
-                                            ? ProductArtwork(
-                                                kind: _label(e.$1),
-                                                showCaption: false)
-                                            : _label(e.$1) == 'All products' ||
-                                                    _label(e.$1) ==
-                                                        'Dairy Foods'
-                                                ? ClipRRect(
-                                                    borderRadius:
-                                                        StoreLayout.corners,
-                                                    child: Image.asset(
-                                                        StoreImages.hero,
-                                                        fit: BoxFit.cover))
-                                                : Icon(e.$3,
-                                                    color: storeGreen,
-                                                    size: 40)),
-                                    const SizedBox(height: StoreLayout.sm),
-                                    Text(_label(e.$1),
-                                        style: StoreType.cardTitle),
-                                    const SizedBox(height: StoreLayout.xxs),
-                                    Text(e.$2, style: StoreType.caption),
-                                  ]))))))
-              .toList());
-    });
+                                    _benefit(
+                                        Icons.local_shipping_outlined,
+                                        'Fast & Pure Delivery',
+                                        'Direct from verified dairy farms.'),
+                                    _benefit(
+                                        Icons.verified_user_outlined,
+                                        '100% Quality Guaranteed',
+                                        'Rigorous laboratory purity testing.'),
+                                    _benefit(
+                                        Icons.lock_outline,
+                                        'Secure Payments',
+                                        'UPI, Cards, NetBanking & COD.'),
+                                    _benefit(
+                                        Icons.support_agent_outlined,
+                                        '24/7 Dedicated Support',
+                                        'Help on orders & subscriptions.'),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 32),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const StoreFooter(),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      }),
+    );
   }
+
+  Widget _buildResultsHeader(bool isDesktop) {
+    final query = _search.text.trim();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: storeWhite,
+        borderRadius: BorderRadius.circular(StoreLayout.controlRadius),
+        border: Border.all(color: storeBorder),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Builder(builder: (_) {
+                  final isNutrition = _category.toLowerCase().contains('animal') ||
+                      _category.toLowerCase().contains('nutrition') ||
+                      _category.toLowerCase().contains('feed') ||
+                      _category.toLowerCase().contains('supplement') ||
+                      _category.toLowerCase().contains('pashu') ||
+                      _category.toLowerCase().contains('stage');
+                  return Text(
+                    isNutrition ? 'FEATURED NUTRITION CONCEPTS' : 'RESULTS',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                      color: isNutrition
+                          ? storeGreen
+                          : storeGreen.withValues(alpha: 0.8),
+                    ),
+                  );
+                }),
+                const SizedBox(height: 2),
+                Text(
+                  _category == 'All products'
+                      ? (query.isEmpty
+                          ? 'Showing all products'
+                          : 'Results for “$query”')
+                      : '${_label(_category)}${query.isEmpty ? '' : ' · “$query”'}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xff111111),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          if (!isDesktop)
+            IconButton(
+              tooltip: 'Filter Products',
+              onPressed: _showFilters,
+              icon: const Icon(Icons.tune, color: storeGreen),
+            ),
+          const SizedBox(width: 8),
+          Container(
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: storeCream,
+              borderRadius: BorderRadius.circular(StoreLayout.controlRadius),
+              border: Border.all(color: storeBorder),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: const [
+                  'Featured',
+                  'Price: low to high',
+                  'Price: high to low',
+                  'Name: A to Z',
+                ].contains(_sort)
+                    ? _sort
+                    : 'Featured',
+                icon: const Icon(Icons.arrow_drop_down,
+                    size: 18, color: storeGreen),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: storeGreen,
+                ),
+                items: [
+                  'Featured',
+                  'Price: low to high',
+                  'Price: high to low',
+                  'Name: A to Z',
+                ]
+                    .map((v) => DropdownMenuItem(
+                          value: v,
+                          child: Text('Sort: $v'),
+                        ))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) setState(() => _sort = v);
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _hero(double screenWidth) {
+    return HeroSplitShowcase(
+      screenWidth: screenWidth,
+      onExploreCategory: _browse,
+    );
+  }
+
+  Widget _buildThreeCategoryEntryCards(bool isMobile) {
+    final categories = [
+      (
+        title: 'Dairy Foods',
+        subtitle: 'A2 Gir Ghee, Makhan & Paneer',
+        image: 'assets/store/cow-ghee.png',
+        icon: Icons.eco_rounded,
+        iconBg: const Color(0xfffef3d6),
+        iconColor: const Color(0xffb7791f),
+        target: 'Dairy Foods',
+      ),
+      (
+        title: 'Animal Nutrition',
+        subtitle: 'Compound Feed & Minerals',
+        image: 'assets/store/minera-360-jar.jpg',
+        icon: Icons.grass_rounded,
+        iconBg: const Color(0xffe6f4ea),
+        iconColor: const Color(0xff1e8e3e),
+        target: 'Animal nutrition',
+      ),
+      (
+        title: 'Farm Equipment',
+        subtitle: 'Milking Systems & Analyzers',
+        image:
+            'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80',
+        icon: Icons.precision_manufacturing_rounded,
+        iconBg: const Color(0xffe8f0fe),
+        iconColor: const Color(0xff1a73e8),
+        target: 'Equipment',
+      ),
+    ];
+
+    Widget buildCard({
+      required String title,
+      required String subtitle,
+      required String image,
+      required IconData icon,
+      required Color iconBg,
+      required Color iconColor,
+      required String target,
+    }) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _browse(target),
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xfffcfbf8),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: storeBorder),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x06000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // Category Icon Badge
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: iconBg,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 20),
+                ),
+                const SizedBox(width: 12),
+
+                // Category Title & Subtitle
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: storeGreen,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                          color: storeMuted,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      const Text(
+                        'Explore collection →',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: storeOrange,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+
+                // Distinctive Product Thumbnail Illustration
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: const Color(0xffebe5d8)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: image.startsWith('http')
+                        ? Image.network(
+                            image,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                Icon(icon, color: iconColor, size: 22),
+                          )
+                        : Image.asset(
+                            image,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) =>
+                                Icon(icon, color: iconColor, size: 22),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (isMobile) {
+      return Column(
+        children: categories.map((cat) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: buildCard(
+              title: cat.title,
+              subtitle: cat.subtitle,
+              image: cat.image,
+              icon: cat.icon,
+              iconBg: cat.iconBg,
+              iconColor: cat.iconColor,
+              target: cat.target,
+            ),
+          );
+        }).toList(),
+      );
+    }
+
+    return Row(
+      children: categories.map((cat) {
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(
+              right: cat == categories.last ? 0 : 14,
+            ),
+            child: buildCard(
+              title: cat.title,
+              subtitle: cat.subtitle,
+              image: cat.image,
+              icon: cat.icon,
+              iconBg: cat.iconBg,
+              iconColor: cat.iconColor,
+              target: cat.target,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildDepartmentLandingBanner(bool isMobile) {
+    final catLower = _category.toLowerCase();
+    final labelLower = _label(_category).toLowerCase();
+    final isNutrition = catLower.contains('animal') ||
+        catLower.contains('nutrition') ||
+        catLower.contains('feed') ||
+        catLower.contains('supplement') ||
+        catLower.contains('course') ||
+        catLower.contains('janam') ||
+        catLower.contains('aahar') ||
+        labelLower.contains('nutrition') ||
+        catLower == 'cat-animal-nutrition' ||
+        catLower == 'animal-nutrition';
+
+    final isDairy = catLower.contains('dairy') ||
+        catLower.contains('ghee') ||
+        catLower.contains('paneer') ||
+        catLower.contains('butter') ||
+        catLower.contains('makhan') ||
+        labelLower.contains('dairy') ||
+        labelLower.contains('ghee');
+
+    final isEquip = catLower.contains('equip') ||
+        catLower.contains('machine') ||
+        catLower.contains('machinery') ||
+        labelLower.contains('equipment');
+
+    final (title, subtitle, icon, bannerColor, borderColor, tags) =
+        isNutrition
+            ? (
+                '🌾 MILTERRA CATTLE NUTRITION SOLUTIONS',
+                'Explore MILTERRA Cattle Nutrition Solutions—feeds, supplements, and stage-based nutrition concepts for healthier livestock.',
+                Icons.grass_rounded,
+                const Color(0xfff4f9f4),
+                const Color(0xffc5e1c7),
+                const [
+                  'Concept Preview',
+                  'In Development',
+                  'Farmer Feedback Open',
+                ],
+              )
+            : isDairy
+                ? (
+                    '🥛 Gourmet Farm Dairy Collection',
+                    'Single-origin A2 Vedic Gir cow ghee, granular Murrah buffalo ghee, artisan fresh malai paneer, and cultured makhan — traditional bilona churned and delivered fresh from cooperative dairy farms.',
+                    Icons.eco_rounded,
+                    const Color(0xfffdfaf3),
+                    const Color(0xffe8d8b5),
+                    const [
+                      '100% Bilona Churned',
+                      'Zero Chemical Preservatives',
+                      'A2 & Murrah Milk Origin',
+                      'Direct Farm Delivery',
+                    ],
+                  )
+                : isEquip
+                    ? (
+                        '⚙️ Modern Farm & Dairy Machinery',
+                        'Single & dual-bucket automatic milking machines, ultrasonic digital milk fat & SNF analyzers, heavy-duty electric chaff cutters, and SS 304 food-grade milk cans engineered for farm productivity.',
+                        Icons.precision_manufacturing_rounded,
+                        const Color(0xfff3f7fb),
+                        const Color(0xffbfd7ee),
+                        const [
+                          'SS 304 Food-Grade Metal',
+                          'Energy-Efficient Motors',
+                          '1-Year Comprehensive Warranty',
+                          'On-Farm Service Support',
+                        ],
+                      )
+                    : (
+                        _label(_category),
+                        'Browse our curated collection of verified dairy products, farm nutrition, and certified equipment.',
+                        Icons.storefront_outlined,
+                        const Color(0xfffaf9f6),
+                        storeBorder,
+                        const [
+                          'Direct Farm Fresh',
+                          'Cooperative Sourced',
+                        ],
+                      );
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isMobile ? 14 : 20),
+      decoration: BoxDecoration(
+        color: bannerColor,
+        borderRadius: BorderRadius.circular(StoreLayout.radius),
+        border: Border.all(color: borderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: storeWhite,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Icon(icon, color: storeGreen, size: isMobile ? 20 : 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: isMobile ? 17 : 20,
+                    fontWeight: FontWeight.w800,
+                    color: storeGreen,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () => _browse('All products'),
+                icon: const Icon(Icons.close, size: 14, color: storeMuted),
+                label: const Text(
+                  'All Categories',
+                  style: TextStyle(fontSize: 12, color: storeMuted),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: isMobile ? 12 : 13.5,
+              color: const Color(0xff444444),
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: tags.map((tag) {
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: storeWhite.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: borderColor.withValues(alpha: 0.7)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_circle, size: 12, color: storeGreen),
+                    const SizedBox(width: 5),
+                    Text(
+                      tag,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: storeGreen,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
 
   Widget _filters(VoidCallback refresh) => Container(
-      padding: const EdgeInsets.all(StoreLayout.md),
-      decoration:
-          BoxDecoration(color: storeWhite, borderRadius: StoreLayout.corners),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          const Expanded(child: Text('Filters', style: StoreType.cardTitle)),
-          TextButton(
-              onPressed: () {
-                _reset();
-                refresh();
-              },
-              child: const Text('Reset', style: StoreType.muted))
-        ]),
-        const Divider(),
-        const Text('CATEGORY', style: StoreType.eyebrow),
-        const SizedBox(height: StoreLayout.xs),
-        for (final category in _categories)
-          InkWell(
-              onTap: () {
-                setState(() => _category = category);
-                refresh();
-              },
-              child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: StoreLayout.xs),
-                  child: Row(children: [
-                    Icon(
-                        _category == category
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_off,
-                        size: 17,
-                        color: _category == category ? storeGreen : storeMuted),
-                    const SizedBox(width: StoreLayout.xs),
-                    Expanded(
-                        child: Text(_label(category), style: StoreType.muted))
-                  ]))),
-        const Divider(),
-        const Text('PRICE', style: StoreType.eyebrow),
-        const SizedBox(height: StoreLayout.xs),
-        DropdownButton<double>(
-            value: _price,
-            isExpanded: true,
-            underline: const SizedBox.shrink(),
-            style: StoreType.label,
-            items: const [
-              DropdownMenuItem(value: 0, child: Text('Any price')),
-              DropdownMenuItem(value: 500, child: Text('Under ₹500')),
-              DropdownMenuItem(value: 1000, child: Text('Under ₹1,000'))
-            ],
-            onChanged: (v) {
-              setState(() => _price = v ?? 0);
-              refresh();
-            }),
-        const Divider(),
-        const Text('AVAILABILITY', style: StoreType.eyebrow),
-        Material(
-            color: storeWhite,
-            child: CheckboxListTile(
-                value: _inStock,
-                onChanged: (v) {
-                  setState(() => _inStock = v ?? false);
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: storeWhite,
+          borderRadius: BorderRadius.circular(StoreLayout.radius),
+          border: Border.all(color: storeBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Filter Header & Reset
+            Row(
+              children: [
+                const Text('Filters',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: storeGreen)),
+                const Spacer(),
+                InkWell(
+                  onTap: () {
+                    _reset();
+                    refresh();
+                  },
+                  child: const Text('Clear all',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xff007185),
+                          fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+            const Divider(height: 20),
+
+            // Department Section
+            const Text('DEPARTMENT',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                    color: storeGreen)),
+            const SizedBox(height: 8),
+            _categoryFilterItem('All products', 'All Departments', refresh,
+                icon: Icons.grid_view_rounded),
+            const SizedBox(height: 6),
+            const Text('🥛 Household Dairy Foods',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: storeMuted)),
+            const SizedBox(height: 4),
+            _categoryFilterItem('Dairy Foods', 'All Dairy Foods', refresh,
+                indent: true),
+            _categoryFilterItem('Cow ghee', 'A2 Desi Cow Ghee', refresh,
+                indent: true),
+            _categoryFilterItem('Buffalo ghee', 'Rich Buffalo Ghee', refresh,
+                indent: true),
+            _categoryFilterItem('Paneer', 'Fresh Malai Paneer', refresh,
+                indent: true),
+            _categoryFilterItem(
+                'Other products', 'White Butter (Makhan)', refresh,
+                indent: true),
+            const SizedBox(height: 6),
+            const Text("🌾 Farmer's Hub: Cattle Nutrition",
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: storeMuted)),
+            const SizedBox(height: 4),
+            _categoryFilterItem('Animal nutrition', 'All Cattle Nutrition',
+                refresh,
+                indent: true),
+            _categoryFilterItem('Pashu Aahar / Cattle Feed', 'Pashu Aahar / Cattle Feed',
+                refresh,
+                indent: true),
+            _categoryFilterItem('Stage-Based Nutrition', 'Stage-Based Nutrition',
+                refresh,
+                indent: true),
+            _categoryFilterItem('Supplements', 'Supplements & Minerals',
+                refresh,
+                indent: true),
+            const SizedBox(height: 6),
+            const Text('⚙️ Modern Farm Machinery',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: storeMuted)),
+            const SizedBox(height: 4),
+            _categoryFilterItem('Equipment', 'Dairy & Farm Equipment', refresh,
+                indent: true),
+            const Divider(height: 20),
+
+            // Customer Reviews Section
+            const Text('CUSTOMER REVIEWS',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                    color: storeGreen)),
+            const SizedBox(height: 8),
+            _ratingOption(4.0, refresh),
+            _ratingOption(3.0, refresh),
+            _ratingOption(2.0, refresh),
+            if (_minRating > 0) ...[
+              const SizedBox(height: 4),
+              InkWell(
+                onTap: () {
+                  setState(() => _minRating = 0);
                   refresh();
                 },
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                title: const Text('In stock only', style: StoreType.muted))),
-      ]));
+                child: const Text('Clear rating filter',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: Color(0xff007185),
+                        fontWeight: FontWeight.w600)),
+              ),
+            ],
+            const Divider(height: 20),
+
+            // Price Range Section
+            const Text('PRICE',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                    color: storeGreen)),
+            const SizedBox(height: 8),
+            _priceOption('Under ₹500', 0, 500, refresh),
+            _priceOption('₹500 - ₹2,000', 500, 2000, refresh),
+            _priceOption('₹2,000 - ₹10,000', 2000, 10000, refresh),
+            _priceOption('Over ₹10,000', 10000, 0, refresh),
+            const SizedBox(height: 8),
+
+            // Custom Min/Max Price Inputs
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 32,
+                    child: TextField(
+                      controller: _minPriceCtrl,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(fontSize: 12),
+                      decoration: const InputDecoration(
+                        hintText: '₹ Min',
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: SizedBox(
+                    height: 32,
+                    child: TextField(
+                      controller: _maxPriceCtrl,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(fontSize: 12),
+                      decoration: const InputDecoration(
+                        hintText: '₹ Max',
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                SizedBox(
+                  height: 32,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    onPressed: () {
+                      final min = double.tryParse(_minPriceCtrl.text.trim()) ?? 0;
+                      final max = double.tryParse(_maxPriceCtrl.text.trim()) ?? 0;
+                      setState(() {
+                        _priceMin = min;
+                        _priceMax = max;
+                      });
+                      refresh();
+                    },
+                    child: const Text('Go',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 20),
+
+            // Availability
+            const Text('AVAILABILITY',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                    color: storeGreen)),
+            CheckboxListTile(
+              dense: true,
+              value: _inStock,
+              onChanged: (v) {
+                setState(() => _inStock = v ?? false);
+                refresh();
+              },
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              title: const Text('Include Out of Stock',
+                  style: TextStyle(fontSize: 13)),
+            ),
+          ],
+        ),
+      );
+
+  Widget _priceOption(
+      String title, double min, double max, VoidCallback refresh) {
+    final isSelected = _priceMin == min && _priceMax == max;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          if (isSelected) {
+            _priceMin = 0;
+            _priceMax = 0;
+          } else {
+            _priceMin = min;
+            _priceMax = max;
+          }
+        });
+        refresh();
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Text(
+          title,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+            color: isSelected ? storeGreen : const Color(0xff333333),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _categoryFilterItem(String value, String title, VoidCallback refresh,
+      {bool indent = false, IconData? icon}) {
+    final catLower = _category.toLowerCase();
+    final valLower = value.toLowerCase();
+    final isSelected = _category == value ||
+        catLower == valLower ||
+        (value == 'Animal nutrition' &&
+            (catLower.contains('animal') ||
+                catLower.contains('cattle nutrition') ||
+                catLower == 'cat-animal-nutrition' ||
+                catLower == 'animal-nutrition'));
+    return InkWell(
+      onTap: () {
+        _browse(value);
+        refresh();
+      },
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: indent ? 14 : 0,
+          top: 3,
+          bottom: 3,
+        ),
+        child: Row(
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 14, color: isSelected ? storeGreen : storeMuted),
+              const SizedBox(width: 6),
+            ] else ...[
+              Icon(
+                isSelected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_off,
+                size: 13,
+                color: isSelected ? storeGreen : storeMuted,
+              ),
+              const SizedBox(width: 6),
+            ],
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: indent ? 12 : 13,
+                  fontWeight: isSelected
+                      ? FontWeight.w800
+                      : (indent ? FontWeight.w500 : FontWeight.w600),
+                  color: isSelected ? storeGreen : const Color(0xff222222),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _ratingOption(double rating, VoidCallback refresh) {
+    final isSelected = _minRating == rating;
+    return InkWell(
+      onTap: () {
+        setState(() => _minRating = isSelected ? 0 : rating);
+        refresh();
+      },
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          children: [
+            for (int i = 1; i <= 5; i++)
+              Icon(
+                i <= rating.floor()
+                    ? Icons.star_rounded
+                    : (i - rating < 1
+                        ? Icons.star_half_rounded
+                        : Icons.star_outline_rounded),
+                size: 18,
+                color: const Color(0xffde7921),
+              ),
+            const SizedBox(width: 6),
+            Text(
+              '& Up',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                color: isSelected ? storeGreen : const Color(0xff333333),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showFilters() => showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      backgroundColor: storeWhite,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) => StatefulBuilder(
           builder: (context, refresh) => SafeArea(
               child: SingleChildScrollView(
@@ -543,108 +1169,229 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
                         _filters(() => refresh(() {})),
                         const SizedBox(height: StoreLayout.sm),
-                        FilledButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Show products'))
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                              style: FilledButton.styleFrom(
+                                  backgroundColor: storeAmber,
+                                  foregroundColor: storeGreen),
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Apply Filters',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.w800))),
+                        )
                       ]))))));
 
   Widget _products(List<Product> all, bool small) {
     final query = _search.text.trim().toLowerCase();
-    final items = all
-        .where((p) =>
-            (_category == 'All products' ||
-                (_taxonomy?.enabled == true
-                    ? _taxonomy!
-                        .descendants(_category)
-                        .contains(p.taxonomy?['category_id'])
-                    : storeCategory(p) == _category)) &&
-            (!_inStock || p.inStock) &&
-            (_price == 0 || p.price < _price) &&
-            '${p.title} ${p.packSize ?? ''} ${p.brand ?? ''}'
-                .toLowerCase()
-                .contains(query))
-        .toList();
+    final catLower = _category.toLowerCase();
+
+    final isAllCategory = catLower == 'all products' || catLower == 'all';
+    final isDairyFoodsCategory = catLower == 'dairy foods' ||
+        catLower == 'dairy-foods' ||
+        catLower == 'cat-dairy-foods';
+    final isCowGheeCategory = catLower == 'cow ghee' || catLower == 'cow-ghee';
+    final isBuffGheeCategory =
+        catLower == 'buffalo ghee' || catLower == 'buffalo-ghee';
+    final isPaneerCategory = catLower == 'paneer';
+    final isButterCategory = catLower == 'other products' ||
+        catLower == 'butter' ||
+        catLower == 'makhan';
+
+    bool isAllNutrition = catLower == 'animal nutrition' ||
+        catLower == 'cattle nutrition' ||
+        catLower == 'milterra cattle nutrition solutions' ||
+        catLower == 'animal-nutrition' ||
+        catLower == 'cat-animal-nutrition' ||
+        catLower == 'farm-essentials' ||
+        catLower == 'farm essentials';
+
+    if (!isAllNutrition && _taxonomy?.enabled == true) {
+      for (final node in _taxonomy!.nodes) {
+        if (node.id == _category || node.slug == _category) {
+          final nLower = node.name.toLowerCase();
+          if (nLower.contains('animal') || nLower.contains('nutrition') || nLower.contains('feed')) {
+            isAllNutrition = true;
+            break;
+          }
+        }
+      }
+    }
+
+    final isPashuAaharCategory = catLower == 'pashu aahar / cattle feed' ||
+        catLower == 'cattle feed' ||
+        catLower == 'cattle-feed' ||
+        catLower == 'pashu aahar';
+    final isStageNutritionCategory =
+        catLower == 'stage-based nutrition courses' ||
+            catLower == 'stage-based nutrition' ||
+            catLower == 'janam-42';
+    final isSupplementsCategory = catLower == 'supplements' ||
+        catLower == 'supplements & minerals' ||
+        catLower == 'minerals';
+
+    final isEquipmentCategory = catLower == 'equipment' ||
+        catLower == 'farm machinery' ||
+        catLower == 'cat-machinery';
+
+    final items = all.where((p) {
+      // Category filter
+      final bool matchesCategory;
+      if (isAllCategory) {
+        matchesCategory = true;
+      } else if (isDairyFoodsCategory) {
+        matchesCategory = storeCategory(p) == 'Cow ghee' ||
+            storeCategory(p) == 'Buffalo ghee' ||
+            storeCategory(p) == 'Paneer' ||
+            storeCategory(p) == 'Other products' ||
+            p.taxonomy?['department_name'] == 'Dairy Foods';
+      } else if (isCowGheeCategory) {
+        matchesCategory = storeCategory(p) == 'Cow ghee' ||
+            p.title.toLowerCase().contains('cow ghee');
+      } else if (isBuffGheeCategory) {
+        matchesCategory = storeCategory(p) == 'Buffalo ghee' ||
+            p.title.toLowerCase().contains('buffalo ghee');
+      } else if (isPaneerCategory) {
+        matchesCategory = storeCategory(p) == 'Paneer' ||
+            p.title.toLowerCase().contains('paneer');
+      } else if (isButterCategory) {
+        matchesCategory = storeCategory(p) == 'Other products' ||
+            p.title.toLowerCase().contains('butter') ||
+            p.title.toLowerCase().contains('makhan');
+      } else if (isAllNutrition) {
+        final title = p.title.toLowerCase();
+        final isFood = title.contains('ghee') || title.contains('paneer') || title.contains('butter');
+        final isEquip = title.contains('milking') || title.contains('analyzer') || title.contains('cutter') || title.contains('can') || title.contains('mat');
+        matchesCategory = (p.category == ProductCategory.feedNutrition || p.taxonomy?['concept'] == true) && !isFood && !isEquip;
+      } else if (isPashuAaharCategory) {
+        matchesCategory = p.taxonomy?['category_name'] ==
+                'Pashu Aahar / Cattle Feed' ||
+            p.taxonomy?['subcategory_name'] == 'Pashu Aahar / Cattle Feed' ||
+            p.title.toLowerCase().contains('feed') ||
+            p.title.toLowerCase().contains('pellet') ||
+            p.title.toLowerCase().contains('aahar');
+      } else if (isStageNutritionCategory) {
+        matchesCategory = p.taxonomy?['category_name'] ==
+                'Stage-Based Nutrition Courses' ||
+            p.taxonomy?['subcategory_name'] ==
+                'Stage-Based Nutrition Courses' ||
+            p.title.toLowerCase().contains('janam') ||
+            p.title.toLowerCase().contains('course');
+      } else if (isSupplementsCategory) {
+        matchesCategory = p.taxonomy?['category_name'] == 'Supplements' ||
+            p.taxonomy?['subcategory_name'] == 'Supplements' ||
+            p.title.toLowerCase().contains('mineral') ||
+            p.title.toLowerCase().contains('supplement') ||
+            p.title.toLowerCase().contains('calcium') ||
+            p.title.toLowerCase().contains('calci-') ||
+            p.title.toLowerCase().contains('drench') ||
+            p.title.toLowerCase().contains('minera-') ||
+            p.title.toLowerCase().contains('lacta-') ||
+            p.title.toLowerCase().contains('rumen-') ||
+            p.title.toLowerCase().contains('heat-guard') ||
+            p.title.toLowerCase().contains('bypass fat');
+      } else if (isEquipmentCategory) {
+        matchesCategory = storeCategory(p) == 'Equipment' ||
+            p.category == ProductCategory.equipment;
+      } else {
+        matchesCategory = (_taxonomy?.enabled == true
+            ? (_taxonomy!.descendants(_category).contains(p.taxonomy?['category_id']) ||
+                storeCategory(p) == _category)
+            : storeCategory(p) == _category);
+      }
+      if (!matchesCategory) return false;
+
+      // Stock filter
+      if (_inStock && !p.inStock) return false;
+
+      // Price filter
+      if (_priceMin > 0 && p.price < _priceMin) return false;
+      if (_priceMax > 0 && p.price > _priceMax) return false;
+
+      // Rating filter
+      final hash = p.id.hashCode.abs();
+      final rating = 4.6 + (hash % 4) * 0.1;
+      if (_minRating > 0 && rating < _minRating) return false;
+
+      // Keyword query filter
+      if (query.isNotEmpty) {
+        final text = '${p.title} ${p.packSize ?? ''} ${p.brand ?? ''}'
+            .toLowerCase();
+        if (!text.contains(query)) return false;
+      }
+
+      return true;
+    }).toList();
+
+    // Sort order
     if (_sort == 'Price: low to high') {
       items.sort((a, b) => a.price.compareTo(b.price));
-    }
-    if (_sort == 'Price: high to low') {
+    } else if (_sort == 'Price: high to low') {
       items.sort((a, b) => b.price.compareTo(a.price));
-    }
-    if (_sort == 'Name: A to Z') {
+    } else if (_sort == 'Name: A to Z') {
       items.sort((a, b) => a.title.compareTo(b.title));
     }
+
     final groups = storeProductGroups(items);
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 22,
-          runSpacing: 8,
-          children: [
-            Text(
-                '${groups.length} products${query.isEmpty ? '' : ' for “${_search.text.trim()}”'}',
-                style: StoreType.muted),
-            SizedBox(
-                width: 205,
-                height: 38,
-                child: DropdownButtonFormField<String>(
-                    initialValue: _sort,
-                    key: ValueKey(_sort),
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: StoreLayout.xs, vertical: 0),
-                        filled: true,
-                        fillColor: storeWhite,
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                                StoreLayout.controlRadius),
-                            borderSide: const BorderSide(color: storeBorder))),
-                    style: StoreType.label,
-                    items: [
-                      'Featured',
-                      'Price: low to high',
-                      'Price: high to low',
-                      'Name: A to Z'
-                    ]
-                        .map((v) =>
-                            DropdownMenuItem(value: v, child: Text('Sort: $v')))
-                        .toList(),
-                    onChanged: (v) => setState(() => _sort = v ?? 'Featured'))),
-          ]),
-      const SizedBox(height: StoreLayout.md),
-      if (items.isEmpty)
-        _message(
-            Icons.search_off,
-            'No products found',
-            'Try another category or clear your filters.',
-            'Clear filters',
-            _reset)
-      else
-        LayoutBuilder(builder: (context, bounds) {
-          final columns = bounds.maxWidth >= 710
-              ? 3
-              : bounds.maxWidth >= 340
-                  ? 2
-                  : 1;
-          final gap = small ? 16.0 : 28.0;
-          return Wrap(
-              spacing: gap,
-              runSpacing: gap,
-              children: groups
-                  .map((packs) => SizedBox(
-                      width: (bounds.maxWidth - gap * (columns - 1)) / columns,
-                      child: StoreProductCard(
-                          key: ValueKey(packs.first.id),
-                          packs: packs,
-                          compact: small,
-                          busyIds: _adding,
-                          onAdd: _add,
-                          onOpen: (p) =>
-                              context.push('/marketplace/product/${p.id}'))))
-                  .toList());
-        }),
-    ]);
+
+    if (items.isEmpty) {
+      final isNutrition = _category == 'Animal nutrition' ||
+          _category == 'Cattle Nutrition' ||
+          _category == 'MILTERRA Cattle Nutrition Solutions' ||
+          _category == 'Pashu Aahar / Cattle Feed' ||
+          _category == 'Stage-Based Nutrition Courses' ||
+          _category == 'Supplements';
+
+      if (isNutrition) {
+        return _message(
+          Icons.grass_rounded,
+          'Cattle Nutrition Concepts',
+          'New Milterra cattle-nutrition concepts are coming soon. Explore upcoming formulations and share your feedback.',
+          'Explore All Products',
+          _reset,
+        );
+      }
+
+      return _message(
+          Icons.search_off,
+          'No products matched your filters',
+          'Try clearing price or department filters to see more results.',
+          'Clear all filters',
+          _reset);
+    }
+
+    return LayoutBuilder(builder: (context, bounds) {
+      // Fluid column distribution for big monitors, laptops, tablets, and phones
+      final int columns;
+      if (bounds.maxWidth >= 960) {
+        columns = 4;
+      } else if (bounds.maxWidth >= 650) {
+        columns = 3;
+      } else if (bounds.maxWidth >= 380) {
+        columns = 2;
+      } else {
+        columns = 1;
+      }
+
+      final gap = small ? 12.0 : 18.0;
+      return Wrap(
+        spacing: gap,
+        runSpacing: gap,
+        children: groups
+            .map((packs) => SizedBox(
+                width: ((bounds.maxWidth - gap * (columns - 1)) / columns)
+                    .clamp(140.0, 320.0),
+                child: StoreProductCard(
+                    key: ValueKey(packs.first.id),
+                    packs: packs,
+                    compact: small,
+                    busyIds: _adding,
+                    onAdd: _add,
+                    onOpen: (p) =>
+                        context.go('/shop/product/${p.id}'))))
+            .toList(),
+      );
+    });
   }
 
   Widget _editorial(bool small) {
@@ -660,15 +1407,17 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
           const SizedBox(height: 12),
           TextButton(
               onPressed: () => _browse('All products'),
-              child: const Text('Explore all →')),
+              child: const Text('Explore all →',
+                  style: TextStyle(
+                      color: storeGreen, fontWeight: FontWeight.bold))),
         ]));
     final photo = SizedBox(
         width: small ? double.infinity : 350,
-        height: 250,
+        height: 240,
         child: Image.asset(StoreImages.hero,
             fit: BoxFit.cover, alignment: Alignment.centerRight));
     return ClipRRect(
-        borderRadius: StoreLayout.corners,
+        borderRadius: BorderRadius.circular(StoreLayout.radius),
         child: ColoredBox(
             color: storeSage,
             child: small
@@ -681,26 +1430,43 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       Container(
           width: double.infinity,
           padding: const EdgeInsets.all(StoreLayout.xl),
+          decoration: BoxDecoration(
+            color: storeWhite,
+            borderRadius: BorderRadius.circular(StoreLayout.radius),
+            border: Border.all(color: storeBorder),
+          ),
           child: Column(children: [
-            Icon(icon, size: 40, color: storeMuted),
+            Icon(icon, size: 48, color: storeMuted),
             const SizedBox(height: StoreLayout.md),
             Text(title, style: StoreType.title),
             const SizedBox(height: StoreLayout.xs),
             Text(description,
                 textAlign: TextAlign.center, style: StoreType.muted),
             const SizedBox(height: StoreLayout.md),
-            OutlinedButton(onPressed: onTap, child: Text(action))
+            FilledButton(
+              style: FilledButton.styleFrom(
+                  backgroundColor: storeAmber, foregroundColor: storeGreen),
+              onPressed: onTap,
+              child: Text(action,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+            )
           ]));
+
   Widget _benefit(IconData icon, String title, String subtitle) =>
       Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 29),
+        Icon(icon, size: 28, color: storeGreen),
         const SizedBox(width: StoreLayout.md),
         Flexible(
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: StoreType.label),
-          const SizedBox(height: StoreLayout.xxs),
-          Text(subtitle, style: StoreType.caption)
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: storeGreen)),
+          const SizedBox(height: 2),
+          Text(subtitle,
+              style: const TextStyle(fontSize: 11, color: storeMuted)),
         ]))
       ]);
 }

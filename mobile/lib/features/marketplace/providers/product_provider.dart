@@ -9,32 +9,83 @@ final productsProvider = FutureProvider.family<List<Product>, ProductCategory?>(
   final items = <Product>[];
   var page = 1;
   while (true) {
-    final body = (await ref
-            .read(dioProvider)
-            .get('/marketplace/products', queryParameters: {
-      if (category != null)
-        'category': category == ProductCategory.equipment
-            ? 'EQUIPMENT'
-            : 'FEED_NUTRITION',
-      'sort_by': 'featured',
-      'page': page,
-      'per_page': 100,
-    }))
-        .data as Map<String, dynamic>;
-    final batch =
-        (body['data'] as List).map((x) => Product.fromJson(x)).toList();
-    items.addAll(batch);
-    if (batch.isEmpty ||
-        items.length >= (body['total'] as int? ?? items.length)) {
+    try {
+      final response = await ref
+          .read(dioProvider)
+          .get('/marketplace/products', queryParameters: {
+        if (category != null)
+          'category': category == ProductCategory.equipment
+              ? 'EQUIPMENT'
+              : 'FEED_NUTRITION',
+        'sort_by': 'featured',
+        'page': page,
+        'per_page': 100,
+      }).timeout(const Duration(seconds: 2));
+      final body = response.data;
+      if (body is! Map) break;
+      final rawData = body['data'];
+      if (rawData is! List) break;
+      final batch = rawData
+          .whereType<Map>()
+          .map((x) => Product.fromJson(Map<String, dynamic>.from(x)))
+          .toList();
+      items.addAll(batch);
+      final total = body['total'];
+      final totalCount = total is int ? total : items.length;
+      if (batch.isEmpty || items.length >= totalCount) {
+        break;
+      }
+      page++;
+    } catch (_) {
       break;
     }
-    page++;
   }
+  // Merge rich multi-department catalogue items if not yet seeded in backend
+  final existingTitles = items.map((p) => p.title.toLowerCase()).toSet();
+  for (final def in defaultMilterraProducts) {
+    if (!existingTitles.contains(def.title.toLowerCase())) {
+      if (category == null || def.category == category) {
+        items.add(def);
+      }
+    }
+  }
+
   return items;
 });
+
 final productDetailProvider =
     FutureProvider.family<Product, String>((ref, id) async {
-  final b = (await ref.read(dioProvider).get('/marketplace/products/$id')).data
-      as Map<String, dynamic>;
-  return Product.fromJson(b['data']);
+  // 1. Instant local lookup for default Milterra catalogue items (0ms latency)
+  for (final p in defaultMilterraProducts) {
+    if (p.id == id) return p;
+  }
+
+  // 2. Check cached in-memory product catalogue
+  final inMemoryProducts = ref.read(productsProvider(null)).valueOrNull;
+  if (inMemoryProducts != null) {
+    for (final p in inMemoryProducts) {
+      if (p.id == id) return p;
+    }
+  }
+
+  // 3. Fast backend query for dynamic/newly-created vendor products
+  try {
+    final response = await ref
+        .read(dioProvider)
+        .get('/marketplace/products/$id')
+        .timeout(const Duration(milliseconds: 1500));
+    final body = response.data;
+    if (body is Map && body['data'] is Map) {
+      return Product.fromJson(Map<String, dynamic>.from(body['data'] as Map));
+    }
+  } catch (_) {}
+
+  // 4. Fallback search by title or partial ID in defaults
+  for (final p in defaultMilterraProducts) {
+    if (p.id == id || p.title.toLowerCase().contains(id.toLowerCase())) {
+      return p;
+    }
+  }
+
+  throw Exception('Failed to load product details');
 });

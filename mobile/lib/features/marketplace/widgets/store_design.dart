@@ -11,6 +11,13 @@ import '../../../app/store_theme.dart';
 import '../../commerce/providers/commerce_provider.dart';
 export '../../../app/store_theme.dart';
 
+// Natural Earth Palette for MILTERRA Earth
+const storeEarthDarkGreen = Color(0xff1e3a2b);
+const storeEarthCream = Color(0xfff9f7f2);
+const storeEarthWarmBrown = Color(0xff6e4a27);
+const storeEarthTerracotta = Color(0xffc86d51);
+const storeEarthSage = Color(0xffe8ede4);
+
 String storeMoney(double amount) => NumberFormat.currency(
         locale: 'en_IN', symbol: '₹', decimalDigits: amount % 1 == 0 ? 0 : 2)
     .format(amount);
@@ -38,8 +45,16 @@ String storeCategory(Product p) {
     return p.taxonomy!['category_name'].toString();
   }
   if (p.taxonomyEnabled) return 'Uncategorized';
-  if (p.category == ProductCategory.equipment) return 'Equipment';
   final name = p.title.toLowerCase();
+  if (p.taxonomy?['is_earth'] == true ||
+      name.contains('earth') ||
+      name.contains('vermicompost') ||
+      name.contains('manure') ||
+      name.contains('compost') ||
+      name.contains('soil mix')) {
+    return 'MILTERRA Earth';
+  }
+  if (p.category == ProductCategory.equipment) return 'Equipment';
   if (name.contains('paneer')) return 'Paneer';
   if (name.contains('ghee') && name.contains('buffalo')) return 'Buffalo ghee';
   if (name.contains('ghee')) return 'Cow ghee';
@@ -248,6 +263,27 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                         () => storeBrowse(context, category: 'Paneer')),
                     _drawerTile(context, 'Cultured White Butter (Makhan)',
                         () => storeBrowse(context, category: 'Other products')),
+                    const Divider(height: 16),
+                    _sectionHeader('🌱 MILTERRA Earth: Living Soil & Compost'),
+                    _drawerTile(context, 'From Farm Waste to Living Soil (Overview)',
+                        () {
+                      Navigator.pop(context);
+                      context.push('/earth');
+                    }),
+                    _drawerTile(context, 'All MILTERRA Earth Products',
+                        () => storeBrowse(context, category: 'MILTERRA Earth')),
+                    _drawerTile(context, 'Premium Vermicompost',
+                        () => storeBrowse(context, category: 'MILTERRA Earth', query: 'vermicompost')),
+                    _drawerTile(context, 'Cow-Dung Farm Manure',
+                        () => storeBrowse(context, category: 'MILTERRA Earth', query: 'manure')),
+                    _drawerTile(context, 'Enriched Organic Compost',
+                        () => storeBrowse(context, category: 'MILTERRA Earth', query: 'compost')),
+                    _drawerTile(context, 'Sun-Dried Compost Cakes',
+                        () => storeBrowse(context, category: 'MILTERRA Earth', query: 'cakes')),
+                    _drawerTile(context, 'Compost Starter & Inoculants',
+                        () => storeBrowse(context, category: 'MILTERRA Earth', query: 'starter')),
+                    _drawerTile(context, 'Garden Soil Mix',
+                        () => storeBrowse(context, category: 'MILTERRA Earth', query: 'soil mix')),
                     const Divider(height: 16),
                     _sectionHeader("🌾 Farmer's Hub: Feed & Nutrition"),
                     _drawerTile(context, 'All Cattle Nutrition & Feed',
@@ -781,6 +817,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
     final baseCategories = <String, String>{
       'All': 'All Departments',
       'Dairy Foods': '🥛 Dairy Foods',
+      'MILTERRA Earth': '🌱 MILTERRA Earth',
       'Cow ghee': 'Cow Ghee',
       'Buffalo ghee': 'Buffalo Ghee',
       'Paneer': 'Fresh Paneer',
@@ -962,6 +999,7 @@ class StoreCategoryNavigation extends ConsumerWidget {
         'Equipment': 'Equipment'
       else ...{
         'Dairy Foods': '🥛 Dairy Foods',
+        'MILTERRA Earth': '🌱 MILTERRA Earth',
         'Animal nutrition': '🌾 Animal Nutrition',
         'Equipment': '⚙️ Farm Equipment',
       }
@@ -1309,12 +1347,23 @@ abstract final class StoreImages {
         'bypass fat' || 'lacto-energy' => 'assets/store/feed-bypass-fat.jpg',
         'calci-boost' || 'calcium' => 'assets/store/calci-feed-combo.jpg',
         'animal nutrition' || 'cattle nutrition' => 'assets/store/nutrition-lineup.jpg',
+        'milterra earth' || 'earth' || 'vermicompost' => 'assets/store/earth-vermicompost.jpg',
+        'manure' || 'farm manure' => 'assets/store/earth-manure.jpg',
+        'soil mix' || 'garden soil' => 'assets/store/earth-soil-mix.jpg',
+        'compost cakes' || 'cakes' => 'assets/store/earth-cakes.jpg',
         _ => null,
       };
 
   static String? productArtwork(Product? p) {
     if (p == null) return null;
     final title = p.title.toLowerCase();
+    if (title.contains('vermicompost')) return 'assets/store/earth-vermicompost.jpg';
+    if (title.contains('manure')) return 'assets/store/earth-manure.jpg';
+    if (title.contains('soil mix') || (title.contains('soil') && title.contains('earth'))) {
+      return 'assets/store/earth-soil-mix.jpg';
+    }
+    if (title.contains('cake')) return 'assets/store/earth-cakes.jpg';
+    if (title.contains('starter') || title.contains('compost')) return 'assets/store/earth-vermicompost.jpg';
     if (title.contains('janam')) return 'assets/store/feed-janam-42.jpg';
     if (title.contains('bovine gold') || (title.contains('pellet') && title.contains('feed'))) {
       return 'assets/store/feed-bovine-gold.jpg';
@@ -1371,7 +1420,37 @@ class ProductArtwork extends StatelessWidget {
           (p?.taxonomy?['status'] != null &&
               p!.taxonomy!['status'].toString().toLowerCase().contains('concept'));
 
-      if (title.contains('janam')) {
+      if (title.contains('vermicompost')) {
+        icon = Icons.yard_outlined;
+        bg = const Color(0xfff0f5ee);
+        fg = storeEarthDarkGreen;
+        tag = 'PREMIUM VERMICOMPOST';
+      } else if (title.contains('manure')) {
+        icon = Icons.nature_people_outlined;
+        bg = const Color(0xfff7f3ee);
+        fg = storeEarthWarmBrown;
+        tag = 'FARM MANURE';
+      } else if (title.contains('compost') && !title.contains('vermi')) {
+        icon = Icons.recycling_outlined;
+        bg = const Color(0xfff3f7f0);
+        fg = const Color(0xff386641);
+        tag = 'ORGANIC COMPOST';
+      } else if (title.contains('cake')) {
+        icon = Icons.wb_sunny_outlined;
+        bg = const Color(0xfffaf4ed);
+        fg = storeEarthTerracotta;
+        tag = 'COMPOST CAKES';
+      } else if (title.contains('starter')) {
+        icon = Icons.science_outlined;
+        bg = const Color(0xfffdf6f0);
+        fg = storeEarthTerracotta;
+        tag = 'COMPOST STARTER';
+      } else if (title.contains('soil mix') || title.contains('soil')) {
+        icon = Icons.park_outlined;
+        bg = const Color(0xfff4f1ec);
+        fg = const Color(0xff58402b);
+        tag = 'GARDEN SOIL MIX';
+      } else if (title.contains('janam')) {
         icon = Icons.timeline_outlined;
         bg = const Color(0xfff5f0fa);
         fg = const Color(0xff5c3b87);

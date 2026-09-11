@@ -96,6 +96,7 @@ import 'package:dairy_ai/features/cart/screens/order_tracking_screen.dart';
 import 'package:dairy_ai/features/cart/screens/wishlist_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/about_milterra_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/help_support_screen.dart';
+import 'package:dairy_ai/features/marketplace/screens/milterra_earth_screen.dart';
 
 // ---------------------------------------------------------------------------
 // Navigation keys
@@ -140,6 +141,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           location == '/marketplace/wishlist' ||
           location == '/about' ||
           location == '/shop/about' ||
+          location == '/earth' ||
+          location == '/shop/earth' ||
+          location == '/marketplace/earth' ||
           location == '/help' ||
           location == '/shop/help' ||
           location == '/register' ||
@@ -312,6 +316,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/shop/about',
         redirect: (_, __) => '/about',
+      ),
+      GoRoute(
+        path: '/earth',
+        builder: (context, state) => const MilterraEarthScreen(),
+      ),
+      GoRoute(
+        path: '/shop/earth',
+        redirect: (_, __) => '/earth',
+      ),
+      GoRoute(
+        path: '/marketplace/earth',
+        redirect: (_, __) => '/earth',
       ),
       GoRoute(
         path: '/help',

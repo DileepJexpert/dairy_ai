@@ -50,6 +50,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         }
       }
     }
+    if (lower.contains('earth') || lower == 'milterra-earth' || lower == 'cat-earth') {
+      return '🌱 MILTERRA Earth: Living Soil';
+    }
     if (lower.contains('animal') ||
         lower.contains('cattle nutrition') ||
         lower == 'animal-nutrition' ||
@@ -58,6 +61,13 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     }
     return switch (value) {
       'Dairy Foods' => 'Dairy Foods',
+      'MILTERRA Earth' || 'milterra-earth' || 'Earth' => '🌱 MILTERRA Earth',
+      'Vermicompost' => 'Premium Vermicompost',
+      'Farm Manure' => 'Cow-Dung Farm Manure',
+      'Organic Compost' => 'Enriched Organic Compost',
+      'Compost Cakes' => 'Dried Compost Cakes',
+      'Compost Starter' => 'Compost Starter',
+      'Garden Soil Mix' => 'Garden Soil Mix',
       'Animal nutrition' ||
       'Cattle Nutrition' ||
       'MILTERRA Cattle Nutrition Solutions' =>
@@ -454,6 +464,15 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         target: 'Dairy Foods',
       ),
       (
+        title: 'MILTERRA Earth',
+        subtitle: 'Living Soil & Composts',
+        image: 'assets/store/earth-vermicompost.jpg',
+        icon: Icons.yard_outlined,
+        iconBg: const Color(0xfff0f5ee),
+        iconColor: const Color(0xff1e3a2b),
+        target: 'MILTERRA Earth',
+      ),
+      (
         title: 'Animal Nutrition',
         subtitle: 'Compound Feed & Minerals',
         image: 'assets/store/minera-360-jar.jpg',
@@ -659,20 +678,43 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         catLower.contains('machinery') ||
         labelLower.contains('equipment');
 
+    final isEarth = catLower.contains('earth') ||
+        catLower.contains('vermicompost') ||
+        catLower.contains('manure') ||
+        catLower.contains('compost') ||
+        catLower.contains('soil') ||
+        labelLower.contains('earth') ||
+        catLower == 'milterra-earth';
+
     final (title, subtitle, icon, bannerColor, borderColor, tags) =
-        isNutrition
+        isEarth
             ? (
-                '🌾 MILTERRA CATTLE NUTRITION SOLUTIONS',
-                'Explore MILTERRA Cattle Nutrition Solutions—feeds, supplements, and stage-based nutrition concepts for healthier livestock.',
-                Icons.grass_rounded,
-                const Color(0xfff4f9f4),
-                const Color(0xffc5e1c7),
+                '🌱 FROM FARM WASTE TO LIVING SOIL',
+                'Thoughtfully processed natural products for gardens and farms made from responsibly processed cow-dung by-products.',
+                Icons.yard_outlined,
+                const Color(0xfff7f5f0),
+                const Color(0xffd4c7b8),
                 const [
-                  'Concept Preview',
-                  'In Development',
-                  'Farmer Feedback Open',
+                  'Coming Soon',
+                  '100% Pathogen Free',
+                  'Solarized & Screened',
+                  'Batch Traceable',
+                  'Zero Chemicals',
                 ],
               )
+            : isNutrition
+                ? (
+                    '🌾 MILTERRA CATTLE NUTRITION SOLUTIONS',
+                    'Explore MILTERRA Cattle Nutrition Solutions—feeds, supplements, and stage-based nutrition concepts for healthier livestock.',
+                    Icons.grass_rounded,
+                    const Color(0xfff4f9f4),
+                    const Color(0xffc5e1c7),
+                    const [
+                      'Concept Preview',
+                      'In Development',
+                      'Farmer Feedback Open',
+                    ],
+                  )
             : isDairy
                 ? (
                     '🥛 Gourmet Farm Dairy Collection',
@@ -873,6 +915,27 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 indent: true),
             _categoryFilterItem(
                 'Other products', 'White Butter (Makhan)', refresh,
+                indent: true),
+            const SizedBox(height: 6),
+            const Text('🌱 Living Soil: MILTERRA Earth',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: storeMuted)),
+            const SizedBox(height: 4),
+            _categoryFilterItem('MILTERRA Earth', 'All MILTERRA Earth', refresh,
+                indent: true),
+            _categoryFilterItem('Vermicompost', 'Premium Vermicompost', refresh,
+                indent: true),
+            _categoryFilterItem('Farm Manure', 'Cow-Dung Farm Manure', refresh,
+                indent: true),
+            _categoryFilterItem('Organic Compost', 'Enriched Organic Compost', refresh,
+                indent: true),
+            _categoryFilterItem('Compost Cakes', 'Dried Compost Cakes', refresh,
+                indent: true),
+            _categoryFilterItem('Compost Starter', 'Compost Starter', refresh,
+                indent: true),
+            _categoryFilterItem('Garden Soil Mix', 'Garden Soil Mix', refresh,
                 indent: true),
             const SizedBox(height: 6),
             const Text("🌾 Farmer's Hub: Cattle Nutrition",
@@ -1234,11 +1297,52 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         catLower == 'farm machinery' ||
         catLower == 'cat-machinery';
 
+    final isEarthAllCategory = catLower == 'milterra earth' ||
+        catLower == 'milterra-earth' ||
+        catLower == 'earth' ||
+        catLower == 'living soil' ||
+        catLower == 'compost';
+    final isVermicompostCategory = catLower == 'vermicompost';
+    final isManureCategory = catLower == 'farm manure' || catLower == 'manure';
+    final isEnrichedCompostCategory = catLower == 'organic compost' ||
+        catLower == 'enriched organic compost' ||
+        catLower == 'enriched compost';
+    final isCakesCategory = catLower == 'compost cakes' || catLower == 'cakes';
+    final isStarterCategory = catLower == 'compost starter' || catLower == 'starter';
+    final isSoilMixCategory = catLower == 'garden soil mix' ||
+        catLower == 'soil mix' ||
+        catLower == 'soil';
+
     final items = all.where((p) {
       // Category filter
       final bool matchesCategory;
       if (isAllCategory) {
         matchesCategory = true;
+      } else if (isEarthAllCategory) {
+        matchesCategory = p.taxonomy?['is_earth'] == true ||
+            p.taxonomy?['category_name'] == 'MILTERRA Earth' ||
+            p.title.toLowerCase().contains('earth') ||
+            p.title.toLowerCase().contains('vermicompost') ||
+            p.title.toLowerCase().contains('manure') ||
+            p.title.toLowerCase().contains('compost') ||
+            p.title.toLowerCase().contains('soil mix');
+      } else if (isVermicompostCategory) {
+        matchesCategory = p.title.toLowerCase().contains('vermicompost');
+      } else if (isManureCategory) {
+        matchesCategory = p.title.toLowerCase().contains('manure');
+      } else if (isEnrichedCompostCategory) {
+        matchesCategory = p.title.toLowerCase().contains('enriched organic compost') ||
+            (p.title.toLowerCase().contains('compost') &&
+                !p.title.toLowerCase().contains('vermicompost') &&
+                !p.title.toLowerCase().contains('cake') &&
+                !p.title.toLowerCase().contains('starter'));
+      } else if (isCakesCategory) {
+        matchesCategory = p.title.toLowerCase().contains('cake');
+      } else if (isStarterCategory) {
+        matchesCategory = p.title.toLowerCase().contains('starter');
+      } else if (isSoilMixCategory) {
+        matchesCategory = p.title.toLowerCase().contains('soil mix') ||
+            (p.title.toLowerCase().contains('soil') && p.title.toLowerCase().contains('garden'));
       } else if (isDairyFoodsCategory) {
         matchesCategory = storeCategory(p) == 'Cow ghee' ||
             storeCategory(p) == 'Buffalo ghee' ||
@@ -1341,6 +1445,22 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
           _category == 'Pashu Aahar / Cattle Feed' ||
           _category == 'Stage-Based Nutrition Courses' ||
           _category == 'Supplements';
+
+      final isEarth = _category.toLowerCase().contains('earth') ||
+          _category.toLowerCase().contains('vermicompost') ||
+          _category.toLowerCase().contains('manure') ||
+          _category.toLowerCase().contains('compost') ||
+          _category.toLowerCase().contains('soil');
+
+      if (isEarth) {
+        return _message(
+          Icons.yard_outlined,
+          'MILTERRA Earth: Living Soil',
+          'Naturally processed cow-dung compost and soil mixes are coming soon. Join our launch notification list.',
+          'Explore All Products',
+          _reset,
+        );
+      }
 
       if (isNutrition) {
         return _message(

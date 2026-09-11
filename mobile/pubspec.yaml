@@ -48,6 +48,10 @@ flutter:
     - assets/store/feed-janam-42.jpg
     - assets/store/feed-bovine-gold.jpg
     - assets/store/feed-bypass-fat.jpg
+    - assets/store/earth-vermicompost.jpg
+    - assets/store/earth-manure.jpg
+    - assets/store/earth-soil-mix.jpg
+    - assets/store/earth-cakes.jpg
 
   fonts:
     - family: CormorantGaramond

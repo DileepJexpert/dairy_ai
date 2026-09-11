@@ -43,11 +43,16 @@ class _StoreProductCardState extends State<StoreProductCard> {
     final product = widget.packs
         .firstWhere((p) => p.id == _selected, orElse: () => widget.packs.first);
     final busy = widget.busyIds.contains(product.id);
-    final isConcept = product.taxonomy?['concept'] == true ||
-        (product.category == ProductCategory.feedNutrition &&
-            !product.title.toLowerCase().contains('ghee') &&
-            !product.title.toLowerCase().contains('paneer') &&
-            !product.title.toLowerCase().contains('butter'));
+    final isEarth = product.taxonomy?['is_earth'] == true ||
+        product.taxonomy?['category_name'] == 'MILTERRA Earth' ||
+        product.title.toLowerCase().contains('milterra earth') ||
+        (product.brand?.toLowerCase() == 'milterra earth');
+    final isConcept = !isEarth &&
+        (product.taxonomy?['concept'] == true ||
+            (product.category == ProductCategory.feedNutrition &&
+                !product.title.toLowerCase().contains('ghee') &&
+                !product.title.toLowerCase().contains('paneer') &&
+                !product.title.toLowerCase().contains('butter')));
     final conceptStatus =
         product.taxonomy?['status']?.toString() ?? 'Concept Preview';
 
@@ -63,13 +68,18 @@ class _StoreProductCardState extends State<StoreProductCard> {
           color: storeWhite,
           borderRadius: BorderRadius.circular(StoreLayout.radius),
           border: Border.all(
-            color: _hover ? storeGreen.withValues(alpha: 0.3) : storeBorder,
+            color: _hover
+                ? (isEarth
+                    ? storeEarthDarkGreen.withValues(alpha: 0.5)
+                    : storeGreen.withValues(alpha: 0.3))
+                : storeBorder,
             width: _hover ? 1.5 : 1,
           ),
           boxShadow: _hover
               ? [
                   BoxShadow(
-                    color: storeGreen.withValues(alpha: .08),
+                    color: (isEarth ? storeEarthDarkGreen : storeGreen)
+                        .withValues(alpha: .08),
                     blurRadius: 16,
                     offset: const Offset(0, 6),
                   ),
@@ -95,7 +105,9 @@ class _StoreProductCardState extends State<StoreProductCard> {
                 Stack(
                   children: [
                     Material(
-                      color: const Color(0xfffaf8f5),
+                      color: isEarth
+                          ? storeEarthCream
+                          : const Color(0xfffaf8f5),
                       borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(StoreLayout.radius)),
                       clipBehavior: Clip.antiAlias,
@@ -111,7 +123,44 @@ class _StoreProductCardState extends State<StoreProductCard> {
                         ),
                       ),
                     ),
-                    if (isConcept)
+                    if (isEarth)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: storeEarthTerracotta,
+                            borderRadius: BorderRadius.circular(4),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x33000000),
+                                blurRadius: 4,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.eco_rounded,
+                                  size: 11, color: Colors.white),
+                              SizedBox(width: 4),
+                              Text(
+                                'Coming Soon',
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else if (isConcept)
                       Positioned(
                         top: 8,
                         left: 8,
@@ -158,17 +207,290 @@ class _StoreProductCardState extends State<StoreProductCard> {
                   ],
                 ),
 
-            // Product Details Block
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-              child: isConcept
-                  ? _buildConceptDetails(context, product)
-                  : _buildCommercialDetails(context, product, busy),
-            ),
-          ],
+                // Product Details Block
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                  child: isEarth
+                      ? _buildEarthDetails(context, product)
+                      : isConcept
+                          ? _buildConceptDetails(context, product)
+                          : _buildCommercialDetails(context, product, busy),
+                ),
+              ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildEarthDetails(BuildContext context, Product product) {
+    final status = product.taxonomy?['status']?.toString() ?? 'Coming Soon';
+    final brandLine = product.taxonomy?['brand_line']?.toString() ??
+        'Living Soil • Farm Composts • Natural Carbon';
+    final usage = product.taxonomy?['usage_description']?.toString() ??
+        'Natural soil conditioner for gardens, plants, and organic farm beds.';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Status Badge & Brand Line
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: storeEarthTerracotta,
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: Text(
+                status.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                brandLine,
+                style: const TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w700,
+                  color: storeEarthWarmBrown,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+
+        // Title (Clickable)
+        InkWell(
+          onTap: () => widget.onOpen(product),
+          child: SizedBox(
+            height: 38,
+            child: Text(
+              product.title,
+              style: TextStyle(
+                fontSize: widget.compact ? 13 : 14,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xff111111),
+                height: 1.25,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+
+        // Pack Size & Indicative Price Row
+        Row(
+          children: [
+            if (product.packSize != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: storeEarthCream,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: storeEarthTerracotta.withValues(alpha: 0.4)),
+                ),
+                child: Text(
+                  product.packSize!,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: storeEarthWarmBrown,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+            Text(
+              '${storeMoney(product.price)} (Indicative MRP)',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Color(0xff555555),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+
+        // Short Usage Description
+        SizedBox(
+          height: 32,
+          child: Text(
+            usage,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Color(0xff4b5563),
+              height: 1.3,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(height: 6),
+
+        // Source & Batch Traceability Section
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          decoration: BoxDecoration(
+            color: storeEarthCream,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: const Color(0xffdcd6cb)),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.eco_outlined, size: 13, color: storeEarthDarkGreen),
+              SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  'Sourced from Certified Dairy AI Partner Farms · Batch Traceable',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: storeEarthDarkGreen,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // Action Buttons: Notify Me & Explore Details
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 34,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: storeEarthDarkGreen,
+                    foregroundColor: storeWhite,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  onPressed: () => _showNotifyMeDialog(context, product),
+                  icon: const Icon(Icons.notifications_active_outlined, size: 14),
+                  label: const Text(
+                    'Notify Me',
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            SizedBox(
+              height: 34,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  side: const BorderSide(color: storeBorder),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                onPressed: () => widget.onOpen(product),
+                child: const Text(
+                  'Details',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: storeEarthDarkGreen,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _showNotifyMeDialog(BuildContext context, Product product) {
+    final contactCtrl = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Row(
+          children: [
+            const Icon(Icons.notifications_active, color: storeEarthDarkGreen, size: 22),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Notify on Launch: ${product.title}',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: storeEarthDarkGreen,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'MILTERRA Earth products are currently in production and quality curing. Enter your WhatsApp number or email to receive priority dispatch notifications when this batch opens.',
+              style: TextStyle(fontSize: 12.5, color: Color(0xff444444)),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: contactCtrl,
+              style: const TextStyle(fontSize: 13),
+              decoration: const InputDecoration(
+                hintText: 'WhatsApp phone or email address',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.contact_mail_outlined, size: 18),
+                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel', style: TextStyle(color: storeMuted)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: storeEarthDarkGreen,
+              foregroundColor: storeWhite,
+            ),
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  duration: const Duration(seconds: 4),
+                  backgroundColor: storeEarthDarkGreen,
+                  content: Text(
+                    'Thank you! We have registered your notification request for "${product.title}".',
+                  ),
+                ),
+              );
+            },
+            child: const Text('Notify Me', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

@@ -56,6 +56,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         p.taxonomy!['status'].toString().toLowerCase().contains('concept'));
   }
 
+  bool _isEarthProduct(Product p) {
+    if (p.taxonomy?['is_earth'] == true) return true;
+    final cat = p.taxonomy?['category_id']?.toString() ?? '';
+    if (cat.startsWith('earth_')) return true;
+    return storeCategory(p) == 'MILTERRA Earth';
+  }
+
   String _getDispatchCountdown() {
     final now = DateTime.now();
     var cutoff = DateTime(now.year, now.month, now.day, 18, 0, 0);
@@ -543,7 +550,91 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           _buildRatingHeaderRow(p),
           const Divider(height: 24),
 
-          if (_isConceptProduct(p)) ...[
+          if (_isEarthProduct(p)) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: storeEarthCream,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: storeEarthTerracotta.withValues(alpha: 0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: storeEarthTerracotta,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          (p.taxonomy?['status']?.toString() ??
+                                  'Coming Soon')
+                              .toUpperCase(),
+                          style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Natural Soil & Farm By-Product · Launching Soon',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: storeEarthDarkGreen),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    p.taxonomy?['usage']?.toString() ??
+                        'Natural soil and farm product made from responsibly processed cow-dung by-products.',
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontStyle: FontStyle.italic,
+                        color: storeEarthWarmBrown),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    p.taxonomy?['source_note']?.toString() ??
+                        'Sourced from Certified Dairy AI Partner Farms · Batch Traceable',
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: storeMuted),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  storeMoney(p.price),
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: storeEarthDarkGreen,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text('(Indicative MRP)',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: storeMuted)),
+              ],
+            ),
+            const SizedBox(height: 2),
+            const Text('*Commercial checkout disabled during pre-launch curing & packing phase.',
+                style: TextStyle(fontSize: 12, color: storeEarthTerracotta, fontWeight: FontWeight.w500)),
+          ] else if (_isConceptProduct(p)) ...[
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -794,7 +885,16 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          if (_isConceptProduct(p) || (p.category == ProductCategory.feedNutrition && !p.title.toLowerCase().contains('ghee') && !p.title.toLowerCase().contains('paneer') && !p.title.toLowerCase().contains('butter'))) ...[
+          if (_isEarthProduct(p)) ...[
+            _bulletPoint('100% COW-DUNG BY-PRODUCT SOURCED:',
+                'Carefully aged and aerobically composted farm by-products from verified dairy farm cattle.'),
+            _bulletPoint('SOIL MICROBIOME & STRUCTURE:',
+                'Rich in natural beneficial soil micro-flora, enhancing water-holding capacity and root aeration.'),
+            _bulletPoint('NATURAL & WEED-FREE:',
+                'Properly cured at thermophilic temperatures to eliminate weed seeds and harmful pathogens.'),
+            _bulletPoint('TRANSPARENT FARM BATCH TRACEABILITY:',
+                'Sourced directly from cooperative dairy clusters with full batch and processing verification.'),
+          ] else if (_isConceptProduct(p) || (p.category == ProductCategory.feedNutrition && !p.title.toLowerCase().contains('ghee') && !p.title.toLowerCase().contains('paneer') && !p.title.toLowerCase().contains('butter'))) ...[
             _bulletPoint('CHELATED NUTRITION & BIOAVAILABILITY:',
                 'Engineered with organic micro-chelated minerals (Zinc, Manganese, Chromium, Cobalt) for superior cellular absorption.'),
             _bulletPoint('HERD IMMUNITY & FERTILITY:',
@@ -822,8 +922,55 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           ],
           const SizedBox(height: 16),
 
-          // Milterra Lab Purity / Formulation Quality Card
-          if (_isConceptProduct(p) || (p.category == ProductCategory.feedNutrition && !p.title.toLowerCase().contains('ghee') && !p.title.toLowerCase().contains('paneer') && !p.title.toLowerCase().contains('butter'))) ...[
+          // Milterra Lab Purity / Formulation / Earth Quality Card
+          if (_isEarthProduct(p)) ...[
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: storeEarthCream,
+                borderRadius: BorderRadius.circular(StoreLayout.radius),
+                border: Border.all(color: storeEarthDarkGreen.withValues(alpha: 0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.eco, color: storeEarthDarkGreen, size: 20),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Natural Composting Quality Benchmark · Farm Verified',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: storeEarthDarkGreen,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: storeEarthDarkGreen,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'Earth Batch STC',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    p.taxonomy?['source_note']?.toString() ??
+                        'Ethically collected from verified dairy farm partners. Naturally decomposed without synthetic fortification or artificial chemicals.',
+                    style: const TextStyle(fontSize: 11, color: storeEarthWarmBrown, height: 1.3),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (_isConceptProduct(p) || (p.category == ProductCategory.feedNutrition && !p.title.toLowerCase().contains('ghee') && !p.title.toLowerCase().contains('paneer') && !p.title.toLowerCase().contains('butter'))) ...[
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -984,6 +1131,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       );
 
   Widget _amazonBuyBox(Product p) {
+    if (_isEarthProduct(p)) {
+      return _buildEarthBuyBox(p);
+    }
     if (_isConceptProduct(p)) {
       return _buildConceptBuyBox(p);
     }
@@ -1631,6 +1781,336 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     );
   }
 
+  Widget _buildEarthBuyBox(Product p) {
+    final status = p.taxonomy?['status']?.toString() ?? 'Coming Soon';
+    final usage = p.taxonomy?['usage']?.toString() ??
+        'Natural soil and farm product made from responsibly processed cow-dung by-products.';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: storeWhite,
+        borderRadius: BorderRadius.circular(StoreLayout.radius),
+        border: Border.all(color: storeEarthTerracotta.withValues(alpha: 0.4)),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x0a000000), blurRadius: 8, offset: Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Earth status pill
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: storeEarthCream,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: storeEarthTerracotta.withValues(alpha: 0.6)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.eco_outlined, size: 14, color: storeEarthTerracotta),
+                const SizedBox(width: 6),
+                Text(
+                  status.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.8,
+                    color: storeEarthTerracotta,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          const Text(
+            'MILTERRA EARTH · LIVING SOIL',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.0,
+              color: storeEarthWarmBrown,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            p.title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: storeEarthDarkGreen,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 8),
+
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                storeMoney(p.price),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: storeEarthDarkGreen,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                '(Indicative MRP)',
+                style: TextStyle(fontSize: 12, color: storeMuted, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: storeEarthCream,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xffe2dcce)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 15, color: storeEarthDarkGreen),
+                    SizedBox(width: 6),
+                    Text(
+                      'Catalogue Preview Stage',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: storeEarthDarkGreen,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  usage,
+                  style: const TextStyle(fontSize: 11, color: storeEarthWarmBrown, height: 1.35),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Commercial checkout is disabled while current farm batches complete aerobic curing & quality testing.',
+                  style: TextStyle(fontSize: 10.5, color: storeMuted, height: 1.3),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Primary CTA: Notify Me on Launch
+          SizedBox(
+            width: double.infinity,
+            height: 42,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: storeEarthDarkGreen,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              icon: const Icon(Icons.notifications_active_outlined, size: 16),
+              label: const Text(
+                'Notify Me on Launch',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+              onPressed: () => _showEarthNotifyModal(context, p),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Secondary CTA: Explore MILTERRA Earth Page
+          SizedBox(
+            width: double.infinity,
+            height: 40,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: storeEarthDarkGreen,
+                side: const BorderSide(color: storeEarthDarkGreen),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              icon: const Icon(Icons.spa_outlined, size: 16),
+              label: const Text(
+                'Explore MILTERRA Earth',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+              onPressed: () => context.go('/earth'),
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Direct Farm Traceability note
+          const Row(
+            children: [
+              Icon(Icons.eco, size: 15, color: storeEarthDarkGreen),
+              SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '100% Responsibly Processed Cow-Dung By-Products',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: storeEarthDarkGreen),
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 20),
+
+          _buyBoxDetailRow('Source', p.taxonomy?['source_note']?.toString() ?? 'Partner Dairy Farms'),
+          _buyBoxDetailRow('Pack Size', p.packSize ?? p.unit),
+          _buyBoxDetailRow('Category', p.taxonomy?['category_label']?.toString() ?? 'MILTERRA Earth'),
+
+          const Divider(height: 20),
+
+          // Add to Wishlist Link
+          Consumer(
+            builder: (context, ref, _) {
+              final isWishlisted = ref.watch(isWishlistedProvider(p.id));
+              return SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    side: BorderSide(
+                      color:
+                          isWishlisted ? const Color(0xffd9383a) : storeBorder,
+                    ),
+                  ),
+                  onPressed: () {
+                    final added = ref.read(wishlistProvider.notifier).toggle(p);
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        duration: const Duration(seconds: 2),
+                        backgroundColor: storeGreen,
+                        content: Text(
+                          added
+                              ? 'Saved ${p.title} to your Wishlist.'
+                              : 'Removed from your Wishlist.',
+                        ),
+                      ),
+                    );
+                  },
+                  icon: Icon(
+                    isWishlisted ? Icons.bookmark : Icons.bookmark_border,
+                    size: 16,
+                    color:
+                        isWishlisted ? const Color(0xffd9383a) : storeEarthDarkGreen,
+                  ),
+                  label: Text(
+                    isWishlisted ? 'Saved in Wishlist' : 'Add to Earth Wishlist',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isWishlisted
+                          ? const Color(0xffd9383a)
+                          : const Color(0xff0f1111),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEarthNotifyModal(BuildContext context, Product p) {
+    final contactCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.notifications_active, color: storeEarthDarkGreen, size: 22),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Notify on Launch: ${p.title}',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: storeEarthDarkGreen),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 440,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Be first to get delivery of fresh composted batches of ${p.title} (${p.packSize ?? p.unit}). No payment required today.',
+                  style: const TextStyle(fontSize: 12, color: storeEarthWarmBrown),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: contactCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone Number or Email',
+                    hintText: 'e.g. +91 98765 43210 or name@example.com',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteCtrl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Usage / Quantity Requirement (Optional)',
+                    hintText: 'e.g. 5 bags for terrace kitchen garden in Bangalore...',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: storeEarthDarkGreen),
+            onPressed: () {
+              Navigator.of(dialogCtx).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  backgroundColor: storeEarthDarkGreen,
+                  content: Text(
+                    'You are registered for updates on ${p.title}! We will alert you on commercial launch.',
+                  ),
+                ),
+              );
+            },
+            child: const Text('Notify Me'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showFarmerFeedbackModal(BuildContext context, Product p) {
     final nameCtrl = TextEditingController();
     final herdCtrl = TextEditingController();
@@ -1780,12 +2260,22 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           ),
           child: Column(
             children: [
-              _specTableRow('Brand', p.brand ?? 'Milterra Cooperative Dairy', true),
+              _specTableRow('Brand', p.brand ?? (_isEarthProduct(p) ? 'Milterra Earth' : 'Milterra Cooperative Dairy'), true),
               _specTableRow('Product Name', p.title, false),
               _specTableRow('Category', storeCategory(p), true),
               _specTableRow('Net Quantity', p.packSize ?? p.unit, false),
-              _specTableRow('Diet Type', '100% Vegetarian', true),
-              if (isDairyFood) ...[
+              _specTableRow('Diet Type', _isEarthProduct(p) ? '100% Organic Soil & Farm Input' : '100% Vegetarian', true),
+              if (_isEarthProduct(p)) ...[
+                _specTableRow('Raw Material', '100% Responsibly Processed Dairy Cow-Dung By-Products', false),
+                _specTableRow('Composting Method', 'Controlled Aerobic / Vermi-Decomposition', true),
+                _specTableRow('Physical Form', p.specifications['Physical Form']?.toString() ?? 'Granular / Screened Powder / Natural Cakes', false),
+                _specTableRow('Moisture Content', p.specifications['Moisture']?.toString() ?? '15% - 25% (Optimized for Soil Flora)', true),
+                _specTableRow('Organic Carbon', p.specifications['Organic Carbon']?.toString() ?? '> 14% (Natural Soil Enrichment)', false),
+                _specTableRow('Target Application', p.taxonomy?['usage']?.toString() ?? 'Pots, Home Gardens, Terrace Plants & Farmland', true),
+                _specTableRow('Additive Guarantee', 'Zero Synthetic Fertilizers, Zero Chemical Fortification', false),
+                _specTableRow('Batch Sourcing', p.taxonomy?['source_note']?.toString() ?? 'Certified Dairy AI Partner Farm Clusters', true),
+                _specTableRow('Storage Instructions', 'Store in a shaded dry place. Keep bag mouth closed to preserve natural moisture.', false),
+              ] else if (isDairyFood) ...[
                 _specTableRow(
                   'Ingredients',
                   isGhee
@@ -1871,6 +2361,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   List<Product> _getSimilarComparisonProducts(
       Product current, List<Product> catalog) {
+    if (_isEarthProduct(current)) {
+      final earthProducts = catalog
+          .where((x) => x.id != current.id && _isEarthProduct(x))
+          .toList();
+      return earthProducts.take(3).toList();
+    }
+
     final currentDept =
         current.taxonomy?['department_name']?.toString() ?? '';
     final currentCat = current.category;
@@ -2532,6 +3029,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   Widget _buildFrequentlyBoughtTogether(
       Product p, List<Product> catalog, bool isMobile) {
+    if (_isEarthProduct(p) || _isConceptProduct(p)) {
+      return const SizedBox.shrink();
+    }
     final bundleItems = _getBundleItems(p, catalog);
     if (bundleItems.isEmpty) return const SizedBox.shrink();
 

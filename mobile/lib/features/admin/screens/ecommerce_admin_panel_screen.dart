@@ -5,6 +5,7 @@ import '../../marketplace/widgets/store_design.dart';
 import '../../marketplace/models/marketplace_models.dart';
 import '../../marketplace/models/product_models.dart';
 import '../../marketplace/providers/product_provider.dart';
+import '../../cart/providers/order_repository.dart';
 import '../providers/admin_marketplace_provider.dart';
 
 class EcommerceAdminPanelScreen extends ConsumerStatefulWidget {
@@ -21,7 +22,7 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 8, vsync: this);
+    _tabController = TabController(length: 10, vsync: this);
   }
 
   @override
@@ -81,6 +82,8 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
           tabs: const [
             Tab(icon: Icon(Icons.inventory_2_outlined, size: 18), text: 'Products'),
             Tab(icon: Icon(Icons.science_outlined, size: 18), text: 'Animal Nutrition'),
+            Tab(icon: Icon(Icons.local_shipping_outlined, size: 18), text: 'Shipments & Logistics'),
+            Tab(icon: Icon(Icons.verified_outlined, size: 18), text: 'Batch Certificates'),
             Tab(icon: Icon(Icons.verified_user_outlined, size: 18), text: 'Sellers & KYC'),
             Tab(icon: Icon(Icons.local_offer_outlined, size: 18), text: 'Seller Offers'),
             Tab(icon: Icon(Icons.bolt_outlined, size: 18), text: 'Deals Engine'),
@@ -95,6 +98,8 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
         children: [
           _buildProductsTab(),
           _buildAnimalNutritionTab(),
+          _buildShipmentsTab(),
+          _buildCertificatesTab(adminState),
           _buildSellersTab(adminState),
           _buildSellerOffersTab(adminState),
           _buildDealsTab(adminState),
@@ -715,7 +720,7 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
               TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Product Title', border: OutlineInputBorder())),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: selectedCategory,
+                initialValue: selectedCategory,
                 decoration: const InputDecoration(labelText: 'Department', border: OutlineInputBorder()),
                 items: ['Dairy Foods', 'Animal Nutrition', 'Farm Equipment'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                 onChanged: (v) => selectedCategory = v ?? selectedCategory,
@@ -781,14 +786,14 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
               TextField(controller: taglineCtrl, decoration: const InputDecoration(labelText: 'Scientific Tagline', border: OutlineInputBorder())),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: selectedSubcategory,
+                initialValue: selectedSubcategory,
                 decoration: const InputDecoration(labelText: 'Nutrition Subcategory', border: OutlineInputBorder()),
                 items: ['Pashu Aahar / Cattle Feed', 'Stage-Based Nutrition Courses', 'Supplements'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                 onChanged: (v) => selectedSubcategory = v ?? selectedSubcategory,
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: selectedStage,
+                initialValue: selectedStage,
                 decoration: const InputDecoration(labelText: 'Lifecycle Stage', border: OutlineInputBorder()),
                 items: ['Concept Preview', 'Farmer Feedback Open', 'In Development', 'Coming Later'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                 onChanged: (v) => selectedStage = v ?? selectedStage,
@@ -983,6 +988,435 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
             child: const Text('Save Coupon'),
           ),
         ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // TAB 3: Shipments & Logistics
+  // ---------------------------------------------------------------------------
+  Widget _buildShipmentsTab() {
+    final allOrders = ref.watch(ordersNotifierProvider);
+    final pendingCount = allOrders.where((o) => !o.status.toUpperCase().contains('DELIVERED') && !o.status.toUpperCase().contains('CANCEL')).length;
+    final deliveredCount = allOrders.where((o) => o.status.toUpperCase().contains('DELIVERED')).length;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Global Shipments & Logistics Fulfillment',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: storeGreen),
+                  ),
+                  Text(
+                    'Total Orders: ${allOrders.length} | Active Shipments: $pendingCount | Completed: $deliveredCount',
+                    style: const TextStyle(fontSize: 12, color: storeMuted),
+                  ),
+                ],
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: storeGreen),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Refresh Tracking Hub'),
+                onPressed: () => setState(() {}),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: allOrders.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, i) {
+                final order = allOrders[i];
+                final isDelivered = order.status.toUpperCase().contains('DELIVERED');
+
+                return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isDelivered ? const Color(0xffe8f5e9) : const Color(0xffe0f2fe),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      isDelivered ? Icons.check_circle : Icons.local_shipping,
+                      color: isDelivered ? storeGreen : const Color(0xff0369a1),
+                      size: 24,
+                    ),
+                  ),
+                  title: Row(
+                    children: [
+                      Text(
+                        '# ${order.id}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isDelivered ? const Color(0xffdcfce7) : const Color(0xfffef3c7),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          order.status,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: isDelivered ? const Color(0xff15803d) : const Color(0xffb45309),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '• ${order.carrier}',
+                        style: const TextStyle(fontSize: 11, color: storeMuted, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      'Buyer: ${order.address['recipient_name']} (${order.address['city']}) • Items: ${order.items.length} • Total: ${storeMoney(order.total)} • AWB: ${order.trackingNumber}',
+                      style: const TextStyle(fontSize: 12, color: Color(0xff475569)),
+                    ),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          side: const BorderSide(color: storeBorder),
+                        ),
+                        onPressed: () {
+                          ref.read(ordersNotifierProvider.notifier).simulateCourierStep(order.id);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: storeGreen,
+                              content: Text('Simulated next fulfillment checkpoint for #${order.id}!'),
+                            ),
+                          );
+                        },
+                        child: const Text('Advance Milestone', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // TAB 4: Batch Certificates & Quality Assurance
+  // ---------------------------------------------------------------------------
+  Widget _buildCertificatesTab(AdminMarketplaceState adminState) {
+    final certificates = adminState.batchCertificates;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Batch Quality & Lab Test Certificates',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: storeGreen),
+                  ),
+                  Text(
+                    'FSSAI, Agmark & Soil Analysis verified batches (${certificates.length} Total)',
+                    style: const TextStyle(fontSize: 12, color: storeMuted),
+                  ),
+                ],
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: storeGreen),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Issue New Batch Certificate'),
+                onPressed: () => _showCreateCertificateDialog(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 480,
+              mainAxisExtent: 260,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: certificates.length,
+            itemBuilder: (context, i) {
+              final cert = certificates[i];
+
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xffe2e8f0)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x04000000),
+                      blurRadius: 6,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xffdcfce7),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.verified, size: 13, color: Color(0xff166534)),
+                              const SizedBox(width: 4),
+                              Text(
+                                cert.status,
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Color(0xff166534)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          'Purity: ${cert.purityPercent}%',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: storeGreen),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'BATCH #${cert.batchNumber}',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: storeGreen),
+                    ),
+                    Text(
+                      cert.productTitle,
+                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xff1e293b)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Testing Lab: ${cert.laboratory}',
+                      style: const TextStyle(fontSize: 11, color: storeMuted),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      'FSSAI / Standard: ${cert.fssaiLicense}',
+                      style: const TextStyle(fontSize: 11, color: storeMuted),
+                    ),
+                    const Spacer(),
+                    const Divider(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Signatory: ${cert.certifiedBy.split('(').first.trim()}',
+                          style: const TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: Color(0xff64748b)),
+                        ),
+                        FilledButton.tonal(
+                          onPressed: () => _showCertificateDetailsDialog(cert),
+                          child: const Text('View Report', style: TextStyle(fontSize: 11)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCreateCertificateDialog() {
+    final batchCtrl = TextEditingController(text: 'MIL-GH-2026-10A');
+    final productCtrl = TextEditingController(text: 'Milterra Pure A2 Gir Cow Bilona Ghee (1L)');
+    final purityCtrl = TextEditingController(text: '99.6');
+    final labCtrl = TextEditingController(text: 'National Dairy Research & Quality Laboratory, Karnal');
+    final fssaiCtrl = TextEditingController(text: '10722001000456');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Issue New Batch Quality Certificate'),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: batchCtrl, decoration: const InputDecoration(labelText: 'Batch Number', border: OutlineInputBorder())),
+              const SizedBox(height: 10),
+              TextField(controller: productCtrl, decoration: const InputDecoration(labelText: 'Product Title', border: OutlineInputBorder())),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(child: TextField(controller: purityCtrl, decoration: const InputDecoration(labelText: 'Purity %', border: OutlineInputBorder()))),
+                  const SizedBox(width: 10),
+                  Expanded(child: TextField(controller: fssaiCtrl, decoration: const InputDecoration(labelText: 'FSSAI License', border: OutlineInputBorder()))),
+                ],
+              ),
+              const SizedBox(height: 10),
+              TextField(controller: labCtrl, decoration: const InputDecoration(labelText: 'Testing Laboratory Name', border: OutlineInputBorder())),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: storeGreen),
+            onPressed: () {
+              final cert = BatchCertificate(
+                id: 'cert-${DateTime.now().millisecondsSinceEpoch}',
+                batchNumber: batchCtrl.text.trim().toUpperCase(),
+                productId: 'custom-prod',
+                productTitle: productCtrl.text.trim(),
+                category: 'Dairy Foods',
+                testDate: DateTime.now(),
+                laboratory: labCtrl.text.trim(),
+                fssaiLicense: fssaiCtrl.text.trim(),
+                purityPercent: double.tryParse(purityCtrl.text) ?? 99.0,
+                testParameters: {
+                  'Purity Assessment': '${purityCtrl.text}% Verified',
+                  'Foreign Fat Adulteration': 'Zero (Negative)',
+                  'Microbiology Test': 'Pass / FSSAI Compliant',
+                },
+                certifiedBy: 'Chief Analytical Quality Officer',
+                remarks: 'Certified for release to customer market.',
+              );
+              ref.read(adminMarketplaceProvider.notifier).addBatchCertificate(cert);
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  backgroundColor: storeGreen,
+                  content: Text('Batch #${cert.batchNumber} certificate issued!'),
+                ),
+              );
+            },
+            child: const Text('Issue Certificate'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCertificateDetailsDialog(BatchCertificate cert) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: storeGreen, borderRadius: BorderRadius.circular(8)),
+                        child: const Icon(Icons.verified, color: Colors.white, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('MILTERRA QUALITY ASSURANCE CERTIFICATE',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: storeGreen, letterSpacing: 0.8)),
+                            Text('Batch #${cert.batchNumber}',
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  Text('Product: ${cert.productTitle}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text('Laboratory: ${cert.laboratory}', style: const TextStyle(fontSize: 12, color: Color(0xff475569))),
+                  Text('FSSAI / Agro License: ${cert.fssaiLicense}', style: const TextStyle(fontSize: 12, color: Color(0xff475569))),
+                  Text('Purity Score: ${cert.purityPercent}%', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: storeGreen)),
+                  const SizedBox(height: 16),
+                  const Text('LABORATORY TEST MATRIX', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: storeMuted)),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xffe2e8f0)),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Column(
+                      children: [
+                        for (final entry in cert.testParameters.entries)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: const BoxDecoration(
+                              border: Border(bottom: BorderSide(color: Color(0xfff1f5f9))),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(entry.key, style: const TextStyle(fontSize: 11.5, color: Color(0xff334155))),
+                                Text(entry.value, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: storeGreen)),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Remarks: ${cert.remarks}', style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Color(0xff64748b))),
+                  Text('Certified By: ${cert.certifiedBy}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xff334155))),
+                  const SizedBox(height: 20),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(backgroundColor: storeGreen),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Close'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

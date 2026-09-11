@@ -2,6 +2,70 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../marketplace/models/marketplace_models.dart';
 import '../../marketplace/models/product_models.dart';
 
+class BatchCertificate {
+  final String id;
+  final String batchNumber;
+  final String productId;
+  final String productTitle;
+  final String category;
+  final DateTime testDate;
+  final String laboratory;
+  final String fssaiLicense;
+  final double purityPercent;
+  final Map<String, String> testParameters;
+  final String status; // 'CERTIFIED', 'PENDING_REVIEW', 'REJECTED'
+  final String certifiedBy;
+  final String remarks;
+
+  const BatchCertificate({
+    required this.id,
+    required this.batchNumber,
+    required this.productId,
+    required this.productTitle,
+    required this.category,
+    required this.testDate,
+    required this.laboratory,
+    required this.fssaiLicense,
+    required this.purityPercent,
+    required this.testParameters,
+    this.status = 'CERTIFIED',
+    required this.certifiedBy,
+    required this.remarks,
+  });
+
+  BatchCertificate copyWith({
+    String? id,
+    String? batchNumber,
+    String? productId,
+    String? productTitle,
+    String? category,
+    DateTime? testDate,
+    String? laboratory,
+    String? fssaiLicense,
+    double? purityPercent,
+    Map<String, String>? testParameters,
+    String? status,
+    String? certifiedBy,
+    String? remarks,
+  }) {
+    return BatchCertificate(
+      id: id ?? this.id,
+      batchNumber: batchNumber ?? this.batchNumber,
+      productId: productId ?? this.productId,
+      productTitle: productTitle ?? this.productTitle,
+      category: category ?? this.category,
+      testDate: testDate ?? this.testDate,
+      laboratory: laboratory ?? this.laboratory,
+      fssaiLicense: fssaiLicense ?? this.fssaiLicense,
+      purityPercent: purityPercent ?? this.purityPercent,
+      testParameters: testParameters ?? this.testParameters,
+      status: status ?? this.status,
+      certifiedBy: certifiedBy ?? this.certifiedBy,
+      remarks: remarks ?? this.remarks,
+    );
+  }
+}
+
 class AdminMarketplaceState {
   const AdminMarketplaceState({
     required this.sellers,
@@ -10,6 +74,7 @@ class AdminMarketplaceState {
     required this.coupons,
     required this.auditLogs,
     required this.customProducts,
+    required this.batchCertificates,
   });
 
   final List<SellerAccount> sellers;
@@ -18,6 +83,7 @@ class AdminMarketplaceState {
   final List<PlatformCoupon> coupons;
   final List<MarketplaceAuditLog> auditLogs;
   final List<Product> customProducts;
+  final List<BatchCertificate> batchCertificates;
 
   AdminMarketplaceState copyWith({
     List<SellerAccount>? sellers,
@@ -26,6 +92,7 @@ class AdminMarketplaceState {
     List<PlatformCoupon>? coupons,
     List<MarketplaceAuditLog>? auditLogs,
     List<Product>? customProducts,
+    List<BatchCertificate>? batchCertificates,
   }) =>
       AdminMarketplaceState(
         sellers: sellers ?? this.sellers,
@@ -34,6 +101,7 @@ class AdminMarketplaceState {
         coupons: coupons ?? this.coupons,
         auditLogs: auditLogs ?? this.auditLogs,
         customProducts: customProducts ?? this.customProducts,
+        batchCertificates: batchCertificates ?? this.batchCertificates,
       );
 }
 
@@ -46,6 +114,7 @@ class AdminMarketplaceNotifier extends StateNotifier<AdminMarketplaceState> {
           coupons: _defaultCoupons,
           auditLogs: _defaultAuditLogs,
           customProducts: const [],
+          batchCertificates: _defaultBatchCertificates,
         ));
 
   void logAction({
@@ -184,6 +253,32 @@ class AdminMarketplaceNotifier extends StateNotifier<AdminMarketplaceState> {
       entityType: 'Product',
       entityId: p.id,
       details: 'Published new catalog SKU: ${p.title} (${p.taxonomy?['status'] ?? 'Active'}).',
+    );
+  }
+
+  void addBatchCertificate(BatchCertificate certificate) {
+    state = state.copyWith(batchCertificates: [certificate, ...state.batchCertificates]);
+    logAction(
+      action: AuditAction.statusChange,
+      entityType: 'BatchCertificate',
+      entityId: certificate.batchNumber,
+      details: 'Issued Quality Lab Certificate for Batch #${certificate.batchNumber} (${certificate.productTitle}).',
+    );
+  }
+
+  void updateBatchCertificateStatus(String id, String newStatus) {
+    final updated = state.batchCertificates.map((c) {
+      if (c.id == id) {
+        return c.copyWith(status: newStatus);
+      }
+      return c;
+    }).toList();
+    state = state.copyWith(batchCertificates: updated);
+    logAction(
+      action: AuditAction.statusChange,
+      entityType: 'BatchCertificate',
+      entityId: id,
+      details: 'Updated Batch Certificate #$id status to $newStatus.',
     );
   }
 }
@@ -432,3 +527,97 @@ final _defaultAuditLogs = [
     timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 4)),
   ),
 ];
+
+final _defaultBatchCertificates = [
+  BatchCertificate(
+    id: 'cert-1',
+    batchNumber: 'MIL-GH-2026-09A',
+    productId: 'mil-ghee-1000',
+    productTitle: 'Milterra Pure A2 Gir Cow Bilona Ghee (1L)',
+    category: 'Dairy Foods',
+    testDate: DateTime.now().subtract(const Duration(days: 3)),
+    laboratory: 'National Dairy Research & Quality Laboratory, Karnal',
+    fssaiLicense: '10722001000456',
+    purityPercent: 99.4,
+    testParameters: {
+      'Milk Fat Purity': '99.4%',
+      'Free Fatty Acids (FFA)': '0.18% (Standard < 0.3%)',
+      'Baudouin Test (Adulteration)': 'Negative (Zero Vegetable Oil)',
+      'Moisture Content': '0.12% (Standard < 0.3%)',
+      'Pesticide Residue': 'Not Detected (< 0.001 ppm)',
+      'Antibiotic Residue': 'Not Detected (< 0.001 ppb)',
+      'A2 Beta-Casein Ratio': '100% Genuine Gir Cow DNA Verified',
+    },
+    status: 'CERTIFIED',
+    certifiedBy: 'Dr. V. K. Sharma (Chief Analytical Chemist)',
+    remarks: 'Complies with all FSSAI and Agmark Special Grade standards.',
+  ),
+  BatchCertificate(
+    id: 'cert-2',
+    batchNumber: 'MIL-PN-2026-09B',
+    productId: 'fresh_paneer_200g',
+    productTitle: 'Milterra Fresh Farm Soft Malai Paneer (200g/500g)',
+    category: 'Dairy Foods',
+    testDate: DateTime.now().subtract(const Duration(days: 1)),
+    laboratory: 'Milterra Central Quality & Micro-Biology Lab, Karnal',
+    fssaiLicense: '10722001000456',
+    purityPercent: 99.1,
+    testParameters: {
+      'Milk Fat on Dry Matter': '52.4% (Standard > 50%)',
+      'Moisture Content': '54.2% (Standard < 60%)',
+      'Total Plate Count': '< 5,000 CFU/g (Standard < 50,000)',
+      'Coliform Count': 'Nil in 0.1g',
+      'Yeast & Mould': 'Nil',
+      'Starch & Adulterants': 'Negative',
+    },
+    status: 'CERTIFIED',
+    certifiedBy: 'Dr. Neha Verma (Lead Microbiologist)',
+    remarks: 'Zero chemical preservatives. Cold-chain packing compliant.',
+  ),
+  BatchCertificate(
+    id: 'cert-3',
+    batchNumber: 'MIL-VC-2026-08',
+    productId: 'earth_vermicompost',
+    productTitle: 'MILTERRA Earth Premium Vermicompost',
+    category: 'MILTERRA Earth',
+    testDate: DateTime.now().subtract(const Duration(days: 6)),
+    laboratory: 'Soil & Organic Agro Testing Institute, Karnal',
+    fssaiLicense: 'FCO/MANURE/2026/091',
+    purityPercent: 98.6,
+    testParameters: {
+      'Total Organic Carbon': '18.4% (FCO Standard > 14%)',
+      'Total Nitrogen (N)': '1.82% (FCO Standard > 1.0%)',
+      'Total Phosphorus (P2O5)': '0.94% (FCO Standard > 0.8%)',
+      'Total Potassium (K2O)': '1.24% (FCO Standard > 0.8%)',
+      'C:N Ratio': '10.1 : 1 (FCO Standard < 20:1)',
+      'pH (1:5 solution)': '7.2 (Neutral / Ideal)',
+      'Heavy Metals (Pb, Cd, As)': 'Below Detection Limit',
+    },
+    status: 'CERTIFIED',
+    certifiedBy: 'Er. Sandeep Rao (Soil Chemist)',
+    remarks: 'Enriched with Eisenia Foetida earthworm cultures. 100% Organic.',
+  ),
+  BatchCertificate(
+    id: 'cert-4',
+    batchNumber: 'MIL-MN-2026-09',
+    productId: 'mil-minera-5kg',
+    productTitle: 'MILTERRA MINERA-30 Chelated Cattle Mineral Mixture',
+    category: 'Animal Nutrition',
+    testDate: DateTime.now().subtract(const Duration(days: 8)),
+    laboratory: 'Veterinary Nutritional Bio-Assay Lab, Karnal',
+    fssaiLicense: 'BIS-IS:1664-2002',
+    purityPercent: 99.8,
+    testParameters: {
+      'Calcium (Ca)': '22.4% (BIS Standard > 20%)',
+      'Phosphorus (P)': '11.8% (BIS Standard > 10%)',
+      'Chelated Zinc (Zn)': '9,600 mg/kg',
+      'Chelated Copper (Cu)': '1,250 mg/kg',
+      'Organic Selenium': '10 mg/kg',
+      'Heavy Metal Impurities (Fluorine)': '< 0.02% (Safe Threshold)',
+    },
+    status: 'CERTIFIED',
+    certifiedBy: 'Dr. Anand Joshi (Senior Livestock Nutritionist)',
+    remarks: 'Formulation test passed. High bioavailability confirmed.',
+  ),
+];
+

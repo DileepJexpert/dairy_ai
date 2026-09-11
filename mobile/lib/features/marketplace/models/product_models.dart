@@ -1081,7 +1081,7 @@ const defaultMilterraProducts = <Product>[
     },
   ),
 
-  // ---- 3. Farm Machinery & Dairy Equipment ----
+  // ---- 4. Farm Machinery & Dairy Equipment ----
   Product(
     id: 'eq-milk-single',
     vendorId: 'vendor-farm-machinery',
@@ -1099,6 +1099,9 @@ const defaultMilterraProducts = <Product>[
       'department_id': 'farm-essentials',
       'category_id': 'equipment'
     },
+    media: [
+      'assets/store/equipment-milker.jpg',
+    ],
     inStock: true,
     availableQuantity: 15,
     minOrderQuantity: 1,
@@ -1128,6 +1131,9 @@ const defaultMilterraProducts = <Product>[
       'department_id': 'farm-essentials',
       'category_id': 'equipment'
     },
+    media: [
+      'assets/store/equipment-analyzer.jpg',
+    ],
     inStock: true,
     availableQuantity: 12,
     minOrderQuantity: 1,
@@ -1155,6 +1161,9 @@ const defaultMilterraProducts = <Product>[
       'department_id': 'farm-essentials',
       'category_id': 'equipment'
     },
+    media: [
+      'assets/store/equipment-chaff-cutter.jpg',
+    ],
     inStock: true,
     availableQuantity: 10,
     minOrderQuantity: 1,
@@ -1184,6 +1193,9 @@ const defaultMilterraProducts = <Product>[
       'department_id': 'farm-essentials',
       'category_id': 'equipment'
     },
+    media: [
+      'assets/store/equipment-milk-can.jpg',
+    ],
     inStock: true,
     availableQuantity: 50,
     minOrderQuantity: 1,
@@ -1211,6 +1223,9 @@ const defaultMilterraProducts = <Product>[
       'department_id': 'farm-essentials',
       'category_id': 'equipment'
     },
+    media: [
+      'assets/store/equipment-cow-mat.jpg',
+    ],
     inStock: true,
     availableQuantity: 70,
     minOrderQuantity: 1,
@@ -1410,7 +1425,10 @@ const List<ProductFamily> defaultMilterraProductFamilies = [
     taxonomyPath: 'Farm Essentials / Equipment',
     description:
         'Oil-lubricated high-efficiency vacuum pump with stainless steel 304 25L bucket and silicone milking liners for gentle extraction.',
-    primaryImage: null,
+    primaryImage: 'assets/store/equipment-milker.jpg',
+    media: [
+      'assets/store/equipment-milker.jpg',
+    ],
     isOrganic: false,
     variants: [
       ProductVariant(

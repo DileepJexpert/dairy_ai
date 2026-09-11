@@ -1351,11 +1351,20 @@ abstract final class StoreImages {
         'manure' || 'farm manure' => 'assets/store/earth-manure.jpg',
         'soil mix' || 'garden soil' => 'assets/store/earth-soil-mix.jpg',
         'compost cakes' || 'cakes' => 'assets/store/earth-cakes.jpg',
+        'equipment' || 'farm equipment' || 'farm machinery' || 'dairy equipment' => 'assets/store/equipment-milker.jpg',
+        'milking machine' || 'milker' => 'assets/store/equipment-milker.jpg',
+        'milk analyzer' || 'ultrascan' => 'assets/store/equipment-analyzer.jpg',
+        'chaff cutter' || 'fodder cutter' => 'assets/store/equipment-chaff-cutter.jpg',
+        'milk can' => 'assets/store/equipment-milk-can.jpg',
+        'cow mat' || 'rubber mat' => 'assets/store/equipment-cow-mat.jpg',
         _ => null,
       };
 
   static String? productArtwork(Product? p) {
     if (p == null) return null;
+    if (p.media.isNotEmpty && p.media.first.startsWith('assets/')) {
+      return p.media.first;
+    }
     final title = p.title.toLowerCase();
     final isEarth = p.taxonomy?['is_earth'] == true ||
         title.contains('earth') ||
@@ -1369,6 +1378,22 @@ abstract final class StoreImages {
       if (title.contains('cake')) return 'assets/store/earth-cakes.jpg';
       if (title.contains('starter') || title.contains('compost')) return 'assets/store/earth-vermicompost.jpg';
       return 'assets/store/earth-vermicompost.jpg';
+    }
+
+    if (title.contains('milking') || title.contains('milker')) {
+      return 'assets/store/equipment-milker.jpg';
+    }
+    if (title.contains('analyzer') || title.contains('ultrascan')) {
+      return 'assets/store/equipment-analyzer.jpg';
+    }
+    if (title.contains('chaff') || title.contains('cutter') || title.contains('fodder cutter')) {
+      return 'assets/store/equipment-chaff-cutter.jpg';
+    }
+    if (title.contains('can') || title.contains('milk can')) {
+      return 'assets/store/equipment-milk-can.jpg';
+    }
+    if (title.contains('mat') || title.contains('rubber mat') || title.contains('comfort mat')) {
+      return 'assets/store/equipment-cow-mat.jpg';
     }
 
     if (title.contains('janam')) return 'assets/store/feed-janam-42.jpg';

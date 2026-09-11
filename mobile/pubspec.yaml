@@ -52,6 +52,11 @@ flutter:
     - assets/store/earth-manure.jpg
     - assets/store/earth-soil-mix.jpg
     - assets/store/earth-cakes.jpg
+    - assets/store/equipment-milker.jpg
+    - assets/store/equipment-analyzer.jpg
+    - assets/store/equipment-chaff-cutter.jpg
+    - assets/store/equipment-milk-can.jpg
+    - assets/store/equipment-cow-mat.jpg
 
   fonts:
     - family: CormorantGaramond

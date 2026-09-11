@@ -484,8 +484,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       (
         title: 'Farm Equipment',
         subtitle: 'Milking Systems & Analyzers',
-        image:
-            'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80',
+        image: 'assets/store/equipment-milker.jpg',
         icon: Icons.precision_manufacturing_rounded,
         iconBg: const Color(0xffe8f0fe),
         iconColor: const Color(0xff1a73e8),

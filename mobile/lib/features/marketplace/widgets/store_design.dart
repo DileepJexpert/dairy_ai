@@ -1357,13 +1357,20 @@ abstract final class StoreImages {
   static String? productArtwork(Product? p) {
     if (p == null) return null;
     final title = p.title.toLowerCase();
-    if (title.contains('vermicompost')) return 'assets/store/earth-vermicompost.jpg';
-    if (title.contains('manure')) return 'assets/store/earth-manure.jpg';
-    if (title.contains('soil mix') || (title.contains('soil') && title.contains('earth'))) {
-      return 'assets/store/earth-soil-mix.jpg';
+    final isEarth = p.taxonomy?['is_earth'] == true ||
+        title.contains('earth') ||
+        title.contains('vermicompost') ||
+        title.contains('farm manure');
+
+    if (isEarth) {
+      if (title.contains('vermicompost')) return 'assets/store/earth-vermicompost.jpg';
+      if (title.contains('manure')) return 'assets/store/earth-manure.jpg';
+      if (title.contains('soil mix') || title.contains('soil')) return 'assets/store/earth-soil-mix.jpg';
+      if (title.contains('cake')) return 'assets/store/earth-cakes.jpg';
+      if (title.contains('starter') || title.contains('compost')) return 'assets/store/earth-vermicompost.jpg';
+      return 'assets/store/earth-vermicompost.jpg';
     }
-    if (title.contains('cake')) return 'assets/store/earth-cakes.jpg';
-    if (title.contains('starter') || title.contains('compost')) return 'assets/store/earth-vermicompost.jpg';
+
     if (title.contains('janam')) return 'assets/store/feed-janam-42.jpg';
     if (title.contains('bovine gold') || (title.contains('pellet') && title.contains('feed'))) {
       return 'assets/store/feed-bovine-gold.jpg';

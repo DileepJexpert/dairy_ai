@@ -1364,36 +1364,51 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             p.title.toLowerCase().contains('makhan');
       } else if (isAllNutrition) {
         final title = p.title.toLowerCase();
-        final isFood = title.contains('ghee') || title.contains('paneer') || title.contains('butter');
-        final isEquip = title.contains('milking') || title.contains('analyzer') || title.contains('cutter') || title.contains('can') || title.contains('mat');
-        matchesCategory = (p.category == ProductCategory.feedNutrition || p.taxonomy?['concept'] == true) && !isFood && !isEquip;
+        final isFood = title.contains('ghee') || title.contains('paneer') || title.contains('butter') || title.contains('makhan');
+        final isEquip = title.contains('milking') || title.contains('analyzer') || title.contains('cutter') || title.contains('can') || title.contains('mat') || p.category == ProductCategory.equipment;
+        final isEarth = p.taxonomy?['is_earth'] == true ||
+            p.taxonomy?['department_name'] == 'MILTERRA Earth' ||
+            p.taxonomy?['category_name'] == 'MILTERRA Earth' ||
+            p.taxonomy?['department_id'] == 'milterra-earth' ||
+            title.contains('earth') ||
+            title.contains('vermicompost') ||
+            title.contains('manure') ||
+            title.contains('compost') ||
+            title.contains('soil mix');
+        matchesCategory = !isFood && !isEquip && !isEarth && (p.category == ProductCategory.feedNutrition || p.taxonomy?['concept'] == true || p.taxonomy?['category_id'] == 'animal-nutrition' || p.taxonomy?['department_id'] == 'farm-essentials');
       } else if (isPashuAaharCategory) {
-        matchesCategory = p.taxonomy?['category_name'] ==
-                'Pashu Aahar / Cattle Feed' ||
-            p.taxonomy?['subcategory_name'] == 'Pashu Aahar / Cattle Feed' ||
-            p.title.toLowerCase().contains('feed') ||
-            p.title.toLowerCase().contains('pellet') ||
-            p.title.toLowerCase().contains('aahar');
+        final title = p.title.toLowerCase();
+        final isEarth = p.taxonomy?['is_earth'] == true || title.contains('earth') || title.contains('vermicompost') || title.contains('manure') || title.contains('compost');
+        matchesCategory = !isEarth &&
+            (p.taxonomy?['category_name'] == 'Pashu Aahar / Cattle Feed' ||
+                p.taxonomy?['subcategory_name'] == 'Pashu Aahar / Cattle Feed' ||
+                title.contains('feed') ||
+                title.contains('pellet') ||
+                title.contains('aahar'));
       } else if (isStageNutritionCategory) {
-        matchesCategory = p.taxonomy?['category_name'] ==
-                'Stage-Based Nutrition Courses' ||
-            p.taxonomy?['subcategory_name'] ==
-                'Stage-Based Nutrition Courses' ||
-            p.title.toLowerCase().contains('janam') ||
-            p.title.toLowerCase().contains('course');
+        final title = p.title.toLowerCase();
+        final isEarth = p.taxonomy?['is_earth'] == true || title.contains('earth') || title.contains('vermicompost') || title.contains('manure') || title.contains('compost');
+        matchesCategory = !isEarth &&
+            (p.taxonomy?['category_name'] == 'Stage-Based Nutrition Courses' ||
+                p.taxonomy?['subcategory_name'] == 'Stage-Based Nutrition Courses' ||
+                title.contains('janam') ||
+                title.contains('course'));
       } else if (isSupplementsCategory) {
-        matchesCategory = p.taxonomy?['category_name'] == 'Supplements' ||
-            p.taxonomy?['subcategory_name'] == 'Supplements' ||
-            p.title.toLowerCase().contains('mineral') ||
-            p.title.toLowerCase().contains('supplement') ||
-            p.title.toLowerCase().contains('calcium') ||
-            p.title.toLowerCase().contains('calci-') ||
-            p.title.toLowerCase().contains('drench') ||
-            p.title.toLowerCase().contains('minera-') ||
-            p.title.toLowerCase().contains('lacta-') ||
-            p.title.toLowerCase().contains('rumen-') ||
-            p.title.toLowerCase().contains('heat-guard') ||
-            p.title.toLowerCase().contains('bypass fat');
+        final title = p.title.toLowerCase();
+        final isEarth = p.taxonomy?['is_earth'] == true || title.contains('earth') || title.contains('vermicompost') || title.contains('manure') || title.contains('compost');
+        matchesCategory = !isEarth &&
+            (p.taxonomy?['category_name'] == 'Supplements' ||
+                p.taxonomy?['subcategory_name'] == 'Supplements' ||
+                title.contains('mineral') ||
+                title.contains('supplement') ||
+                title.contains('calcium') ||
+                title.contains('calci-') ||
+                title.contains('drench') ||
+                title.contains('minera-') ||
+                title.contains('lacta-') ||
+                title.contains('rumen-') ||
+                title.contains('heat-guard') ||
+                title.contains('bypass fat'));
       } else if (isEquipmentCategory) {
         matchesCategory = storeCategory(p) == 'Equipment' ||
             p.category == ProductCategory.equipment;

@@ -11,6 +11,7 @@ import '../widgets/hero_split_showcase.dart';
 import '../../cart/widgets/store_cart_drawer.dart';
 import '../../commerce/models/taxonomy.dart';
 import '../../commerce/providers/commerce_provider.dart';
+import '../../admin/providers/admin_marketplace_provider.dart';
 
 class ProductListScreen extends ConsumerStatefulWidget {
   const ProductListScreen(
@@ -212,13 +213,13 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Hero Banner & Categories (Home / Unfiltered view)
+                              // Hero Banner & Purity Trust Strip (Home / Unfiltered view)
                               if (_search.text.isEmpty &&
                                   (_category == 'All products' ||
                                       _category == 'All')) ...[
                                 _hero(size.maxWidth),
                                 const SizedBox(height: 14),
-                                _buildThreeCategoryEntryCards(isMobile),
+                                _buildTrustAndQualityStrip(isMobile),
                                 const SizedBox(height: 18),
                               ],
 
@@ -452,154 +453,154 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     );
   }
 
-  Widget _buildThreeCategoryEntryCards(bool isMobile) {
-    final categories = [
+  Widget _buildTrustAndQualityStrip(bool isMobile) {
+    final pillars = [
       (
-        title: 'Dairy Foods',
-        subtitle: 'A2 Gir Ghee, Makhan & Paneer',
-        image: 'assets/store/cow-ghee.png',
-        icon: Icons.eco_rounded,
+        title: '99.4% Certified Pure',
+        subtitle: 'Zero foreign fat • Lab assay tested',
+        badge: 'NDRI Verified',
+        icon: Icons.science_outlined,
+        iconBg: const Color(0xffe8f5e9),
+        iconColor: const Color(0xff1e8e3e),
+        actionLabel: 'View Standards →',
+        onTap: () => _showPurityGuaranteeDialog(),
+      ),
+      (
+        title: 'Vedic Bilona Churned',
+        subtitle: 'Indigenous Gir cows • Earthen curd',
+        badge: 'Traditional',
+        icon: Icons.grass_rounded,
         iconBg: const Color(0xfffef3d6),
         iconColor: const Color(0xffb7791f),
-        target: 'Dairy Foods',
+        actionLabel: 'Explore Ghee →',
+        onTap: () => _browse('Cow ghee'),
       ),
       (
-        title: 'MILTERRA Earth',
-        subtitle: 'Living Soil & Composts',
-        image: 'assets/store/earth-vermicompost.jpg',
-        icon: Icons.yard_outlined,
-        iconBg: const Color(0xfff0f5ee),
-        iconColor: const Color(0xff1e3a2b),
-        target: 'MILTERRA Earth',
+        title: 'Cold-Chain Preserved',
+        subtitle: '4°C insulated express delivery',
+        badge: 'Direct Farm',
+        icon: Icons.ac_unit_rounded,
+        iconBg: const Color(0xffe0f2fe),
+        iconColor: const Color(0xff0284c7),
+        actionLabel: 'Cold Logistics →',
+        onTap: () => _showColdChainDialog(),
       ),
       (
-        title: 'Animal Nutrition',
-        subtitle: 'Compound Feed & Minerals',
-        image: 'assets/store/minera-360-jar.jpg',
-        icon: Icons.grass_rounded,
-        iconBg: const Color(0xffe6f4ea),
-        iconColor: const Color(0xff1e8e3e),
-        target: 'Animal nutrition',
-      ),
-      (
-        title: 'Farm Equipment',
-        subtitle: 'Milking Systems & Analyzers',
-        image: 'assets/store/equipment-milker.jpg',
-        icon: Icons.precision_manufacturing_rounded,
-        iconBg: const Color(0xffe8f0fe),
-        iconColor: const Color(0xff1a73e8),
-        target: 'Equipment',
+        title: 'Batch Lab Certificates',
+        subtitle: 'FSSAI & Agmark batch reports',
+        badge: 'Transparent',
+        icon: Icons.verified_outlined,
+        iconBg: const Color(0xfffef9c3),
+        iconColor: const Color(0xffa16207),
+        actionLabel: 'View Reports →',
+        onTap: () => _showBatchCertificatesModal(),
       ),
     ];
 
     Widget buildCard({
       required String title,
       required String subtitle,
-      required String image,
+      required String badge,
       required IconData icon,
       required Color iconBg,
       required Color iconColor,
-      required String target,
+      required String actionLabel,
+      required VoidCallback onTap,
     }) {
       return Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _browse(target),
-          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xfffcfbf8),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: storeBorder),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xffe2e8f0)),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0x06000000),
-                  blurRadius: 8,
+                  color: Color(0x04000000),
+                  blurRadius: 6,
                   offset: Offset(0, 2),
                 ),
               ],
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Category Icon Badge
+                // Left Icon Badge
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
                     color: iconBg,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(icon, color: iconColor, size: 20),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
 
-                // Category Title & Subtitle
+                // Text details
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
-                          color: storeGreen,
-                          letterSpacing: -0.2,
-                        ),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: storeGreen,
+                                letterSpacing: -0.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: iconBg,
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Text(
+                              badge,
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: iconColor,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 2),
                       Text(
                         subtitle,
                         style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w500,
-                          color: storeMuted,
+                          fontSize: 11,
+                          color: Color(0xff64748b),
+                          height: 1.2,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 3),
-                      const Text(
-                        'Explore collection →',
-                        style: TextStyle(
-                          fontSize: 11.5,
+                      const SizedBox(height: 2),
+                      Text(
+                        actionLabel,
+                        style: const TextStyle(
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: storeOrange,
                         ),
                       ),
                     ],
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                // Distinctive Product Thumbnail Illustration
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: const Color(0xffebe5d8)),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: image.startsWith('http')
-                        ? Image.network(
-                            image,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                Icon(icon, color: iconColor, size: 22),
-                          )
-                        : Image.asset(
-                            image,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) =>
-                                Icon(icon, color: iconColor, size: 22),
-                          ),
                   ),
                 ),
               ],
@@ -611,17 +612,18 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
 
     if (isMobile) {
       return Column(
-        children: categories.map((cat) {
+        children: pillars.map((p) {
           return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.only(bottom: 8),
             child: buildCard(
-              title: cat.title,
-              subtitle: cat.subtitle,
-              image: cat.image,
-              icon: cat.icon,
-              iconBg: cat.iconBg,
-              iconColor: cat.iconColor,
-              target: cat.target,
+              title: p.title,
+              subtitle: p.subtitle,
+              badge: p.badge,
+              icon: p.icon,
+              iconBg: p.iconBg,
+              iconColor: p.iconColor,
+              actionLabel: p.actionLabel,
+              onTap: p.onTap,
             ),
           );
         }).toList(),
@@ -629,24 +631,172 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     }
 
     return Row(
-      children: categories.map((cat) {
+      children: pillars.map((p) {
         return Expanded(
           child: Padding(
             padding: EdgeInsets.only(
-              right: cat == categories.last ? 0 : 14,
+              right: p == pillars.last ? 0 : 12,
             ),
             child: buildCard(
-              title: cat.title,
-              subtitle: cat.subtitle,
-              image: cat.image,
-              icon: cat.icon,
-              iconBg: cat.iconBg,
-              iconColor: cat.iconColor,
-              target: cat.target,
+              title: p.title,
+              subtitle: p.subtitle,
+              badge: p.badge,
+              icon: p.icon,
+              iconBg: p.iconBg,
+              iconColor: p.iconColor,
+              actionLabel: p.actionLabel,
+              onTap: p.onTap,
             ),
           ),
         );
       }).toList(),
+    );
+  }
+
+  void _showPurityGuaranteeDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Row(
+          children: [
+            Icon(Icons.science, color: storeGreen, size: 24),
+            SizedBox(width: 10),
+            Text('Milterra 99.4% Purity Guarantee', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
+        content: const SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Every jar of Milterra A2 Desi Cow Bilona Ghee undergoes independent 7-stage analytical lab tests:',
+                style: TextStyle(fontSize: 13, color: Color(0xff334155)),
+              ),
+              SizedBox(height: 12),
+              Text('• Zero Vegetable / Palm Oil Adulteration (Baudouin Test Negative)'),
+              Text('• Free Fatty Acids (FFA) strictly below 0.2%'),
+              Text('• 100% Genuine Gir Cow DNA & A2 Beta-Casein certified'),
+              Text('• Zero synthetic preservatives, colorants, or chemical aromas'),
+              SizedBox(height: 12),
+              Text(
+                'Tested at National Dairy Research & Quality Laboratories, Karnal.',
+                style: TextStyle(fontSize: 11.5, fontStyle: FontStyle.italic, color: storeMuted),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: storeGreen),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _browse('Cow ghee');
+            },
+            child: const Text('Shop Tested Ghee'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showColdChainDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Row(
+          children: [
+            Icon(Icons.ac_unit, color: storeGreen, size: 24),
+            SizedBox(width: 10),
+            Text('Farm-to-Doorstep Cold-Chain', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
+        content: const SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Fresh dairy products like Malai Paneer and Vedic White Makhan require strict temperature regulation to stay fresh without chemicals:',
+                style: TextStyle(fontSize: 13, color: Color(0xff334155)),
+              ),
+              SizedBox(height: 12),
+              Text('• Insulated food-grade thermocol packaging with gel ice packs'),
+              Text('• Monitored at continuous 4°C storage throughout linehaul transit'),
+              Text('• Express courier dispatch via DTDC & Delhivery cold-chain network'),
+            ],
+          ),
+        ),
+        actions: [
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: storeGreen),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Understood'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBatchCertificatesModal() {
+    final certificates = ref.watch(adminMarketplaceProvider).batchCertificates;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Row(
+          children: [
+            Icon(Icons.verified, color: storeGreen, size: 24),
+            SizedBox(width: 10),
+            Text('Verified Batch Lab Certificates', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Inspect official laboratory test results for active batches dispatched to customers:',
+                style: TextStyle(fontSize: 12, color: Color(0xff475569)),
+              ),
+              const SizedBox(height: 12),
+              for (final cert in certificates)
+                Card(
+                  elevation: 0,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  color: const Color(0xfff8fafc),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: const BorderSide(color: Color(0xffe2e8f0)),
+                  ),
+                  child: ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.science, color: storeGreen),
+                    title: Text('${cert.batchNumber} · ${cert.productTitle}',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    subtitle: Text('Purity: ${cert.purityPercent}% | FSSAI: ${cert.fssaiLicense}',
+                        style: const TextStyle(fontSize: 10.5, color: storeMuted)),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: storeGreen),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 

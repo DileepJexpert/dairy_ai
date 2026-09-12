@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../models/product_models.dart';
+import '../models/concept_catalogue.dart';
 
 // The first Milterra hero was created before products received database UUIDs.
 // Keep those shared links working by resolving their stable SKU server-side;
@@ -47,11 +48,20 @@ final productsProvider = FutureProvider.family<List<Product>, ProductCategory?>(
     }
     page++;
   }
-  return items;
+  return [
+    ...items,
+    ...conceptCatalogue.where((preview) =>
+        (category == null || preview.category == category) &&
+        !items
+            .any((p) => p.id == preview.id || p.familyKey == preview.familyKey))
+  ];
 });
 
 final productDetailProvider =
     FutureProvider.family<Product, String>((ref, id) async {
+  for (final preview in conceptCatalogue) {
+    if (preview.id == id) return preview;
+  }
   // Reuse a product only when it came from the backend-backed provider.
   final inMemoryProducts = ref.read(productsProvider(null)).valueOrNull;
   if (inMemoryProducts != null) {

@@ -63,6 +63,7 @@ Future<GoRouter> openStore(WidgetTester tester,
     {double width = 1440,
     String path = '/shop',
     bool fail = false,
+    List<Product> catalogue = products,
     Dio? client}) async {
   tester.view.physicalSize = Size(width, 1000);
   tester.view.devicePixelRatio = 1;
@@ -100,9 +101,13 @@ Future<GoRouter> openStore(WidgetTester tester,
         (ref) async => const TaxonomyCatalogue(enabled: false, nodes: [])),
     productsProvider(ProductCategory.feedNutrition).overrideWith((ref) async {
       if (fail) throw Exception('offline');
-      return products;
+      return catalogue;
     }),
-    for (final p in products)
+    productsProvider(null).overrideWith((ref) async {
+      if (fail) throw Exception('offline');
+      return catalogue;
+    }),
+    for (final p in catalogue)
       productDetailProvider(p.id).overrideWith((ref) async => p),
   ], child: MaterialApp.router(theme: StoreTheme.light, routerConfig: router)));
   await tester.pumpAndSettle();
@@ -119,12 +124,13 @@ void main() {
     testWidgets('Storefront and detail fit width $width', (tester) async {
       final router = await openStore(tester, width: width);
       expect(find.text('Showing all products'), findsOneWidget);
-      expect(find.text('Fresh Paneer'), findsOneWidget);
+      expect(
+          find.byKey(const ValueKey('catalogue-open-paneer')), findsOneWidget);
       expect(tester.takeException(), isNull);
       router.go('/marketplace/product/cow500');
       await tester.pumpAndSettle();
-      expect(find.text('About this item'), findsOneWidget);
-      expect(find.text('Product information'), findsOneWidget);
+      expect(find.text('Product details'), findsOneWidget);
+      expect(find.text('Milterra A2 Desi Cow Ghee'), findsWidgets);
       expect(tester.takeException(), isNull);
     });
   }
@@ -146,8 +152,8 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pumpAndSettle();
     expect(find.text('Results for “paneer”'), findsOneWidget);
-    expect(find.text('Fresh Paneer'), findsOneWidget);
-    expect(find.text('Buffalo Ghee'), findsNothing);
+    expect(find.byKey(const ValueKey('catalogue-open-paneer')), findsOneWidget);
+    expect(find.byKey(const ValueKey('catalogue-open-buffalo')), findsNothing);
     await tester.tap(find.byTooltip('Clear search'));
     await tester.pumpAndSettle();
     await tester
@@ -155,7 +161,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('category-filter-Cow ghee')));
     await tester.pumpAndSettle();
     expect(find.text('A2 Desi Cow Ghee'), findsWidgets);
-    expect(find.text('Fresh Paneer'), findsNothing);
+    expect(find.byKey(const ValueKey('catalogue-open-paneer')), findsNothing);
     await tester.ensureVisible(
         find.byKey(const ValueKey('category-filter-All products')));
     await tester
@@ -166,8 +172,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sort: Price: low to high').last);
     await tester.pumpAndSettle();
-    final paneer = tester.getTopLeft(find.text('Fresh Paneer'));
-    final buffalo = tester.getTopLeft(find.text('Buffalo Ghee'));
+    final paneer =
+        tester.getTopLeft(find.byKey(const ValueKey('catalogue-open-paneer')));
+    final buffalo =
+        tester.getTopLeft(find.byKey(const ValueKey('catalogue-open-buffalo')));
     expect(paneer.dx, lessThan(buffalo.dx));
     expect(tester.takeException(), isNull);
   });
@@ -183,7 +191,7 @@ void main() {
     await tester.ensureVisible(find.text('Apply Filters'));
     await tester.tap(find.text('Apply Filters'));
     await tester.pumpAndSettle();
-    expect(find.text('Buffalo Ghee'), findsNothing);
+    expect(find.byKey(const ValueKey('catalogue-open-buffalo')), findsNothing);
     await tester.enterText(storeSearchField(), 'not a product');
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pumpAndSettle();
@@ -191,7 +199,7 @@ void main() {
     await tester.ensureVisible(find.text('Clear all filters'));
     await tester.tap(find.text('Clear all filters'));
     await tester.pumpAndSettle();
-    expect(find.text('Fresh Paneer'), findsOneWidget);
+    expect(find.byKey(const ValueKey('catalogue-open-paneer')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -241,9 +249,12 @@ void main() {
     await tester.enterText(storeSearchField(), 'paneer');
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Fresh Paneer'));
-    final before = tester.getTopLeft(find.text('Fresh Paneer')).dy;
-    await tester.tap(find.text('Fresh Paneer'));
+    await tester
+        .ensureVisible(find.byKey(const ValueKey('catalogue-open-paneer')));
+    final before = tester
+        .getTopLeft(find.byKey(const ValueKey('catalogue-open-paneer')))
+        .dy;
+    await tester.tap(find.byKey(const ValueKey('catalogue-open-paneer')));
     await tester.pumpAndSettle();
     expect(router.canPop(), isTrue);
     router.pop();
@@ -251,7 +262,11 @@ void main() {
     expect(tester.widget<TextField>(storeSearchField()).controller!.text,
         'paneer');
     expect(find.text('Results for “paneer”'), findsOneWidget);
-    expect(tester.getTopLeft(find.text('Fresh Paneer')).dy, closeTo(before, 1));
+    expect(
+        tester
+            .getTopLeft(find.byKey(const ValueKey('catalogue-open-paneer')))
+            .dy,
+        closeTo(before, 1));
     expect(tester.takeException(), isNull);
   });
 
@@ -334,6 +349,6 @@ void main() {
     await openStore(tester, fail: true);
     expect(find.text('We couldn’t load the collection'), findsOneWidget);
     expect(find.text('Try again'), findsOneWidget);
-    expect(find.text('Fresh Paneer'), findsNothing);
+    expect(find.byKey(const ValueKey('catalogue-open-paneer')), findsNothing);
   });
 }

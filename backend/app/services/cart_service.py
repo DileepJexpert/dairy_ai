@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.cart import Cart, CartItem
 from app.models.product import Product, ProductInventory
 from app.repositories import cart_repo, product_repo, vendor_repo
+from app.services.product_policy import is_concept
 
 
 def _available(inventory: ProductInventory | None) -> int:
@@ -21,6 +22,8 @@ async def _product_or_error(db: AsyncSession, product_id: uuid.UUID) -> tuple[Pr
 
 
 def _check_quantity(product: Product, inventory: ProductInventory | None, quantity: int) -> None:
+    if is_concept(product):
+        raise HTTPException(422, "Concept products are not for sale")
     if quantity < product.min_order_quantity:
         raise HTTPException(422, f"Minimum order quantity is {product.min_order_quantity}")
     if inventory is None:
@@ -111,6 +114,8 @@ async def validate(db: AsyncSession, user_id: uuid.UUID) -> dict:
             issues.append(base | {"type": "PRODUCT_NOT_FOUND", "message": "Product no longer exists"})
         elif not product.is_active:
             issues.append(base | {"type": "PRODUCT_INACTIVE", "message": "Product is inactive"})
+        elif is_concept(product):
+            issues.append(base | {"type": "CONCEPT_PRODUCT", "message": "Concept products are not for sale"})
         elif inventory is None:
             issues.append(base | {"type": "INVENTORY_MISSING", "message": "Product inventory is unavailable"})
         elif _available(inventory) == 0:

@@ -16,6 +16,7 @@ from app.repositories import vendor_repo
 from app.repositories import cart_repo
 from app.schemas.order import CheckoutRequest
 from app.services.delivery_address_service import serialize as serialize_address
+from app.services.product_policy import is_concept
 
 router = APIRouter(prefix="/marketplace/orders", tags=["orders"])
 
@@ -50,7 +51,7 @@ async def checkout(data: CheckoutRequest, current_user: User = Depends(get_curre
     for cart_item in cart_items:
         product = (await db.execute(select(Product).where(Product.id == cart_item.product_id, Product.is_active.is_(True)).with_for_update())).scalar_one_or_none()
         inventory = (await db.execute(select(ProductInventory).where(ProductInventory.product_id == cart_item.product_id).with_for_update())).scalar_one_or_none()
-        if not product or not inventory or cart_item.quantity < product.min_order_quantity or cart_item.quantity > inventory.available_quantity - inventory.reserved_quantity:
+        if not product or is_concept(product) or not inventory or cart_item.quantity < product.min_order_quantity or cart_item.quantity > inventory.available_quantity - inventory.reserved_quantity:
             raise HTTPException(422, "Cart changed; review price and stock before checkout")
         subtotal += product.base_price * cart_item.quantity
         lines.append((cart_item, product, inventory))

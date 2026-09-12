@@ -9,6 +9,7 @@ import '../models/product_models.dart';
 import '../../cart/providers/wishlist_provider.dart';
 import '../../../app/store_theme.dart';
 import '../../commerce/providers/commerce_provider.dart';
+import 'product_information.dart';
 export '../../../app/store_theme.dart';
 
 // Natural Earth Palette for MILTERRA Earth
@@ -31,13 +32,16 @@ class StorePanel extends StatelessWidget {
       width: double.infinity,
       padding: StoreLayout.panelPadding,
       decoration: StoreLayout.panel,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (title != null) ...[
-          Text(title!, style: StoreType.title),
-          StoreLayout.panelGap
-        ],
-        child,
-      ]));
+      child: Material(
+          color: storeWhite,
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (title != null) ...[
+              Text(title!, style: StoreType.title),
+              StoreLayout.panelGap
+            ],
+            child,
+          ])));
 }
 
 String storeCategory(Product p) {
@@ -110,8 +114,8 @@ void storeBrowse(BuildContext context, {String? category, String? query}) =>
 class AmazonRatingStars extends StatelessWidget {
   const AmazonRatingStars({
     super.key,
-    this.rating = 4.8,
-    this.reviewCount = 38,
+    this.rating = 0,
+    this.reviewCount = 0,
     this.size = 14,
     this.showCount = true,
     this.interactive = false,
@@ -127,6 +131,7 @@ class AmazonRatingStars extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (reviewCount <= 0 || rating <= 0) return const SizedBox.shrink();
     final fullStars = rating.floor();
     final hasHalf = (rating - fullStars) >= 0.4;
 
@@ -346,9 +351,9 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                         () => storeBrowse(context, category: 'Equipment')),
                     const Divider(height: 16),
                     _sectionHeader('Programs & Features'),
-                    _drawerTile(context, 'Milk Purity Checker', () {
+                    _drawerTile(context, 'Quality & Research', () {
                       Navigator.pop(context);
-                      context.push('/purity');
+                      showProductQuality(context);
                     }),
                     _drawerTile(context, 'Milterra Direct Express',
                         () => storeBrowse(context)),
@@ -1040,11 +1045,13 @@ class StoreCategoryNavigation extends ConsumerWidget {
     this.selected = 'All products',
     this.onSelected,
     this.legacyEquipment = false,
+    this.qualityProduct,
   });
 
   final String selected;
   final ValueChanged<String>? onSelected;
   final bool legacyEquipment;
+  final Product? qualityProduct;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1187,34 +1194,12 @@ class StoreCategoryNavigation extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.only(right: 16),
                   child: Builder(builder: (context) {
-                    final catLower = selected.toLowerCase();
-                    final isNutrition = catLower.contains('animal') ||
-                        catLower.contains('nutrition') ||
-                        catLower.contains('feed') ||
-                        catLower.contains('supplement') ||
-                        catLower.contains('pashu') ||
-                        catLower.contains('stage');
-                    final label = isNutrition
-                        ? 'Quality & Research — Coming Soon'
-                        : 'Lab Test Reports';
-
+                    final label = qualityProduct?.labReports.isNotEmpty == true
+                        ? 'Lab Test Reports'
+                        : 'Quality & Research';
                     return InkWell(
-                      onTap: () {
-                        if (isNutrition) {
-                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              backgroundColor: storeGreen,
-                              duration: Duration(seconds: 3),
-                              content: Text(
-                                'Quality & Research validation reports will be published as farmer trials conclude.',
-                              ),
-                            ),
-                          );
-                        } else {
-                          context.push('/purity');
-                        }
-                      },
+                      onTap: () =>
+                          showProductQuality(context, product: qualityProduct),
                       borderRadius: BorderRadius.circular(4),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -1223,9 +1208,7 @@ class StoreCategoryNavigation extends ConsumerWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              isNutrition
-                                  ? Icons.biotech_outlined
-                                  : Icons.science_outlined,
+                              Icons.science_outlined,
                               color: storeGold,
                               size: 14,
                             ),
@@ -1400,6 +1383,9 @@ abstract final class StoreImages {
         'cow ghee' || 'cow-ghee' => 'assets/store/cow-ghee.png',
         'buffalo ghee' || 'buffalo-ghee' => 'assets/store/buffalo-ghee.png',
         'paneer' => 'assets/store/paneer.png',
+        'white butter' ||
+        'other products' =>
+          'assets/store/white-butter-concept.png',
         'janam-42' || 'janam' => 'assets/store/feed-janam-42.jpg',
         'minera-360' ||
         'mineral' ||
@@ -1443,6 +1429,8 @@ abstract final class StoreImages {
       return p.media.first;
     }
     final title = p.title.toLowerCase();
+    if (title.contains('butter') || title.contains('makhan'))
+      return 'assets/store/white-butter-concept.png';
     final isEarth = p.taxonomy?['is_earth'] == true ||
         title.contains('earth') ||
         title.contains('vermicompost') ||
@@ -1526,225 +1514,31 @@ class ProductArtwork extends StatelessWidget {
   final String kind, pack;
   final bool showCaption;
   final int imageIndex;
-
   @override
   Widget build(BuildContext context) {
     final p = product;
-    final explicitAsset = StoreImages.productArtwork(p);
-    final asset = explicitAsset ??
-        StoreImages.category(p != null ? storeCategory(p) : kind);
-
-    Widget departmentCard() {
-      final title = p?.title.toLowerCase() ?? kind.toLowerCase();
-      final IconData icon;
-      final Color bg;
-      final Color fg;
-      final String tag;
-
-      final isConcept = p?.taxonomy?['concept'] == true ||
-          p?.category == ProductCategory.feedNutrition ||
-          title.contains('janam') ||
-          (p?.taxonomy?['status'] != null &&
-              p!.taxonomy!['status']
-                  .toString()
-                  .toLowerCase()
-                  .contains('concept'));
-
-      if (title.contains('vermicompost')) {
-        icon = Icons.yard_outlined;
-        bg = const Color(0xfff0f5ee);
-        fg = storeEarthDarkGreen;
-        tag = 'PREMIUM VERMICOMPOST';
-      } else if (title.contains('manure')) {
-        icon = Icons.nature_people_outlined;
-        bg = const Color(0xfff7f3ee);
-        fg = storeEarthWarmBrown;
-        tag = 'FARM MANURE';
-      } else if (title.contains('compost') && !title.contains('vermi')) {
-        icon = Icons.recycling_outlined;
-        bg = const Color(0xfff3f7f0);
-        fg = const Color(0xff386641);
-        tag = 'ORGANIC COMPOST';
-      } else if (title.contains('cake')) {
-        icon = Icons.wb_sunny_outlined;
-        bg = const Color(0xfffaf4ed);
-        fg = storeEarthTerracotta;
-        tag = 'COMPOST CAKES';
-      } else if (title.contains('starter')) {
-        icon = Icons.science_outlined;
-        bg = const Color(0xfffdf6f0);
-        fg = storeEarthTerracotta;
-        tag = 'COMPOST STARTER';
-      } else if (title.contains('soil mix') || title.contains('soil')) {
-        icon = Icons.park_outlined;
-        bg = const Color(0xfff4f1ec);
-        fg = const Color(0xff58402b);
-        tag = 'GARDEN SOIL MIX';
-      } else if (title.contains('janam')) {
-        icon = Icons.timeline_outlined;
-        bg = const Color(0xfff5f0fa);
-        fg = const Color(0xff5c3b87);
-        tag = 'CONCEPT PREVIEW';
-      } else if (title.contains('milking') || title.contains('milker')) {
-        icon = Icons.precision_manufacturing_outlined;
-        bg = const Color(0xffedf4f2);
-        fg = storeGreen;
-        tag = 'MILKING MACHINE';
-      } else if (title.contains('analyzer') || title.contains('scan')) {
-        icon = Icons.science_outlined;
-        bg = const Color(0xffeaf3f7);
-        fg = const Color(0xff1d5b79);
-        tag = 'MILK QUALITY LAB';
-      } else if (title.contains('chaff') || title.contains('cutter')) {
-        icon = Icons.agriculture_outlined;
-        bg = const Color(0xfff3f5ea);
-        fg = const Color(0xff49652a);
-        tag = 'FARM MACHINERY';
-      } else if (title.contains('can')) {
-        icon = Icons.local_drink_outlined;
-        bg = const Color(0xfff0f2f5);
-        fg = const Color(0xff3f4d67);
-        tag = 'SS 304 MILK CAN';
-      } else if (title.contains('mat')) {
-        icon = Icons.grid_view_rounded;
-        bg = const Color(0xffeae7e1);
-        fg = const Color(0xff4a3e2c);
-        tag = 'COW COMFORT MAT';
-      } else if (title.contains('pellet') ||
-          title.contains('feed') ||
-          title.contains('aahar')) {
-        icon = Icons.grain_outlined;
-        bg = const Color(0xfff7f2e7);
-        fg = const Color(0xff7a591e);
-        tag = isConcept ? 'CONCEPT PREVIEW' : 'HIGH-YIELD FEED';
-      } else if (title.contains('mineral')) {
-        icon = Icons.medication_liquid_outlined;
-        bg = const Color(0xffedf4ea);
-        fg = const Color(0xff326938);
-        tag = isConcept ? 'CONCEPT PREVIEW' : 'CHELATED MINERALS';
-      } else if (title.contains('calcium') ||
-          title.contains('calci') ||
-          title.contains('drench')) {
-        icon = Icons.health_and_safety_outlined;
-        bg = const Color(0xfff8ede8);
-        fg = const Color(0xff8c3b24);
-        tag = isConcept ? 'CONCEPT PREVIEW' : 'CALCIUM TONIC';
-      } else if (title.contains('lacta')) {
-        icon = Icons.water_drop_outlined;
-        bg = const Color(0xffedf6f2);
-        fg = const Color(0xff2d6a4f);
-        tag = isConcept ? 'CONCEPT PREVIEW' : 'LACTATION BOOSTER';
-      } else if (title.contains('rumen')) {
-        icon = Icons.biotech_outlined;
-        bg = const Color(0xfffbf2e6);
-        fg = const Color(0xffb26a00);
-        tag = isConcept ? 'CONCEPT PREVIEW' : 'RUMEN PREBIOTIC';
-      } else if (title.contains('heat')) {
-        icon = Icons.wb_sunny_outlined;
-        bg = const Color(0xfffdf0ed);
-        fg = const Color(0xffc84b31);
-        tag = isConcept ? 'CONCEPT PREVIEW' : 'HEAT STRESS GUARD';
-      } else if (title.contains('fat') || title.contains('energy')) {
-        icon = Icons.bolt_outlined;
-        bg = const Color(0xfffdf6e2);
-        fg = const Color(0xff99710d);
-        tag = isConcept ? 'CONCEPT PREVIEW' : 'BYPASS FAT ENERGY';
-      } else if (title.contains('butter')) {
-        icon = Icons.bakery_dining_outlined;
-        bg = const Color(0xfffaf6e8);
-        fg = const Color(0xffb38a2e);
-        tag = 'WHITE BUTTER';
-      } else {
-        icon = Icons.inventory_2_outlined;
-        bg = const Color(0xfff5f3ec);
-        fg = storeGreen;
-        tag = (p != null ? storeCategory(p) : kind).toUpperCase();
-      }
-
-      return Container(
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(StoreLayout.radius),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 52, color: fg),
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: fg.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  tag,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.1,
-                    color: fg,
-                  ),
-                ),
-              ),
-              if (showCaption && p?.packSize != null) ...[
-                const SizedBox(height: 6),
-                Text(
-                  p!.packSize!,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: fg.withValues(alpha: 0.75),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      );
-    }
-
-    Widget loadAssetWithWebFallback(String src) {
-      final cleanPath = src.startsWith('/') ? src.substring(1) : src;
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(StoreLayout.radius),
-        child: Image.network(
-          cleanPath,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => Image.network(
-            'assets/$cleanPath',
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => Image.asset(
-              cleanPath,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => departmentCard(),
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (p != null && p.media.isNotEmpty) {
-      final rawSrc = p.media[imageIndex.clamp(0, p.media.length - 1)];
-      if (rawSrc.startsWith('http://') || rawSrc.startsWith('https://')) {
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(StoreLayout.radius),
-          child: Image.network(
-            rawSrc,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => departmentCard(),
-          ),
-        );
-      }
-      return loadAssetWithWebFallback(rawSrc);
-    }
-
-    if (asset != null) {
-      return loadAssetWithWebFallback(asset);
-    }
-
-    return departmentCard();
+    final src = p != null && p.media.isNotEmpty
+        ? p.media[imageIndex.clamp(0, p.media.length - 1)]
+        : StoreImages.productArtwork(p) ??
+            StoreImages.category(p != null ? storeCategory(p) : kind);
+    final remote = src != null &&
+        (src.startsWith('https://') || src.startsWith('http://'));
+    Widget fallback() => const Center(
+        child: Icon(Icons.inventory_2_outlined, size: 42, color: storeMuted));
+    final image = src == null
+        ? fallback()
+        : remote
+            ? Image.network(src,
+                fit: BoxFit.contain, errorBuilder: (_, __, ___) => fallback())
+            : Image.asset(src,
+                fit: BoxFit.contain, errorBuilder: (_, __, ___) => fallback());
+    return Column(children: [
+      Expanded(child: SizedBox(width: double.infinity, child: image)),
+      if (showCaption && src != null && !remote)
+        const Text('Concept packaging image',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 9, color: storeMuted)),
+    ]);
   }
 }
 
@@ -1813,8 +1607,9 @@ class StoreFooter extends ConsumerWidget {
                                     child: const Text('About Milterra',
                                         style: StoreType.inverseLabel)),
                                 TextButton(
-                                    onPressed: () => context.push('/purity'),
-                                    child: const Text('Milk Purity Standards',
+                                    onPressed: () =>
+                                        showProductQuality(context),
+                                    child: const Text('Quality & Research',
                                         style: StoreType.inverseLabel)),
                               ]),
                           Column(

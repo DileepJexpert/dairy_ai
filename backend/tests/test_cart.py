@@ -32,6 +32,18 @@ async def test_empty_cart_is_created(client, auth_headers):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('metadata', [{'concept': True}, {'listing_status': 'in_development'}, {'listing_status': 'coming soon'}])
+async def test_concepts_cannot_be_added_even_with_price_and_stock(client, db_session, vendor_user, auth_headers, metadata):
+    item = await product(db_session, vendor_user)
+    item.specifications = metadata
+    await db_session.commit()
+    response = await client.post('/api/v1/marketplace/cart/items', headers=auth_headers,
+                                json={'product_id': str(item.id), 'quantity': 1})
+    assert response.status_code == 422
+    assert 'not for sale' in response.text
+
+
+@pytest.mark.asyncio
 async def test_add_same_product_updates_quantity_and_subtotal(client, db_session, vendor_user, auth_headers):
     item = await product(db_session, vendor_user)
     for quantity in (2, 3):

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../models/cart_models.dart';
 import '../providers/cart_provider.dart';
 import '../../marketplace/models/product_models.dart';
+import '../../marketplace/providers/product_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
 
 Future<void> showStoreCart(BuildContext context) async {
@@ -18,8 +19,8 @@ Future<void> showStoreCart(BuildContext context) async {
         : StoreLayout.motion,
     pageBuilder: (_, __, ___) => const _CartDrawer(),
     transitionBuilder: (_, animation, __, child) => SlideTransition(
-      position: Tween(begin: const Offset(1, 0), end: Offset.zero)
-          .animate(animation),
+      position:
+          Tween(begin: const Offset(1, 0), end: Offset.zero).animate(animation),
       child: child,
     ),
   );
@@ -279,8 +280,8 @@ class _CartDrawer extends ConsumerWidget {
                                     height: 38,
                                     child: OutlinedButton(
                                       style: OutlinedButton.styleFrom(
-                                        side:
-                                            const BorderSide(color: storeBorder),
+                                        side: const BorderSide(
+                                            color: storeBorder),
                                         shape: RoundedRectangleBorder(
                                           borderRadius:
                                               BorderRadius.circular(20),
@@ -330,9 +331,10 @@ class _CartItemTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final matchedProduct = defaultMilterraProducts
-        .where((x) => x.id == item.productId)
-        .firstOrNull;
+    final matchedProduct =
+        (ref.watch(productsProvider(null)).valueOrNull ?? <Product>[])
+            .where((x) => x.id == item.productId)
+            .firstOrNull;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -468,8 +470,7 @@ class _CartItemTile extends ConsumerWidget {
                               : null,
                           child: const Padding(
                             padding: EdgeInsets.all(4),
-                            child: Icon(Icons.add,
-                                size: 16, color: storeGreen),
+                            child: Icon(Icons.add, size: 16, color: storeGreen),
                           ),
                         ),
                       ],

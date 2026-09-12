@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../marketplace/models/product_models.dart';
+import '../../marketplace/providers/product_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
 import '../../marketplace/widgets/store_product_card.dart';
 import '../providers/cart_provider.dart';
@@ -18,6 +19,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
   final Set<String> _busyIds = {};
 
   Future<void> _moveToCart(Product product) async {
+    if (product.isConcept) return;
     setState(() => _busyIds.add(product.id));
     try {
       await ref
@@ -48,20 +50,8 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
     }
   }
 
-  void _removeFromWishlist(Product product) {
-    ref.read(wishlistProvider.notifier).remove(product.id);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Removed ${product.title} from your wishlist.'),
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () => ref.read(wishlistProvider.notifier).add(product),
-        ),
-      ),
-    );
-  }
-
   Future<void> _addRecommendedToCart(Product item) async {
+    if (item.isConcept) return;
     setState(() => _busyIds.add(item.id));
     try {
       await ref
@@ -158,7 +148,8 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 10, vertical: 3),
                                       decoration: BoxDecoration(
-                                        color: storeGreen.withValues(alpha: 0.1),
+                                        color:
+                                            storeGreen.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Text(
@@ -270,185 +261,36 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
     );
   }
 
-  Widget _buildWishlistGrid(List<Product> items, bool isMobile) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = isMobile
-            ? (constraints.maxWidth < 480 ? 1 : 2)
-            : (constraints.maxWidth >= 1000 ? 4 : 2);
-        final itemWidth =
-            ((constraints.maxWidth - 16 * (columns - 1)) / columns)
-                .clamp(160.0, constraints.maxWidth);
-
+  Widget _buildWishlistGrid(List<Product> wishlist, bool isMobile) =>
+      LayoutBuilder(builder: (context, space) {
+        final count = space.maxWidth >= 960
+            ? 4
+            : space.maxWidth >= 650
+                ? 3
+                : space.maxWidth >= 380
+                    ? 2
+                    : 1;
         return Wrap(
-          spacing: 16,
-          runSpacing: 16,
-          children: items.map((product) {
-            final isBusy = _busyIds.contains(product.id);
-
-            return SizedBox(
-              width: itemWidth,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: storeWhite,
-                  borderRadius: BorderRadius.circular(StoreLayout.radius),
-                  border: Border.all(color: storeBorder),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Product Artwork
-                    InkWell(
-                      onTap: () => context.go('/shop/product/${product.id}'),
-                      child: Container(
-                        height: 180,
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: const BoxDecoration(
-                          color: Color(0xfffaf8f5),
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(StoreLayout.radius),
-                          ),
-                        ),
-                        child: ProductArtwork(product: product),
-                      ),
-                    ),
-
-                    // Details
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            (product.brand ?? storeCategory(product))
-                                .toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.1,
-                              color: storeMuted,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          InkWell(
-                            onTap: () =>
-                                context.go('/shop/product/${product.id}'),
-                            child: Text(
-                              product.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xff111111),
-                                height: 1.25,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const AmazonRatingStars(
-                              rating: 4.8, reviewCount: 38, size: 12),
-                          const SizedBox(height: 8),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
-                            children: [
-                              Text(
-                                storeMoney(product.price),
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: storeGreen,
-                                ),
-                              ),
-                              if (product.unit.isNotEmpty) ...[
-                                const SizedBox(width: 4),
-                                Text(
-                                  '/ ${product.unit}',
-                                  style: const TextStyle(
-                                      fontSize: 12, color: storeMuted),
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'In Stock',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xff007600),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Action Buttons
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: storeAmber,
-                                foregroundColor: storeGreen,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 10),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                elevation: 0,
-                              ),
-                              onPressed:
-                                  isBusy ? null : () => _moveToCart(product),
-                              child: isBusy
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: storeGreen,
-                                      ),
-                                    )
-                                  : const Text(
-                                      'Move to Cart',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Center(
-                            child: TextButton(
-                              onPressed: () => _removeFromWishlist(product),
-                              style: TextButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                                padding: EdgeInsets.zero,
-                              ),
-                              child: const Text(
-                                'Remove from list',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xff007185),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
+            spacing: 16,
+            runSpacing: 16,
+            children: wishlist
+                .map((p) => SizedBox(
+                      width: (space.maxWidth - 16 * (count - 1)) / count,
+                      child: StoreProductCard(
+                          packs: [p],
+                          busyIds: _busyIds,
+                          onOpen: (p) => context.push('/shop/product/${p.id}'),
+                          onAdd: _moveToCart),
+                    ))
+                .toList());
+      });
 
   Widget _buildRecommendations(bool isMobile) {
-    final recs = defaultMilterraProducts.take(4).toList();
+    final recs = (ref.watch(productsProvider(null)).valueOrNull ?? <Product>[])
+        .where(
+            (p) => !ref.read(wishlistProvider).any((saved) => saved.id == p.id))
+        .take(4)
+        .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -467,9 +309,8 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
             final columns = isMobile
                 ? (space.maxWidth < 480 ? 1 : 2)
                 : (space.maxWidth >= 1000 ? 4 : 2);
-            final itemWidth =
-                ((space.maxWidth - 16 * (columns - 1)) / columns)
-                    .clamp(160.0, space.maxWidth);
+            final itemWidth = ((space.maxWidth - 16 * (columns - 1)) / columns)
+                .clamp(160.0, space.maxWidth);
 
             return Wrap(
               spacing: 16,

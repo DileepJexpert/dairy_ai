@@ -5,6 +5,7 @@ import '../models/cart_models.dart';
 import '../providers/cart_provider.dart';
 import '../providers/coupon_provider.dart';
 import '../../marketplace/models/product_models.dart';
+import '../../marketplace/providers/product_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
 import '../../marketplace/widgets/store_product_card.dart';
 
@@ -90,7 +91,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not update quantity. Please try again.')),
+          const SnackBar(
+              content: Text('Could not update quantity. Please try again.')),
         );
       }
     } finally {
@@ -105,7 +107,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not remove item. Please try again.')),
+          const SnackBar(
+              content: Text('Could not remove item. Please try again.')),
         );
       }
     } finally {
@@ -206,7 +209,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                                       const SizedBox(
                                                           height: 24),
                                                       _buildSavedForLaterCard(
-                                                          isMobile, savedForLater),
+                                                          isMobile,
+                                                          savedForLater),
                                                     ],
                                                     const SizedBox(height: 24),
                                                     _buildRecommendationsRail(
@@ -231,9 +235,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                               // Mobile View: Buy Box on top
                                               _buildAmazonBuyBox(cart, context),
                                               const SizedBox(height: 16),
-                                              _buildCartItemsCard(cart, isMobile),
-                                              if (savedForLater
-                                                  .isNotEmpty) ...[
+                                              _buildCartItemsCard(
+                                                  cart, isMobile),
+                                              if (savedForLater.isNotEmpty) ...[
                                                 const SizedBox(height: 24),
                                                 _buildSavedForLaterCard(
                                                     isMobile, savedForLater),
@@ -259,8 +263,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  Widget _buildEmptyCart(
-      BuildContext context, List<CartItem> savedForLater) {
+  Widget _buildEmptyCart(BuildContext context, List<CartItem> savedForLater) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -383,17 +386,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             separatorBuilder: (_, __) => const Divider(height: 28),
             itemBuilder: (context, index) {
               final item = cart.items[index];
-              final matchedProduct = defaultMilterraProducts
-                  .where((x) => x.id == item.productId)
-                  .firstOrNull;
+              final matchedProduct =
+                  (ref.watch(productsProvider(null)).valueOrNull ?? <Product>[])
+                      .where((x) => x.id == item.productId)
+                      .firstOrNull;
 
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Item Thumbnail
                   InkWell(
-                    onTap: () =>
-                        context.go('/shop/product/${item.productId}'),
+                    onTap: () => context.go('/shop/product/${item.productId}'),
                     child: Container(
                       width: isMobile ? 80 : 110,
                       height: isMobile ? 80 : 110,
@@ -408,11 +411,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           ? Image.network(
                               item.primaryImage!,
                               fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => matchedProduct !=
-                                      null
-                                  ? ProductArtwork(product: matchedProduct)
-                                  : const Icon(Icons.inventory_2_outlined,
-                                      color: storeMuted),
+                              errorBuilder: (_, __, ___) =>
+                                  matchedProduct != null
+                                      ? ProductArtwork(product: matchedProduct)
+                                      : const Icon(Icons.inventory_2_outlined,
+                                          color: storeMuted),
                             )
                           : (matchedProduct != null
                               ? ProductArtwork(product: matchedProduct)
@@ -456,8 +459,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         const SizedBox(height: 2),
                         const Text(
                           'Eligible for FREE Shipping',
-                          style: TextStyle(
-                              fontSize: 11, color: Color(0xff565959)),
+                          style:
+                              TextStyle(fontSize: 11, color: Color(0xff565959)),
                         ),
                         if (item.vendorName != null) ...[
                           const SizedBox(height: 2),
@@ -644,8 +647,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               Expanded(
                 child: RichText(
                   text: const TextSpan(
-                    style:
-                        TextStyle(fontSize: 12, color: Color(0xff067d62)),
+                    style: TextStyle(fontSize: 12, color: Color(0xff067d62)),
                     children: [
                       TextSpan(
                         text: 'Your order qualifies for FREE Delivery. ',
@@ -665,9 +667,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Items Subtotal (${cart.itemCount} items):',
-                  style: const TextStyle(fontSize: 13, color: Color(0xff565959))),
+                  style:
+                      const TextStyle(fontSize: 13, color: Color(0xff565959))),
               Text(storeMoney(cart.subtotal),
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xff0f1111))),
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xff0f1111))),
             ],
           ),
           if (appliedCoupon != null) ...[
@@ -677,14 +683,21 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.local_offer, size: 14, color: Color(0xff067d62)),
+                    const Icon(Icons.local_offer,
+                        size: 14, color: Color(0xff067d62)),
                     const SizedBox(width: 4),
                     Text('Promotion (${appliedCoupon.code}):',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xff067d62))),
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xff067d62))),
                   ],
                 ),
                 Text('-${storeMoney(discount)}',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xff067d62))),
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xff067d62))),
               ],
             ),
           ],
@@ -693,7 +706,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Total:',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: storeGreen)),
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: storeGreen)),
               Text(
                 storeMoney(finalTotal),
                 style: const TextStyle(
@@ -769,13 +785,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     Icon(Icons.discount_outlined, size: 16, color: storeGreen),
                     SizedBox(width: 6),
                     Text('Promotions & Coupons',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: storeGreen)),
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: storeGreen)),
                   ],
                 ),
                 const SizedBox(height: 8),
                 if (appliedCoupon != null) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: const Color(0xffe8f5e9),
                       borderRadius: BorderRadius.circular(6),
@@ -789,20 +809,31 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Coupon: ${appliedCoupon.code}',
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xff1b5e20))),
-                              Text('Saved ${storeMoney(discount)} on this order',
-                                  style: const TextStyle(fontSize: 11, color: Color(0xff2e7d32))),
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xff1b5e20))),
+                              Text(
+                                  'Saved ${storeMoney(discount)} on this order',
+                                  style: const TextStyle(
+                                      fontSize: 11, color: Color(0xff2e7d32))),
                             ],
                           ),
                         ),
                         TextButton(
                           onPressed: () {
-                            ref.read(appliedCouponProvider.notifier).removeCoupon();
+                            ref
+                                .read(appliedCouponProvider.notifier)
+                                .removeCoupon();
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Coupon removed')),
                             );
                           },
-                          child: const Text('Remove', style: TextStyle(fontSize: 11, color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                          child: const Text('Remove',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.redAccent,
+                                  fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
@@ -816,13 +847,22 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           child: TextField(
                             controller: _couponCtrl,
                             textCapitalization: TextCapitalization.characters,
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.bold),
                             decoration: InputDecoration(
                               hintText: 'Enter promo code',
-                              hintStyle: const TextStyle(fontSize: 11, color: storeMuted),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: storeBorder)),
-                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: storeGreen)),
+                              hintStyle: const TextStyle(
+                                  fontSize: 11, color: storeMuted),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 8),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                  borderSide:
+                                      const BorderSide(color: storeBorder)),
+                              focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                  borderSide:
+                                      const BorderSide(color: storeGreen)),
                             ),
                           ),
                         ),
@@ -835,31 +875,43 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             backgroundColor: storeWhite,
                             foregroundColor: storeGreen,
                             side: const BorderSide(color: storeGreen),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4)),
                           ),
                           onPressed: () {
-                            final success = ref.read(appliedCouponProvider.notifier).applyCoupon(_couponCtrl.text, cart.subtotal);
+                            final success = ref
+                                .read(appliedCouponProvider.notifier)
+                                .applyCoupon(_couponCtrl.text, cart.subtotal);
                             if (success) {
                               _couponCtrl.clear();
                               setState(() => _couponError = null);
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Coupon applied successfully!'), backgroundColor: storeGreen),
+                                const SnackBar(
+                                    content:
+                                        Text('Coupon applied successfully!'),
+                                    backgroundColor: storeGreen),
                               );
                             } else {
-                              setState(() => _couponError = 'Invalid code or minimum order not met.');
+                              setState(() => _couponError =
+                                  'Invalid code or minimum order not met.');
                             }
                           },
-                          child: const Text('Apply', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          child: const Text('Apply',
+                              style: TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ],
                   ),
                   if (_couponError != null) ...[
                     const SizedBox(height: 4),
-                    Text(_couponError!, style: const TextStyle(fontSize: 11, color: Colors.redAccent)),
+                    Text(_couponError!,
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.redAccent)),
                   ],
                   const SizedBox(height: 8),
-                  const Text('Available offers (Tap to apply):', style: TextStyle(fontSize: 10, color: storeMuted)),
+                  const Text('Available offers (Tap to apply):',
+                      style: TextStyle(fontSize: 10, color: storeMuted)),
                   const SizedBox(height: 4),
                   Wrap(
                     spacing: 6,
@@ -867,25 +919,35 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     children: availableStoreCoupons.map((c) {
                       return InkWell(
                         onTap: () {
-                          final ok = ref.read(appliedCouponProvider.notifier).applyCoupon(c.code, cart.subtotal);
+                          final ok = ref
+                              .read(appliedCouponProvider.notifier)
+                              .applyCoupon(c.code, cart.subtotal);
                           if (ok) {
                             setState(() => _couponError = null);
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Applied ${c.code}!'), backgroundColor: storeGreen),
+                              SnackBar(
+                                  content: Text('Applied ${c.code}!'),
+                                  backgroundColor: storeGreen),
                             );
                           } else {
-                            setState(() => _couponError = 'Min order for ${c.code} is ${storeMoney(c.minOrderAmount)}');
+                            setState(() => _couponError =
+                                'Min order for ${c.code} is ${storeMoney(c.minOrderAmount)}');
                           }
                         },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 3),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(color: storeAmber, width: 1),
                           ),
-                          child: Text('${c.code} (${c.discountPercent > 0 ? "${c.discountPercent.toInt()}% Off" : "₹${c.discountAmount.toInt()} Off"})',
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: storeGreen)),
+                          child: Text(
+                              '${c.code} (${c.discountPercent > 0 ? "${c.discountPercent.toInt()}% Off" : "₹${c.discountAmount.toInt()} Off"})',
+                              style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: storeGreen)),
                         ),
                       );
                     }).toList(),
@@ -956,17 +1018,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             separatorBuilder: (_, __) => const Divider(height: 24),
             itemBuilder: (context, index) {
               final item = savedForLater[index];
-              final matchedProduct = defaultMilterraProducts
-                  .where((x) => x.id == item.productId)
-                  .firstOrNull;
+              final matchedProduct =
+                  (ref.watch(productsProvider(null)).valueOrNull ?? <Product>[])
+                      .where((x) => x.id == item.productId)
+                      .firstOrNull;
 
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Item Artwork / Thumbnail
                   InkWell(
-                    onTap: () =>
-                        context.go('/shop/product/${item.productId}'),
+                    onTap: () => context.go('/shop/product/${item.productId}'),
                     child: Container(
                       width: isMobile ? 80 : 100,
                       height: isMobile ? 80 : 100,
@@ -981,11 +1043,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           ? Image.network(
                               item.primaryImage!,
                               fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => matchedProduct !=
-                                      null
-                                  ? ProductArtwork(product: matchedProduct)
-                                  : const Icon(Icons.inventory_2_outlined,
-                                      color: storeMuted),
+                              errorBuilder: (_, __, ___) =>
+                                  matchedProduct != null
+                                      ? ProductArtwork(product: matchedProduct)
+                                      : const Icon(Icons.inventory_2_outlined,
+                                          color: storeMuted),
                             )
                           : (matchedProduct != null
                               ? ProductArtwork(product: matchedProduct)
@@ -1089,10 +1151,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   Widget _buildRecommendationsRail(Cart cart) {
     // Recommend products not currently in the cart
     final cartProductIds = cart.items.map((e) => e.productId).toSet();
-    final recommended = defaultMilterraProducts
-        .where((p) => !cartProductIds.contains(p.id))
-        .take(4)
-        .toList();
+    final recommended =
+        (ref.watch(productsProvider(null)).valueOrNull ?? <Product>[])
+            .where((p) => !p.isConcept && !cartProductIds.contains(p.id))
+            .take(4)
+            .toList();
 
     if (recommended.isEmpty) return const SizedBox.shrink();
 
@@ -1100,7 +1163,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Customers who bought items in your cart also bought',
+          'More from the catalogue',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
@@ -1138,7 +1201,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   Widget _buildPopularGrid() {
     return LayoutBuilder(builder: (context, constraints) {
       final isMobile = constraints.maxWidth < 600;
-      final products = defaultMilterraProducts.take(8).toList();
+      final products =
+          (ref.watch(productsProvider(null)).valueOrNull ?? <Product>[])
+              .take(8)
+              .toList();
 
       return Wrap(
         spacing: 16,
@@ -1163,4 +1229,3 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     });
   }
 }
-

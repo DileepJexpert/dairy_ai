@@ -209,6 +209,38 @@ class Product {
   final dynamic rentalRatePerAcre;
   final List<ProductVariant> variants;
 
+  /// Explicit lifecycle metadata, never inferred from a product category or price.
+  bool get isConcept {
+    final status =
+        (specifications['listing_status'] ?? taxonomy?['status'] ?? '')
+            .toString()
+            .toLowerCase()
+            .replaceAll('_', ' ');
+    return specifications['concept'] == true ||
+        taxonomy?['concept'] == true ||
+        status.contains('concept') ||
+        status.contains('development') ||
+        status == 'coming soon';
+  }
+
+  bool get canPurchase => !isConcept;
+  static const conceptExplanation = 'This product concept is in development. '
+      'Share your feedback and register for future updates.';
+
+  /// Seller-scoped presentation family; the selected pack keeps its original ID.
+  String get familyKey =>
+      '$vendorId|${specifications['family_id'] ?? title.trim().toLowerCase()}|${category.name}|$isConcept';
+
+  List<Uri> get labReports => (specifications['lab_reports'] is List
+          ? specifications['lab_reports'] as List
+          : const [])
+      .whereType<Map>()
+      .where((record) => record['verified'] == true)
+      .map((record) => Uri.tryParse(record['url']?.toString() ?? ''))
+      .whereType<Uri>()
+      .where((uri) => uri.scheme == 'https' && uri.host.isNotEmpty)
+      .toList();
+
   Product copyWith({
     String? id,
     String? vendorId,
@@ -286,7 +318,8 @@ class Product {
           : double.parse(j['rental_rate_per_hour'].toString()),
       rentalRatePerAcre: j['rental_rate_per_acre'],
       variants: (j['variants'] as List? ?? [])
-          .map((v) => ProductVariant.fromJson(Map<String, dynamic>.from(v as Map)))
+          .map((v) =>
+              ProductVariant.fromJson(Map<String, dynamic>.from(v as Map)))
           .toList());
 }
 
@@ -702,7 +735,8 @@ const defaultMilterraProducts = <Product>[
     minOrderQuantity: 1,
     specifications: {
       'Category': 'Ready-to-Use Potting Soil Mix',
-      'Composition': 'Red Loam (40%) + Vermicompost (30%) + Cocopeat (20%) + Bio-Humus (10%)',
+      'Composition':
+          'Red Loam (40%) + Vermicompost (30%) + Cocopeat (20%) + Bio-Humus (10%)',
       'pH Range': '6.5 to 7.2 (Optimal Nutrient Uptake)',
       'Aeration & Drainage': 'High Porosity (Prevents Root Rot)',
       'Form': 'Pre-conditioned loose airy matrix',
@@ -783,8 +817,10 @@ const defaultMilterraProducts = <Product>[
       'Concept Status': 'Concept Preview (In Development)',
       'Brand Line': 'Feeds • Supplements • Calcium STC • Health & Productivity',
       'Program': '42-Day Multi-Phase Feeding Protocol',
-      'Phase 1 (-21 Days)': 'Anionic salts, liver tonics & pre-calving mineral balancers',
-      'Phase 2 (+21 Days)': 'High-potency calcium drench, bypass fats & glucogenic precursors',
+      'Phase 1 (-21 Days)':
+          'Anionic salts, liver tonics & pre-calving mineral balancers',
+      'Phase 2 (+21 Days)':
+          'High-potency calcium drench, bypass fats & glucogenic precursors',
       'Validation Status': 'Field Trial & Farmer Feedback Phase',
     },
   ),
@@ -939,7 +975,8 @@ const defaultMilterraProducts = <Product>[
   Product(
     id: 'feed-minera-360-1kg',
     vendorId: 'vendor-agri-nutrition',
-    title: 'MILTERRA MINERA-360 Micro-Chelated Minerals with Chromium & Live Yeast',
+    title:
+        'MILTERRA MINERA-360 Micro-Chelated Minerals with Chromium & Live Yeast',
     category: ProductCategory.feedNutrition,
     price: 0,
     unit: 'pack',
@@ -1454,4 +1491,3 @@ const List<ProductFamily> defaultMilterraProductFamilies = [
     ],
   ),
 ];
-

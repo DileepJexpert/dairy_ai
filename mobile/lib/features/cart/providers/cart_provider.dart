@@ -70,6 +70,9 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
   }
 
   Future<void> add(String productId, int quantity, [Product? product]) async {
+    if (product?.isConcept == true) {
+      throw StateError('Concept products are not for sale');
+    }
     await _dio.post('/marketplace/cart/items', data: {
       'product_id': productId,
       'quantity': quantity,

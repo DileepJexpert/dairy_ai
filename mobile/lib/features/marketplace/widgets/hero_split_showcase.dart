@@ -12,7 +12,7 @@ class HeroSplitShowcase extends StatefulWidget {
   const HeroSplitShowcase({
     super.key,
     required this.screenWidth,
-    this.productSlides = defaultHeroProductSlides,
+    this.productSlides = const [],
     this.farmStories = defaultHeroFarmStories,
     this.onExploreCategory,
     this.autoPlay = false,
@@ -373,6 +373,11 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
   Widget build(BuildContext context) {
     final isDesktop = widget.screenWidth >= 860;
     const desktopHeight = 195.0;
+    if (widget.productSlides.isEmpty) {
+      return SizedBox(
+          height: desktopHeight,
+          child: _buildFarmStoryShowcase(isDesktop: isDesktop));
+    }
 
     if (isDesktop) {
       return ConstrainedBox(
@@ -522,8 +527,14 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
   }
 
   Widget _buildProductSlide(HeroProductSlide slide, {required bool isDesktop}) {
-    final matchedProduct =
-        defaultMilterraProducts.where((p) => p.id == slide.id).firstOrNull;
+    final matchedProduct = Product(
+        id: slide.id,
+        vendorId: '',
+        title: slide.name,
+        category: ProductCategory.feedNutrition,
+        price: slide.price,
+        unit: slide.packSize,
+        media: slide.imagePath.isEmpty ? [] : [slide.imagePath]);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -650,20 +661,8 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                           ),
                         ],
                       ),
-                      child: Image.asset(
-                        slide.imagePath,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => matchedProduct != null
-                            ? ProductArtwork(
-                                product: matchedProduct,
-                                showCaption: false,
-                              )
-                            : const Icon(
-                                Icons.inventory_2_outlined,
-                                size: 64,
-                                color: storeMuted,
-                              ),
-                      ),
+                      child: ProductArtwork(
+                          product: matchedProduct, showCaption: true),
                     ),
                   ),
                 ),
@@ -747,20 +746,8 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                         color: Colors.white.withValues(alpha: 0.7),
                         shape: BoxShape.circle,
                       ),
-                      child: Image.asset(
-                        slide.imagePath,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => matchedProduct != null
-                            ? ProductArtwork(
-                                product: matchedProduct,
-                                showCaption: false,
-                              )
-                            : const Icon(
-                                Icons.inventory_2_outlined,
-                                size: 48,
-                                color: storeMuted,
-                              ),
-                      ),
+                      child: ProductArtwork(
+                          product: matchedProduct, showCaption: true),
                     ),
                   ),
                 ),

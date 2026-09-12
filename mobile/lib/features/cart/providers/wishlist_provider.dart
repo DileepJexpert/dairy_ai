@@ -17,12 +17,7 @@ final isWishlistedProvider = Provider.family<bool, String>((ref, productId) {
 });
 
 class WishlistNotifier extends StateNotifier<List<Product>> {
-  WishlistNotifier() : super(_initialWishlist);
-
-  static final List<Product> _initialWishlist = [
-    if (defaultMilterraProducts.isNotEmpty) defaultMilterraProducts[0],
-    if (defaultMilterraProducts.length > 2) defaultMilterraProducts[2],
-  ];
+  WishlistNotifier() : super([]);
 
   /// Checks if [productId] is already saved in wishlist.
   bool isWishlisted(String productId) {

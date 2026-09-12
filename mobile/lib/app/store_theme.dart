@@ -51,6 +51,9 @@ abstract final class StorePalette {
 }
 
 abstract final class StoreLayout {
+  static const productImageAspectRatio = 1.31;
+  static const productVariantMinHeight = 36.0;
+  static const productCardPadding = EdgeInsets.fromLTRB(12, 8, 12, 12);
   static const double maxWidth = 1560,
       mobile = 600,
       tablet = 760,

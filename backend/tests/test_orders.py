@@ -10,6 +10,24 @@ from tests.test_delivery_addresses import address
 
 
 @pytest.mark.asyncio
+async def test_checkout_rejects_item_changed_to_concept(client, db_session, vendor_user, auth_headers):
+    item = await product(db_session, vendor_user, stock=5)
+    delivery = (await client.post('/api/v1/marketplace/addresses', headers=auth_headers, json=address())).json()['data']
+    assert (await client.post('/api/v1/marketplace/cart/items', headers=auth_headers,
+        json={'product_id': str(item.id), 'quantity': 1})).status_code == 201
+    item.specifications = {'listing_status': 'concept'}
+    await db_session.commit()
+    validation = (await client.post('/api/v1/marketplace/cart/validate', headers=auth_headers)).json()['data']
+    assert any(issue['type'] == 'CONCEPT_PRODUCT' for issue in validation['issues'])
+    response = await client.post('/api/v1/marketplace/orders/checkout', headers=auth_headers,
+        json={'delivery_address_id': delivery['id'], 'idempotency_key': 'concept-checkout-blocked'})
+    assert response.status_code == 422
+    assert list((await db_session.execute(select(Order))).scalars()) == []
+    inventory = (await db_session.execute(select(ProductInventory).where(ProductInventory.product_id == item.id))).scalar_one()
+    assert inventory.available_quantity == 5
+
+
+@pytest.mark.asyncio
 async def test_checkout_snapshots_address_decrements_stock_and_is_idempotent(client, db_session, vendor_user, auth_headers):
     item = await product(db_session, vendor_user, stock=5, price=Decimal("250"))
     delivery = (await client.post("/api/v1/marketplace/addresses", headers=auth_headers, json=address())).json()["data"]

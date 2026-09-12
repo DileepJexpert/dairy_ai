@@ -49,6 +49,28 @@ class TestLoginRoleRouting:
         assert data["dashboard_url"] == "/api/v1/vendor/dashboard"
 
     @pytest.mark.asyncio
+    async def test_login_returns_dashboard_url_admin(self, client: AsyncClient, db_session: AsyncSession):
+        user = User(
+            id=uuid.uuid4(),
+            phone="9999944444",
+            role=UserRole.admin,
+            is_active=True,
+            otp_hash=hash_otp("123456"),
+            otp_expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+        )
+        db_session.add(user)
+        await db_session.flush()
+
+        resp = await client.post(
+            "/api/v1/auth/verify-otp",
+            json={"phone": "9999944444", "otp": "123456"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["role"] == "admin"
+        assert data["dashboard_url"] == "/api/v1/admin/dashboard"
+
+    @pytest.mark.asyncio
     async def test_login_returns_dashboard_url_cooperative(self, client: AsyncClient, db_session: AsyncSession):
         user = User(
             id=uuid.uuid4(),
@@ -84,6 +106,14 @@ class TestAuthMeDashboardUrl:
         data = resp.json()["data"]
         assert data["role"] == "vendor"
         assert data["dashboard_url"] == "/api/v1/vendor/dashboard"
+
+    @pytest.mark.asyncio
+    async def test_me_admin_dashboard_url(self, client: AsyncClient, admin_headers: dict):
+        resp = await client.get("/api/v1/auth/me", headers=admin_headers)
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["role"] == "admin"
+        assert data["dashboard_url"] == "/api/v1/admin/dashboard"
 
 
 class TestFarmerDashboard:

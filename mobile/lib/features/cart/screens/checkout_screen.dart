@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:dairy_ai/core/api_client.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
-import '../../finance/providers/wallet_provider.dart';
 import '../models/delivery_address.dart';
 import '../providers/cart_provider.dart';
 import '../providers/delivery_address_provider.dart';
@@ -24,7 +23,7 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String? _addressId;
-  String _paymentMethod = 'wallet';
+  String _paymentMethod = 'cod';
   bool _submitting = false;
   bool _summaryItemsExpanded = true;
 
@@ -49,64 +48,69 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Future<void> _checkout() async {
     if (_addressId == null) return;
 
+    // Online payment methods stay unavailable until a signed gateway callback
+    // can authoritatively update the backend payment state.
+    if (_paymentMethod != 'cod') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: storeError,
+          content: Text(
+            'Online payments are not enabled yet. Please choose Cash on Delivery.',
+          ),
+        ),
+      );
+      return;
+    }
+
     final cart = ref.read(cartProvider).valueOrNull;
-    final subtotal = cart?.subtotal ?? 799.0;
-    final appliedCoupon = ref.read(appliedCouponProvider);
-    final discount = appliedCoupon?.calculateDiscount(subtotal) ?? 0.0;
-    final totalAmount = (subtotal - discount).clamp(0.0, double.infinity);
-    final generatedOrderId = 'ORD-2026-${Random().nextInt(8999) + 1000}';
+    if (cart == null || cart.items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: storeError,
+          content: Text('Your cart is empty or could not be verified.'),
+        ),
+      );
+      return;
+    }
+    final subtotal = cart.subtotal;
+    const discount = 0.0;
+    final totalAmount = subtotal;
 
     // Extract selected address details
     final addresses = ref.read(deliveryAddressesProvider).valueOrNull ?? [];
-    final DeliveryAddress? selectedAddress = addresses.where((a) => a.id == _addressId).firstOrNull ??
-        (addresses.isNotEmpty ? addresses.first : null);
+    final DeliveryAddress? selectedAddress =
+        addresses.where((a) => a.id == _addressId).firstOrNull;
+    if (selectedAddress == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: storeError,
+          content: Text('Please reload and select a valid delivery address.'),
+        ),
+      );
+      return;
+    }
 
-    final currentUser = ref.read(currentUserProvider);
     final addressMap = {
-      'recipient_name': selectedAddress?.recipientName ?? currentUser?.name ?? 'Milterra Member',
-      'street_address': selectedAddress?.addressLine1 ?? 'Milterra Dairy Corridor, Gate #4',
-      'city': selectedAddress?.villageOrCity ?? 'Karnal',
-      'state': selectedAddress?.state ?? 'Haryana',
-      'postal_code': selectedAddress?.postalCode ?? '132001',
-      'phone_number': selectedAddress?.phone ?? currentUser?.phone ?? '+91 98000 00000',
+      'recipient_name': selectedAddress.recipientName,
+      'street_address': selectedAddress.addressLine1,
+      'city': selectedAddress.villageOrCity,
+      'state': selectedAddress.state,
+      'postal_code': selectedAddress.postalCode,
+      'phone_number': selectedAddress.phone,
     };
 
-    if (_paymentMethod == 'wallet') {
-      final walletState = ref.read(milterraWalletProvider);
-      if (walletState.totalBalance < totalAmount) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              backgroundColor: storeError,
-              content: Text('Insufficient Milterra Wallet balance. Please select COD, UPI, or Card.'),
-            ),
-          );
-        }
-        return;
-      }
+    if (_paymentMethod == 'cod') {
       setState(() => _submitting = true);
       await _finalizeOrderPlacement(
-        generatedOrderId: generatedOrderId,
         totalAmount: totalAmount,
         subtotal: subtotal,
         discount: discount,
         addressMap: addressMap,
-        paymentStatus: 'PAID',
-      );
-    } else if (_paymentMethod == 'cod') {
-      setState(() => _submitting = true);
-      await _finalizeOrderPlacement(
-        generatedOrderId: generatedOrderId,
-        totalAmount: totalAmount,
-        subtotal: subtotal,
-        discount: discount,
-        addressMap: addressMap,
-        paymentStatus: 'PENDING',
       );
     } else if (_paymentMethod == 'upi') {
       _showUpiPaymentDialog(
         totalAmount: totalAmount,
-        generatedOrderId: generatedOrderId,
+        generatedOrderId: '',
         subtotal: subtotal,
         discount: discount,
         addressMap: addressMap,
@@ -114,7 +118,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     } else if (_paymentMethod == 'card') {
       _showCardPaymentDialog(
         totalAmount: totalAmount,
-        generatedOrderId: generatedOrderId,
+        generatedOrderId: '',
         subtotal: subtotal,
         discount: discount,
         addressMap: addressMap,
@@ -122,7 +126,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     } else if (_paymentMethod == 'netbanking') {
       _showNetBankingDialog(
         totalAmount: totalAmount,
-        generatedOrderId: generatedOrderId,
+        generatedOrderId: '',
         subtotal: subtotal,
         discount: discount,
         addressMap: addressMap,
@@ -131,12 +135,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Future<void> _finalizeOrderPlacement({
-    required String generatedOrderId,
     required double totalAmount,
     required double subtotal,
     required double discount,
     required Map<String, dynamic> addressMap,
-    required String paymentStatus,
   }) async {
     setState(() => _submitting = true);
     final cart = ref.read(cartProvider).valueOrNull;
@@ -144,7 +146,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     try {
       final key =
           'flutter-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(9999)}';
-      final res = await ref.read(dioProvider).post('/marketplace/orders/checkout', data: {
+      final res = await ref
+          .read(dioProvider)
+          .post('/marketplace/orders/checkout', data: {
         'delivery_address_id': _addressId,
         'payment_method': _paymentMethod,
         'idempotency_key': key,
@@ -152,26 +156,33 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
       final body = res.data as Map?;
       final data = body?['data'] as Map?;
-      final realOrderId = data?['id']?.toString() ?? generatedOrderId;
-      final serverPaymentStatus =
-          data?['payment_status']?.toString().toUpperCase() ?? paymentStatus;
-
-      // Deduct wallet only after server successfully creates the order
-      if (_paymentMethod == 'wallet') {
-        ref.read(milterraWalletProvider.notifier).payOrder(totalAmount, realOrderId);
+      if (data == null ||
+          data['id'] == null ||
+          data['payment_status'] == null) {
+        throw const FormatException('Checkout response was incomplete');
       }
+      final realOrderId = data['id'].toString();
+      final serverPaymentStatus =
+          data['payment_status'].toString().toUpperCase();
+      final serverOrderStatus =
+          data['status']?.toString().toUpperCase() ?? 'PENDING_PAYMENT';
+      final serverSubtotal =
+          double.tryParse(data['subtotal']?.toString() ?? '') ?? subtotal;
+      final serverTotal =
+          double.tryParse(data['total']?.toString() ?? '') ?? totalAmount;
 
       // Persist to unified Order Repository now that backend has accepted the order
       ref.read(ordersNotifierProvider.notifier).placeOrder(
-        orderId: realOrderId,
-        cartItems: cart?.items ?? [],
-        deliveryAddress: addressMap,
-        paymentMethod: _paymentMethod,
-        subtotal: subtotal,
-        discount: discount,
-        total: totalAmount,
-        paymentStatus: serverPaymentStatus,
-      );
+            orderId: realOrderId,
+            cartItems: cart?.items ?? [],
+            deliveryAddress: addressMap,
+            paymentMethod: _paymentMethod,
+            subtotal: serverSubtotal,
+            discount: 0,
+            total: serverTotal,
+            paymentStatus: serverPaymentStatus,
+            orderStatus: serverOrderStatus,
+          );
 
       ref.read(appliedCouponProvider.notifier).removeCoupon();
       ref.read(cartProvider.notifier).refresh();
@@ -183,7 +194,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             content: Text(
               _paymentMethod == 'wallet'
                   ? 'Order placed successfully using Milterra Wallet!'
-                  : 'Order placed successfully! Total: ${storeMoney(totalAmount)}',
+                  : 'Order placed successfully! Total: ${storeMoney(serverTotal)}',
             ),
           ),
         );
@@ -203,7 +214,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             backgroundColor: storeError,
-            content: Text('Unable to complete order. Please verify cart items and try again.'),
+            content: Text(
+                'Unable to complete order. Please verify cart items and try again.'),
           ),
         );
       }
@@ -225,13 +237,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       builder: (dialogCtx) {
         bool verifying = false;
         String selectedVpaApp = 'GPay';
-        final vpaController = TextEditingController(text: 'farmer@okaxis');
+        final vpaController = TextEditingController();
 
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return Dialog(
               backgroundColor: storeWhite,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 440),
                 child: Padding(
@@ -249,7 +262,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               color: const Color(0xffe8f5e9),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(Icons.qr_code_scanner, color: storeGreen, size: 22),
+                            child: const Icon(Icons.qr_code_scanner,
+                                color: storeGreen, size: 22),
                           ),
                           const SizedBox(width: 12),
                           const Expanded(
@@ -266,14 +280,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 ),
                                 Text(
                                   'NPCI Certified 256-bit Encrypted',
-                                  style: TextStyle(fontSize: 11, color: storeMuted),
+                                  style: TextStyle(
+                                      fontSize: 11, color: storeMuted),
                                 ),
                               ],
                             ),
                           ),
                           IconButton(
                             icon: const Icon(Icons.close, size: 20),
-                            onPressed: verifying ? null : () => Navigator.of(dialogCtx).pop(),
+                            onPressed: verifying
+                                ? null
+                                : () => Navigator.of(dialogCtx).pop(),
                           ),
                         ],
                       ),
@@ -281,7 +298,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
                       // Amount Box
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
                           color: const Color(0xfffcf5ee),
                           borderRadius: BorderRadius.circular(8),
@@ -292,7 +310,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           children: [
                             const Text(
                               'Payable Amount:',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: storeGreen),
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: storeGreen),
                             ),
                             Text(
                               storeMoney(totalAmount),
@@ -337,9 +358,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: storeGreen, width: 1.5),
+                                  border:
+                                      Border.all(color: storeGreen, width: 1.5),
                                 ),
-                                child: const Icon(Icons.eco, size: 20, color: storeGreen),
+                                child: const Icon(Icons.eco,
+                                    size: 20, color: storeGreen),
                               ),
                             ],
                           ),
@@ -349,14 +372,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       const Center(
                         child: Text(
                           'Scan with Google Pay, PhonePe, Paytm, or BHIM',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: storeMuted),
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: storeMuted),
                         ),
                       ),
                       const SizedBox(height: 12),
 
                       // UPI VPA Copy Bar
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           color: const Color(0xfff5f7f6),
                           borderRadius: BorderRadius.circular(6),
@@ -364,20 +391,26 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.account_balance, size: 16, color: storeGreen),
+                            const Icon(Icons.account_balance,
+                                size: 16, color: storeGreen),
                             const SizedBox(width: 8),
                             const Expanded(
                               child: Text(
                                 'milterra.pure@icici',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: storeGreen),
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: storeGreen),
                               ),
                             ),
                             InkWell(
                               onTap: () {
-                                Clipboard.setData(const ClipboardData(text: 'milterra.pure@icici'));
+                                Clipboard.setData(const ClipboardData(
+                                    text: 'milterra.pure@icici'));
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('UPI ID copied to clipboard!'),
+                                    content:
+                                        Text('UPI ID copied to clipboard!'),
                                     duration: Duration(seconds: 1),
                                   ),
                                 );
@@ -385,7 +418,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               child: const Padding(
                                 padding: EdgeInsets.all(4),
                                 child: Text('Copy',
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: storeOrange)),
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: storeOrange)),
                               ),
                             ),
                           ],
@@ -397,15 +433,26 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          for (final app in ['GPay', 'PhonePe', 'Paytm', 'BHIM'])
+                          for (final app in [
+                            'GPay',
+                            'PhonePe',
+                            'Paytm',
+                            'BHIM'
+                          ])
                             ChoiceChip(
-                              label: Text(app, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                              label: Text(app,
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold)),
                               selected: selectedVpaApp == app,
                               selectedColor: const Color(0xffe8f5e9),
                               labelStyle: TextStyle(
-                                color: selectedVpaApp == app ? storeGreen : storeMuted,
+                                color: selectedVpaApp == app
+                                    ? storeGreen
+                                    : storeMuted,
                               ),
-                              onSelected: (_) => setDialogState(() => selectedVpaApp = app),
+                              onSelected: (_) =>
+                                  setDialogState(() => selectedVpaApp = app),
                             ),
                         ],
                       ),
@@ -417,7 +464,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           hintText: 'e.g. yourname@oksbi',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.alternate_email, size: 18),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -428,21 +476,22 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           backgroundColor: storeAmber,
                           foregroundColor: storeGreen,
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                         onPressed: verifying
                             ? null
                             : () async {
                                 setDialogState(() => verifying = true);
-                                await Future.delayed(const Duration(milliseconds: 1400));
-                                if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
+                                await Future.delayed(
+                                    const Duration(milliseconds: 1400));
+                                if (dialogCtx.mounted)
+                                  Navigator.of(dialogCtx).pop();
                                 await _finalizeOrderPlacement(
-                                  generatedOrderId: generatedOrderId,
                                   totalAmount: totalAmount,
                                   subtotal: subtotal,
                                   discount: discount,
                                   addressMap: addressMap,
-                                  paymentStatus: 'PENDING_PAYMENT',
                                 );
                               },
                         child: verifying
@@ -452,18 +501,25 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                   SizedBox(
                                     width: 18,
                                     height: 18,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: storeGreen),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: storeGreen),
                                   ),
                                   SizedBox(width: 10),
                                   Text(
                                     'Verifying UPI Approval…',
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: storeGreen),
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: storeGreen),
                                   ),
                                 ],
                               )
                             : Text(
                                 'Approve ₹${totalAmount.toStringAsFixed(2)} Payment',
-                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: storeGreen),
+                                style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: storeGreen),
                               ),
                       ),
                     ],
@@ -490,18 +546,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       builder: (dialogCtx) {
         bool step3ds = false;
         bool processing = false;
-        final cardNumCtrl = TextEditingController(text: '4532 8920 1148 7639');
+        final cardNumCtrl = TextEditingController();
         final currentUser = ref.read(currentUserProvider);
-        final nameCtrl = TextEditingController(text: currentUser?.name?.toUpperCase() ?? 'MILTERRA MEMBER');
-        final expCtrl = TextEditingController(text: '08/29');
-        final cvvCtrl = TextEditingController(text: '482');
-        final otpCtrl = TextEditingController(text: '774102');
+        final nameCtrl = TextEditingController(
+            text: currentUser?.name?.toUpperCase() ?? 'MILTERRA MEMBER');
+        final expCtrl = TextEditingController();
+        final cvvCtrl = TextEditingController();
+        final otpCtrl = TextEditingController();
 
         return StatefulBuilder(
           builder: (context, setCardState) {
             return Dialog(
               backgroundColor: storeWhite,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 460),
                 child: Padding(
@@ -519,7 +577,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               color: const Color(0xffe8f5e9),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(Icons.credit_card, color: storeGreen, size: 22),
+                            child: const Icon(Icons.credit_card,
+                                color: storeGreen, size: 22),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -527,7 +586,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  step3ds ? '3D Secure Bank Verification' : 'Milterra SafePay Card Gateway',
+                                  step3ds
+                                      ? '3D Secure Bank Verification'
+                                      : 'Milterra SafePay Card Gateway',
                                   style: const TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,
@@ -536,14 +597,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 ),
                                 const Text(
                                   'Visa · MasterCard · RuPay · 256-Bit SSL',
-                                  style: TextStyle(fontSize: 11, color: storeMuted),
+                                  style: TextStyle(
+                                      fontSize: 11, color: storeMuted),
                                 ),
                               ],
                             ),
                           ),
                           IconButton(
                             icon: const Icon(Icons.close, size: 20),
-                            onPressed: processing ? null : () => Navigator.of(dialogCtx).pop(),
+                            onPressed: processing
+                                ? null
+                                : () => Navigator.of(dialogCtx).pop(),
                           ),
                         ],
                       ),
@@ -572,7 +636,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     'MILTERRA PLATINUM',
@@ -583,12 +648,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                       letterSpacing: 1.5,
                                     ),
                                   ),
-                                  Icon(Icons.contactless, color: Colors.white70, size: 20),
+                                  Icon(Icons.contactless,
+                                      color: Colors.white70, size: 20),
                                 ],
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                cardNumCtrl.text.isEmpty ? '•••• •••• •••• ••••' : cardNumCtrl.text,
+                                cardNumCtrl.text.isEmpty
+                                    ? '•••• •••• •••• ••••'
+                                    : cardNumCtrl.text,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,
@@ -599,13 +667,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               ),
                               const SizedBox(height: 14),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       const Text('CARDHOLDER',
-                                          style: TextStyle(color: Colors.white54, fontSize: 9)),
+                                          style: TextStyle(
+                                              color: Colors.white54,
+                                              fontSize: 9)),
                                       Text(
                                         nameCtrl.text.toUpperCase(),
                                         style: const TextStyle(
@@ -617,10 +689,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                     ],
                                   ),
                                   Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       const Text('EXPIRES',
-                                          style: TextStyle(color: Colors.white54, fontSize: 9)),
+                                          style: TextStyle(
+                                              color: Colors.white54,
+                                              fontSize: 9)),
                                       Text(
                                         expCtrl.text,
                                         style: const TextStyle(
@@ -645,7 +720,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             labelText: 'Card Number',
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.credit_card_outlined),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
                           ),
                           onChanged: (_) => setCardState(() {}),
                         ),
@@ -659,7 +735,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 decoration: const InputDecoration(
                                   labelText: 'MM / YY',
                                   border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
                                 ),
                                 onChanged: (_) => setCardState(() {}),
                               ),
@@ -673,7 +750,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 decoration: const InputDecoration(
                                   labelText: 'CVV',
                                   border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
                                 ),
                               ),
                             ),
@@ -686,7 +764,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             labelText: 'Name on Card',
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.person_outline),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
                           ),
                           onChanged: (_) => setCardState(() {}),
                         ),
@@ -698,13 +777,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             backgroundColor: storeAmber,
                             foregroundColor: storeGreen,
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
                           onPressed: processing
                               ? null
                               : () async {
                                   setCardState(() => processing = true);
-                                  await Future.delayed(const Duration(milliseconds: 900));
+                                  await Future.delayed(
+                                      const Duration(milliseconds: 900));
                                   setCardState(() {
                                     processing = false;
                                     step3ds = true;
@@ -717,16 +798,22 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                     SizedBox(
                                       width: 18,
                                       height: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: storeGreen),
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: storeGreen),
                                     ),
                                     SizedBox(width: 10),
                                     Text('Connecting to Bank Gateway…',
-                                        style: TextStyle(fontWeight: FontWeight.bold, color: storeGreen)),
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: storeGreen)),
                                   ],
                                 )
                               : Text(
                                   'Proceed to 3D Secure (${storeMoney(totalAmount)})',
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: storeGreen),
+                                  style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: storeGreen),
                                 ),
                         ),
                       ] else ...[
@@ -743,7 +830,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             children: [
                               const Row(
                                 children: [
-                                  Icon(Icons.verified_user, color: Color(0xff0052cc), size: 20),
+                                  Icon(Icons.verified_user,
+                                      color: Color(0xff0052cc), size: 20),
                                   SizedBox(width: 8),
                                   Text(
                                     'Verified by VISA / RuPay Secure',
@@ -758,12 +846,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               const SizedBox(height: 8),
                               Text(
                                 'A 6-digit one-time authorization passcode was simulated for order payment of ${storeMoney(totalAmount)}.',
-                                style: const TextStyle(fontSize: 12, color: Color(0xff333333)),
+                                style: const TextStyle(
+                                    fontSize: 12, color: Color(0xff333333)),
                               ),
                               const SizedBox(height: 6),
                               const Text(
                                 'Sent to mobile linked to card ending with •••• 7639',
-                                style: TextStyle(fontSize: 11, color: storeMuted),
+                                style:
+                                    TextStyle(fontSize: 11, color: storeMuted),
                               ),
                             ],
                           ),
@@ -776,16 +866,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             labelText: 'Enter 6-digit Bank OTP',
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.password_outlined),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Center(
-                          child: TextButton.icon(
-                            onPressed: () => otpCtrl.text = '774102',
-                            icon: const Icon(Icons.flash_on, size: 14, color: storeOrange),
-                            label: const Text('Autofill Test Passcode (774102)',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: storeOrange)),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -794,21 +876,22 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             backgroundColor: storeGreen,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
                           onPressed: processing
                               ? null
                               : () async {
                                   setCardState(() => processing = true);
-                                  await Future.delayed(const Duration(milliseconds: 1200));
-                                  if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
+                                  await Future.delayed(
+                                      const Duration(milliseconds: 1200));
+                                  if (dialogCtx.mounted)
+                                    Navigator.of(dialogCtx).pop();
                                   await _finalizeOrderPlacement(
-                                    generatedOrderId: generatedOrderId,
                                     totalAmount: totalAmount,
                                     subtotal: subtotal,
                                     discount: discount,
                                     addressMap: addressMap,
-                                    paymentStatus: 'PENDING_PAYMENT',
                                   );
                                 },
                           child: processing
@@ -818,15 +901,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                     SizedBox(
                                       width: 18,
                                       height: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: Colors.white),
                                     ),
                                     SizedBox(width: 10),
                                     Text('Authorizing Payment with Bank…',
-                                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white)),
                                   ],
                                 )
                               : const Text('Authorize & Complete Payment',
-                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ],
@@ -868,7 +956,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           builder: (context, setBankState) {
             return Dialog(
               backgroundColor: storeWhite,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 440),
                 child: Padding(
@@ -886,7 +975,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               color: const Color(0xffe8f5e9),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(Icons.account_balance, color: storeGreen, size: 22),
+                            child: const Icon(Icons.account_balance,
+                                color: storeGreen, size: 22),
                           ),
                           const SizedBox(width: 12),
                           const Expanded(
@@ -903,14 +993,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 ),
                                 Text(
                                   'Fast & Secure Net Banking Portal',
-                                  style: TextStyle(fontSize: 11, color: storeMuted),
+                                  style: TextStyle(
+                                      fontSize: 11, color: storeMuted),
                                 ),
                               ],
                             ),
                           ),
                           IconButton(
                             icon: const Icon(Icons.close, size: 20),
-                            onPressed: processing ? null : () => Navigator.of(dialogCtx).pop(),
+                            onPressed: processing
+                                ? null
+                                : () => Navigator.of(dialogCtx).pop(),
                           ),
                         ],
                       ),
@@ -921,15 +1014,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 3),
                           child: InkWell(
-                            onTap: () => setBankState(() => selectedBank = bank),
+                            onTap: () =>
+                                setBankState(() => selectedBank = bank),
                             borderRadius: BorderRadius.circular(6),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
-                                color: selectedBank == bank ? const Color(0xfffcf5ee) : storeWhite,
+                                color: selectedBank == bank
+                                    ? const Color(0xfffcf5ee)
+                                    : storeWhite,
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: selectedBank == bank ? storeOrange : storeBorder,
+                                  color: selectedBank == bank
+                                      ? storeOrange
+                                      : storeBorder,
                                 ),
                               ),
                               child: Row(
@@ -939,7 +1038,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                         ? Icons.radio_button_checked
                                         : Icons.radio_button_unchecked,
                                     size: 18,
-                                    color: selectedBank == bank ? storeOrange : storeMuted,
+                                    color: selectedBank == bank
+                                        ? storeOrange
+                                        : storeMuted,
                                   ),
                                   const SizedBox(width: 10),
                                   Expanded(
@@ -947,8 +1048,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                       bank,
                                       style: TextStyle(
                                         fontSize: 12.5,
-                                        fontWeight:
-                                            selectedBank == bank ? FontWeight.bold : FontWeight.normal,
+                                        fontWeight: selectedBank == bank
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
                                         color: storeGreen,
                                       ),
                                     ),
@@ -965,21 +1067,22 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           backgroundColor: storeAmber,
                           foregroundColor: storeGreen,
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                         onPressed: processing
                             ? null
                             : () async {
                                 setBankState(() => processing = true);
-                                await Future.delayed(const Duration(milliseconds: 1300));
-                                if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
+                                await Future.delayed(
+                                    const Duration(milliseconds: 1300));
+                                if (dialogCtx.mounted)
+                                  Navigator.of(dialogCtx).pop();
                                 await _finalizeOrderPlacement(
-                                  generatedOrderId: generatedOrderId,
                                   totalAmount: totalAmount,
                                   subtotal: subtotal,
                                   discount: discount,
                                   addressMap: addressMap,
-                                  paymentStatus: 'PENDING_PAYMENT',
                                 );
                               },
                         child: processing
@@ -989,18 +1092,24 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                   const SizedBox(
                                     width: 18,
                                     height: 18,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: storeGreen),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: storeGreen),
                                   ),
                                   const SizedBox(width: 10),
                                   Text(
                                     'Redirecting to $selectedBank…',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, color: storeGreen),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: storeGreen),
                                   ),
                                 ],
                               )
                             : Text(
                                 'Pay ${storeMoney(totalAmount)} via $selectedBank',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: storeGreen),
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: storeGreen),
                               ),
                       ),
                     ],
@@ -1043,8 +1152,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           color: storeGreen,
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Icon(Icons.eco,
-                            color: storeAmber, size: 20),
+                        child:
+                            const Icon(Icons.eco, color: storeAmber, size: 20),
                       ),
                       const SizedBox(width: 8),
                       const Text(
@@ -1090,8 +1199,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           // Main Content
           Expanded(
             child: addresses.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -1141,7 +1249,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 }
 
                 _addressId ??= items
-                    .firstWhere((item) => item.isDefault, orElse: () => items.first)
+                    .firstWhere((item) => item.isDefault,
+                        orElse: () => items.first)
                     .id;
 
                 return LayoutBuilder(builder: (context, constraints) {
@@ -1183,8 +1292,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                   ],
                                 )
                               : Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     _buildOrderSummaryBox(cart),
                                     const SizedBox(height: 16),
@@ -1213,7 +1321,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       context: context,
       builder: (dialogCtx) => AlertDialog(
         title: const Text('Delete Address'),
-        content: Text('Are you sure you want to delete the delivery address for "${address.recipientName}"?'),
+        content: Text(
+            'Are you sure you want to delete the delivery address for "${address.recipientName}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogCtx).pop(),
@@ -1223,8 +1332,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             style: FilledButton.styleFrom(backgroundColor: storeError),
             onPressed: () async {
               Navigator.of(dialogCtx).pop();
-              await ref.read(deliveryAddressesProvider.notifier).delete(address.id);
-              final remaining = ref.read(deliveryAddressesProvider).valueOrNull ?? [];
+              await ref
+                  .read(deliveryAddressesProvider.notifier)
+                  .delete(address.id);
+              final remaining =
+                  ref.read(deliveryAddressesProvider).valueOrNull ?? [];
               if (_addressId == address.id) {
                 setState(() {
                   _addressId = remaining.isNotEmpty ? remaining.first.id : null;
@@ -1257,7 +1369,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       builder: (dialogCtx) {
         return Dialog(
           backgroundColor: storeWhite,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
             child: Padding(
@@ -1290,7 +1403,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Full Name / Recipient',
                         border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1299,7 +1413,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Phone Number',
                         border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1308,7 +1423,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Flat, House no., Building, Street',
                         border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1320,7 +1436,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             decoration: const InputDecoration(
                               labelText: 'City / Village',
                               border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 12),
                             ),
                           ),
                         ),
@@ -1331,7 +1448,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             decoration: const InputDecoration(
                               labelText: 'State',
                               border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 12),
                             ),
                           ),
                         ),
@@ -1346,7 +1464,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             decoration: const InputDecoration(
                               labelText: 'PIN Code',
                               border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 12),
                             ),
                           ),
                         ),
@@ -1357,7 +1476,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             decoration: const InputDecoration(
                               labelText: 'Landmark (Optional)',
                               border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 12),
                             ),
                           ),
                         ),
@@ -1371,7 +1491,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         style: FilledButton.styleFrom(
                           backgroundColor: storeAmber,
                           foregroundColor: storeGreen,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(22)),
                         ),
                         onPressed: () async {
                           final updated = {
@@ -1385,19 +1506,24 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             'district': cityCtrl.text.trim(),
                             'is_default': address.isDefault,
                           };
-                          await ref.read(deliveryAddressesProvider.notifier).update(address.id, updated);
+                          await ref
+                              .read(deliveryAddressesProvider.notifier)
+                              .update(address.id, updated);
                           if (dialogCtx.mounted) {
                             Navigator.of(dialogCtx).pop();
                           }
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Address updated successfully')),
+                              const SnackBar(
+                                  content:
+                                      Text('Address updated successfully')),
                             );
                           }
                         },
                         child: const Text(
                           'Save Changes',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
@@ -1464,9 +1590,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       : storeWhite,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: _addressId == address.id
-                        ? storeOrange
-                        : storeBorder,
+                    color: _addressId == address.id ? storeOrange : storeBorder,
                   ),
                 ),
                 child: InkWell(
@@ -1504,7 +1628,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                       Text(
                                         address.recipientName,
                                         style: const TextStyle(
-                                            fontWeight: FontWeight.bold, fontSize: 14),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14),
                                       ),
                                       if (address.isDefault) ...[
                                         const SizedBox(width: 8),
@@ -1512,8 +1637,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: storeGreen.withValues(alpha: 0.1),
-                                            borderRadius: BorderRadius.circular(4),
+                                            color: storeGreen.withValues(
+                                                alpha: 0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
                                           ),
                                           child: const Text(
                                             'Default',
@@ -1530,7 +1657,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                   Text(
                                     '${address.summary}\nPhone: ${address.phone}',
                                     style: const TextStyle(
-                                        fontSize: 12, height: 1.4, color: Color(0xff333333)),
+                                        fontSize: 12,
+                                        height: 1.4,
+                                        color: Color(0xff333333)),
                                   ),
                                 ],
                               ),
@@ -1553,7 +1682,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 8, vertical: 4),
                                   minimumSize: const Size(50, 26),
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
                                 child: const Text(
                                   'Set as default',
@@ -1594,8 +1724,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                   size: 14, color: storeError),
                               label: const Text(
                                 'Delete',
-                                style: TextStyle(
-                                    fontSize: 12, color: storeError),
+                                style:
+                                    TextStyle(fontSize: 12, color: storeError),
                               ),
                               style: TextButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(
@@ -1618,8 +1748,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Widget _buildStepPayment() {
-    final walletBal = ref.watch(milterraWalletProvider).totalBalance;
-
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -1653,34 +1781,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ),
           const Divider(height: 20),
           _paymentOptionTile(
-            value: 'wallet',
-            title: 'Milterra Wallet & Milk Earnings (${storeMoney(walletBal)} Available)',
-            subtitle: 'Instant deduction from cooperative milk earnings & store credits',
-            icon: Icons.account_balance_wallet_outlined,
-          ),
-          _paymentOptionTile(
             value: 'cod',
             title: 'Cash on Delivery (Pay upon delivery)',
             subtitle: 'Pay via cash, UPI, or card at your doorstep',
             icon: Icons.payments_outlined,
           ),
-          _paymentOptionTile(
-            value: 'upi',
-            title: 'UPI (Google Pay, PhonePe, Paytm, BHIM)',
-            subtitle: 'Instant payment from your linked bank account',
-            icon: Icons.qr_code_scanner_outlined,
-          ),
-          _paymentOptionTile(
-            value: 'card',
-            title: 'Credit or Debit Card',
-            subtitle: 'Visa, MasterCard, RuPay, Maestro accepted',
-            icon: Icons.credit_card_outlined,
-          ),
-          _paymentOptionTile(
-            value: 'netbanking',
-            title: 'Net Banking',
-            subtitle: 'SBI, HDFC, ICICI, Axis, and all major rural cooperative banks',
-            icon: Icons.account_balance_outlined,
+          const Padding(
+            padding: EdgeInsets.only(top: 10),
+            child: Text(
+              'UPI, card, net banking and wallet payments will be enabled after secure payment-gateway verification is connected.',
+              style: TextStyle(fontSize: 12, color: storeMuted),
+            ),
           ),
         ],
       ),
@@ -1706,8 +1817,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ),
         child: ListTile(
           onTap: () => setState(() => _paymentMethod = value),
-          contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14, vertical: 4),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           leading: Container(
             width: 18,
             height: 18,
@@ -1818,8 +1929,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         const SizedBox(height: 2),
                         Text(
                           'Qty: ${item.quantity} | ${item.inStock ? "In Stock" : "Unavailable"}',
-                          style: const TextStyle(
-                              fontSize: 11, color: storeMuted),
+                          style:
+                              const TextStyle(fontSize: 11, color: storeMuted),
                         ),
                       ],
                     ),
@@ -1845,9 +1956,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Widget _buildOrderSummaryBox(dynamic cart) {
     final subtotal = cart?.subtotal ?? 0.0;
     final count = cart?.itemCount ?? 0;
-    final appliedCoupon = ref.watch(appliedCouponProvider);
-    final discount = appliedCoupon?.calculateDiscount(subtotal) ?? 0.0;
-    final orderTotal = (subtotal - discount).clamp(0.0, double.infinity);
+    final orderTotal = subtotal;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1902,22 +2011,27 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Items ($count):',
-                  style: const TextStyle(fontSize: 13, color: Color(0xff565959))),
+                  style:
+                      const TextStyle(fontSize: 13, color: Color(0xff565959))),
               Text(storeMoney(subtotal),
-                  style: const TextStyle(fontSize: 13, color: Color(0xff0f1111))),
+                  style:
+                      const TextStyle(fontSize: 13, color: Color(0xff0f1111))),
             ],
           ),
           if (cart != null && cart.items.isNotEmpty) ...[
             const SizedBox(height: 6),
             InkWell(
-              onTap: () => setState(() => _summaryItemsExpanded = !_summaryItemsExpanded),
+              onTap: () => setState(
+                  () => _summaryItemsExpanded = !_summaryItemsExpanded),
               borderRadius: BorderRadius.circular(4),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Row(
                   children: [
                     Text(
-                      _summaryItemsExpanded ? 'Hide items' : 'View items (${cart.items.length})',
+                      _summaryItemsExpanded
+                          ? 'Hide items'
+                          : 'View items (${cart.items.length})',
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -1967,9 +2081,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                       child: Image.network(
                                         item.primaryImage!,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => const Icon(
-                                            Icons.inventory_2_outlined,
-                                            size: 14),
+                                        errorBuilder: (_, __, ___) =>
+                                            const Icon(
+                                                Icons.inventory_2_outlined,
+                                                size: 14),
                                       ),
                                     )
                                   : const Icon(Icons.inventory_2_outlined,
@@ -2015,18 +2130,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ),
             ],
           ],
-          if (appliedCoupon != null) ...[
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Promotion (${appliedCoupon.code}):',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xff067d62))),
-                Text('-${storeMoney(discount)}',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xff067d62))),
-              ],
-            ),
-          ],
           const SizedBox(height: 6),
           const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2062,25 +2165,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ),
             ],
           ),
-          if (discount > 0) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xffe8f5e9),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: const Color(0xffa5d6a7)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.check_circle_outline, size: 14, color: Color(0xff1b5e20)),
-                  const SizedBox(width: 6),
-                  Text('Your Coupon Savings: ${storeMoney(discount)}',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xff1b5e20))),
-                ],
-              ),
-            ),
-          ],
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(8),
@@ -2091,8 +2175,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ),
             child: const Row(
               children: [
-                Icon(Icons.lock_outline,
-                    size: 16, color: storeGreen),
+                Icon(Icons.lock_outline, size: 16, color: storeGreen),
                 SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -2144,7 +2227,8 @@ class _SimulatedQrPainter extends CustomPainter {
         if (!isTopLeft && !isTopRight && !isBottomLeft && !isCenter) {
           if (rng.nextBool()) {
             canvas.drawRect(
-              Rect.fromLTWH(c * moduleSize + 0.5, r * moduleSize + 0.5, moduleSize - 1, moduleSize - 1),
+              Rect.fromLTWH(c * moduleSize + 0.5, r * moduleSize + 0.5,
+                  moduleSize - 1, moduleSize - 1),
               paint,
             );
           }
@@ -2156,4 +2240,3 @@ class _SimulatedQrPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

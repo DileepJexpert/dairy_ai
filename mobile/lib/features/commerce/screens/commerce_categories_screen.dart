@@ -20,17 +20,21 @@ class CommerceCategoriesScreen extends ConsumerWidget {
                 onPressed: () => context.go('/shop'),
                 icon: const Icon(Icons.storefront_outlined)),
             actions: [
-              TextButton.icon(
-                onPressed: () => context.go('/admin/commerce/products'),
-                icon: const Icon(Icons.inventory_2_outlined, color: storeAmber, size: 18),
-                label: const Text('Products & Stock', style: TextStyle(color: storeWhite)),
+              PopupMenuButton<String>(
+                tooltip: 'Commerce sections',
+                icon: const Icon(Icons.more_vert, color: storeWhite),
+                onSelected: (route) => context.go(route),
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: '/admin/commerce/products',
+                    child: Text('Products & Stock'),
+                  ),
+                  PopupMenuItem(
+                    value: '/admin/commerce/orders',
+                    child: Text('Orders & Shipments'),
+                  ),
+                ],
               ),
-              TextButton.icon(
-                onPressed: () => context.go('/admin/commerce/orders'),
-                icon: const Icon(Icons.local_shipping_outlined, color: storeAmber, size: 18),
-                label: const Text('Orders & Shipments', style: TextStyle(color: storeWhite)),
-              ),
-              const SizedBox(width: 12),
             ]),
         body: ref.watch(commerceAccessProvider).when(
               loading: () => const Center(child: CircularProgressIndicator()),

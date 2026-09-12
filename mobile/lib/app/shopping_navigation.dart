@@ -11,6 +11,15 @@ String shoppingReturnPath(String? candidate) {
   }
   if (uri.path == '/shop' ||
       uri.path == '/admin/commerce' ||
+      uri.path == '/admin/ecommerce' ||
+      uri.path == '/admin-dashboard' ||
+      uri.path == '/admin-farmers' ||
+      uri.path == '/admin-vets' ||
+      uri.path == '/seller/dashboard' ||
+      uri.path == '/vendor-dashboard' ||
+      uri.path == '/vendor-orders' ||
+      uri.path == '/vendor-profile' ||
+      uri.path == '/vendor/products' ||
       uri.path.startsWith('/marketplace/')) {
     return uri.toString();
   }

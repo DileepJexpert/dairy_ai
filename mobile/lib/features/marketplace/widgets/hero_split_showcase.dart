@@ -15,12 +15,14 @@ class HeroSplitShowcase extends StatefulWidget {
     this.productSlides = defaultHeroProductSlides,
     this.farmStories = defaultHeroFarmStories,
     this.onExploreCategory,
+    this.autoPlay = false,
   });
 
   final double screenWidth;
   final List<HeroProductSlide> productSlides;
   final List<HeroFarmStory> farmStories;
   final ValueChanged<String>? onExploreCategory;
+  final bool autoPlay;
 
   @override
   State<HeroSplitShowcase> createState() => _HeroSplitShowcaseState();
@@ -60,8 +62,10 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
       }
     });
 
-    _startProductAutoSlide();
-    _startStoryProgress();
+    if (widget.autoPlay) {
+      _startProductAutoSlide();
+      _startStoryProgress();
+    }
   }
 
   @override
@@ -78,6 +82,7 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
   // Left Carousel Timers & Navigation (Every 5 seconds)
   // --------------------------------------------------------------------------
   void _startProductAutoSlide() {
+    if (!widget.autoPlay) return;
     _productTimer?.cancel();
     _productTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!mounted || widget.productSlides.isEmpty) return;
@@ -117,6 +122,7 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
   // Right Farm Story Timers & Story Progression (Every 7.5 seconds)
   // --------------------------------------------------------------------------
   void _startStoryProgress() {
+    if (!widget.autoPlay) return;
     _storyProgressCtrl.reset();
     if (!_isStoryPaused) {
       _storyProgressCtrl.forward();
@@ -186,7 +192,10 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 580),
+          constraints: BoxConstraints(
+            maxWidth: 580,
+            maxHeight: MediaQuery.sizeOf(ctx).height - 48,
+          ),
           decoration: BoxDecoration(
             color: storeWhite,
             borderRadius: BorderRadius.circular(StoreLayout.radius),
@@ -199,153 +208,156 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
               ),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Media Header
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(StoreLayout.radius),
-                    ),
-                    child: SizedBox(
-                      height: 220,
-                      width: double.infinity,
-                      child: Image.asset(
-                        story.posterPath,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: storeWarm,
-                          child: const Icon(Icons.yard_outlined,
-                              size: 56, color: storeGreen),
+          clipBehavior: Clip.antiAlias,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Media Header
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(StoreLayout.radius),
+                      ),
+                      child: SizedBox(
+                        height: 220,
+                        width: double.infinity,
+                        child: Image.asset(
+                          story.posterPath,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: storeWarm,
+                            child: const Icon(Icons.yard_outlined,
+                                size: 56, color: storeGreen),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  Positioned(
-                    top: 14,
-                    left: 14,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(14),
+                    Positioned(
+                      top: 14,
+                      left: 14,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.auto_awesome,
+                                size: 14, color: storeAmber),
+                            const SizedBox(width: 6),
+                            Text(
+                              story.storyBadge,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                    ),
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.black54,
+                        ),
+                        onPressed: () => Navigator.of(ctx).pop(),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Narrative Body
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          const Icon(Icons.auto_awesome,
-                              size: 14, color: storeAmber),
+                          const Icon(Icons.location_on_outlined,
+                              size: 15, color: storeMuted),
                           const SizedBox(width: 6),
                           Text(
-                            story.storyBadge,
+                            story.location,
                             style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              letterSpacing: 0.5,
+                              fontSize: 12,
+                              color: storeMuted,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                      Text(
+                        story.title,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: storeGreen,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        story.caption,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xff556b2f),
+                        ),
+                      ),
+                      const Divider(height: 24),
+                      Text(
+                        story.detailStory,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          height: 1.6,
+                          color: Color(0xff2d3748),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            child: const Text('Close'),
+                          ),
+                          const SizedBox(width: 12),
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: storeAmber,
+                              foregroundColor: storeGreen,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 22, vertical: 12),
+                            ),
+                            onPressed: () {
+                              Navigator.of(ctx).pop();
+                              context.go('/shop');
+                            },
+                            child: const Text(
+                              'Shop Farm Products',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.black54,
-                      ),
-                      onPressed: () => Navigator.of(ctx).pop(),
-                    ),
-                  ),
-                ],
-              ),
-
-              // Narrative Body
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on_outlined,
-                            size: 15, color: storeMuted),
-                        const SizedBox(width: 6),
-                        Text(
-                          story.location,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: storeMuted,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      story.title,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: storeGreen,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      story.caption,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xff556b2f),
-                      ),
-                    ),
-                    const Divider(height: 24),
-                    Text(
-                      story.detailStory,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        height: 1.6,
-                        color: Color(0xff2d3748),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.of(ctx).pop(),
-                          child: const Text('Close'),
-                        ),
-                        const SizedBox(width: 12),
-                        FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: storeAmber,
-                            foregroundColor: storeGreen,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 22, vertical: 12),
-                          ),
-                          onPressed: () {
-                            Navigator.of(ctx).pop();
-                            context.go('/shop');
-                          },
-                          child: const Text(
-                            'Shop Farm Products',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -392,7 +404,7 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
     }
 
     // Mobile / Tablet stacked view: sleek strip (150px each)
-    const mobilePanelHeight = 150.0;
+    const mobilePanelHeight = 220.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -510,9 +522,8 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
   }
 
   Widget _buildProductSlide(HeroProductSlide slide, {required bool isDesktop}) {
-    final matchedProduct = defaultMilterraProducts
-        .where((p) => p.id == slide.id)
-        .firstOrNull;
+    final matchedProduct =
+        defaultMilterraProducts.where((p) => p.id == slide.id).firstOrNull;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -1105,9 +1116,8 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                 : storeWhite.withValues(alpha: 0.95),
             shape: BoxShape.circle,
             border: Border.all(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.25)
-                  : storeBorder,
+              color:
+                  isDark ? Colors.white.withValues(alpha: 0.25) : storeBorder,
             ),
             boxShadow: const [
               BoxShadow(

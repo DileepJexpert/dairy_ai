@@ -1,10 +1,10 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dairy_ai/features/cart/models/cart_models.dart';
 import 'package:dairy_ai/features/finance/providers/wallet_provider.dart';
 import 'package:dairy_ai/features/notifications/models/notification_models.dart';
 import 'package:dairy_ai/features/notifications/providers/notification_provider.dart';
-import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 
 /// Single item within a placed order.
 class StoreOrderItem {
@@ -105,7 +105,8 @@ class OrderTimelineEvent {
 class StoreOrder {
   final String id;
   final String createdAt;
-  final String status; // CONFIRMED, PACKED, DISPATCHED, OUT_FOR_DELIVERY, DELIVERED, CANCELLED
+  final String
+      status; // CONFIRMED, PACKED, DISPATCHED, OUT_FOR_DELIVERY, DELIVERED, CANCELLED
   final String paymentStatus; // PAID, PENDING, FAILED
   final String paymentMethod; // Milterra Wallet, COD, UPI, Card
   final String carrier; // DTDC Express, Delhivery, Blue Dart, Milterra Direct
@@ -205,8 +206,18 @@ class StoreOrder {
 String _formatNow() {
   final now = DateTime.now();
   final months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec'
   ];
   final hour = now.hour % 12 == 0 ? 12 : now.hour % 12;
   final minute = now.minute.toString().padLeft(2, '0');
@@ -218,7 +229,7 @@ String _formatNow() {
 class OrderNotifier extends StateNotifier<List<StoreOrder>> {
   final Ref _ref;
 
-  OrderNotifier(this._ref) : super(_seedOrders);
+  OrderNotifier(this._ref) : super(kDebugMode ? _seedOrders : const []);
 
   static final List<StoreOrder> _seedOrders = [
     const StoreOrder(
@@ -269,21 +280,24 @@ class OrderNotifier extends StateNotifier<List<StoreOrder>> {
           time: '11 Sep 2026, 06:15 PM',
           title: 'Dispatched via DTDC Express',
           location: 'DTDC Central Hub, Jaipur',
-          remarks: 'Air Waybill DTDC-7749210 allocated. In transit to destination hub.',
+          remarks:
+              'Air Waybill DTDC-7749210 allocated. In transit to destination hub.',
           status: 'DISPATCHED',
         ),
         OrderTimelineEvent(
           time: '11 Sep 2026, 05:55 PM',
           title: 'Packed & Quality Sealed',
           location: 'Milterra Pure Hub, Karnal',
-          remarks: 'Tested for 99.4% purity and securely packed in temperature-controlled crate.',
+          remarks:
+              'Tested for 99.4% purity and securely packed in temperature-controlled crate.',
           status: 'PACKED',
         ),
         OrderTimelineEvent(
           time: '11 Sep 2026, 05:40 PM',
           title: 'Order Placed & Payment Verified',
           location: 'Milterra Web Store',
-          remarks: 'Payment of ₹1,850 successfully debited from Milterra Wallet.',
+          remarks:
+              'Payment of ₹1,850 successfully debited from Milterra Wallet.',
           status: 'CONFIRMED',
         ),
       ],
@@ -349,7 +363,8 @@ class OrderNotifier extends StateNotifier<List<StoreOrder>> {
     required double subtotal,
     required double discount,
     required double total,
-    String paymentStatus = 'PAID',
+    String paymentStatus = 'PENDING_PAYMENT',
+    String orderStatus = 'PENDING_PAYMENT',
     String? carrier,
     String? trackingNumber,
   }) {
@@ -380,12 +395,12 @@ class OrderNotifier extends StateNotifier<List<StoreOrder>> {
     final order = StoreOrder(
       id: orderId,
       createdAt: nowStr,
-      status: 'CONFIRMED',
+      status: orderStatus,
       paymentStatus: paymentStatus,
       paymentMethod: methodLabel,
-      carrier: carrier ?? 'Milterra Express / DTDC Partner',
+      carrier: carrier ?? 'Carrier pending',
       trackingNumber: trackingNumber ?? 'Awaiting AWB Generation',
-      estimatedDelivery: 'Expected in 1-2 Days',
+      estimatedDelivery: 'Calculated after dispatch',
       address: deliveryAddress,
       items: items,
       subtotal: subtotal,
@@ -430,16 +445,17 @@ class OrderNotifier extends StateNotifier<List<StoreOrder>> {
 
   /// Cancels an order and automatically refunds the Milterra wallet if prepaid.
   void cancelOrder(String orderId, {String? reason}) {
-    final order = state.firstWhere(
-      (o) => o.id == orderId,
-      orElse: () => _seedOrders.first,
-    );
+    final index = state.indexWhere((order) => order.id == orderId);
+    if (index < 0) return;
+    final order = state[index];
 
     if (order.status.toUpperCase() == 'CANCELLED') return;
 
     // Trigger wallet refund if paid
     if (order.paymentStatus.toUpperCase() == 'PAID' && order.total > 0) {
-      _ref.read(milterraWalletProvider.notifier).refundOrder(order.total, order.id);
+      _ref
+          .read(milterraWalletProvider.notifier)
+          .refundOrder(order.total, order.id);
     }
 
     updateOrderStatus(
@@ -535,10 +551,9 @@ class OrderNotifier extends StateNotifier<List<StoreOrder>> {
     }).toList();
 
     // Trigger in-app notification based on status
-    final currentOrder = state.firstWhere(
-      (o) => o.id == orderId,
-      orElse: () => _seedOrders.first,
-    );
+    final index = state.indexWhere((order) => order.id == orderId);
+    if (index < 0) return;
+    final currentOrder = state[index];
 
     String notifTitle;
     String notifBody;
@@ -577,36 +592,19 @@ class OrderNotifier extends StateNotifier<List<StoreOrder>> {
             createdAt: DateTime.now(),
           ),
         );
-
-    // Asynchronously dispatch telemetry to backend webhook if server is running
-    try {
-      final updatedOrder = state.firstWhere(
-        (o) => o.id == orderId,
-        orElse: () => _seedOrders.first,
-      );
-      _ref.read(dioProvider).post(
-        '/marketplace/orders/webhooks/courier',
-        data: {
-          'order_id': orderId,
-          'carrier': updatedOrder.carrier,
-          'awb_number': updatedOrder.trackingNumber,
-          'status': normalizedStatus,
-          'location': location ?? 'Milterra Logistics Hub',
-          'remarks': remarks ?? 'Status updated to $normalizedStatus',
-        },
-      ).ignore();
-    } catch (_) {}
   }
 
   /// Advances to the next courier milestone for fast interactive testing.
   void simulateCourierStep(String orderId) {
-    final match = state.firstWhere(
-      (o) => o.id == orderId,
-      orElse: () => _seedOrders.first,
-    );
+    if (!kDebugMode) return;
+    final index = state.indexWhere((order) => order.id == orderId);
+    if (index < 0) return;
+    final match = state[index];
 
     final s = match.status.toUpperCase();
-    if (s.contains('CONFIRMED') || s.contains('PLACED') || s.contains('PENDING')) {
+    if (s.contains('CONFIRMED') ||
+        s.contains('PLACED') ||
+        s.contains('PENDING')) {
       updateOrderStatus(orderId, 'PACKED');
     } else if (s.contains('PACK')) {
       final randomAwb = 'DTDC-${Random().nextInt(899999) + 100000}';
@@ -616,14 +614,16 @@ class OrderNotifier extends StateNotifier<List<StoreOrder>> {
         carrier: 'DTDC Express Surface',
         trackingNumber: randomAwb,
         location: 'DTDC Central Hub, Jaipur',
-        remarks: 'Parcel picked up by DTDC Courier van. AWB $randomAwb generated.',
+        remarks:
+            'Parcel picked up by DTDC Courier van. AWB $randomAwb generated.',
       );
     } else if (s.contains('DISPATCH') || s.contains('SHIP')) {
       updateOrderStatus(
         orderId,
         'OUT_FOR_DELIVERY',
         location: 'City Sub-Hub #14',
-        remarks: 'Out for delivery with DTDC agent Rajesh (Contact: +91 98210 44321).',
+        remarks:
+            'Out for delivery with DTDC agent Rajesh (Contact: +91 98210 44321).',
       );
     } else if (s.contains('OUT') || s.contains('TRANSIT')) {
       updateOrderStatus(
@@ -634,7 +634,8 @@ class OrderNotifier extends StateNotifier<List<StoreOrder>> {
       );
     } else {
       // If already delivered, reset to CONFIRMED for continuous loop testing
-      updateOrderStatus(orderId, 'CONFIRMED', remarks: 'Reset to Confirmed for workflow testing.');
+      updateOrderStatus(orderId, 'CONFIRMED',
+          remarks: 'Reset to Confirmed for workflow testing.');
     }
   }
 }

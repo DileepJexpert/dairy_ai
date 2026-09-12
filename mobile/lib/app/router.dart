@@ -58,7 +58,6 @@ import 'package:dairy_ai/features/vendor/screens/vendor_profile_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/vendor_orders_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/vendor_products_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/seller_onboarding_screen.dart';
-import 'package:dairy_ai/features/vendor/screens/seller_portal_screen.dart';
 
 // Cooperative screens
 import 'package:dairy_ai/features/cooperative/screens/cooperative_dashboard_screen.dart';
@@ -131,7 +130,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final location = state.uri.path;
       final userRole = currentUser?.role.toLowerCase();
       final isAdmin = userRole == 'admin' || userRole == 'super_admin';
-      final isSeller = isAdmin || userRole == 'vendor' || userRole == 'seller';
+      final isSeller = isAdmin || userRole == 'vendor';
 
       final isAdminArea = location == '/admin/ecommerce' ||
           location == '/admin-dashboard' ||
@@ -235,7 +234,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           'next': shoppingReturnPath(state.uri.toString())
         }).toString();
       }
-      if (isAuthenticated && (state.matchedLocation == '/login' || state.matchedLocation == '/register')) {
+      if (isAuthenticated &&
+          (state.matchedLocation == '/login' ||
+              state.matchedLocation == '/register')) {
         final next = state.uri.queryParameters['next'];
         return shoppingReturnPath(next);
       }
@@ -472,7 +473,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/marketplace/sell',
         builder: (context, state) {
-          final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+          final tab =
+              int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
           return SellOnMilterraScreen(initialTab: tab);
         },
       ),
@@ -856,7 +858,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       // ---- Ecommerce Admin Panel & Multi-Seller Portal Routes ----
       GoRoute(
         path: '/admin/login',
-        builder: (context, state) => const AdminLoginScreen(),
+        builder: (context, state) => AdminLoginScreen(
+          nextPath: state.uri.queryParameters['next'],
+        ),
       ),
       GoRoute(
         path: '/admin/ecommerce',
@@ -864,7 +868,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/seller/login',
-        builder: (context, state) => const SellerLoginScreen(),
+        builder: (context, state) => SellerLoginScreen(
+          nextPath: state.uri.queryParameters['next'],
+        ),
       ),
       GoRoute(
         path: '/seller/onboarding',
@@ -872,7 +878,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/seller/dashboard',
-        builder: (context, state) => const SellerPortalScreen(),
+        redirect: (_, __) => '/vendor-dashboard',
       ),
     ],
   );

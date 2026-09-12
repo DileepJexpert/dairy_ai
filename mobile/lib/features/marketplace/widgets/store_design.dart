@@ -265,37 +265,71 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                         () => storeBrowse(context, category: 'Other products')),
                     const Divider(height: 16),
                     _sectionHeader('🌱 MILTERRA Earth: Living Soil & Compost'),
-                    _drawerTile(context, 'From Farm Waste to Living Soil (Overview)',
+                    _drawerTile(
+                        context, 'From Farm Waste to Living Soil (Overview)',
                         () {
                       Navigator.pop(context);
                       context.push('/earth');
                     }),
                     _drawerTile(context, 'All MILTERRA Earth Products',
                         () => storeBrowse(context, category: 'MILTERRA Earth')),
-                    _drawerTile(context, 'Premium Vermicompost',
-                        () => storeBrowse(context, category: 'MILTERRA Earth', query: 'vermicompost')),
-                    _drawerTile(context, 'Cow-Dung Farm Manure',
-                        () => storeBrowse(context, category: 'MILTERRA Earth', query: 'manure')),
-                    _drawerTile(context, 'Enriched Organic Compost',
-                        () => storeBrowse(context, category: 'MILTERRA Earth', query: 'compost')),
-                    _drawerTile(context, 'Sun-Dried Compost Cakes',
-                        () => storeBrowse(context, category: 'MILTERRA Earth', query: 'cakes')),
-                    _drawerTile(context, 'Compost Starter & Inoculants',
-                        () => storeBrowse(context, category: 'MILTERRA Earth', query: 'starter')),
-                    _drawerTile(context, 'Garden Soil Mix',
-                        () => storeBrowse(context, category: 'MILTERRA Earth', query: 'soil mix')),
+                    _drawerTile(
+                        context,
+                        'Premium Vermicompost',
+                        () => storeBrowse(context,
+                            category: 'MILTERRA Earth', query: 'vermicompost')),
+                    _drawerTile(
+                        context,
+                        'Cow-Dung Farm Manure',
+                        () => storeBrowse(context,
+                            category: 'MILTERRA Earth', query: 'manure')),
+                    _drawerTile(
+                        context,
+                        'Enriched Organic Compost',
+                        () => storeBrowse(context,
+                            category: 'MILTERRA Earth', query: 'compost')),
+                    _drawerTile(
+                        context,
+                        'Sun-Dried Compost Cakes',
+                        () => storeBrowse(context,
+                            category: 'MILTERRA Earth', query: 'cakes')),
+                    _drawerTile(
+                        context,
+                        'Compost Starter & Inoculants',
+                        () => storeBrowse(context,
+                            category: 'MILTERRA Earth', query: 'starter')),
+                    _drawerTile(
+                        context,
+                        'Garden Soil Mix',
+                        () => storeBrowse(context,
+                            category: 'MILTERRA Earth', query: 'soil mix')),
                     const Divider(height: 16),
                     _sectionHeader("🌾 Farmer's Hub: Feed & Nutrition"),
-                    _drawerTile(context, 'All Cattle Nutrition & Feed',
-                        () => storeBrowse(context, category: 'Animal nutrition')),
-                    _drawerTile(context, '20% Protein Compound Pellets',
-                        () => storeBrowse(context, category: 'Animal nutrition')),
-                    _drawerTile(context, 'Chelated Minerals & Yeast',
-                        () => storeBrowse(context, category: 'Animal nutrition')),
-                    _drawerTile(context, 'Calci-Boost High-Potency Drench',
-                        () => storeBrowse(context, category: 'Animal nutrition')),
-                    _drawerTile(context, '99% Pure Bypass Fat',
-                        () => storeBrowse(context, category: 'Animal nutrition')),
+                    _drawerTile(
+                        context,
+                        'All Cattle Nutrition & Feed',
+                        () =>
+                            storeBrowse(context, category: 'Animal nutrition')),
+                    _drawerTile(
+                        context,
+                        '20% Protein Compound Pellets',
+                        () =>
+                            storeBrowse(context, category: 'Animal nutrition')),
+                    _drawerTile(
+                        context,
+                        'Chelated Minerals & Yeast',
+                        () =>
+                            storeBrowse(context, category: 'Animal nutrition')),
+                    _drawerTile(
+                        context,
+                        'Calci-Boost High-Potency Drench',
+                        () =>
+                            storeBrowse(context, category: 'Animal nutrition')),
+                    _drawerTile(
+                        context,
+                        '99% Pure Bypass Fat',
+                        () =>
+                            storeBrowse(context, category: 'Animal nutrition')),
                     const Divider(height: 16),
                     _sectionHeader('⚙️ Modern Farm & Dairy Machinery'),
                     _drawerTile(context, 'All Dairy & Farm Machinery',
@@ -386,9 +420,15 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
 
 /// Amazon-style Comprehensive Header
 class StoreHeader extends ConsumerStatefulWidget {
-  const StoreHeader({super.key, this.search, this.currentCategory});
+  const StoreHeader({
+    super.key,
+    this.search,
+    this.currentCategory,
+    this.initialSearch = '',
+  });
   final Widget? search;
   final String? currentCategory;
+  final String initialSearch;
 
   @override
   ConsumerState<StoreHeader> createState() => _StoreHeaderState();
@@ -414,13 +454,17 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
   @override
   void initState() {
     super.initState();
-    _searchCtrl = TextEditingController();
+    _searchCtrl = TextEditingController(text: widget.initialSearch);
     _selectedCategory = _normalizeCategory(widget.currentCategory);
   }
 
   @override
   void didUpdateWidget(covariant StoreHeader oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialSearch != widget.initialSearch &&
+        _searchCtrl.text != widget.initialSearch) {
+      _searchCtrl.text = widget.initialSearch;
+    }
     if (oldWidget.currentCategory != widget.currentCategory) {
       setState(() {
         _selectedCategory = _normalizeCategory(widget.currentCategory);
@@ -459,7 +503,8 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
         bottom: false,
         child: LayoutBuilder(builder: (context, bounds) {
           final isMobile = bounds.maxWidth < StoreLayout.tablet;
-          final isWide = bounds.maxWidth >= 960;
+          final isCompact = bounds.maxWidth < 1100;
+          final isWide = bounds.maxWidth >= 1200;
 
           return Column(
             mainAxisSize: MainAxisSize.min,
@@ -565,34 +610,43 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                     ],
 
                     // Account & Lists
-                    InkWell(
-                      onTap: () => storeAccountRoute(
-                          context, ref, '/marketplace/orders'),
-                      borderRadius: BorderRadius.circular(4),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              user != null
-                                  ? 'Hello, ${user.name?.split(' ').first ?? 'User'}'
-                                  : 'Hello, sign in',
-                              style: StoreType.amazonTopLine,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const Text('Account & Lists ▾',
-                                style: StoreType.amazonBottomLine),
-                          ],
+                    if (isCompact)
+                      IconButton(
+                        tooltip: user == null ? 'Sign in' : 'Your account',
+                        onPressed: () => storeAccountRoute(
+                            context, ref, '/marketplace/orders'),
+                        icon: const Icon(Icons.person_outline,
+                            color: storeWhite, size: 24),
+                      )
+                    else
+                      InkWell(
+                        onTap: () => storeAccountRoute(
+                            context, ref, '/marketplace/orders'),
+                        borderRadius: BorderRadius.circular(4),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                user != null
+                                    ? 'Hello, ${user.name?.split(' ').first ?? 'User'}'
+                                    : 'Hello, sign in',
+                                style: StoreType.amazonTopLine,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const Text('Account & Lists ▾',
+                                  style: StoreType.amazonBottomLine),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
 
                     // Returns & Orders (Desktop & Tablet)
-                    if (!isMobile) ...[
+                    if (!isCompact) ...[
                       const SizedBox(width: 4),
                       InkWell(
                         onTap: () => storeAccountRoute(
@@ -650,7 +704,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                                 size: 24,
                               ),
                             ),
-                            if (!isMobile) ...[
+                            if (!isCompact) ...[
                               const SizedBox(width: 6),
                               const Text('Wishlist',
                                   style: StoreType.amazonBottomLine),
@@ -686,7 +740,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                                 size: 26,
                               ),
                             ),
-                            if (!isMobile) ...[
+                            if (!isCompact) ...[
                               const SizedBox(width: 6),
                               const Text('Cart',
                                   style: StoreType.amazonBottomLine),
@@ -866,7 +920,8 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
       } else {
         items.add(DropdownMenuItem(
           value: resolvedKey,
-          child: Text(resolvedKey, maxLines: 1, overflow: TextOverflow.ellipsis),
+          child:
+              Text(resolvedKey, maxLines: 1, overflow: TextOverflow.ellipsis),
         ));
       }
     }
@@ -879,8 +934,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
         color: storeWhite,
         borderRadius: BorderRadius.circular(StoreLayout.controlRadius),
         boxShadow: const [
-          BoxShadow(
-              color: Colors.black12, blurRadius: 4, offset: Offset(0, 1)),
+          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1)),
         ],
       ),
       child: Row(
@@ -896,21 +950,24 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                 bottomLeft: Radius.circular(StoreLayout.controlRadius),
               ),
             ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: dropdownValue,
-                icon: const Icon(Icons.arrow_drop_down,
-                    size: 17, color: storeGreen),
-                style: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: storeGreen),
-                items: items,
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() => _selectedCategory = val);
-                  }
-                },
+            child: Material(
+              color: Colors.transparent,
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: dropdownValue,
+                  icon: const Icon(Icons.arrow_drop_down,
+                      size: 17, color: storeGreen),
+                  style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: storeGreen),
+                  items: items,
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() => _selectedCategory = val);
+                    }
+                  },
+                ),
               ),
             ),
           ),
@@ -918,6 +975,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
           // Search Input Field
           Expanded(
             child: TextField(
+              key: const ValueKey('store-search-field'),
               controller: _searchCtrl,
               textInputAction: TextInputAction.search,
               onSubmitted: (_) => _triggerSearch(),
@@ -935,11 +993,12 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                 focusedBorder: InputBorder.none,
                 suffixIcon: _searchCtrl.text.isNotEmpty
                     ? IconButton(
+                        tooltip: 'Clear search',
                         icon: const Icon(Icons.clear,
                             size: 16, color: storeMuted),
                         onPressed: () {
                           _searchCtrl.clear();
-                          setState(() {});
+                          _triggerSearch();
                         },
                       )
                     : null,
@@ -1056,9 +1115,8 @@ class StoreCategoryNavigation extends ConsumerWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 9, vertical: 5),
                             decoration: BoxDecoration(
-                              color: isCurrent
-                                  ? storeSubNav
-                                  : Colors.transparent,
+                              color:
+                                  isCurrent ? storeSubNav : Colors.transparent,
                               borderRadius: BorderRadius.circular(3),
                             ),
                             child: Center(
@@ -1099,7 +1157,8 @@ class StoreCategoryNavigation extends ConsumerWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.bolt, size: 14, color: storeGold),
+                                const Icon(Icons.bolt,
+                                    size: 14, color: storeGold),
                                 const SizedBox(width: 3),
                                 Text(
                                   "Today's Deals",
@@ -1158,8 +1217,8 @@ class StoreCategoryNavigation extends ConsumerWidget {
                       },
                       borderRadius: BorderRadius.circular(4),
                       child: Padding(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -1342,19 +1401,37 @@ abstract final class StoreImages {
         'buffalo ghee' || 'buffalo-ghee' => 'assets/store/buffalo-ghee.png',
         'paneer' => 'assets/store/paneer.png',
         'janam-42' || 'janam' => 'assets/store/feed-janam-42.jpg',
-        'minera-360' || 'mineral' || 'mineral supplement' => 'assets/store/minera-360-jar.jpg',
-        'bovine gold' || 'cattle feed' || 'feed pellets' || 'pashu aahar' => 'assets/store/feed-bovine-gold.jpg',
+        'minera-360' ||
+        'mineral' ||
+        'mineral supplement' =>
+          'assets/store/minera-360-jar.jpg',
+        'bovine gold' ||
+        'cattle feed' ||
+        'feed pellets' ||
+        'pashu aahar' =>
+          'assets/store/feed-bovine-gold.jpg',
         'bypass fat' || 'lacto-energy' => 'assets/store/feed-bypass-fat.jpg',
         'calci-boost' || 'calcium' => 'assets/store/calci-feed-combo.jpg',
-        'animal nutrition' || 'cattle nutrition' => 'assets/store/nutrition-lineup.jpg',
-        'milterra earth' || 'earth' || 'vermicompost' => 'assets/store/earth-vermicompost.jpg',
+        'animal nutrition' ||
+        'cattle nutrition' =>
+          'assets/store/nutrition-lineup.jpg',
+        'milterra earth' ||
+        'earth' ||
+        'vermicompost' =>
+          'assets/store/earth-vermicompost.jpg',
         'manure' || 'farm manure' => 'assets/store/earth-manure.jpg',
         'soil mix' || 'garden soil' => 'assets/store/earth-soil-mix.jpg',
         'compost cakes' || 'cakes' => 'assets/store/earth-cakes.jpg',
-        'equipment' || 'farm equipment' || 'farm machinery' || 'dairy equipment' => 'assets/store/equipment-milker.jpg',
+        'equipment' ||
+        'farm equipment' ||
+        'farm machinery' ||
+        'dairy equipment' =>
+          'assets/store/equipment-milker.jpg',
         'milking machine' || 'milker' => 'assets/store/equipment-milker.jpg',
         'milk analyzer' || 'ultrascan' => 'assets/store/equipment-analyzer.jpg',
-        'chaff cutter' || 'fodder cutter' => 'assets/store/equipment-chaff-cutter.jpg',
+        'chaff cutter' ||
+        'fodder cutter' =>
+          'assets/store/equipment-chaff-cutter.jpg',
         'milk can' => 'assets/store/equipment-milk-can.jpg',
         'cow mat' || 'rubber mat' => 'assets/store/equipment-cow-mat.jpg',
         _ => null,
@@ -1372,11 +1449,14 @@ abstract final class StoreImages {
         title.contains('farm manure');
 
     if (isEarth) {
-      if (title.contains('vermicompost')) return 'assets/store/earth-vermicompost.jpg';
+      if (title.contains('vermicompost'))
+        return 'assets/store/earth-vermicompost.jpg';
       if (title.contains('manure')) return 'assets/store/earth-manure.jpg';
-      if (title.contains('soil mix') || title.contains('soil')) return 'assets/store/earth-soil-mix.jpg';
+      if (title.contains('soil mix') || title.contains('soil'))
+        return 'assets/store/earth-soil-mix.jpg';
       if (title.contains('cake')) return 'assets/store/earth-cakes.jpg';
-      if (title.contains('starter') || title.contains('compost')) return 'assets/store/earth-vermicompost.jpg';
+      if (title.contains('starter') || title.contains('compost'))
+        return 'assets/store/earth-vermicompost.jpg';
       return 'assets/store/earth-vermicompost.jpg';
     }
 
@@ -1386,30 +1466,44 @@ abstract final class StoreImages {
     if (title.contains('analyzer') || title.contains('ultrascan')) {
       return 'assets/store/equipment-analyzer.jpg';
     }
-    if (title.contains('chaff') || title.contains('cutter') || title.contains('fodder cutter')) {
+    if (title.contains('chaff') ||
+        title.contains('cutter') ||
+        title.contains('fodder cutter')) {
       return 'assets/store/equipment-chaff-cutter.jpg';
     }
     if (title.contains('can') || title.contains('milk can')) {
       return 'assets/store/equipment-milk-can.jpg';
     }
-    if (title.contains('mat') || title.contains('rubber mat') || title.contains('comfort mat')) {
+    if (title.contains('mat') ||
+        title.contains('rubber mat') ||
+        title.contains('comfort mat')) {
       return 'assets/store/equipment-cow-mat.jpg';
     }
 
     if (title.contains('janam')) return 'assets/store/feed-janam-42.jpg';
-    if (title.contains('bovine gold') || (title.contains('pellet') && title.contains('feed'))) {
+    if (title.contains('bovine gold') ||
+        (title.contains('pellet') && title.contains('feed'))) {
       return 'assets/store/feed-bovine-gold.jpg';
     }
     if (title.contains('bypass fat') || title.contains('lacto-energy')) {
       return 'assets/store/feed-bypass-fat.jpg';
     }
-    if (title.contains('minera-360') || title.contains('mineral supplement') || title.contains('mineral')) {
+    if (title.contains('minera-360') ||
+        title.contains('mineral supplement') ||
+        title.contains('mineral')) {
       return 'assets/store/minera-360-jar.jpg';
     }
-    if (title.contains('calci-') || title.contains('calcium') || title.contains('cal-gold')) {
+    if (title.contains('calci-') ||
+        title.contains('calcium') ||
+        title.contains('cal-gold')) {
       return 'assets/store/calci-feed-combo.jpg';
     }
-    if (title.contains('lacta') || title.contains('rumen') || title.contains('heat') || title.contains('digest') || title.contains('vitagrow') || title.contains('milk-pro')) {
+    if (title.contains('lacta') ||
+        title.contains('rumen') ||
+        title.contains('heat') ||
+        title.contains('digest') ||
+        title.contains('vitagrow') ||
+        title.contains('milk-pro')) {
       return 'assets/store/nutrition-lineup.jpg';
     }
     if (title.contains('cow ghee')) return 'assets/store/cow-ghee.png';
@@ -1437,7 +1531,8 @@ class ProductArtwork extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = product;
     final explicitAsset = StoreImages.productArtwork(p);
-    final asset = explicitAsset ?? StoreImages.category(p != null ? storeCategory(p) : kind);
+    final asset = explicitAsset ??
+        StoreImages.category(p != null ? storeCategory(p) : kind);
 
     Widget departmentCard() {
       final title = p?.title.toLowerCase() ?? kind.toLowerCase();
@@ -1450,7 +1545,10 @@ class ProductArtwork extends StatelessWidget {
           p?.category == ProductCategory.feedNutrition ||
           title.contains('janam') ||
           (p?.taxonomy?['status'] != null &&
-              p!.taxonomy!['status'].toString().toLowerCase().contains('concept'));
+              p!.taxonomy!['status']
+                  .toString()
+                  .toLowerCase()
+                  .contains('concept'));
 
       if (title.contains('vermicompost')) {
         icon = Icons.yard_outlined;
@@ -1512,7 +1610,9 @@ class ProductArtwork extends StatelessWidget {
         bg = const Color(0xffeae7e1);
         fg = const Color(0xff4a3e2c);
         tag = 'COW COMFORT MAT';
-      } else if (title.contains('pellet') || title.contains('feed') || title.contains('aahar')) {
+      } else if (title.contains('pellet') ||
+          title.contains('feed') ||
+          title.contains('aahar')) {
         icon = Icons.grain_outlined;
         bg = const Color(0xfff7f2e7);
         fg = const Color(0xff7a591e);
@@ -1522,7 +1622,9 @@ class ProductArtwork extends StatelessWidget {
         bg = const Color(0xffedf4ea);
         fg = const Color(0xff326938);
         tag = isConcept ? 'CONCEPT PREVIEW' : 'CHELATED MINERALS';
-      } else if (title.contains('calcium') || title.contains('calci') || title.contains('drench')) {
+      } else if (title.contains('calcium') ||
+          title.contains('calci') ||
+          title.contains('drench')) {
         icon = Icons.health_and_safety_outlined;
         bg = const Color(0xfff8ede8);
         fg = const Color(0xff8c3b24);
@@ -1739,16 +1841,12 @@ class StoreFooter extends ConsumerWidget {
                                 const SizedBox(height: 8),
                                 TextButton(
                                     onPressed: () => storeAccountRoute(
-                                        context,
-                                        ref,
-                                        '/marketplace/orders'),
+                                        context, ref, '/marketplace/orders'),
                                     child: const Text('Your Account & Orders',
                                         style: StoreType.inverseLabel)),
                                 TextButton(
                                     onPressed: () => storeAccountRoute(
-                                        context,
-                                        ref,
-                                        '/marketplace/addresses'),
+                                        context, ref, '/marketplace/addresses'),
                                     child: const Text('Delivery Addresses',
                                         style: StoreType.inverseLabel)),
                                 TextButton(

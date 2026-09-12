@@ -44,14 +44,18 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       for (final node in _taxonomy!.nodes) {
         if (node.id == value || node.slug == value) {
           final nLower = node.name.toLowerCase();
-          if (nLower.contains('animal') || nLower.contains('nutrition') || nLower.contains('feed')) {
+          if (nLower.contains('animal') ||
+              nLower.contains('nutrition') ||
+              nLower.contains('feed')) {
             return 'MILTERRA Cattle Nutrition Solutions';
           }
           return node.name;
         }
       }
     }
-    if (lower.contains('earth') || lower == 'milterra-earth' || lower == 'cat-earth') {
+    if (lower.contains('earth') ||
+        lower == 'milterra-earth' ||
+        lower == 'cat-earth') {
       return '🌱 MILTERRA Earth: Living Soil';
     }
     if (lower.contains('animal') ||
@@ -77,9 +81,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       'Stage-Based Nutrition Courses' ||
       'Stage-Based Nutrition' =>
         'Stage-Based Nutrition',
-      'Supplements' ||
-      'Supplements & Minerals' =>
-        'Supplements & Minerals',
+      'Supplements' || 'Supplements & Minerals' => 'Supplements & Minerals',
       'Equipment' => 'Dairy & Farm Equipment',
       'Cow ghee' => 'A2 Desi Cow Ghee',
       'Buffalo ghee' => 'Rich Buffalo Ghee',
@@ -188,6 +190,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             // Top Amazon Header & Subnav
             StoreHeader(
               currentCategory: _label(_category),
+              initialSearch: _search.text,
             ),
             StoreCategoryNavigation(
               selected: _category,
@@ -247,7 +250,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                           // Dedicated Category/Department Landing Banner (when filtered)
                                           if (_category != 'All products' &&
                                               _category != 'All') ...[
-                                            _buildDepartmentLandingBanner(isMobile),
+                                            _buildDepartmentLandingBanner(
+                                                isMobile),
                                             const SizedBox(height: 14),
                                           ],
 
@@ -356,12 +360,13 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Builder(builder: (_) {
-                  final isNutrition = _category.toLowerCase().contains('animal') ||
-                      _category.toLowerCase().contains('nutrition') ||
-                      _category.toLowerCase().contains('feed') ||
-                      _category.toLowerCase().contains('supplement') ||
-                      _category.toLowerCase().contains('pashu') ||
-                      _category.toLowerCase().contains('stage');
+                  final isNutrition =
+                      _category.toLowerCase().contains('animal') ||
+                          _category.toLowerCase().contains('nutrition') ||
+                          _category.toLowerCase().contains('feed') ||
+                          _category.toLowerCase().contains('supplement') ||
+                          _category.toLowerCase().contains('pashu') ||
+                          _category.toLowerCase().contains('stage');
                   return Text(
                     isNutrition ? 'FEATURED NUTRITION CONCEPTS' : 'RESULTS',
                     style: TextStyle(
@@ -399,48 +404,70 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
               icon: const Icon(Icons.tune, color: storeGreen),
             ),
           const SizedBox(width: 8),
-          Container(
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: storeCream,
-              borderRadius: BorderRadius.circular(StoreLayout.controlRadius),
-              border: Border.all(color: storeBorder),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: const [
-                  'Featured',
-                  'Price: low to high',
-                  'Price: high to low',
-                  'Name: A to Z',
-                ].contains(_sort)
-                    ? _sort
-                    : 'Featured',
-                icon: const Icon(Icons.arrow_drop_down,
-                    size: 18, color: storeGreen),
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: storeGreen,
+          if (!isDesktop)
+            PopupMenuButton<String>(
+              tooltip: 'Sort products',
+              icon: const Icon(Icons.sort, color: storeGreen),
+              initialValue: _sort,
+              onSelected: (value) => setState(() => _sort = value),
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'Featured', child: Text('Featured')),
+                PopupMenuItem(
+                    value: 'Price: low to high',
+                    child: Text('Price: low to high')),
+                PopupMenuItem(
+                    value: 'Price: high to low',
+                    child: Text('Price: high to low')),
+                PopupMenuItem(
+                    value: 'Name: A to Z', child: Text('Name: A to Z')),
+              ],
+            )
+          else
+            Container(
+              height: 36,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: storeCream,
+                borderRadius: BorderRadius.circular(StoreLayout.controlRadius),
+                border: Border.all(color: storeBorder),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: const [
+                      'Featured',
+                      'Price: low to high',
+                      'Price: high to low',
+                      'Name: A to Z',
+                    ].contains(_sort)
+                        ? _sort
+                        : 'Featured',
+                    icon: const Icon(Icons.arrow_drop_down,
+                        size: 18, color: storeGreen),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: storeGreen,
+                    ),
+                    items: const [
+                      'Featured',
+                      'Price: low to high',
+                      'Price: high to low',
+                      'Name: A to Z',
+                    ]
+                        .map((v) => DropdownMenuItem(
+                              value: v,
+                              child: Text('Sort: $v'),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) setState(() => _sort = value);
+                    },
+                  ),
                 ),
-                items: [
-                  'Featured',
-                  'Price: low to high',
-                  'Price: high to low',
-                  'Name: A to Z',
-                ]
-                    .map((v) => DropdownMenuItem(
-                          value: v,
-                          child: Text('Sort: $v'),
-                        ))
-                    .toList(),
-                onChanged: (v) {
-                  if (v != null) setState(() => _sort = v);
-                },
               ),
             ),
-          ),
         ],
       ),
     );
@@ -456,44 +483,44 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   Widget _buildTrustAndQualityStrip(bool isMobile) {
     final pillars = [
       (
-        title: '99.4% Certified Pure',
-        subtitle: 'Zero foreign fat • Lab assay tested',
-        badge: 'NDRI Verified',
-        icon: Icons.science_outlined,
+        title: 'Clear product details',
+        subtitle: 'Compare pack size, price and stock',
+        badge: 'Easy choice',
+        icon: Icons.fact_check_outlined,
         iconBg: const Color(0xffe8f5e9),
         iconColor: const Color(0xff1e8e3e),
-        actionLabel: 'View Standards →',
-        onTap: () => _showPurityGuaranteeDialog(),
+        actionLabel: 'Browse products →',
+        onTap: () => _browse('All products'),
       ),
       (
-        title: 'Vedic Bilona Churned',
-        subtitle: 'Indigenous Gir cows • Earthen curd',
-        badge: 'Traditional',
-        icon: Icons.grass_rounded,
+        title: 'Seller information',
+        subtitle: 'Know who lists and fulfils each item',
+        badge: 'Visible',
+        icon: Icons.storefront_outlined,
         iconBg: const Color(0xfffef3d6),
         iconColor: const Color(0xffb7791f),
-        actionLabel: 'Explore Ghee →',
-        onTap: () => _browse('Cow ghee'),
+        actionLabel: 'Explore catalogue →',
+        onTap: () => _browse('All products'),
       ),
       (
-        title: 'Cold-Chain Preserved',
-        subtitle: '4°C insulated express delivery',
-        badge: 'Direct Farm',
+        title: 'Delivery at checkout',
+        subtitle: 'Timing and charges use your location',
+        badge: 'Confirmed',
         icon: Icons.ac_unit_rounded,
         iconBg: const Color(0xffe0f2fe),
         iconColor: const Color(0xff0284c7),
-        actionLabel: 'Cold Logistics →',
-        onTap: () => _showColdChainDialog(),
+        actionLabel: 'Shop now →',
+        onTap: () => _browse('All products'),
       ),
       (
-        title: 'Batch Lab Certificates',
-        subtitle: 'FSSAI & Agmark batch reports',
-        badge: 'Transparent',
+        title: 'Documents when supplied',
+        subtitle: 'Certificates appear only when attached',
+        badge: 'Verified data',
         icon: Icons.verified_outlined,
         iconBg: const Color(0xfffef9c3),
         iconColor: const Color(0xffa16207),
-        actionLabel: 'View Reports →',
-        onTap: () => _showBatchCertificatesModal(),
+        actionLabel: 'View products →',
+        onTap: () => _browse('All products'),
       ),
     ];
 
@@ -564,7 +591,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                           ),
                           const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1.5),
                             decoration: BoxDecoration(
                               color: iconBg,
                               borderRadius: BorderRadius.circular(3),
@@ -630,26 +658,31 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       );
     }
 
-    return Row(
-      children: pillars.map((p) {
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(
-              right: p == pillars.last ? 0 : 12,
-            ),
-            child: buildCard(
-              title: p.title,
-              subtitle: p.subtitle,
-              badge: p.badge,
-              icon: p.icon,
-              iconBg: p.iconBg,
-              iconColor: p.iconColor,
-              actionLabel: p.actionLabel,
-              onTap: p.onTap,
-            ),
-          ),
+    return LayoutBuilder(
+      builder: (context, bounds) {
+        final columns = bounds.maxWidth < 1000 ? 2 : 4;
+        const gap = 12.0;
+        final cardWidth = (bounds.maxWidth - gap * (columns - 1)) / columns;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: pillars
+              .map((p) => SizedBox(
+                    width: cardWidth,
+                    child: buildCard(
+                      title: p.title,
+                      subtitle: p.subtitle,
+                      badge: p.badge,
+                      icon: p.icon,
+                      iconBg: p.iconBg,
+                      iconColor: p.iconColor,
+                      actionLabel: p.actionLabel,
+                      onTap: p.onTap,
+                    ),
+                  ))
+              .toList(),
         );
-      }).toList(),
+      },
     );
   }
 
@@ -662,7 +695,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
           children: [
             Icon(Icons.science, color: storeGreen, size: 24),
             SizedBox(width: 10),
-            Text('Milterra 99.4% Purity Guarantee', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text('Milterra 99.4% Purity Guarantee',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ],
         ),
         content: const SizedBox(
@@ -676,20 +710,26 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 style: TextStyle(fontSize: 13, color: Color(0xff334155)),
               ),
               SizedBox(height: 12),
-              Text('• Zero Vegetable / Palm Oil Adulteration (Baudouin Test Negative)'),
+              Text(
+                  '• Zero Vegetable / Palm Oil Adulteration (Baudouin Test Negative)'),
               Text('• Free Fatty Acids (FFA) strictly below 0.2%'),
               Text('• 100% Genuine Gir Cow DNA & A2 Beta-Casein certified'),
-              Text('• Zero synthetic preservatives, colorants, or chemical aromas'),
+              Text(
+                  '• Zero synthetic preservatives, colorants, or chemical aromas'),
               SizedBox(height: 12),
               Text(
                 'Tested at National Dairy Research & Quality Laboratories, Karnal.',
-                style: TextStyle(fontSize: 11.5, fontStyle: FontStyle.italic, color: storeMuted),
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontStyle: FontStyle.italic,
+                    color: storeMuted),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: storeGreen),
             onPressed: () {
@@ -712,7 +752,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
           children: [
             Icon(Icons.ac_unit, color: storeGreen, size: 24),
             SizedBox(width: 10),
-            Text('Farm-to-Doorstep Cold-Chain', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text('Farm-to-Doorstep Cold-Chain',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ],
         ),
         content: const SizedBox(
@@ -726,9 +767,12 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 style: TextStyle(fontSize: 13, color: Color(0xff334155)),
               ),
               SizedBox(height: 12),
-              Text('• Insulated food-grade thermocol packaging with gel ice packs'),
-              Text('• Monitored at continuous 4°C storage throughout linehaul transit'),
-              Text('• Express courier dispatch via DTDC & Delhivery cold-chain network'),
+              Text(
+                  '• Insulated food-grade thermocol packaging with gel ice packs'),
+              Text(
+                  '• Monitored at continuous 4°C storage throughout linehaul transit'),
+              Text(
+                  '• Express courier dispatch via DTDC & Delhivery cold-chain network'),
             ],
           ),
         ),
@@ -754,7 +798,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
           children: [
             Icon(Icons.verified, color: storeGreen, size: 24),
             SizedBox(width: 10),
-            Text('Verified Batch Lab Certificates', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text('Verified Batch Lab Certificates',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ],
         ),
         content: SizedBox(
@@ -781,9 +826,12 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                     dense: true,
                     leading: const Icon(Icons.science, color: storeGreen),
                     title: Text('${cert.batchNumber} · ${cert.productTitle}',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    subtitle: Text('Purity: ${cert.purityPercent}% | FSSAI: ${cert.fssaiLicense}',
-                        style: const TextStyle(fontSize: 10.5, color: storeMuted)),
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.bold)),
+                    subtitle: Text(
+                        'Purity: ${cert.purityPercent}% | FSSAI: ${cert.fssaiLicense}',
+                        style:
+                            const TextStyle(fontSize: 10.5, color: storeMuted)),
                   ),
                 ),
             ],
@@ -835,35 +883,34 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         labelLower.contains('earth') ||
         catLower == 'milterra-earth';
 
-    final (title, subtitle, icon, bannerColor, borderColor, tags) =
-        isEarth
+    final (title, subtitle, icon, bannerColor, borderColor, tags) = isEarth
+        ? (
+            '🌱 FROM FARM WASTE TO LIVING SOIL',
+            'Thoughtfully processed natural products for gardens and farms made from responsibly processed cow-dung by-products.',
+            Icons.yard_outlined,
+            const Color(0xfff7f5f0),
+            const Color(0xffd4c7b8),
+            const [
+              'Coming Soon',
+              '100% Pathogen Free',
+              'Solarized & Screened',
+              'Batch Traceable',
+              'Zero Chemicals',
+            ],
+          )
+        : isNutrition
             ? (
-                '🌱 FROM FARM WASTE TO LIVING SOIL',
-                'Thoughtfully processed natural products for gardens and farms made from responsibly processed cow-dung by-products.',
-                Icons.yard_outlined,
-                const Color(0xfff7f5f0),
-                const Color(0xffd4c7b8),
+                '🌾 MILTERRA CATTLE NUTRITION SOLUTIONS',
+                'Explore MILTERRA Cattle Nutrition Solutions—feeds, supplements, and stage-based nutrition concepts for healthier livestock.',
+                Icons.grass_rounded,
+                const Color(0xfff4f9f4),
+                const Color(0xffc5e1c7),
                 const [
-                  'Coming Soon',
-                  '100% Pathogen Free',
-                  'Solarized & Screened',
-                  'Batch Traceable',
-                  'Zero Chemicals',
+                  'Concept Preview',
+                  'In Development',
+                  'Farmer Feedback Open',
                 ],
               )
-            : isNutrition
-                ? (
-                    '🌾 MILTERRA CATTLE NUTRITION SOLUTIONS',
-                    'Explore MILTERRA Cattle Nutrition Solutions—feeds, supplements, and stage-based nutrition concepts for healthier livestock.',
-                    Icons.grass_rounded,
-                    const Color(0xfff4f9f4),
-                    const Color(0xffc5e1c7),
-                    const [
-                      'Concept Preview',
-                      'In Development',
-                      'Farmer Feedback Open',
-                    ],
-                  )
             : isDairy
                 ? (
                     '🥛 Gourmet Farm Dairy Collection',
@@ -1000,9 +1047,6 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     );
   }
 
-
-
-
   Widget _filters(VoidCallback refresh) => Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -1078,7 +1122,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 indent: true),
             _categoryFilterItem('Farm Manure', 'Cow-Dung Farm Manure', refresh,
                 indent: true),
-            _categoryFilterItem('Organic Compost', 'Enriched Organic Compost', refresh,
+            _categoryFilterItem(
+                'Organic Compost', 'Enriched Organic Compost', refresh,
                 indent: true),
             _categoryFilterItem('Compost Cakes', 'Dried Compost Cakes', refresh,
                 indent: true),
@@ -1093,17 +1138,17 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                     fontWeight: FontWeight.w700,
                     color: storeMuted)),
             const SizedBox(height: 4),
-            _categoryFilterItem('Animal nutrition', 'All Cattle Nutrition',
-                refresh,
+            _categoryFilterItem(
+                'Animal nutrition', 'All Cattle Nutrition', refresh,
                 indent: true),
-            _categoryFilterItem('Pashu Aahar / Cattle Feed', 'Pashu Aahar / Cattle Feed',
-                refresh,
+            _categoryFilterItem('Pashu Aahar / Cattle Feed',
+                'Pashu Aahar / Cattle Feed', refresh,
                 indent: true),
-            _categoryFilterItem('Stage-Based Nutrition', 'Stage-Based Nutrition',
-                refresh,
+            _categoryFilterItem(
+                'Stage-Based Nutrition', 'Stage-Based Nutrition', refresh,
                 indent: true),
-            _categoryFilterItem('Supplements', 'Supplements & Minerals',
-                refresh,
+            _categoryFilterItem(
+                'Supplements', 'Supplements & Minerals', refresh,
                 indent: true),
             const SizedBox(height: 6),
             const Text('⚙️ Modern Farm Machinery',
@@ -1201,8 +1246,10 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
                     onPressed: () {
-                      final min = double.tryParse(_minPriceCtrl.text.trim()) ?? 0;
-                      final max = double.tryParse(_maxPriceCtrl.text.trim()) ?? 0;
+                      final min =
+                          double.tryParse(_minPriceCtrl.text.trim()) ?? 0;
+                      final max =
+                          double.tryParse(_maxPriceCtrl.text.trim()) ?? 0;
                       setState(() {
                         _priceMin = min;
                         _priceMax = max;
@@ -1225,17 +1272,20 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.2,
                     color: storeGreen)),
-            CheckboxListTile(
-              dense: true,
-              value: _inStock,
-              onChanged: (v) {
-                setState(() => _inStock = v ?? false);
-                refresh();
-              },
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              title: const Text('Include Out of Stock',
-                  style: TextStyle(fontSize: 13)),
+            Material(
+              color: Colors.transparent,
+              child: CheckboxListTile(
+                dense: true,
+                value: _inStock,
+                onChanged: (v) {
+                  setState(() => _inStock = v ?? false);
+                  refresh();
+                },
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title:
+                    const Text('In Stock only', style: TextStyle(fontSize: 13)),
+              ),
             ),
           ],
         ),
@@ -1283,6 +1333,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 catLower == 'cat-animal-nutrition' ||
                 catLower == 'animal-nutrition'));
     return InkWell(
+      key: ValueKey('category-filter-$value'),
       onTap: () {
         _browse(value);
         refresh();
@@ -1422,7 +1473,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       for (final node in _taxonomy!.nodes) {
         if (node.id == _category || node.slug == _category) {
           final nLower = node.name.toLowerCase();
-          if (nLower.contains('animal') || nLower.contains('nutrition') || nLower.contains('feed')) {
+          if (nLower.contains('animal') ||
+              nLower.contains('nutrition') ||
+              nLower.contains('feed')) {
             isAllNutrition = true;
             break;
           }
@@ -1457,7 +1510,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         catLower == 'enriched organic compost' ||
         catLower == 'enriched compost';
     final isCakesCategory = catLower == 'compost cakes' || catLower == 'cakes';
-    final isStarterCategory = catLower == 'compost starter' || catLower == 'starter';
+    final isStarterCategory =
+        catLower == 'compost starter' || catLower == 'starter';
     final isSoilMixCategory = catLower == 'garden soil mix' ||
         catLower == 'soil mix' ||
         catLower == 'soil';
@@ -1480,18 +1534,20 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       } else if (isManureCategory) {
         matchesCategory = p.title.toLowerCase().contains('manure');
       } else if (isEnrichedCompostCategory) {
-        matchesCategory = p.title.toLowerCase().contains('enriched organic compost') ||
-            (p.title.toLowerCase().contains('compost') &&
-                !p.title.toLowerCase().contains('vermicompost') &&
-                !p.title.toLowerCase().contains('cake') &&
-                !p.title.toLowerCase().contains('starter'));
+        matchesCategory =
+            p.title.toLowerCase().contains('enriched organic compost') ||
+                (p.title.toLowerCase().contains('compost') &&
+                    !p.title.toLowerCase().contains('vermicompost') &&
+                    !p.title.toLowerCase().contains('cake') &&
+                    !p.title.toLowerCase().contains('starter'));
       } else if (isCakesCategory) {
         matchesCategory = p.title.toLowerCase().contains('cake');
       } else if (isStarterCategory) {
         matchesCategory = p.title.toLowerCase().contains('starter');
       } else if (isSoilMixCategory) {
         matchesCategory = p.title.toLowerCase().contains('soil mix') ||
-            (p.title.toLowerCase().contains('soil') && p.title.toLowerCase().contains('garden'));
+            (p.title.toLowerCase().contains('soil') &&
+                p.title.toLowerCase().contains('garden'));
       } else if (isDairyFoodsCategory) {
         matchesCategory = storeCategory(p) == 'Cow ghee' ||
             storeCategory(p) == 'Buffalo ghee' ||
@@ -1513,8 +1569,16 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             p.title.toLowerCase().contains('makhan');
       } else if (isAllNutrition) {
         final title = p.title.toLowerCase();
-        final isFood = title.contains('ghee') || title.contains('paneer') || title.contains('butter') || title.contains('makhan');
-        final isEquip = title.contains('milking') || title.contains('analyzer') || title.contains('cutter') || title.contains('can') || title.contains('mat') || p.category == ProductCategory.equipment;
+        final isFood = title.contains('ghee') ||
+            title.contains('paneer') ||
+            title.contains('butter') ||
+            title.contains('makhan');
+        final isEquip = title.contains('milking') ||
+            title.contains('analyzer') ||
+            title.contains('cutter') ||
+            title.contains('can') ||
+            title.contains('mat') ||
+            p.category == ProductCategory.equipment;
         final isEarth = p.taxonomy?['is_earth'] == true ||
             p.taxonomy?['department_name'] == 'MILTERRA Earth' ||
             p.taxonomy?['category_name'] == 'MILTERRA Earth' ||
@@ -1524,27 +1588,47 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             title.contains('manure') ||
             title.contains('compost') ||
             title.contains('soil mix');
-        matchesCategory = !isFood && !isEquip && !isEarth && (p.category == ProductCategory.feedNutrition || p.taxonomy?['concept'] == true || p.taxonomy?['category_id'] == 'animal-nutrition' || p.taxonomy?['department_id'] == 'farm-essentials');
+        matchesCategory = !isFood &&
+            !isEquip &&
+            !isEarth &&
+            (p.category == ProductCategory.feedNutrition ||
+                p.taxonomy?['concept'] == true ||
+                p.taxonomy?['category_id'] == 'animal-nutrition' ||
+                p.taxonomy?['department_id'] == 'farm-essentials');
       } else if (isPashuAaharCategory) {
         final title = p.title.toLowerCase();
-        final isEarth = p.taxonomy?['is_earth'] == true || title.contains('earth') || title.contains('vermicompost') || title.contains('manure') || title.contains('compost');
+        final isEarth = p.taxonomy?['is_earth'] == true ||
+            title.contains('earth') ||
+            title.contains('vermicompost') ||
+            title.contains('manure') ||
+            title.contains('compost');
         matchesCategory = !isEarth &&
             (p.taxonomy?['category_name'] == 'Pashu Aahar / Cattle Feed' ||
-                p.taxonomy?['subcategory_name'] == 'Pashu Aahar / Cattle Feed' ||
+                p.taxonomy?['subcategory_name'] ==
+                    'Pashu Aahar / Cattle Feed' ||
                 title.contains('feed') ||
                 title.contains('pellet') ||
                 title.contains('aahar'));
       } else if (isStageNutritionCategory) {
         final title = p.title.toLowerCase();
-        final isEarth = p.taxonomy?['is_earth'] == true || title.contains('earth') || title.contains('vermicompost') || title.contains('manure') || title.contains('compost');
+        final isEarth = p.taxonomy?['is_earth'] == true ||
+            title.contains('earth') ||
+            title.contains('vermicompost') ||
+            title.contains('manure') ||
+            title.contains('compost');
         matchesCategory = !isEarth &&
             (p.taxonomy?['category_name'] == 'Stage-Based Nutrition Courses' ||
-                p.taxonomy?['subcategory_name'] == 'Stage-Based Nutrition Courses' ||
+                p.taxonomy?['subcategory_name'] ==
+                    'Stage-Based Nutrition Courses' ||
                 title.contains('janam') ||
                 title.contains('course'));
       } else if (isSupplementsCategory) {
         final title = p.title.toLowerCase();
-        final isEarth = p.taxonomy?['is_earth'] == true || title.contains('earth') || title.contains('vermicompost') || title.contains('manure') || title.contains('compost');
+        final isEarth = p.taxonomy?['is_earth'] == true ||
+            title.contains('earth') ||
+            title.contains('vermicompost') ||
+            title.contains('manure') ||
+            title.contains('compost');
         matchesCategory = !isEarth &&
             (p.taxonomy?['category_name'] == 'Supplements' ||
                 p.taxonomy?['subcategory_name'] == 'Supplements' ||
@@ -1563,7 +1647,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             p.category == ProductCategory.equipment;
       } else {
         matchesCategory = (_taxonomy?.enabled == true
-            ? (_taxonomy!.descendants(_category).contains(p.taxonomy?['category_id']) ||
+            ? (_taxonomy!
+                    .descendants(_category)
+                    .contains(p.taxonomy?['category_id']) ||
                 storeCategory(p) == _category)
             : storeCategory(p) == _category);
       }
@@ -1577,14 +1663,13 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       if (_priceMax > 0 && p.price > _priceMax) return false;
 
       // Rating filter
-      final hash = p.id.hashCode.abs();
-      final rating = 4.6 + (hash % 4) * 0.1;
-      if (_minRating > 0 && rating < _minRating) return false;
+      // Rating data is not part of the current backend product contract.
+      if (_minRating > 0) return false;
 
       // Keyword query filter
       if (query.isNotEmpty) {
-        final text = '${p.title} ${p.packSize ?? ''} ${p.brand ?? ''}'
-            .toLowerCase();
+        final text =
+            '${p.title} ${p.packSize ?? ''} ${p.brand ?? ''}'.toLowerCase();
         if (!text.contains(query)) return false;
       }
 
@@ -1671,8 +1756,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                     compact: small,
                     busyIds: _adding,
                     onAdd: _add,
-                    onOpen: (p) =>
-                        context.go('/shop/product/${p.id}'))))
+                    onOpen: (p) => context.push('/shop/product/${p.id}'))))
             .toList(),
       );
     });

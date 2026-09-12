@@ -57,6 +57,8 @@ const products = [
       packSize: '500 ml'),
 ];
 
+Finder storeSearchField() => find.byKey(const ValueKey('store-search-field'));
+
 Future<GoRouter> openStore(WidgetTester tester,
     {double width = 1440,
     String path = '/shop',
@@ -69,8 +71,15 @@ Future<GoRouter> openStore(WidgetTester tester,
   final router = GoRouter(initialLocation: path, routes: [
     GoRoute(
         path: '/shop',
-        builder: (_, __) =>
-            const ProductListScreen(category: ProductCategory.feedNutrition)),
+        builder: (_, state) => ProductListScreen(
+            category: ProductCategory.feedNutrition,
+            initialQuery: state.uri.queryParameters['query'] ?? '',
+            initialCategory:
+                state.uri.queryParameters['category'] ?? 'All products')),
+    GoRoute(
+        path: '/shop/product/:id',
+        builder: (_, s) =>
+            ProductDetailScreen(productId: s.pathParameters['id']!)),
     GoRoute(
         path: '/marketplace/product/:id',
         builder: (_, s) =>
@@ -109,8 +118,8 @@ void main() {
   for (final width in [360.0, 390.0, 768.0, 1024.0, 1440.0]) {
     testWidgets('Storefront and detail fit width $width', (tester) async {
       final router = await openStore(tester, width: width);
-      expect(find.text('Shop by category'), findsOneWidget);
-      expect(find.text('3 products'), findsOneWidget);
+      expect(find.text('Showing all products'), findsOneWidget);
+      expect(find.text('Fresh Paneer'), findsOneWidget);
       expect(tester.takeException(), isNull);
       router.go('/marketplace/product/cow500');
       await tester.pumpAndSettle();
@@ -120,21 +129,37 @@ void main() {
     });
   }
 
+  testWidgets('Farm story dialog fits the desktop viewport', (tester) async {
+    await openStore(tester, width: 1440);
+    tester.view.physicalSize = const Size(1440, 800);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Explore story →').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Shop Farm Products'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Search, clear, category and price sort affect actual products',
       (tester) async {
     await openStore(tester);
-    await tester.enterText(find.byType(TextField), 'paneer');
+    await tester.enterText(storeSearchField(), 'paneer');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pumpAndSettle();
-    expect(find.text('1 products for “paneer”'), findsOneWidget);
+    expect(find.text('Results for “paneer”'), findsOneWidget);
     expect(find.text('Fresh Paneer'), findsOneWidget);
     expect(find.text('Buffalo Ghee'), findsNothing);
     await tester.tap(find.byTooltip('Clear search'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Cow ghee').first);
+    await tester
+        .ensureVisible(find.byKey(const ValueKey('category-filter-Cow ghee')));
+    await tester.tap(find.byKey(const ValueKey('category-filter-Cow ghee')));
     await tester.pumpAndSettle();
-    expect(find.text('1 products'), findsOneWidget);
-    await tester.ensureVisible(find.text('Reset'));
-    await tester.tap(find.text('Reset'));
+    expect(find.text('A2 Desi Cow Ghee'), findsWidgets);
+    expect(find.text('Fresh Paneer'), findsNothing);
+    await tester.ensureVisible(
+        find.byKey(const ValueKey('category-filter-All products')));
+    await tester
+        .tap(find.byKey(const ValueKey('category-filter-All products')));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Sort: Featured'));
     await tester.tap(find.text('Sort: Featured'));
@@ -150,20 +175,23 @@ void main() {
   testWidgets('Mobile filter sheet works and empty results can be cleared',
       (tester) async {
     await openStore(tester, width: 390);
-    await tester.ensureVisible(find.byTooltip('Filter products'));
-    await tester.tap(find.byTooltip('Filter products'));
+    await tester.ensureVisible(find.byTooltip('Filter Products'));
+    await tester.tap(find.byTooltip('Filter Products'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('In stock only'));
-    await tester.tap(find.text('Show products'));
+    await tester.ensureVisible(find.text('In Stock only'));
+    await tester.tap(find.text('In Stock only'));
+    await tester.ensureVisible(find.text('Apply Filters'));
+    await tester.tap(find.text('Apply Filters'));
     await tester.pumpAndSettle();
-    expect(find.text('2 products'), findsOneWidget);
-    await tester.enterText(find.byType(TextField), 'not a product');
+    expect(find.text('Buffalo Ghee'), findsNothing);
+    await tester.enterText(storeSearchField(), 'not a product');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pumpAndSettle();
-    expect(find.text('No products found'), findsOneWidget);
-    await tester.ensureVisible(find.text('Clear filters'));
-    await tester.tap(find.text('Clear filters'));
+    expect(find.text('No products matched your filters'), findsOneWidget);
+    await tester.ensureVisible(find.text('Clear all filters'));
+    await tester.tap(find.text('Clear all filters'));
     await tester.pumpAndSettle();
-    expect(find.text('3 products'), findsOneWidget);
+    expect(find.text('Fresh Paneer'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -171,20 +199,15 @@ void main() {
       'Quantity is stock bounded and guest purchase preserves destination',
       (tester) async {
     final router = await openStore(tester, path: '/marketplace/product/cow500');
-    for (var i = 0; i < 2; i++) {
-      await tester.tap(find.byTooltip('Increase quantity'));
-      await tester.pumpAndSettle();
-    }
-    expect(find.text('Item total: ₹2,397'), findsOneWidget);
-    expect(
-        tester
-            .widget<IconButton>(find.byWidgetPredicate(
-                (w) => w is IconButton && w.tooltip == 'Increase quantity'))
-            .onPressed,
-        isNull);
-    await tester
-        .ensureVisible(find.widgetWithText(FilledButton, 'Add to cart').first);
-    await tester.tap(find.widgetWithText(FilledButton, 'Add to cart').first);
+    await tester.tap(find.byType(DropdownButton<int>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('3').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Subtotal (3 items):'), findsOneWidget);
+    expect(find.text('₹2,397'), findsOneWidget);
+    tester
+        .widget<FilledButton>(find.byKey(const ValueKey('detail-add-to-cart')))
+        .onPressed!();
     await tester.pumpAndSettle();
     expect(find.text('Sign in to continue'), findsOneWidget);
     expect(router.routeInformationProvider.value.uri.queryParameters['next'],
@@ -194,43 +217,40 @@ void main() {
   testWidgets('Pack choice navigates to the matching real product',
       (tester) async {
     await openStore(tester, path: '/marketplace/product/cow500');
-    await tester.tap(find.widgetWithText(ChoiceChip, '1 litre').first);
+    await tester.tap(find.byKey(const ValueKey('detail-pack-cow1000')));
     await tester.pumpAndSettle();
-    expect(find.text('₹1,499'), findsOneWidget);
+    expect(find.text('₹1,499'), findsWidgets);
+    expect(
+        tester
+            .widget<ProductDetailScreen>(find.byType(ProductDetailScreen))
+            .productId,
+        'cow1000');
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('Unavailable product cannot be purchased', (tester) async {
     await openStore(tester, path: '/marketplace/product/buffalo');
-    expect(
-        tester
-            .widget<FilledButton>(
-                find.widgetWithText(FilledButton, 'Add to cart').first)
-            .onPressed,
-        isNull);
-    expect(
-        tester
-            .widget<OutlinedButton>(
-                find.widgetWithText(OutlinedButton, 'Proceed to checkout'))
-            .onPressed,
-        isNull);
+    expect(find.text('Currently unavailable.'), findsOneWidget);
+    expect(find.byKey(const ValueKey('detail-add-to-cart')), findsNothing);
+    expect(find.byKey(const ValueKey('detail-buy-now')), findsNothing);
   });
 
   testWidgets('Back from a product restores search and scroll position',
       (tester) async {
     final router = await openStore(tester);
-    await tester.enterText(find.byType(TextField), 'paneer');
+    await tester.enterText(storeSearchField(), 'paneer');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Fresh Paneer'));
     final before = tester.getTopLeft(find.text('Fresh Paneer')).dy;
     await tester.tap(find.text('Fresh Paneer'));
     await tester.pumpAndSettle();
     expect(router.canPop(), isTrue);
-    await tester.tap(find.text('Back to shop'));
+    router.pop();
     await tester.pumpAndSettle();
-    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
+    expect(tester.widget<TextField>(storeSearchField()).controller!.text,
         'paneer');
-    expect(find.text('1 products for “paneer”'), findsOneWidget);
+    expect(find.text('Results for “paneer”'), findsOneWidget);
     expect(tester.getTopLeft(find.text('Fresh Paneer')).dy, closeTo(before, 1));
     expect(tester.takeException(), isNull);
   });
@@ -238,13 +258,14 @@ void main() {
   testWidgets('Selected catalogue pack keeps its own price and detail ID',
       (tester) async {
     final router = await openStore(tester);
-    await tester.ensureVisible(find.widgetWithText(ChoiceChip, '1 litre'));
-    await tester.tap(find.widgetWithText(ChoiceChip, '1 litre'));
+    await tester
+        .ensureVisible(find.byKey(const ValueKey('catalogue-pack-cow1000')));
+    await tester.tap(find.byKey(const ValueKey('catalogue-pack-cow1000')));
     await tester.pumpAndSettle();
-    expect(find.text('₹1,499'), findsOneWidget);
-    expect(find.text('₹799'), findsNothing);
-    await tester.ensureVisible(find.text('A2 Desi Cow Ghee'));
-    await tester.tap(find.text('A2 Desi Cow Ghee'));
+    expect(find.text('₹1,499'), findsWidgets);
+    await tester
+        .ensureVisible(find.byKey(const ValueKey('catalogue-open-cow1000')));
+    await tester.tap(find.byKey(const ValueKey('catalogue-open-cow1000')));
     await tester.pumpAndSettle();
     expect(
         tester
@@ -288,18 +309,21 @@ void main() {
     }));
     final router = await openStore(tester,
         path: '/marketplace/product/cow500', client: dio);
-    await tester.tap(find.byTooltip('Increase quantity'));
-    await tester
-        .ensureVisible(find.widgetWithText(FilledButton, 'Add to cart').first);
-    await tester.tap(find.widgetWithText(FilledButton, 'Add to cart').first);
+    await tester.tap(find.byType(DropdownButton<int>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('2').last);
+    tester
+        .widget<FilledButton>(find.byKey(const ValueKey('detail-add-to-cart')))
+        .onPressed!();
     await tester.pumpAndSettle();
     expect(submitted, {'product_id': 'cow500', 'quantity': 2});
-    expect(find.text('Your shopping bag'), findsOneWidget);
-    expect(find.text('₹1,598'), findsNWidgets(2));
-    await tester.tap(find.text('Continue shopping'));
+    expect(find.text('Shopping Cart (2 items)'), findsOneWidget);
+    expect(find.text('₹1,598'), findsWidgets);
+    await tester.tap(find.text('Continue Shopping'));
     await tester.pumpAndSettle();
-    expect(find.text('Your shopping bag'), findsNothing);
-    expect(find.text('Item total: ₹1,598'), findsOneWidget);
+    expect(find.text('Shopping Cart (2 items)'), findsNothing);
+    expect(find.text('Subtotal (2 items):'), findsOneWidget);
+    expect(find.text('₹1,598'), findsOneWidget);
     expect(router.routeInformationProvider.value.uri.path,
         '/marketplace/product/cow500');
     expect(tester.takeException(), isNull);

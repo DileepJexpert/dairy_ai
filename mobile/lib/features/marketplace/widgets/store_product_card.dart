@@ -105,9 +105,8 @@ class _StoreProductCardState extends State<StoreProductCard> {
                 Stack(
                   children: [
                     Material(
-                      color: isEarth
-                          ? storeEarthCream
-                          : const Color(0xfffaf8f5),
+                      color:
+                          isEarth ? storeEarthCream : const Color(0xfffaf8f5),
                       borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(StoreLayout.radius)),
                       clipBehavior: Clip.antiAlias,
@@ -185,7 +184,9 @@ class _StoreProductCardState extends State<StoreProductCard> {
                                   size: 11, color: Colors.white),
                               const SizedBox(width: 4),
                               Text(
-                                conceptStatus.toUpperCase().contains('DEVELOPMENT')
+                                conceptStatus
+                                        .toUpperCase()
+                                        .contains('DEVELOPMENT')
                                     ? 'In Development'
                                     : 'Concept Preview',
                                 style: const TextStyle(
@@ -272,6 +273,7 @@ class _StoreProductCardState extends State<StoreProductCard> {
 
         // Title (Clickable)
         InkWell(
+          key: ValueKey('catalogue-open-${product.id}'),
           onTap: () => widget.onOpen(product),
           child: SizedBox(
             height: 38,
@@ -299,7 +301,8 @@ class _StoreProductCardState extends State<StoreProductCard> {
                 decoration: BoxDecoration(
                   color: storeEarthCream,
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: storeEarthTerracotta.withValues(alpha: 0.4)),
+                  border: Border.all(
+                      color: storeEarthTerracotta.withValues(alpha: 0.4)),
                 ),
                 child: Text(
                   product.packSize!,
@@ -387,10 +390,12 @@ class _StoreProductCardState extends State<StoreProductCard> {
                     ),
                   ),
                   onPressed: () => _showNotifyMeDialog(context, product),
-                  icon: const Icon(Icons.notifications_active_outlined, size: 14),
+                  icon:
+                      const Icon(Icons.notifications_active_outlined, size: 14),
                   label: const Text(
                     'Notify Me',
-                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                    style:
+                        TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -431,7 +436,8 @@ class _StoreProductCardState extends State<StoreProductCard> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Row(
           children: [
-            const Icon(Icons.notifications_active, color: storeEarthDarkGreen, size: 22),
+            const Icon(Icons.notifications_active,
+                color: storeEarthDarkGreen, size: 22),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -461,7 +467,8 @@ class _StoreProductCardState extends State<StoreProductCard> {
                 hintText: 'WhatsApp phone or email address',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.contact_mail_outlined, size: 18),
-                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               ),
             ),
           ],
@@ -488,7 +495,8 @@ class _StoreProductCardState extends State<StoreProductCard> {
                 ),
               );
             },
-            child: const Text('Notify Me', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('Notify Me',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -631,7 +639,8 @@ class _StoreProductCardState extends State<StoreProductCard> {
                   onPressed: () => widget.onOpen(product),
                   child: const Text(
                     'Explore Concept',
-                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                    style:
+                        TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -650,7 +659,10 @@ class _StoreProductCardState extends State<StoreProductCard> {
                 onPressed: () => _showFeedbackDialog(context, product),
                 child: const Text(
                   'Feedback',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: storeGreen),
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: storeGreen),
                 ),
               ),
             ),
@@ -673,7 +685,10 @@ class _StoreProductCardState extends State<StoreProductCard> {
             Expanded(
               child: Text(
                 'Farmer Feedback: ${product.title}',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: storeGreen),
+                style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: storeGreen),
               ),
             ),
           ],
@@ -715,18 +730,21 @@ class _StoreProductCardState extends State<StoreProductCard> {
                 SnackBar(
                   duration: const Duration(seconds: 3),
                   backgroundColor: storeGreen,
-                  content: Text('Thank you! Your feedback for "${product.title}" has been recorded.'),
+                  content: Text(
+                      'Thank you! Your feedback for "${product.title}" has been recorded.'),
                 ),
               );
             },
-            child: const Text('Submit Feedback', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('Submit Feedback',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCommercialDetails(BuildContext context, Product product, bool busy) {
+  Widget _buildCommercialDetails(
+      BuildContext context, Product product, bool busy) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -746,6 +764,7 @@ class _StoreProductCardState extends State<StoreProductCard> {
 
         // Title (Clickable)
         InkWell(
+          key: ValueKey('catalogue-open-${product.id}'),
           onTap: () => widget.onOpen(product),
           child: SizedBox(
             height: 40,
@@ -764,10 +783,7 @@ class _StoreProductCardState extends State<StoreProductCard> {
         ),
         const SizedBox(height: 6),
 
-        AmazonRatingStars(
-          rating: 4.6 + (product.id.hashCode.abs() % 5) * 0.1,
-          reviewCount: 32 + (product.id.hashCode.abs() % 75),
-        ),
+        const AmazonRatingStars(rating: 0, reviewCount: 0),
         const SizedBox(height: 6),
 
         // Pack Sizes Selection Chips
@@ -780,6 +796,7 @@ class _StoreProductCardState extends State<StoreProductCard> {
                   .map((pack) => Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: ChoiceChip(
+                          key: ValueKey('catalogue-pack-${pack.id}'),
                           visualDensity: VisualDensity.compact,
                           label: Text(
                             pack.packSize ?? pack.unit,
@@ -802,8 +819,8 @@ class _StoreProductCardState extends State<StoreProductCard> {
                                 : storeBorder,
                             width: pack.id == product.id ? 1.5 : 1,
                           ),
-                          onSelected: (_) => setState(
-                              () => _selected = pack.id),
+                          onSelected: (_) =>
+                              setState(() => _selected = pack.id),
                         ),
                       ))
                   .toList(),
@@ -853,8 +870,7 @@ class _StoreProductCardState extends State<StoreProductCard> {
         // Stock Status
         Text(
           product.inStock
-              ? (product.availableQuantity <= 5 &&
-                      product.availableQuantity > 0
+              ? (product.availableQuantity <= 5 && product.availableQuantity > 0
                   ? 'Only ${product.availableQuantity} left in stock - order soon'
                   : 'In stock')
               : 'Currently unavailable',
@@ -877,18 +893,9 @@ class _StoreProductCardState extends State<StoreProductCard> {
           width: double.infinity,
           height: 36,
           child: FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: product.inStock ? storeAmber : storeBorder,
-              foregroundColor: storeGreen,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
+            style: StoreTheme.addToCartButton,
             onPressed: product.inStock &&
-                    product.availableQuantity >=
-                        product.minOrderQuantity &&
+                    product.availableQuantity >= product.minOrderQuantity &&
                     !busy
                 ? () => widget.onAdd(product)
                 : null,
@@ -897,7 +904,6 @@ class _StoreProductCardState extends State<StoreProductCard> {
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: storeGreen,
               ),
             ),
           ),

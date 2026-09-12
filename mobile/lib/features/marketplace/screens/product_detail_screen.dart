@@ -63,18 +63,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     return storeCategory(p) == 'MILTERRA Earth';
   }
 
-  String _getDispatchCountdown() {
-    final now = DateTime.now();
-    var cutoff = DateTime(now.year, now.month, now.day, 18, 0, 0);
-    if (now.isAfter(cutoff)) {
-      cutoff = cutoff.add(const Duration(days: 1));
-    }
-    final diff = cutoff.difference(now);
-    final hours = diff.inHours;
-    final mins = diff.inMinutes % 60;
-    return '$hours hrs $mins mins';
-  }
-
   @override
   void didUpdateWidget(covariant ProductDetailScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -91,6 +79,16 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   Future<void> _purchase(Product p,
       {bool checkout = false, int? quantity}) async {
+    if (ref.read(currentUserProvider) == null) {
+      final destination = checkout
+          ? '/marketplace/checkout'
+          : GoRouterState.of(context).uri.toString();
+      context.go(
+        Uri(path: '/login', queryParameters: {'next': destination}).toString(),
+      );
+      return;
+    }
+
     setState(() => _busy = true);
     try {
       if (_couponApplied) {
@@ -102,11 +100,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       await ref.read(cartProvider.notifier).add(p.id, quantity ?? _quantity, p);
       if (!mounted) return;
       if (checkout) {
-        if (ref.read(currentUserProvider) == null) {
-          context.go('/login?next=/marketplace/checkout');
-        } else {
-          context.push('/marketplace/checkout');
-        }
+        context.push('/marketplace/checkout');
       } else {
         await showStoreCart(context);
       }
@@ -168,7 +162,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 data: (p) {
                   final allCatalog =
                       ref.watch(productsProvider(null)).valueOrNull ??
-                          defaultMilterraProducts;
+                          <Product>[];
                   final others =
                       ref.watch(productsProvider(p.category)).valueOrNull ??
                           <Product>[];
@@ -295,8 +289,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                                                   (columns -
                                                                       1)) /
                                                           columns)
-                                                      .clamp(
-                                                          140.0, space.maxWidth),
+                                                      .clamp(140.0,
+                                                          space.maxWidth),
                                                   child: StoreProductCard(
                                                     packs: group,
                                                     compact: isMobile,
@@ -305,9 +299,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                                             .map((x) => x.id)
                                                             .toSet()
                                                         : {},
-                                                    onOpen: (item) => context
-                                                        .go(
-                                                            '/shop/product/${item.id}'),
+                                                    onOpen: (item) => context.push(
+                                                        '/shop/product/${item.id}'),
                                                     onAdd: (item) => _purchase(
                                                         item,
                                                         quantity: item
@@ -468,8 +461,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           children: [
             Icon(Icons.zoom_in, size: 16, color: storeMuted),
             SizedBox(width: 4),
-            Text('Click or tap image to zoom in & slide all images',
-                style: TextStyle(fontSize: 11, color: storeMuted)),
+            Flexible(
+              child: Text(
+                'Click or tap image to zoom in & slide all images',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, color: storeMuted),
+              ),
+            ),
           ],
         ),
         if (p.media.length > 1) ...[
@@ -556,12 +554,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               decoration: BoxDecoration(
                 color: storeEarthCream,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: storeEarthTerracotta.withValues(alpha: 0.3)),
+                border: Border.all(
+                    color: storeEarthTerracotta.withValues(alpha: 0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 8,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -571,8 +572,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          (p.taxonomy?['status']?.toString() ??
-                                  'Coming Soon')
+                          (p.taxonomy?['status']?.toString() ?? 'Coming Soon')
                               .toUpperCase(),
                           style: const TextStyle(
                               fontSize: 10,
@@ -628,12 +628,19 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 ),
                 const SizedBox(width: 8),
                 const Text('(Indicative MRP)',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: storeMuted)),
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: storeMuted)),
               ],
             ),
             const SizedBox(height: 2),
-            const Text('*Commercial checkout disabled during pre-launch curing & packing phase.',
-                style: TextStyle(fontSize: 12, color: storeEarthTerracotta, fontWeight: FontWeight.w500)),
+            const Text(
+                '*Commercial checkout disabled during pre-launch curing & packing phase.',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: storeEarthTerracotta,
+                    fontWeight: FontWeight.w500)),
           ] else if (_isConceptProduct(p)) ...[
             Container(
               padding: const EdgeInsets.all(12),
@@ -645,7 +652,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 8,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -822,6 +831,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             children: packs.map((pack) {
               final isSelected = pack.id == p.id;
               return InkWell(
+                key: ValueKey('detail-pack-${pack.id}'),
                 onTap: _busy
                     ? null
                     : () {
@@ -850,10 +860,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                         pack.packSize ?? pack.unit,
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: isSelected
-                              ? FontWeight.w800
-                              : FontWeight.w600,
-                          color: isSelected ? storeGreen : const Color(0xff111111),
+                          fontWeight:
+                              isSelected ? FontWeight.w800 : FontWeight.w600,
+                          color:
+                              isSelected ? storeGreen : const Color(0xff111111),
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -862,9 +872,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                         style: TextStyle(
                           fontSize: 12,
                           color: isSelected ? storeGreen : storeMuted,
-                          fontWeight: isSelected
-                              ? FontWeight.w700
-                              : FontWeight.w400,
+                          fontWeight:
+                              isSelected ? FontWeight.w700 : FontWeight.w400,
                         ),
                       ),
                     ],
@@ -894,7 +903,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 'Properly cured at thermophilic temperatures to eliminate weed seeds and harmful pathogens.'),
             _bulletPoint('TRANSPARENT FARM BATCH TRACEABILITY:',
                 'Sourced directly from cooperative dairy clusters with full batch and processing verification.'),
-          ] else if (_isConceptProduct(p) || (p.category == ProductCategory.feedNutrition && !p.title.toLowerCase().contains('ghee') && !p.title.toLowerCase().contains('paneer') && !p.title.toLowerCase().contains('butter'))) ...[
+          ] else if (_isConceptProduct(p) ||
+              (p.category == ProductCategory.feedNutrition &&
+                  !p.title.toLowerCase().contains('ghee') &&
+                  !p.title.toLowerCase().contains('paneer') &&
+                  !p.title.toLowerCase().contains('butter'))) ...[
             _bulletPoint('CHELATED NUTRITION & BIOAVAILABILITY:',
                 'Engineered with organic micro-chelated minerals (Zinc, Manganese, Chromium, Cobalt) for superior cellular absorption.'),
             _bulletPoint('HERD IMMUNITY & FERTILITY:',
@@ -929,14 +942,16 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               decoration: BoxDecoration(
                 color: storeEarthCream,
                 borderRadius: BorderRadius.circular(StoreLayout.radius),
-                border: Border.all(color: storeEarthDarkGreen.withValues(alpha: 0.3)),
+                border: Border.all(
+                    color: storeEarthDarkGreen.withValues(alpha: 0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.eco, color: storeEarthDarkGreen, size: 20),
+                      const Icon(Icons.eco,
+                          color: storeEarthDarkGreen, size: 20),
                       const SizedBox(width: 8),
                       const Expanded(
                         child: Text(
@@ -949,14 +964,18 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: storeEarthDarkGreen,
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
                           'Earth Batch STC',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white),
                         ),
                       ),
                     ],
@@ -965,12 +984,17 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   Text(
                     p.taxonomy?['source_note']?.toString() ??
                         'Ethically collected from verified dairy farm partners. Naturally decomposed without synthetic fortification or artificial chemicals.',
-                    style: const TextStyle(fontSize: 11, color: storeEarthWarmBrown, height: 1.3),
+                    style: const TextStyle(
+                        fontSize: 11, color: storeEarthWarmBrown, height: 1.3),
                   ),
                 ],
               ),
             ),
-          ] else if (_isConceptProduct(p) || (p.category == ProductCategory.feedNutrition && !p.title.toLowerCase().contains('ghee') && !p.title.toLowerCase().contains('paneer') && !p.title.toLowerCase().contains('butter'))) ...[
+          ] else if (_isConceptProduct(p) ||
+              (p.category == ProductCategory.feedNutrition &&
+                  !p.title.toLowerCase().contains('ghee') &&
+                  !p.title.toLowerCase().contains('paneer') &&
+                  !p.title.toLowerCase().contains('butter'))) ...[
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -996,14 +1020,18 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: storeGreen,
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
                           'Formulation STC',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white),
                         ),
                       ),
                     ],
@@ -1011,7 +1039,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   const SizedBox(height: 6),
                   const Text(
                     'Tested for heavy metals, safe aflatoxin limits (<20 ppb), active live probiotic yeast viability, and bio-available mineral absorption.',
-                    style: TextStyle(fontSize: 11, color: storeMuted, height: 1.3),
+                    style:
+                        TextStyle(fontSize: 11, color: storeMuted, height: 1.3),
                   ),
                 ],
               ),
@@ -1042,14 +1071,18 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: storeGreen,
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
                           'Batch #0911A',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white),
                         ),
                       ),
                     ],
@@ -1057,36 +1090,47 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   const SizedBox(height: 6),
                   const Text(
                     'ISO/IEC 17025 accredited laboratory tested. 100% pure A2 beta-casein allele, 0% adulterants, 0% added water.',
-                    style: TextStyle(fontSize: 11, color: storeMuted, height: 1.3),
+                    style:
+                        TextStyle(fontSize: 11, color: storeMuted, height: 1.3),
                   ),
                   const SizedBox(height: 10),
-                  Row(
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 8,
                     children: [
                       InkWell(
-                        onTap: () => context.push('/purity/certificate/BATCH-2026-0911A'),
+                        onTap: () => context
+                            .push('/purity/certificate/BATCH-2026-0911A'),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.description_outlined, size: 14, color: storeGreen),
+                            Icon(Icons.description_outlined,
+                                size: 14, color: storeGreen),
                             SizedBox(width: 4),
                             Text(
                               'View Lab Certificate →',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: storeGreen),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: storeGreen),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 16),
                       InkWell(
                         onTap: () => context.push('/purity/scan'),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.qr_code_scanner, size: 14, color: storeAmberDark),
+                            Icon(Icons.qr_code_scanner,
+                                size: 14, color: storeAmberDark),
                             SizedBox(width: 4),
                             Text(
                               'AI Strip Scanner →',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: storeAmberDark),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: storeAmberDark),
                             ),
                           ],
                         ),
@@ -1119,7 +1163,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     TextSpan(
                       text: '$title ',
                       style: const TextStyle(
-                          fontWeight: FontWeight.w700, color: Color(0xff111111)),
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xff111111)),
                     ),
                     TextSpan(text: description),
                   ],
@@ -1138,6 +1183,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       return _buildConceptBuyBox(p);
     }
     final available = _available(p);
+    final maxQuantity = p.availableQuantity.clamp(1, 10);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1153,10 +1199,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Purchase Subtotal Summary
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 4,
             children: [
               Text(
                 'Subtotal ($_quantity ${_quantity == 1 ? 'item' : 'items'}):',
@@ -1180,7 +1227,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
           // Delivery Promise
           const Text(
-            'FREE delivery by Tomorrow',
+            'Delivery date and charges are confirmed at checkout',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
@@ -1188,9 +1235,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             ),
           ),
           const SizedBox(height: 2),
-          Text(
-            'Order within ${_getDispatchCountdown()} for same-day dispatch.',
-            style: const TextStyle(fontSize: 12, color: storeMuted),
+          const Text(
+            'Dispatch timing depends on inventory and delivery location.',
+            style: TextStyle(fontSize: 12, color: storeMuted),
           ),
           const SizedBox(height: 12),
 
@@ -1247,11 +1294,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                           TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                   DropdownButtonHideUnderline(
                     child: DropdownButton<int>(
-                      value: _quantity.clamp(1, 10),
+                      value: _quantity.clamp(1, maxQuantity),
                       icon: const Icon(Icons.arrow_drop_down,
                           size: 18, color: storeGreen),
                       items: List.generate(
-                        10,
+                        maxQuantity,
                         (index) => DropdownMenuItem(
                           value: index + 1,
                           child: Text('${index + 1}',
@@ -1278,21 +1325,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               width: double.infinity,
               height: 40,
               child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: storeAmber,
-                  foregroundColor: storeGreen,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-                onPressed: _busy ? null : () => _purchase(p),
+                key: const ValueKey('detail-add-to-cart'),
+                style: StoreTheme.addToCartButton,
+                onPressed: !available || _busy ? null : () => _purchase(p),
                 child: Text(
                   _busy ? 'Adding…' : 'Add to Cart',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: storeGreen,
                   ),
                 ),
               ),
@@ -1304,22 +1344,16 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               width: double.infinity,
               height: 40,
               child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: storeOrange,
-                  foregroundColor: storeWhite,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-                onPressed:
-                    _busy ? null : () => _purchase(p, checkout: true),
+                key: const ValueKey('detail-buy-now'),
+                style: StoreTheme.buyNowButton,
+                onPressed: !available || _busy
+                    ? null
+                    : () => _purchase(p, checkout: true),
                 child: const Text(
                   'Buy Now',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: storeWhite,
                   ),
                 ),
               ),
@@ -1329,13 +1363,18 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           const SizedBox(height: 14),
 
           // Direct Cooperative Sourcing Assurance
-          const Row(
+          const Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 6,
+            runSpacing: 4,
             children: [
               Icon(Icons.verified_user_outlined, size: 15, color: storeGreen),
-              SizedBox(width: 6),
               Text(
                 'Direct from Cooperative Farm',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: storeGreen),
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: storeGreen),
               ),
             ],
           ),
@@ -1386,8 +1425,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   icon: Icon(
                     isWishlisted ? Icons.favorite : Icons.favorite_border,
                     size: 16,
-                    color:
-                        isWishlisted ? const Color(0xffd9383a) : storeGreen,
+                    color: isWishlisted ? const Color(0xffd9383a) : storeGreen,
                   ),
                   label: Text(
                     isWishlisted ? 'In Your Wishlist' : 'Add to Wishlist',
@@ -1413,13 +1451,21 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   Widget _buildOtherSellerOffers(Product p) {
     final allOffers = ref.watch(adminMarketplaceProvider).offers;
-    final otherOffers = allOffers.where((o) => o.productId == p.id && !o.isBuyBoxWinner && o.offerStatus == OfferStatus.active).toList();
+    final otherOffers = allOffers
+        .where((o) =>
+            o.productId == p.id &&
+            !o.isBuyBoxWinner &&
+            o.offerStatus == OfferStatus.active)
+        .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 4,
           children: [
             const Text(
               'Other Sellers on Milterra',
@@ -1447,7 +1493,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.storefront_outlined, size: 16, color: storeMuted),
+                const Icon(Icons.storefront_outlined,
+                    size: 16, color: storeMuted),
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
@@ -1459,7 +1506,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   onTap: () => context.push('/seller/login'),
                   child: const Text(
                     'Sell this item →',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: storeGreen),
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: storeGreen),
                   ),
                 ),
               ],
@@ -1518,12 +1568,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                             backgroundColor: storeAmber,
                             foregroundColor: storeGreen,
                             padding: const EdgeInsets.symmetric(horizontal: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(13)),
                           ),
-                          onPressed: _busy
-                              ? null
-                              : () => _purchase(p, quantity: 1),
-                          child: const Text('Add to Cart', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                          onPressed:
+                              _busy ? null : () => _purchase(p, quantity: 1),
+                          child: const Text('Add to Cart',
+                              style: TextStyle(
+                                  fontSize: 10, fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ],
@@ -1536,14 +1588,20 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         const SizedBox(height: 6),
         InkWell(
           onTap: () => context.push('/seller/login'),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: const Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 4,
+            runSpacing: 4,
             children: [
-              Icon(Icons.store_mall_directory_outlined, size: 13, color: storeMuted),
-              SizedBox(width: 4),
+              Icon(Icons.store_mall_directory_outlined,
+                  size: 13, color: storeMuted),
               Text(
                 'Have one to sell? Sell on Milterra',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: storeDarkGreenNav),
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: storeDarkGreenNav),
               ),
             ],
           ),
@@ -1645,7 +1703,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 SizedBox(height: 6),
                 Text(
                   'This cattle nutrition solution is currently under research & field validation. Commercial purchasing will unlock after farmer trials conclude.',
-                  style: TextStyle(fontSize: 11, color: Color(0xff445544), height: 1.35),
+                  style: TextStyle(
+                      fontSize: 11, color: Color(0xff445544), height: 1.35),
                 ),
               ],
             ),
@@ -1714,15 +1773,24 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               Expanded(
                 child: Text(
                   'Co-developed with Progressive Dairy Farmers',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: storeGreen),
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: storeGreen),
                 ),
               ),
             ],
           ),
           const Divider(height: 20),
 
-          _buyBoxDetailRow('Focus Area', p.taxonomy?['focus']?.toString() ?? 'Livestock Health & Productivity'),
-          _buyBoxDetailRow('Stage Target', p.taxonomy?['stage']?.toString() ?? 'All Dairy Cattle & Buffaloes'),
+          _buyBoxDetailRow(
+              'Focus Area',
+              p.taxonomy?['focus']?.toString() ??
+                  'Livestock Health & Productivity'),
+          _buyBoxDetailRow(
+              'Stage Target',
+              p.taxonomy?['stage']?.toString() ??
+                  'All Dairy Cattle & Buffaloes'),
 
           const Divider(height: 20),
 
@@ -1759,11 +1827,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   icon: Icon(
                     isWishlisted ? Icons.bookmark : Icons.bookmark_border,
                     size: 16,
-                    color:
-                        isWishlisted ? const Color(0xffd9383a) : storeGreen,
+                    color: isWishlisted ? const Color(0xffd9383a) : storeGreen,
                   ),
                   label: Text(
-                    isWishlisted ? 'Saved in Watchlist' : 'Add to Concept Watchlist',
+                    isWishlisted
+                        ? 'Saved in Watchlist'
+                        : 'Add to Concept Watchlist',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -1806,12 +1875,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             decoration: BoxDecoration(
               color: storeEarthCream,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: storeEarthTerracotta.withValues(alpha: 0.6)),
+              border: Border.all(
+                  color: storeEarthTerracotta.withValues(alpha: 0.6)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.eco_outlined, size: 14, color: storeEarthTerracotta),
+                const Icon(Icons.eco_outlined,
+                    size: 14, color: storeEarthTerracotta),
                 const SizedBox(width: 6),
                 Text(
                   status.toUpperCase(),
@@ -1864,7 +1935,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               const SizedBox(width: 6),
               const Text(
                 '(Indicative MRP)',
-                style: TextStyle(fontSize: 12, color: storeMuted, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                    fontSize: 12,
+                    color: storeMuted,
+                    fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -1882,7 +1956,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.info_outline, size: 15, color: storeEarthDarkGreen),
+                    Icon(Icons.info_outline,
+                        size: 15, color: storeEarthDarkGreen),
                     SizedBox(width: 6),
                     Text(
                       'Catalogue Preview Stage',
@@ -1897,12 +1972,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 const SizedBox(height: 6),
                 Text(
                   usage,
-                  style: const TextStyle(fontSize: 11, color: storeEarthWarmBrown, height: 1.35),
+                  style: const TextStyle(
+                      fontSize: 11, color: storeEarthWarmBrown, height: 1.35),
                 ),
                 const SizedBox(height: 6),
                 const Text(
                   'Commercial checkout is disabled while current farm batches complete aerobic curing & quality testing.',
-                  style: TextStyle(fontSize: 10.5, color: storeMuted, height: 1.3),
+                  style:
+                      TextStyle(fontSize: 10.5, color: storeMuted, height: 1.3),
                 ),
               ],
             ),
@@ -1962,16 +2039,21 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               Expanded(
                 child: Text(
                   '100% Responsibly Processed Cow-Dung By-Products',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: storeEarthDarkGreen),
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: storeEarthDarkGreen),
                 ),
               ),
             ],
           ),
           const Divider(height: 20),
 
-          _buyBoxDetailRow('Source', p.taxonomy?['source_note']?.toString() ?? 'Partner Dairy Farms'),
+          _buyBoxDetailRow('Source',
+              p.taxonomy?['source_note']?.toString() ?? 'Partner Dairy Farms'),
           _buyBoxDetailRow('Pack Size', p.packSize ?? p.unit),
-          _buyBoxDetailRow('Category', p.taxonomy?['category_label']?.toString() ?? 'MILTERRA Earth'),
+          _buyBoxDetailRow('Category',
+              p.taxonomy?['category_label']?.toString() ?? 'MILTERRA Earth'),
 
           const Divider(height: 20),
 
@@ -2008,11 +2090,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   icon: Icon(
                     isWishlisted ? Icons.bookmark : Icons.bookmark_border,
                     size: 16,
-                    color:
-                        isWishlisted ? const Color(0xffd9383a) : storeEarthDarkGreen,
+                    color: isWishlisted
+                        ? const Color(0xffd9383a)
+                        : storeEarthDarkGreen,
                   ),
                   label: Text(
-                    isWishlisted ? 'Saved in Wishlist' : 'Add to Earth Wishlist',
+                    isWishlisted
+                        ? 'Saved in Wishlist'
+                        : 'Add to Earth Wishlist',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -2040,12 +2125,16 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            const Icon(Icons.notifications_active, color: storeEarthDarkGreen, size: 22),
+            const Icon(Icons.notifications_active,
+                color: storeEarthDarkGreen, size: 22),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 'Notify on Launch: ${p.title}',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: storeEarthDarkGreen),
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: storeEarthDarkGreen),
               ),
             ),
           ],
@@ -2059,7 +2148,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               children: [
                 Text(
                   'Be first to get delivery of fresh composted batches of ${p.title} (${p.packSize ?? p.unit}). No payment required today.',
-                  style: const TextStyle(fontSize: 12, color: storeEarthWarmBrown),
+                  style:
+                      const TextStyle(fontSize: 12, color: storeEarthWarmBrown),
                 ),
                 const SizedBox(height: 14),
                 TextField(
@@ -2077,7 +2167,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   maxLines: 2,
                   decoration: const InputDecoration(
                     labelText: 'Usage / Quantity Requirement (Optional)',
-                    hintText: 'e.g. 5 bags for terrace kitchen garden in Bangalore...',
+                    hintText:
+                        'e.g. 5 bags for terrace kitchen garden in Bangalore...',
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
@@ -2127,7 +2218,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             Expanded(
               child: Text(
                 'Farmer Feedback: ${p.title}',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -2169,7 +2261,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   maxLines: 3,
                   decoration: const InputDecoration(
                     labelText: 'Nutritional Needs / Suggestions',
-                    hintText: 'e.g. Required pack size, specific mineral requirements, lactation stage feedback...',
+                    hintText:
+                        'e.g. Required pack size, specific mineral requirements, lactation stage feedback...',
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
@@ -2260,21 +2353,62 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           ),
           child: Column(
             children: [
-              _specTableRow('Brand', p.brand ?? (_isEarthProduct(p) ? 'Milterra Earth' : 'Milterra Cooperative Dairy'), true),
+              _specTableRow(
+                  'Brand',
+                  p.brand ??
+                      (_isEarthProduct(p)
+                          ? 'Milterra Earth'
+                          : 'Milterra Cooperative Dairy'),
+                  true),
               _specTableRow('Product Name', p.title, false),
               _specTableRow('Category', storeCategory(p), true),
               _specTableRow('Net Quantity', p.packSize ?? p.unit, false),
-              _specTableRow('Diet Type', _isEarthProduct(p) ? '100% Organic Soil & Farm Input' : '100% Vegetarian', true),
+              _specTableRow(
+                  'Diet Type',
+                  _isEarthProduct(p)
+                      ? '100% Organic Soil & Farm Input'
+                      : '100% Vegetarian',
+                  true),
               if (_isEarthProduct(p)) ...[
-                _specTableRow('Raw Material', '100% Responsibly Processed Dairy Cow-Dung By-Products', false),
-                _specTableRow('Composting Method', 'Controlled Aerobic / Vermi-Decomposition', true),
-                _specTableRow('Physical Form', p.specifications['Physical Form']?.toString() ?? 'Granular / Screened Powder / Natural Cakes', false),
-                _specTableRow('Moisture Content', p.specifications['Moisture']?.toString() ?? '15% - 25% (Optimized for Soil Flora)', true),
-                _specTableRow('Organic Carbon', p.specifications['Organic Carbon']?.toString() ?? '> 14% (Natural Soil Enrichment)', false),
-                _specTableRow('Target Application', p.taxonomy?['usage']?.toString() ?? 'Pots, Home Gardens, Terrace Plants & Farmland', true),
-                _specTableRow('Additive Guarantee', 'Zero Synthetic Fertilizers, Zero Chemical Fortification', false),
-                _specTableRow('Batch Sourcing', p.taxonomy?['source_note']?.toString() ?? 'Certified Dairy AI Partner Farm Clusters', true),
-                _specTableRow('Storage Instructions', 'Store in a shaded dry place. Keep bag mouth closed to preserve natural moisture.', false),
+                _specTableRow(
+                    'Raw Material',
+                    '100% Responsibly Processed Dairy Cow-Dung By-Products',
+                    false),
+                _specTableRow('Composting Method',
+                    'Controlled Aerobic / Vermi-Decomposition', true),
+                _specTableRow(
+                    'Physical Form',
+                    p.specifications['Physical Form']?.toString() ??
+                        'Granular / Screened Powder / Natural Cakes',
+                    false),
+                _specTableRow(
+                    'Moisture Content',
+                    p.specifications['Moisture']?.toString() ??
+                        '15% - 25% (Optimized for Soil Flora)',
+                    true),
+                _specTableRow(
+                    'Organic Carbon',
+                    p.specifications['Organic Carbon']?.toString() ??
+                        '> 14% (Natural Soil Enrichment)',
+                    false),
+                _specTableRow(
+                    'Target Application',
+                    p.taxonomy?['usage']?.toString() ??
+                        'Pots, Home Gardens, Terrace Plants & Farmland',
+                    true),
+                _specTableRow(
+                    'Additive Guarantee',
+                    'Zero Synthetic Fertilizers, Zero Chemical Fortification',
+                    false),
+                _specTableRow(
+                    'Batch Sourcing',
+                    p.taxonomy?['source_note']?.toString() ??
+                        'Certified Dairy AI Partner Farm Clusters',
+                    true),
+                _specTableRow(
+                    'Storage Instructions',
+                    'Store in a shaded dry place. Keep bag mouth closed to preserve natural moisture.',
+                    false),
               ] else if (isDairyFood) ...[
                 _specTableRow(
                   'Ingredients',
@@ -2299,22 +2433,39 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       : 'Keep refrigerated between 2°C - 4°C.',
                   false,
                 ),
-                _specTableRow('Shelf Life', isGhee ? '12 Months from packaging date' : '45 Days from packaging date', true),
-                _specTableRow('Container Material', 'Food-Grade Recyclable Glass Jar with Hermetic Induction Seal', false),
-                _specTableRow('Country of Origin', 'India (Direct Cooperative Farm Sourced)', true),
-                _specTableRow('FSSAI License No.', '10020042000123 (Central FSSAI Certified)', false),
+                _specTableRow(
+                    'Shelf Life',
+                    isGhee
+                        ? '12 Months from packaging date'
+                        : '45 Days from packaging date',
+                    true),
+                _specTableRow(
+                    'Container Material',
+                    'Food-Grade Recyclable Glass Jar with Hermetic Induction Seal',
+                    false),
+                _specTableRow('Country of Origin',
+                    'India (Direct Cooperative Farm Sourced)', true),
+                _specTableRow('FSSAI License No.',
+                    '10020042000123 (Central FSSAI Certified)', false),
                 _specTableRow('Allergen Information', 'Contains Milk', true),
                 if (isGhee) ...[
-                  _specTableRow('Reichert-Meissl (RM) Value', '≥ 30.0 (High Purity Milk Fat Standard)', false),
-                  _specTableRow('Free Fatty Acids (FFA)', '< 0.8% (Fresh Batch Standard)', true),
-                  _specTableRow('Adulterant Guarantee', 'Zero Starch, Zero Animal Tallow, Zero Mineral Oils', false),
+                  _specTableRow('Reichert-Meissl (RM) Value',
+                      '≥ 30.0 (High Purity Milk Fat Standard)', false),
+                  _specTableRow('Free Fatty Acids (FFA)',
+                      '< 0.8% (Fresh Batch Standard)', true),
+                  _specTableRow(
+                      'Adulterant Guarantee',
+                      'Zero Starch, Zero Animal Tallow, Zero Mineral Oils',
+                      false),
                 ],
               ] else ...[
-                _specTableRow('Container Material', 'Industrial Grade Heavy-Duty Sealed Packaging', false),
+                _specTableRow('Container Material',
+                    'Industrial Grade Heavy-Duty Sealed Packaging', false),
                 _specTableRow('Country of Origin', 'India', true),
               ],
               for (final entry in p.specifications.entries)
-                _specTableRow(_formatKey(entry.key), entry.value.toString(), false),
+                _specTableRow(
+                    _formatKey(entry.key), entry.value.toString(), false),
             ],
           ),
         ),
@@ -2368,8 +2519,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       return earthProducts.take(3).toList();
     }
 
-    final currentDept =
-        current.taxonomy?['department_name']?.toString() ?? '';
+    final currentDept = current.taxonomy?['department_name']?.toString() ?? '';
     final currentCat = current.category;
 
     final similar = catalog
@@ -2748,19 +2898,17 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                   side: const BorderSide(
                                       color: Color(0xfffcd200)),
                                 ),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 10),
                               ),
                               onPressed: _busy
                                   ? null
                                   : () => _purchase(item,
                                       quantity: item.minOrderQuantity),
                               child: const Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.center,
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.shopping_cart_outlined,
-                                      size: 15),
+                                  Icon(Icons.shopping_cart_outlined, size: 15),
                                   SizedBox(width: 4),
                                   Text(
                                     'Add to Cart',
@@ -2787,10 +2935,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   }
 
   Widget _buildRatingHeaderRow(Product p) {
-    final count = (p.id.hashCode.abs() % 250) + 42 + _userReviews.length;
-    final questions = (p.id.hashCode.abs() % 40) + 12;
-    final isBuffaloGhee = p.id == 'mil-buff-500' || p.title.toLowerCase().contains('buffalo ghee');
-    final isCowGhee = p.id == 'mil-ghee-500' || p.title.toLowerCase().contains('cow ghee');
+    const count = 0;
+    const questions = 0;
+    final isBuffaloGhee = p.id == 'mil-buff-500' ||
+        p.title.toLowerCase().contains('buffalo ghee');
+    final isCowGhee =
+        p.id == 'mil-ghee-500' || p.title.toLowerCase().contains('cow ghee');
     final isMilterraChoice = isBuffaloGhee || isCowGhee;
     final choiceCategory = isBuffaloGhee
         ? 'buffalo ghee'
@@ -2819,24 +2969,24 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               borderRadius: BorderRadius.circular(4),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 4,
                   children: [
                     const AmazonRatingStars(
-                      rating: 4.8,
+                      rating: 0,
                       showCount: false,
                       size: 16,
                     ),
-                    const SizedBox(width: 6),
                     const Text(
-                      '4.8',
+                      'No ratings yet',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: Color(0xff007185),
                       ),
                     ),
-                    const SizedBox(width: 4),
                     Text(
                       '$count ratings',
                       style: const TextStyle(
@@ -2896,15 +3046,18 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 children: [
                   const TextSpan(
                     text: "Milterra's ",
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                   const TextSpan(
                     text: 'Choice',
-                    style: TextStyle(color: Color(0xffff9900), fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                        color: Color(0xffff9900), fontWeight: FontWeight.bold),
                   ),
                   TextSpan(
                     text: " for '$choiceCategory'",
-                    style: const TextStyle(color: Color(0xffd1d5db), fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                        color: Color(0xffd1d5db), fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
@@ -2985,8 +3138,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     return items;
   }
 
-  Future<void> _addBundleToCart(
-      Product p, List<Product> companionItems) async {
+  Future<void> _addBundleToCart(Product p, List<Product> companionItems) async {
     if (ref.read(currentUserProvider) == null) {
       context.go('/login?next=/shop/product/${p.id}');
       return;
@@ -3018,8 +3170,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Could not add bundle items to cart.')),
+          const SnackBar(content: Text('Could not add bundle items to cart.')),
         );
       }
     } finally {
@@ -3080,16 +3231,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       ),
                       if (bundleItems.isNotEmpty)
                         _bundleThumbnail(bundleItems[0],
-                            isMain: false,
-                            isChecked: _bundleItem1Selected),
+                            isMain: false, isChecked: _bundleItem1Selected),
                       if (bundleItems.length > 1) ...[
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 8),
                           child: Icon(Icons.add, color: storeMuted, size: 22),
                         ),
                         _bundleThumbnail(bundleItems[1],
-                            isMain: false,
-                            isChecked: _bundleItem2Selected),
+                            isMain: false, isChecked: _bundleItem2Selected),
                       ],
                     ],
                   ),
@@ -3122,9 +3271,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20)),
                     ),
-                    onPressed: _busy
-                        ? null
-                        : () => _addBundleToCart(p, bundleItems),
+                    onPressed:
+                        _busy ? null : () => _addBundleToCart(p, bundleItems),
                     child: Text(
                       selectedCount == 1
                           ? 'Add to Cart'
@@ -3145,16 +3293,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     ),
                     if (bundleItems.isNotEmpty)
                       _bundleThumbnail(bundleItems[0],
-                          isMain: false,
-                          isChecked: _bundleItem1Selected),
+                          isMain: false, isChecked: _bundleItem1Selected),
                     if (bundleItems.length > 1) ...[
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 12),
                         child: Icon(Icons.add, color: storeMuted, size: 22),
                       ),
                       _bundleThumbnail(bundleItems[1],
-                          isMain: false,
-                          isChecked: _bundleItem2Selected),
+                          isMain: false, isChecked: _bundleItem2Selected),
                     ],
                     const SizedBox(width: 32),
                     Expanded(
@@ -3165,8 +3311,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                             children: [
                               const Text('Total price: ',
                                   style: TextStyle(
-                                      fontSize: 15,
-                                      color: Color(0xff565959))),
+                                      fontSize: 15, color: Color(0xff565959))),
                               Text(
                                 storeMoney(totalPrice),
                                 style: const TextStyle(
@@ -3184,8 +3329,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                               style: FilledButton.styleFrom(
                                 backgroundColor: storeAmber,
                                 foregroundColor: storeGreen,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 24),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 24),
                                 shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(20)),
                               ),
@@ -3197,8 +3342,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                     ? 'Add to Cart'
                                     : 'Add all $selectedCount to Cart',
                                 style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13),
+                                    fontWeight: FontWeight.bold, fontSize: 13),
                               ),
                             ),
                           ),
@@ -3318,218 +3462,133 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-        const Text(
-          'Customer questions & answers',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            color: storeGreen,
+          const Text(
+            'Customer questions & answers',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: storeGreen,
+            ),
           ),
-        ),
-        const SizedBox(height: 14),
-        Container(
-          height: 42,
-          decoration: BoxDecoration(
-            color: storeWhite,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: storeBorder),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: const Row(
-            children: [
-              Icon(Icons.search, size: 18, color: storeMuted),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Have a question? Search for answers...',
-                  style: TextStyle(fontSize: 13, color: storeMuted),
+          const SizedBox(height: 14),
+          Container(
+            height: 42,
+            decoration: BoxDecoration(
+              color: storeWhite,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: storeBorder),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: const Row(
+              children: [
+                Icon(Icons.search, size: 18, color: storeMuted),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Have a question? Search for answers...',
+                    style: TextStyle(fontSize: 13, color: storeMuted),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          decoration: BoxDecoration(
-            color: storeWhite,
-            borderRadius: BorderRadius.circular(StoreLayout.radius),
-            border: Border.all(color: storeBorder),
-          ),
-          child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: qnaList.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, i) {
-              final qa = qnaList[i];
-              return Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(
-                          width: 75,
-                          child: Text(
-                            'Question:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: Color(0xff565959),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            qa.question,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: Color(0xff007185),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(
-                          width: 75,
-                          child: Text(
-                            'Answer:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: Color(0xff565959),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                qa.answer,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: Color(0xff0f1111),
-                                  height: 1.4,
-                                ),
+          const SizedBox(height: 16),
+          Container(
+            decoration: BoxDecoration(
+              color: storeWhite,
+              borderRadius: BorderRadius.circular(StoreLayout.radius),
+              border: Border.all(color: storeBorder),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: qnaList.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, i) {
+                final qa = qnaList[i];
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(
+                            width: 75,
+                            child: Text(
+                              'Question:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: Color(0xff565959),
                               ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'By ${qa.author} on ${qa.date}',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: storeMuted,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
+                          Expanded(
+                            child: Text(
+                              qa.question,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: Color(0xff007185),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(
+                            width: 75,
+                            child: Text(
+                              'Answer:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: Color(0xff565959),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  qa.answer,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xff0f1111),
+                                    height: 1.4,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'By ${qa.author} on ${qa.date}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: storeMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
-        ),
-      ],
-    ),
-  );
-}
-
-  List<_QnAItem> _getQnAPairs(Product p) {
-    final cat = p.taxonomy?['category_id']?.toString() ?? '';
-    final isFeed = cat == 'cattle_feed' ||
-        cat == 'mineral_mixture' ||
-        cat == 'calcium_supplements' ||
-        cat == 'bypass_fat';
-    final isEquip = cat == 'milking_machines' ||
-        cat == 'fat_testing' ||
-        cat == 'chaff_cutters' ||
-        cat == 'dairy_cans' ||
-        cat == 'comfort_mats';
-
-    if (isFeed) {
-      return const [
-        _QnAItem(
-          question: 'How much quantity should be fed per cow daily?',
-          answer:
-              'For high-yielding dairy cattle producing 12-18 Liters of milk, feed 3.5 kg to 4.5 kg per day divided between morning and evening milking sessions alongside balanced dry and green roughage.',
-          author: 'Milterra Veterinary Team',
-          date: '12 January 2025',
-        ),
-        _QnAItem(
-          question: 'Is this feed suitable for both Gir cows and Murrah buffaloes?',
-          answer:
-              'Yes, formulated specifically for ruminant digestion. It enhances both milk volume and SNF/Fat percentages across indigenous cows and buffaloes.',
-          author: 'Milterra Nutrition Expert',
-          date: '28 November 2024',
-        ),
-        _QnAItem(
-          question: 'How does bypass fat protect against metabolic disorders?',
-          answer:
-              'Fractionated rumen-protected palmitic acid bypasses rumen fermentation without inhibiting fiber digestion, absorbing directly in the abomasum to prevent negative energy balance (NEB).',
-          author: 'Dr. S. K. Verma (Dairy Scientist)',
-          date: '15 October 2024',
-        ),
-      ];
-    } else if (isEquip) {
-      return const [
-        _QnAItem(
-          question: 'Does this machine operate on regular single-phase domestic rural power?',
-          answer:
-              'Yes, equipped with a 1.0 HP high-torque motor calibrated for standard 220V/50Hz single-phase rural power with built-in low voltage thermal cut-off.',
-          author: 'Milterra Engineering Support',
-          date: '5 January 2025',
-        ),
-        _QnAItem(
-          question: 'What is the warranty and spare parts availability?',
-          answer:
-              'Comes with a 1-year comprehensive manufacturer warranty. Spare liner sets, silicone pulsator hoses, and vacuum seals are readily available on Milterra with 48-hour dispatch.',
-          author: 'Milterra Customer Care',
-          date: '19 December 2024',
-        ),
-        _QnAItem(
-          question: 'Is installation support and operational demo provided?',
-          answer:
-              'Yes! Detailed video demonstrations, dual-language visual manual (Hindi & English), and on-call technician guidance are included with every unit dispatch.',
-          author: 'Field Service Team',
-          date: '2 November 2024',
-        ),
-      ];
-    } else {
-      return const [
-        _QnAItem(
-          question: 'Is this ghee made using traditional Vedic Bilona method from A2 curd?',
-          answer:
-              'Yes, 100% pure A2 milk sourced from indigenous cows grazing on certified organic pastures. The curd is churned bi-directionally using wooden bilona and gently clarified on slow firewood heat.',
-          author: 'Milterra Quality Assurance',
-          date: '20 January 2025',
-        ),
-        _QnAItem(
-          question: 'What is the shelf life and ideal storage condition?',
-          answer:
-              'Shelf life is 12 months from the packaging date when stored at ambient room temperature in a dry, shaded place. Do not refrigerate; keep the jar tightly sealed.',
-          author: 'Milterra Production Team',
-          date: '14 December 2024',
-        ),
-        _QnAItem(
-          question: 'Does this product contain any added preservatives, palm oil, or colouring?',
-          answer:
-              'Zero preservatives, zero palm oil, zero synthetic colorants or perfumes. Every batch undergoes certified laboratory gas chromatography testing for absolute purity.',
-          author: 'Milterra Quality Cell',
-          date: '18 November 2024',
-        ),
-      ];
-    }
+        ],
+      ),
+    );
   }
+
+  List<_QnAItem> _getQnAPairs(Product _) => const [];
 
   Widget _buildCustomerReviews(Product p, bool isMobile) {
     return Container(
@@ -3573,17 +3632,18 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   }
 
   Widget _buildReviewBreakdownLeft(Product p) {
-    final totalRatings = 1248 + _userReviews.length;
+    const totalRatings = 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+        const Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 4,
           children: [
-            AmazonRatingStars(rating: 4.8, showCount: false, size: 20),
-            SizedBox(width: 8),
+            AmazonRatingStars(rating: 0, showCount: false, size: 20),
             Text(
-              '4.8 out of 5',
+              'No verified ratings yet',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
@@ -3598,11 +3658,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           style: const TextStyle(fontSize: 13, color: storeMuted),
         ),
         const SizedBox(height: 16),
-        _buildStarDistributionRow('5 star', 5, 0.78),
-        _buildStarDistributionRow('4 star', 4, 0.14),
-        _buildStarDistributionRow('3 star', 3, 0.05),
-        _buildStarDistributionRow('2 star', 2, 0.02),
-        _buildStarDistributionRow('1 star', 1, 0.01),
+        _buildStarDistributionRow('5 star', 5, 0),
+        _buildStarDistributionRow('4 star', 4, 0),
+        _buildStarDistributionRow('3 star', 3, 0),
+        _buildStarDistributionRow('2 star', 2, 0),
+        _buildStarDistributionRow('1 star', 1, 0),
         if (_filterStar != null) ...[
           const SizedBox(height: 10),
           InkWell(
@@ -3666,7 +3726,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             icon: const Icon(Icons.edit_note, size: 18, color: storeGreen),
             onPressed: () => _showWriteReviewDialog(p),
             label: const Text('Write a product review',
-                style: TextStyle(fontSize: 13, color: storeGreen, fontWeight: FontWeight.bold)),
+                style: TextStyle(
+                    fontSize: 13,
+                    color: storeGreen,
+                    fontWeight: FontWeight.bold)),
           ),
         ),
       ],
@@ -3684,7 +3747,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setModalState) {
           return Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             backgroundColor: storeWhite,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 500),
@@ -3699,7 +3763,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       children: [
                         const Text(
                           'Create Review',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: storeGreen),
+                          style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: storeGreen),
                         ),
                         IconButton(
                           icon: const Icon(Icons.close),
@@ -3710,14 +3777,19 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     const Divider(height: 16),
                     Text(
                       p.title,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xff0f1111)),
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xff0f1111)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 16),
 
                     // Overall rating
-                    const Text('Overall rating', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    const Text('Overall rating',
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
                     Row(
                       children: [
@@ -3726,7 +3798,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                             onTap: () => setModalState(() => rating = i),
                             borderRadius: BorderRadius.circular(20),
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 2),
                               child: Icon(
                                 i <= rating ? Icons.star : Icons.star_border,
                                 size: 32,
@@ -3743,54 +3816,82 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                   : (rating == 3
                                       ? 'Average'
                                       : (rating == 2 ? 'Fair' : 'Poor'))),
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: storeMuted),
+                          style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: storeMuted),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
 
                     // Headline
-                    const Text('Add a headline', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    const Text('Add a headline',
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
                     TextField(
                       controller: headlineCtrl,
                       decoration: InputDecoration(
                         hintText: "What's most important to know?",
-                        hintStyle: const TextStyle(fontSize: 13, color: storeMuted),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: storeBorder)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: storeGreen)),
+                        hintStyle:
+                            const TextStyle(fontSize: 13, color: storeMuted),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: const BorderSide(color: storeBorder)),
+                        focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: const BorderSide(color: storeGreen)),
                       ),
                     ),
                     const SizedBox(height: 16),
 
                     // Written review
-                    const Text('Add a written review', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    const Text('Add a written review',
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
                     TextField(
                       controller: contentCtrl,
                       maxLines: 4,
                       decoration: InputDecoration(
-                        hintText: 'What did you like or dislike? How was the purity and taste?',
-                        hintStyle: const TextStyle(fontSize: 13, color: storeMuted),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: storeBorder)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: storeGreen)),
+                        hintText:
+                            'What did you like or dislike? How was the purity and taste?',
+                        hintStyle:
+                            const TextStyle(fontSize: 13, color: storeMuted),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: const BorderSide(color: storeBorder)),
+                        focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: const BorderSide(color: storeGreen)),
                       ),
                     ),
                     const SizedBox(height: 16),
 
                     // Your Name
-                    const Text('Your Name', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    const Text('Your Name',
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
                     TextField(
                       controller: nameCtrl,
                       decoration: InputDecoration(
                         hintText: 'e.g. Anand Kumar',
-                        hintStyle: const TextStyle(fontSize: 13, color: storeMuted),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: storeBorder)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: storeGreen)),
+                        hintStyle:
+                            const TextStyle(fontSize: 13, color: storeMuted),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: const BorderSide(color: storeBorder)),
+                        focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: const BorderSide(color: storeGreen)),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -3803,41 +3904,22 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                         style: FilledButton.styleFrom(
                           backgroundColor: storeAmber,
                           foregroundColor: storeGreen,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(21)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(21)),
                         ),
                         onPressed: () {
-                          final h = headlineCtrl.text.trim();
-                          final c = contentCtrl.text.trim();
-                          if (h.isEmpty || c.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please add both a headline and a review.')),
-                            );
-                            return;
-                          }
-                          final name = nameCtrl.text.trim().isEmpty ? 'Verified Customer' : nameCtrl.text.trim();
-                          final initials = name.length >= 2 ? name.substring(0, 2).toUpperCase() : name.toUpperCase();
-                          final newReviewId = 'rev-${DateTime.now().millisecondsSinceEpoch}';
-                          setState(() {
-                            _userReviews.insert(0, {
-                              'id': newReviewId,
-                              'author': name,
-                              'avatarInitials': initials,
-                              'headline': h,
-                              'date': 'Today',
-                              'content': c,
-                              'helpfulCount': 0,
-                              'rating': rating.toDouble(),
-                            });
-                          });
                           Navigator.pop(dialogCtx);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Thank you! Your verified review has been published.'),
-                              backgroundColor: storeGreen,
+                              content: Text(
+                                'Reviews will be enabled after verified-purchase validation is connected.',
+                              ),
                             ),
                           );
                         },
-                        child: const Text('Submit Review', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        child: const Text('Submit Review',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14)),
                       ),
                     ),
                   ],
@@ -3850,7 +3932,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     );
   }
 
-  Widget _buildStarDistributionRow(String starLabel, int starNumber, double percentage) {
+  Widget _buildStarDistributionRow(
+      String starLabel, int starNumber, double percentage) {
     final pctText = '${(percentage * 100).round()}%';
     final isSelected = _filterStar == starNumber;
     return InkWell(
@@ -3863,7 +3946,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
         decoration: BoxDecoration(
-          color: isSelected ? storeGreen.withValues(alpha: 0.08) : Colors.transparent,
+          color: isSelected
+              ? storeGreen.withValues(alpha: 0.08)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(4),
         ),
         child: Row(
@@ -3914,12 +3999,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   Widget _buildFeatureScore(String feature, double score) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 4,
           children: [
             Text(feature,
-                style: const TextStyle(
-                    fontSize: 12, color: Color(0xff333333))),
+                style: const TextStyle(fontSize: 12, color: Color(0xff333333))),
             Row(
               children: [
                 Text(
@@ -3939,41 +4026,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       );
 
   Widget _buildReviewFeedRight(Product p) {
-    final defaultReviews = [
-      {
-        'id': 'def-1',
-        'author': 'Ramesh Sharma',
-        'avatarInitials': 'RS',
-        'headline': 'Authentic desi aroma and perfect granular texture',
-        'date': '14 February 2025',
-        'content':
-            'Exceptional quality. You can immediately smell the authentic aroma as soon as you break the tamper seal. My family loves it on rotis and warm dal. Packed securely in sturdy bubble cushioning with rapid delivery.',
-        'helpfulCount': 42,
-        'rating': 5.0,
-      },
-      {
-        'id': 'def-2',
-        'author': 'Kavita Patel (Dairy Cooperative Head)',
-        'avatarInitials': 'KP',
-        'headline': 'Noticeable milk yield and fat percentage improvement',
-        'date': '3 January 2025',
-        'content':
-            'We tested this on our herd of 24 Sahiwal cows. Milk output improved noticeably and fat content jumped from 4.1% to 4.5%. The consistency and palatability are the highest we have encountered in the Indian market.',
-        'helpfulCount': 28,
-        'rating': 5.0,
-      },
-      {
-        'id': 'def-3',
-        'author': 'Vikram Reddy',
-        'avatarInitials': 'VR',
-        'headline': 'Sturdy engineering and clean finish, great value',
-        'date': '22 December 2024',
-        'content':
-            'Solid build. Works exactly as described with no issues even during fluctuating rural voltage. Very easy to sanitize and dismantle. Would definitely recommend to fellow dairy professionals and farmers.',
-        'helpfulCount': 15,
-        'rating': 4.5,
-      },
-    ];
+    const defaultReviews = <Map<String, Object>>[];
 
     final allReviews = [
       ..._userReviews,
@@ -3990,8 +4043,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
           children: [
             const Text(
               'Top reviews from India',
@@ -4005,10 +4061,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               ActionChip(
                 backgroundColor: storeGreen.withValues(alpha: 0.1),
                 side: const BorderSide(color: storeGreen),
-                avatar: const Icon(Icons.filter_alt, size: 14, color: storeGreen),
+                avatar:
+                    const Icon(Icons.filter_alt, size: 14, color: storeGreen),
                 label: Text(
                   '$_filterStar Star (${filteredReviews.length}) · Clear',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: storeGreen),
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: storeGreen),
                 ),
                 onPressed: () => setState(() => _filterStar = null),
               ),
@@ -4026,11 +4086,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             child: Center(
               child: Column(
                 children: [
-                  const Icon(Icons.rate_review_outlined, size: 40, color: storeMuted),
+                  const Icon(Icons.rate_review_outlined,
+                      size: 40, color: storeMuted),
                   const SizedBox(height: 8),
                   Text(
                     'No $_filterStar-star customer reviews yet.',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: storeGreen),
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: storeGreen),
                   ),
                   const SizedBox(height: 8),
                   TextButton(
@@ -4157,10 +4221,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(60, 26),
                 padding: const EdgeInsets.symmetric(horizontal: 10),
-                backgroundColor: isHelpfulVoted ? const Color(0xffe8f5e9) : null,
+                backgroundColor:
+                    isHelpfulVoted ? const Color(0xffe8f5e9) : null,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(6)),
-                side: BorderSide(color: isHelpfulVoted ? storeGreen : storeBorder),
+                side: BorderSide(
+                    color: isHelpfulVoted ? storeGreen : storeBorder),
               ),
               onPressed: () {
                 setState(() {
@@ -4194,7 +4260,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     isHelpfulVoted ? 'Helpful' : 'Helpful',
                     style: TextStyle(
                       fontSize: 11,
-                      fontWeight: isHelpfulVoted ? FontWeight.bold : FontWeight.normal,
+                      fontWeight:
+                          isHelpfulVoted ? FontWeight.bold : FontWeight.normal,
                       color: storeGreen,
                     ),
                   ),
@@ -4506,5 +4573,3 @@ class _ProductImageLightboxDialogState
     );
   }
 }
-
-

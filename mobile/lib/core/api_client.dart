@@ -51,31 +51,32 @@ Dio createDioClient(SecureStorageService storage) {
   );
 
   // --- Detailed Logging interceptor (with credential sanitization) ---
-  dio.interceptors.add(
-    InterceptorsWrapper(
-      onRequest: (options, handler) {
-        debugPrint(
-            '[HTTP REQ] ${options.method} ${options.baseUrl}${options.path} data: ${_sanitizeLogPayload(options.data)} query: ${options.queryParameters}');
-        return handler.next(options);
-      },
-      onResponse: (response, handler) {
-        debugPrint(
-            '[HTTP RES] ${response.statusCode} ${response.requestOptions.method} ${response.requestOptions.path}');
-        return handler.next(response);
-      },
-      onError: (error, handler) {
-        debugPrint(
-            '[HTTP ERR] ${error.response?.statusCode} ${error.requestOptions.method} ${error.requestOptions.path}: ${error.message}');
-        if (error.response?.data != null) {
-          debugPrint('[HTTP ERR BODY] ${_sanitizeLogPayload(error.response?.data)}');
-        }
-        if (kDebugMode) {
+  if (kDebugMode) {
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          debugPrint(
+              '[HTTP REQ] ${options.method} ${options.baseUrl}${options.path} data: ${_sanitizeLogPayload(options.data)} query: ${_sanitizeLogPayload(options.queryParameters)}');
+          return handler.next(options);
+        },
+        onResponse: (response, handler) {
+          debugPrint(
+              '[HTTP RES] ${response.statusCode} ${response.requestOptions.method} ${response.requestOptions.path}');
+          return handler.next(response);
+        },
+        onError: (error, handler) {
+          debugPrint(
+              '[HTTP ERR] ${error.response?.statusCode} ${error.requestOptions.method} ${error.requestOptions.path}: ${error.message}');
+          if (error.response?.data != null) {
+            debugPrint(
+                '[HTTP ERR BODY] ${_sanitizeLogPayload(error.response?.data)}');
+          }
           debugPrint('[HTTP ERR STACK] ${error.stackTrace}');
-        }
-        return handler.next(error);
-      },
-    ),
-  );
+          return handler.next(error);
+        },
+      ),
+    );
+  }
 
   return dio;
 }
@@ -105,6 +106,9 @@ dynamic _sanitizeLogPayload(dynamic data) {
       }
     }
     return sanitized;
+  }
+  if (data is Iterable) {
+    return data.map(_sanitizeLogPayload).toList(growable: false);
   }
   return data;
 }

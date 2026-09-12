@@ -52,112 +52,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> tryRestoreSession() async {
     try {
       final token = await _storage.getAccessToken();
-      final userData = await _storage.getUserData();
-      if (token != null && userData != null) {
-        state = AuthState.authenticated(
-          user: UserModel.fromJson(userData),
-        );
-      }
+      final refreshToken = await _storage.getRefreshToken();
+      if (token == null || refreshToken == null) return;
+
+      // Do not trust a role cached by the browser. Rehydrate the session from
+      // the authenticated backend profile so route guards use current server
+      // state (including disabled accounts and changed roles).
+      final response = await _dio.get('/auth/me');
+      final body = response.data as Map<String, dynamic>;
+      final profile = body['data'] as Map<String, dynamic>;
+      final user = UserModel(
+        id: profile['id'] as String,
+        phone: profile['phone'] as String,
+        role: profile['role'] as String,
+        name: profile['name'] as String?,
+        accessToken: token,
+        refreshToken: refreshToken,
+      );
+      await _storage.setUserData(user.toJson());
+      state = AuthState.authenticated(user: user);
     } catch (e, st) {
       debugPrint('tryRestoreSession failed, resetting session: $e\n$st');
       await _storage.clearAll();
       state = const AuthState.unauthenticated();
-    }
-  }
-
-  /// Direct login using username/email and password (no OTP required).
-  Future<bool> loginWithPassword({
-    required String username,
-    required String password,
-  }) async {
-    state = const AuthState.loading();
-    try {
-      final response = await _dio.post('/auth/login', data: {
-        'username': username.trim(),
-        'password': password,
-      });
-      final body = response.data as Map<String, dynamic>;
-      if (body['access_token'] is String) {
-        final accessToken = body['access_token'] as String;
-        final refreshToken = (body['refresh_token'] as String?) ?? accessToken;
-        final profile =
-            (body['user'] ?? body['data']) as Map<String, dynamic>?;
-        final user = UserModel(
-          id: profile?['id']?.toString() ?? 'usr_${username.toLowerCase()}',
-          name: profile?['name']?.toString() ?? username,
-          phone: profile?['phone']?.toString() ?? '+91 98765 43210',
-          role: profile?['role']?.toString() ?? 'customer',
-          accessToken: accessToken,
-          refreshToken: refreshToken,
-        );
-        await _storage.setAccessToken(user.accessToken!);
-        await _storage.setRefreshToken(user.refreshToken!);
-        await _storage.setUserData(user.toJson());
-        state = AuthState.authenticated(user: user);
-        return true;
-      }
-      state = AuthState.error(
-        message: (body['message'] as String?) ?? 'Invalid credentials',
-      );
-      return false;
-    } on DioException catch (e) {
-      state = AuthState.error(message: dioErrorMessage(e));
-      return false;
-    } catch (e) {
-      state = AuthState.error(message: 'Login failed: ${e.toString()}');
-      return false;
-    }
-  }
-
-  /// Register new user profile (Full Name, Username, Phone, Password, Role) without OTP.
-  Future<bool> register({
-    required String name,
-    required String username,
-    required String password,
-    String? phone,
-    String role = 'customer',
-  }) async {
-    state = const AuthState.loading();
-    try {
-      final response = await _dio.post('/auth/register', data: {
-        'name': name.trim(),
-        'username': username.trim(),
-        'password': password,
-        'phone': phone?.trim() ?? '',
-        'role': role,
-      });
-      final body = response.data as Map<String, dynamic>;
-      if (body['access_token'] is String) {
-        final accessToken = body['access_token'] as String;
-        final refreshToken = (body['refresh_token'] as String?) ?? accessToken;
-        final profile =
-            (body['user'] ?? body['data']) as Map<String, dynamic>?;
-        final user = UserModel(
-          id: profile?['id']?.toString() ?? 'usr_${username.toLowerCase()}',
-          name: name.trim(),
-          phone: phone?.trim().isNotEmpty == true
-              ? phone!.trim()
-              : '+91 98765 43210',
-          role: role,
-          accessToken: accessToken,
-          refreshToken: refreshToken,
-        );
-        await _storage.setAccessToken(user.accessToken!);
-        await _storage.setRefreshToken(user.refreshToken!);
-        await _storage.setUserData(user.toJson());
-        state = AuthState.authenticated(user: user);
-        return true;
-      }
-      state = AuthState.error(
-        message: (body['message'] as String?) ?? 'Registration failed',
-      );
-      return false;
-    } on DioException catch (e) {
-      state = AuthState.error(message: dioErrorMessage(e));
-      return false;
-    } catch (e) {
-      state = AuthState.error(message: 'Registration failed: ${e.toString()}');
-      return false;
     }
   }
 

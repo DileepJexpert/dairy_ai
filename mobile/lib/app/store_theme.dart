@@ -2,17 +2,18 @@ import 'package:flutter/material.dart';
 
 // Single source of truth for the application brand and storefront design system.
 // Screens define their content and layout; reusable visual rules live here.
-const storeGreen = Color(0xff163c30);
-const storeDarkGreenNav = Color(0xff112c24);
+const storeGreen = Color(0xff173f35);
+const storeDarkGreenNav = Color(0xff102d26);
 const storeSubNav = Color(0xff1b4537);
 const storeGold = Color(0xffb39358);
-const storeAmber = Color(0xfff0a828);
+const storeAmber = Color(0xffe5ac32);
 const storeAmberDark = Color(0xffc58514);
 const storeOrange = Color(0xffe07e1b);
 const storeStarGold = Color(0xfff5a623);
-const storeCream = Color(0xfffaf8f3);
-const storeMuted = Color(0xff65736b);
-const storeBorder = Color(0xffe8e4da);
+const storeCream = Color(0xfff7f5ef);
+const storeText = Color(0xff202824);
+const storeMuted = Color(0xff617069);
+const storeBorder = Color(0xffe3ded3);
 const storeWhite = Colors.white;
 const storeHero = Color(0xffeee4cd);
 const storeHeroCircle = Color(0xffe0c692);
@@ -133,7 +134,7 @@ abstract final class StoreType {
       height: 1.35,
       fontWeight: FontWeight.w700,
       color: storeGreen);
-  static const body = TextStyle(fontSize: 14, height: 1.65, color: storeGreen);
+  static const body = TextStyle(fontSize: 14, height: 1.65, color: storeText);
   static const muted = TextStyle(fontSize: 12, height: 1.5, color: storeMuted);
   static const price = TextStyle(
       fontSize: 25,
@@ -153,13 +154,9 @@ abstract final class StoreType {
       fontWeight: FontWeight.w700,
       height: 1.2);
   static const amazonRatingText = TextStyle(
-      fontSize: 12,
-      fontWeight: FontWeight.w600,
-      color: Color(0xff007185));
-  static const amazonBadge = TextStyle(
-      fontSize: 11,
-      fontWeight: FontWeight.w700,
-      color: storeWhite);
+      fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xff007185));
+  static const amazonBadge =
+      TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: storeWhite);
   static const caption = TextStyle(fontSize: 10, color: storeMuted);
   static const stock = TextStyle(fontSize: 12, color: storeSuccess);
   static const hero = TextStyle(
@@ -174,8 +171,25 @@ abstract final class StoreType {
 abstract final class StoreTheme {
   static final inverseButton =
       TextButton.styleFrom(foregroundColor: storeWhite);
-  static final purchaseButton = FilledButton.styleFrom(
-      backgroundColor: storeGreen, foregroundColor: storeWhite);
+  static final addToCartButton = FilledButton.styleFrom(
+    minimumSize: const Size(0, 40),
+    backgroundColor: storeAmber,
+    foregroundColor: storeGreen,
+    disabledBackgroundColor: storeBorder,
+    disabledForegroundColor: storeMuted,
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+  );
+  static final buyNowButton = FilledButton.styleFrom(
+    minimumSize: const Size(0, 40),
+    backgroundColor: storeGreen,
+    foregroundColor: storeWhite,
+    disabledBackgroundColor: storeBorder,
+    disabledForegroundColor: storeMuted,
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+  );
+  static final purchaseButton = buyNowButton;
   static final light = ThemeData(
     useMaterial3: true,
     expansionTileTheme: const ExpansionTileThemeData(
@@ -238,7 +252,7 @@ abstract final class StoreTheme {
         style: OutlinedButton.styleFrom(
             minimumSize: const Size(0, 44),
             foregroundColor: storeGreen,
-            side: const BorderSide(color: storeBorder),
+            side: const BorderSide(color: storeGreen),
             shape: RoundedRectangleBorder(
                 borderRadius:
                     BorderRadius.circular(StoreLayout.controlRadius)))),

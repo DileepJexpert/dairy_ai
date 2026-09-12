@@ -54,19 +54,22 @@ void main() {
     expect(find.text('Farm Essentials'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
-  test('Shopping returns stay internal and do not choose role dashboards', () {
+  test('Authentication returns stay on known internal routes', () {
     for (final input in [
       null,
       '',
       'https://evil.example/shop',
       '//evil.example/shop',
       '/home',
-      '/vendor-dashboard'
     ]) {
       expect(shoppingReturnPath(input), '/shop');
     }
     expect(shoppingReturnPath('/marketplace/cart'), '/marketplace/cart');
     expect(shoppingReturnPath('/admin/commerce'), '/admin/commerce');
+    expect(shoppingReturnPath('/admin/ecommerce'), '/admin/ecommerce');
+    expect(shoppingReturnPath('/admin-farmers'), '/admin-farmers');
+    expect(shoppingReturnPath('/seller/dashboard'), '/seller/dashboard');
+    expect(shoppingReturnPath('/vendor-dashboard'), '/vendor-dashboard');
   });
   test('Department closure includes its categories only', () {
     const catalogue = TaxonomyCatalogue(enabled: true, nodes: nodes);

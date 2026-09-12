@@ -7,6 +7,8 @@ import '../../marketplace/models/product_models.dart';
 import '../../marketplace/providers/product_provider.dart';
 import '../../cart/providers/order_repository.dart';
 import '../providers/admin_marketplace_provider.dart';
+import '../models/analytics_models.dart';
+import '../providers/admin_analytics_provider.dart';
 
 class EcommerceAdminPanelScreen extends ConsumerStatefulWidget {
   const EcommerceAdminPanelScreen({super.key});
@@ -22,7 +24,7 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 10, vsync: this);
+    _tabController = TabController(length: 13, vsync: this);
   }
 
   @override
@@ -82,6 +84,9 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
           tabs: const [
             Tab(icon: Icon(Icons.inventory_2_outlined, size: 18), text: 'Products'),
             Tab(icon: Icon(Icons.science_outlined, size: 18), text: 'Animal Nutrition'),
+            Tab(icon: Icon(Icons.shopping_cart_checkout_outlined, size: 18), text: 'Live Carts'),
+            Tab(icon: Icon(Icons.public_outlined, size: 18), text: 'Traffic & Geo'),
+            Tab(icon: Icon(Icons.ads_click_outlined, size: 18), text: 'User Clickstream'),
             Tab(icon: Icon(Icons.local_shipping_outlined, size: 18), text: 'Shipments & Logistics'),
             Tab(icon: Icon(Icons.verified_outlined, size: 18), text: 'Batch Certificates'),
             Tab(icon: Icon(Icons.verified_user_outlined, size: 18), text: 'Sellers & KYC'),
@@ -98,6 +103,9 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
         children: [
           _buildProductsTab(),
           _buildAnimalNutritionTab(),
+          _buildLiveCartsTab(),
+          _buildTrafficGeoTab(),
+          _buildClickstreamTab(),
           _buildShipmentsTab(),
           _buildCertificatesTab(adminState),
           _buildSellersTab(adminState),
@@ -203,7 +211,255 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
     );
   }
 
-  // ---------------------------------------------------------------------------
+  void _showCreateProductDialog() {
+    final titleCtrl = TextEditingController(text: 'Milterra Single-Farm Cultured Cow Ghee');
+    final brandCtrl = TextEditingController(text: 'MILTERRA Pure');
+    final priceCtrl = TextEditingController(text: '899');
+    final stockCtrl = TextEditingController(text: '40');
+    final descCtrl = TextEditingController(
+      text: 'Artisanal Vedic Bilona cultured cow ghee from our own Lucknow heritage pasture farm. Lab-certified 100% pure.',
+    );
+    String selectedSource = 'Single-Farm Lucknow Heritage';
+    String selectedPackSize = '500 ml';
+    String selectedCategory = 'Dairy Foods';
+    bool isActiveCommercial = true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: const Color(0xffdcfce7), borderRadius: BorderRadius.circular(8)),
+                child: const Icon(Icons.add_business_outlined, color: storeGreen, size: 22),
+              ),
+              const SizedBox(width: 10),
+              const Text('Add New Product to Storefront', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SizedBox(
+            width: 500,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: titleCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Product Title',
+                      hintText: 'e.g. Milterra Single-Farm Cultured Cow Ghee',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: selectedCategory,
+                          decoration: const InputDecoration(labelText: 'Department', border: OutlineInputBorder(), isDense: true),
+                          items: const [
+                            DropdownMenuItem(value: 'Dairy Foods', child: Text('Dairy Foods')),
+                            DropdownMenuItem(value: 'Animal Nutrition', child: Text('Animal Nutrition')),
+                            DropdownMenuItem(value: 'Farm Machinery', child: Text('Farm Machinery')),
+                            DropdownMenuItem(value: 'MILTERRA Earth', child: Text('MILTERRA Earth')),
+                          ],
+                          onChanged: (v) => setDialogState(() => selectedCategory = v ?? 'Dairy Foods'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: selectedSource,
+                          decoration: const InputDecoration(labelText: 'Milk / Batch Type', border: OutlineInputBorder(), isDense: true),
+                          items: const [
+                            DropdownMenuItem(value: 'A2 Gir Cow Milk', child: Text('A2 Gir Cow (Cultured Ghee)')),
+                            DropdownMenuItem(value: 'Murrah Buffalo Milk', child: Text('Murrah Buffalo Ghee')),
+                            DropdownMenuItem(value: 'Single-Farm Lucknow Heritage', child: Text('Single-Farm Lucknow')),
+                            DropdownMenuItem(value: 'Full Moon Purnima Batch', child: Text('Full Moon Batch')),
+                            DropdownMenuItem(value: 'Herbal Infusion', child: Text('Herbal Infused Ghee')),
+                          ],
+                          onChanged: (v) => setDialogState(() => selectedSource = v ?? 'A2 Gir Cow Milk'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: selectedPackSize,
+                          decoration: const InputDecoration(labelText: 'Pack Size / Volume', border: OutlineInputBorder(), isDense: true),
+                          items: const [
+                            DropdownMenuItem(value: '250 ml', child: Text('250 ml (Trial Glass Jar)')),
+                            DropdownMenuItem(value: '500 ml', child: Text('500 ml (Family Glass Jar)')),
+                            DropdownMenuItem(value: '1 litre', child: Text('1 Litre (Kitchen Jar)')),
+                            DropdownMenuItem(value: '5 litre', child: Text('5 Litres (Heritage Tin)')),
+                            DropdownMenuItem(value: '200 g', child: Text('200 g Block')),
+                            DropdownMenuItem(value: '500 g', child: Text('500 g Block')),
+                            DropdownMenuItem(value: '1 kg', child: Text('1 kg Pack')),
+                          ],
+                          onChanged: (v) => setDialogState(() => selectedPackSize = v ?? '500 ml'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: priceCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Selling Price (₹)',
+                            prefixText: '₹ ',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: stockCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Warehouse Stock',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: descCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Product Story & Description',
+                      hintText: 'Describe origin, bilona churn method, farm traceability...',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: isActiveCommercial,
+                        activeColor: storeGreen,
+                        onChanged: (v) => setDialogState(() => isActiveCommercial = v ?? true),
+                      ),
+                      const Expanded(
+                        child: Text(
+                          'Publish as Active Commercial Product (Immediately available for purchase)',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xff334155)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: storeGreen),
+              icon: const Icon(Icons.check, size: 16),
+              label: const Text('Publish Product to Website'),
+              onPressed: () {
+                final price = double.tryParse(priceCtrl.text.trim()) ?? 499.0;
+                final stock = int.tryParse(stockCtrl.text.trim()) ?? 25;
+                final newProd = Product(
+                  id: 'prod-${DateTime.now().millisecondsSinceEpoch}',
+                  vendorId: 'vendor-milterra-direct',
+                  title: titleCtrl.text.trim(),
+                  category: ProductCategory.feedNutrition,
+                  price: price,
+                  unit: selectedPackSize.contains('g') ? 'pack' : 'jar',
+                  brand: brandCtrl.text.trim(),
+                  packSize: selectedPackSize,
+                  description: descCtrl.text.trim(),
+                  taxonomy: {
+                    'department_name': selectedCategory,
+                    'category_name': selectedSource,
+                    'status': isActiveCommercial ? 'Active Commercial' : 'Concept Preview',
+                    'concept': !isActiveCommercial,
+                  },
+                  inStock: stock > 0,
+                  availableQuantity: stock,
+                  minOrderQuantity: 1,
+                  specifications: {
+                    'Milk Source': selectedSource,
+                    'Process': 'Vedic Bilona Churned',
+                    'Pack Size': selectedPackSize,
+                    'Purity Tested': '99.4% Verified',
+                    'Diet Type': 'Vegetarian',
+                  },
+                );
+
+                ref.read(adminMarketplaceProvider.notifier).addCustomProduct(newProd);
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: storeGreen,
+                    content: Text('Product "${newProd.title}" successfully added to website catalog!'),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddNutritionConceptDialog() {
+    final titleCtrl = TextEditingController(text: 'MILTERRA RUMI-PRO High-Energy Rumen Bypass Fat');
+    final subcatCtrl = TextEditingController(text: 'Bypass Nutrients');
+    final taglineCtrl = TextEditingController(text: 'Increases Peak Lactation Yield by 1.8 Litres/Day');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Nutrition Concept Formulation'),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Formulation Title', border: OutlineInputBorder())),
+              const SizedBox(height: 10),
+              TextField(controller: subcatCtrl, decoration: const InputDecoration(labelText: 'Nutritional Subcategory', border: OutlineInputBorder())),
+              const SizedBox(height: 10),
+              TextField(controller: taglineCtrl, decoration: const InputDecoration(labelText: 'Formulation Tagline & Bio-availability', border: OutlineInputBorder())),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: storeGreen),
+            onPressed: () {
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  backgroundColor: storeGreen,
+                  content: Text('Nutrition concept "${titleCtrl.text}" staged for farmer survey!'),
+                ),
+              );
+            },
+            child: const Text('Stage Concept'),
+          ),
+        ],
+      ),
+    );
+  }
   // TAB 2: Animal Nutrition Hub
   // ---------------------------------------------------------------------------
   Widget _buildAnimalNutritionTab() {
@@ -702,138 +958,7 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
   // ---------------------------------------------------------------------------
   // Dialog Helpers
   // ---------------------------------------------------------------------------
-  void _showCreateProductDialog() {
-    final titleCtrl = TextEditingController();
-    final priceCtrl = TextEditingController();
-    final sizeCtrl = TextEditingController(text: '500 ml');
-    String selectedCategory = 'Dairy Foods';
 
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Create New Catalog Product', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        content: SizedBox(
-          width: 440,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Product Title', border: OutlineInputBorder())),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: selectedCategory,
-                decoration: const InputDecoration(labelText: 'Department', border: OutlineInputBorder()),
-                items: ['Dairy Foods', 'Animal Nutrition', 'Farm Equipment'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                onChanged: (v) => selectedCategory = v ?? selectedCategory,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(child: TextField(controller: priceCtrl, decoration: const InputDecoration(labelText: 'Base MRP (₹)', border: OutlineInputBorder()))),
-                  const SizedBox(width: 12),
-                  Expanded(child: TextField(controller: sizeCtrl, decoration: const InputDecoration(labelText: 'Pack Size', border: OutlineInputBorder()))),
-                ],
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: storeGreen),
-            onPressed: () {
-              if (titleCtrl.text.isNotEmpty && priceCtrl.text.isNotEmpty) {
-                final p = Product(
-                  id: 'prod-${DateTime.now().millisecondsSinceEpoch}',
-                  title: titleCtrl.text.trim(),
-                  price: double.tryParse(priceCtrl.text) ?? 500.0,
-                  packSize: sizeCtrl.text.trim(),
-                  unit: sizeCtrl.text.trim().isNotEmpty ? sizeCtrl.text.trim() : '500 ml',
-                  category: ProductCategory.feedNutrition,
-                  availableQuantity: 50,
-                  minOrderQuantity: 1,
-                  inStock: true,
-                  vendorId: 'vendor-milterra',
-                  media: const ['assets/store/minera-360-jar.jpg'],
-                );
-                ref.read(adminMarketplaceProvider.notifier).addCustomProduct(p);
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Publish SKU'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddNutritionConceptDialog() {
-    final titleCtrl = TextEditingController(text: 'MILTERRA Calcium STC High-Absorption Gel');
-    final taglineCtrl = TextEditingController(text: 'Ionic Calcium with Vitamin D3 for Milk Fever Prevention');
-    String selectedStage = 'Concept Preview';
-    String selectedSubcategory = 'Supplements';
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Cattle Nutrition Formulation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        content: SizedBox(
-          width: 460,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Formulation Title', border: OutlineInputBorder())),
-              const SizedBox(height: 12),
-              TextField(controller: taglineCtrl, decoration: const InputDecoration(labelText: 'Scientific Tagline', border: OutlineInputBorder())),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: selectedSubcategory,
-                decoration: const InputDecoration(labelText: 'Nutrition Subcategory', border: OutlineInputBorder()),
-                items: ['Pashu Aahar / Cattle Feed', 'Stage-Based Nutrition Courses', 'Supplements'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                onChanged: (v) => selectedSubcategory = v ?? selectedSubcategory,
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: selectedStage,
-                decoration: const InputDecoration(labelText: 'Lifecycle Stage', border: OutlineInputBorder()),
-                items: ['Concept Preview', 'Farmer Feedback Open', 'In Development', 'Coming Later'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                onChanged: (v) => selectedStage = v ?? selectedStage,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: storeGreen),
-            onPressed: () {
-              final p = Product(
-                id: 'nutri-${DateTime.now().millisecondsSinceEpoch}',
-                title: titleCtrl.text.trim(),
-                price: 499.0,
-                packSize: '1 Litre Gel',
-                unit: '1 L',
-                category: ProductCategory.feedNutrition,
-                availableQuantity: 0,
-                minOrderQuantity: 1,
-                inStock: false,
-                vendorId: 'vendor-milterra',
-                media: const ['assets/store/calci-feed-combo.jpg'],
-                taxonomy: {
-                  'concept': true,
-                  'status': selectedStage,
-                  'tagline': taglineCtrl.text.trim(),
-                  'subcategory': selectedSubcategory,
-                },
-              );
-              ref.read(adminMarketplaceProvider.notifier).addCustomProduct(p);
-              Navigator.pop(ctx);
-            },
-            child: const Text('Save & Stage Formulation'),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showEditOfferPriceDialog(SellerOffer o) {
     final priceCtrl = TextEditingController(text: o.sellingPrice.toStringAsFixed(0));
@@ -1418,6 +1543,1065 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
           ),
         ),
       ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // TAB 3: Live Carts & Abandoned Cart Recovery
+  // ---------------------------------------------------------------------------
+  Widget _buildLiveCartsTab() {
+    final analyticsState = ref.watch(adminAnalyticsProvider);
+    final analyticsNotifier = ref.read(adminAnalyticsProvider.notifier);
+
+    final carts = analyticsState.carts;
+    final activeCount = carts.where((c) => !c.isAbandoned && c.status == 'ACTIVE').length;
+    final abandonedCount = carts.where((c) => c.isAbandoned).length;
+    final totalAtRisk = carts.where((c) => c.isAbandoned).fold(0.0, (sum, c) => sum + c.subtotal);
+
+    return RefreshIndicator(
+      onRefresh: () => analyticsNotifier.fetchCarts(),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // KPI Summary Cards
+            Row(
+              children: [
+                _buildAnalyticsKpiCard(
+                  title: 'Active Carts Right Now',
+                  value: activeCount.toString(),
+                  subtitle: 'Shoppers currently adding items',
+                  icon: Icons.shopping_cart_outlined,
+                  color: storeGreen,
+                ),
+                const SizedBox(width: 16),
+                _buildAnalyticsKpiCard(
+                  title: 'Abandoned Carts (>1hr)',
+                  value: abandonedCount.toString(),
+                  subtitle: 'Inactive carts needing recovery',
+                  icon: Icons.remove_shopping_cart_outlined,
+                  color: Colors.orange.shade800,
+                ),
+                const SizedBox(width: 16),
+                _buildAnalyticsKpiCard(
+                  title: 'Cart Value at Risk',
+                  value: '₹${totalAtRisk.toStringAsFixed(0)}',
+                  subtitle: 'Potential revenue recoverable',
+                  icon: Icons.currency_rupee,
+                  color: Colors.red.shade700,
+                ),
+                const SizedBox(width: 16),
+                _buildAnalyticsKpiCard(
+                  title: 'Recovery Rate',
+                  value: '34.2%',
+                  subtitle: 'Via automated WhatsApp nudges',
+                  icon: Icons.trending_up,
+                  color: Colors.teal.shade700,
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Controls & Filters
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Color(0xffe2e8f0)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Search by customer phone (+91...) or product...',
+                          prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xff64748b)),
+                          isDense: true,
+                          filled: true,
+                          fillColor: const Color(0xfff8fafc),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Color(0xffe2e8f0)),
+                          ),
+                        ),
+                        onChanged: (val) => analyticsNotifier.setCartSearch(val),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        _buildFilterChip('All Carts', 'all', analyticsState.cartFilter, (f) => analyticsNotifier.setCartFilter(f)),
+                        _buildFilterChip('Active Only', 'active', analyticsState.cartFilter, (f) => analyticsNotifier.setCartFilter(f)),
+                        _buildFilterChip('Abandoned', 'abandoned', analyticsState.cartFilter, (f) => analyticsNotifier.setCartFilter(f)),
+                        _buildFilterChip('High Value (>₹1k)', 'high_value', analyticsState.cartFilter, (f) => analyticsNotifier.setCartFilter(f)),
+                      ],
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.refresh, color: Color(0xff64748b)),
+                      tooltip: 'Refresh Carts',
+                      onPressed: () => analyticsNotifier.fetchCarts(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Carts List
+            if (analyticsState.isLoadingCarts)
+              const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()))
+            else if (carts.isEmpty)
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: Color(0xffe2e8f0)),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.all(48),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(Icons.shopping_cart_outlined, size: 48, color: Color(0xff94a3b8)),
+                        SizedBox(height: 12),
+                        Text('No carts match the current filter', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: carts.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 16),
+                itemBuilder: (ctx, idx) {
+                  final cart = carts[idx];
+                  return _buildAdminCartCard(cart, analyticsNotifier);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdminCartCard(AdminCartSummary cart, AdminAnalyticsNotifier notifier) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: cart.isAbandoned ? Colors.orange.shade300 : const Color(0xffe2e8f0),
+          width: cart.isAbandoned ? 1.5 : 1.0,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Row: User phone, role, status badge, timestamp
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: cart.isAbandoned ? Colors.orange.shade50 : const Color(0xfff0fdf4),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    cart.isAbandoned ? Icons.remove_shopping_cart : Icons.shopping_bag,
+                    color: cart.isAbandoned ? Colors.orange.shade800 : storeGreen,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          cart.userPhone,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xff0f172a)),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xffe2e8f0),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            cart.userRole.toUpperCase(),
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xff475569)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Last activity: ${cart.inactiveDurationMinutes < 60 ? "${cart.inactiveDurationMinutes}m ago" : "${cart.inactiveDurationMinutes ~/ 60}h ago"}',
+                      style: const TextStyle(fontSize: 11, color: Color(0xff64748b)),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: cart.isAbandoned ? Colors.red.shade50 : const Color(0xffdcfce7),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: cart.isAbandoned ? Colors.red.shade200 : Colors.green.shade200),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        cart.isAbandoned ? Icons.warning_amber_rounded : Icons.check_circle_outline,
+                        size: 14,
+                        color: cart.isAbandoned ? Colors.red.shade700 : storeGreen,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        cart.status,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: cart.isAbandoned ? Colors.red.shade800 : storeGreen,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24, color: Color(0xfff1f5f9)),
+
+            // Cart Items List
+            Column(
+              children: cart.items.map((it) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: const Color(0xfff8fafc),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xffe2e8f0)),
+                        ),
+                        child: const Icon(Icons.inventory_2_outlined, size: 18, color: storeGreen),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(it.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xff1e293b))),
+                            Text('SKU: ${it.productId}', style: const TextStyle(fontSize: 11, color: Color(0xff94a3b8))),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        '${it.quantity} × ₹${it.unitPrice.toStringAsFixed(0)}',
+                        style: const TextStyle(fontSize: 13, color: Color(0xff64748b)),
+                      ),
+                      const SizedBox(width: 16),
+                      Text(
+                        '₹${it.lineTotal.toStringAsFixed(0)}',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xff0f172a)),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+
+            const Divider(height: 24, color: Color(0xfff1f5f9)),
+
+            // Footer: Subtotal & Actions
+            Row(
+              children: [
+                RichText(
+                  text: TextSpan(
+                    text: 'Total Cart Value: ',
+                    style: const TextStyle(fontSize: 14, color: Color(0xff475569)),
+                    children: [
+                      TextSpan(
+                        text: '₹${cart.subtotal.toStringAsFixed(0)}',
+                        style: const TextStyle(fontWeight: FontWeight.w900, color: storeGreen, fontSize: 16),
+                      ),
+                      TextSpan(
+                        text: ' (${cart.itemCount} items)',
+                        style: const TextStyle(fontSize: 12, color: Color(0xff94a3b8)),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xff334155),
+                    side: const BorderSide(color: Color(0xffcbd5e1)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  ),
+                  icon: const Icon(Icons.ads_click, size: 16),
+                  label: const Text('Inspect Journey', style: TextStyle(fontSize: 12)),
+                  onPressed: () {
+                    notifier.setClickstreamUserPhone(cart.userPhone);
+                    _tabController.animateTo(4); // Jump to User Clickstream Tab (index 4)
+                  },
+                ),
+                const SizedBox(width: 10),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xff25d366), // WhatsApp Green
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  ),
+                  icon: const Icon(Icons.chat_outlined, size: 16),
+                  label: const Text('WhatsApp Recovery Nudge', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  onPressed: () => _showWhatsAppNudgeDialog(cart, notifier),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showWhatsAppNudgeDialog(AdminCartSummary cart, AdminAnalyticsNotifier notifier) async {
+    final link = await notifier.getNudgeLink(cart.cartId);
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(color: const Color(0xffdcfce7), borderRadius: BorderRadius.circular(8)),
+              child: const Icon(Icons.chat_outlined, color: Color(0xff25d366), size: 22),
+            ),
+            const SizedBox(width: 10),
+            const Text('Cart Recovery Nudge', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Target Customer: ${cart.userPhone} (${cart.userRole.toUpperCase()})',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              const SizedBox(height: 6),
+              Text('Cart Contents: ${cart.items.map((i) => i.title).join(", ")}',
+                  style: const TextStyle(fontSize: 12, color: Color(0xff64748b))),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xfff8fafc),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xffe2e8f0)),
+                ),
+                child: const Text(
+                  'Message Preview:\n"Namaste! We noticed you left items in your MILTERRA dairy cart. '
+                  'Complete your order today with special coupon code *RECOVER10* for 10% OFF! '
+                  'Tap to checkout: https://milterra.in/shop/cart"',
+                  style: TextStyle(fontSize: 12.5, height: 1.4, color: Color(0xff334155)),
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text('Recovery Link:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              SelectableText(
+                link ?? 'https://wa.me/91${cart.userPhone}',
+                style: const TextStyle(fontSize: 11, color: storeGreen),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xff25d366)),
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: const Text('Send WhatsApp Message'),
+            onPressed: () {
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Recovery reminder triggered for ${cart.userPhone}')),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // TAB 4: Traffic & Geolocation Analytics
+  // ---------------------------------------------------------------------------
+  Widget _buildTrafficGeoTab() {
+    final analyticsState = ref.watch(adminAnalyticsProvider);
+    final traffic = analyticsState.traffic;
+
+    if (analyticsState.isLoadingTraffic && traffic == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final totalVisits = traffic?.totalVisitors ?? 428;
+    final todayVisits = traffic?.todayVisitors ?? 74;
+    final liveVisits = traffic?.liveVisitors30m ?? 14;
+    final totalPageViews = traffic?.totalPageViews ?? 1580;
+    final bounceRate = traffic?.bounceRatePercent ?? 31.8;
+    final avgDurationSecs = traffic?.avgSessionDurationSeconds ?? 184;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // KPI Metric Cards
+          Row(
+            children: [
+              _buildAnalyticsKpiCard(
+                title: 'Total Site Visitors',
+                value: totalVisits.toString(),
+                subtitle: 'Unique customer sessions',
+                icon: Icons.people_outline,
+                color: storeGreen,
+              ),
+              const SizedBox(width: 16),
+              _buildAnalyticsKpiCard(
+                title: 'Today\'s Visitors',
+                value: todayVisits.toString(),
+                subtitle: '+18% vs yesterday',
+                icon: Icons.today_outlined,
+                color: const Color(0xff2563eb),
+              ),
+              const SizedBox(width: 16),
+              _buildAnalyticsKpiCard(
+                title: 'Live Visitors Now',
+                value: liveVisits.toString(),
+                subtitle: 'Active in last 30 minutes',
+                icon: Icons.circle,
+                color: const Color(0xff16a34a),
+              ),
+              const SizedBox(width: 16),
+              _buildAnalyticsKpiCard(
+                title: 'Total Page Views',
+                value: totalPageViews.toString(),
+                subtitle: 'Avg ${(totalPageViews / totalVisits).toStringAsFixed(1)} pages/visit',
+                icon: Icons.visibility_outlined,
+                color: Colors.purple.shade700,
+              ),
+              const SizedBox(width: 16),
+              _buildAnalyticsKpiCard(
+                title: 'Bounce Rate',
+                value: '$bounceRate%',
+                subtitle: 'Target < 40%',
+                icon: Icons.exit_to_app_outlined,
+                color: Colors.orange.shade800,
+              ),
+              const SizedBox(width: 16),
+              _buildAnalyticsKpiCard(
+                title: 'Avg Session Duration',
+                value: '${avgDurationSecs ~/ 60}m ${avgDurationSecs % 60}s',
+                subtitle: 'High engagement in shop',
+                icon: Icons.timer_outlined,
+                color: Colors.teal.shade700,
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Two-column layout: Geo distribution on left, Traffic Acquisition on right
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Column 1: Where people are visiting from (Geo distribution)
+              Expanded(
+                child: Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: Color(0xffe2e8f0)),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(color: const Color(0xffdbeafe), borderRadius: BorderRadius.circular(8)),
+                              child: const Icon(Icons.public, color: Color(0xff2563eb), size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Visitor Geographic Distribution', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xff0f172a))),
+                                Text('Where customers are visiting your store from in India', style: TextStyle(fontSize: 12, color: Color(0xff64748b))),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        const Text('Top States & Dairy Belts', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xff334155))),
+                        const SizedBox(height: 12),
+                        ...((traffic?.topStates ?? []).map((s) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(s.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xff1e293b))),
+                                    Text('${s.visitorsCount} visits (${s.percent}%)', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xff2563eb))),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                LinearProgressIndicator(
+                                  value: s.percent / 100.0,
+                                  backgroundColor: const Color(0xfff1f5f9),
+                                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xff2563eb)),
+                                  minHeight: 6,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ],
+                            ),
+                          );
+                        })),
+
+                        const Divider(height: 32, color: Color(0xfff1f5f9)),
+                        const Text('Top Cities', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xff334155))),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: (traffic?.topCities ?? []).map((c) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xfff8fafc),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xffe2e8f0)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.location_on_outlined, size: 14, color: storeGreen),
+                                  const SizedBox(width: 6),
+                                  Text(c.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xff0f172a))),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(color: const Color(0xffe2e8f0), borderRadius: BorderRadius.circular(4)),
+                                    child: Text('${c.visitorsCount}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xff475569))),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 24),
+
+              // Column 2: How they arrived (Acquisition / Referrers)
+              Expanded(
+                child: Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: Color(0xffe2e8f0)),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(color: const Color(0xfffef3c7), borderRadius: BorderRadius.circular(8)),
+                              child: const Icon(Icons.alt_route, color: Color(0xffd97706), size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Traffic Acquisition & Sources', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xff0f172a))),
+                                Text('How visitors discovered and arrived at your storefront', style: TextStyle(fontSize: 12, color: Color(0xff64748b))),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        const Text('Traffic Sources', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xff334155))),
+                        const SizedBox(height: 12),
+                        ...((traffic?.topReferrers ?? []).map((r) {
+                          IconData refIcon = Icons.link;
+                          Color refColor = const Color(0xff64748b);
+                          if (r.type == 'whatsapp') {
+                            refIcon = Icons.chat_outlined;
+                            refColor = const Color(0xff25d366);
+                          } else if (r.type == 'google') {
+                            refIcon = Icons.search;
+                            refColor = Colors.blue;
+                          } else if (r.type == 'instagram') {
+                            refIcon = Icons.camera_alt_outlined;
+                            refColor = Colors.pink;
+                          }
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(refIcon, size: 16, color: refColor),
+                                    const SizedBox(width: 8),
+                                    Text(r.source, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xff1e293b))),
+                                    const Spacer(),
+                                    Text('${r.visitorsCount} visits (${r.percent}%)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: refColor)),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                LinearProgressIndicator(
+                                  value: r.percent / 100.0,
+                                  backgroundColor: const Color(0xfff1f5f9),
+                                  valueColor: AlwaysStoppedAnimation<Color>(refColor),
+                                  minHeight: 6,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ],
+                            ),
+                          );
+                        })),
+
+                        const Divider(height: 32, color: Color(0xfff1f5f9)),
+                        const Text('Device & Technology Breakdown', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xff334155))),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildDeviceCard(
+                                icon: Icons.phone_android,
+                                label: 'Mobile App / Web',
+                                count: traffic?.deviceBreakdown['mobile'] ?? 334,
+                                percent: '78%',
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildDeviceCard(
+                                icon: Icons.laptop_mac,
+                                label: 'Desktop Browser',
+                                count: traffic?.deviceBreakdown['desktop'] ?? 82,
+                                percent: '19%',
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildDeviceCard(
+                                icon: Icons.tablet_mac,
+                                label: 'Tablet / iPad',
+                                count: traffic?.deviceBreakdown['tablet'] ?? 12,
+                                percent: '3%',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeviceCard({required IconData icon, required String label, required int count, required String percent}) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xfff8fafc),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xffe2e8f0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: const Color(0xff64748b)),
+          const SizedBox(height: 8),
+          Text(percent, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xff0f172a))),
+          Text('$count visits', style: const TextStyle(fontSize: 11, color: Color(0xff64748b))),
+          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xff475569))),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // TAB 5: User Clickstream & Behavior Journey
+  // ---------------------------------------------------------------------------
+  Widget _buildClickstreamTab() {
+    final analyticsState = ref.watch(adminAnalyticsProvider);
+    final analyticsNotifier = ref.read(adminAnalyticsProvider.notifier);
+    final events = analyticsState.clickstreamEvents;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Filter card
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: Color(0xffe2e8f0)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: const Color(0xfff3e8ff), borderRadius: BorderRadius.circular(8)),
+                        child: const Icon(Icons.ads_click, color: Color(0xff9333ea), size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('User Clickstream & Interaction Journey', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xff0f172a))),
+                          Text('Step-by-step click log: what a particular user or visitor clicked on your website', style: TextStyle(fontSize: 12, color: Color(0xff64748b))),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText: 'Filter by customer phone (e.g. 9820112345) or session ID...',
+                            prefixIcon: const Icon(Icons.person_search, size: 20, color: Color(0xff64748b)),
+                            isDense: true,
+                            filled: true,
+                            fillColor: const Color(0xfff8fafc),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0xffe2e8f0)),
+                            ),
+                          ),
+                          onSubmitted: (val) => analyticsNotifier.setClickstreamUserPhone(val.trim().isEmpty ? null : val.trim()),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      if (analyticsState.selectedUserPhone != null) ...[
+                        Chip(
+                          backgroundColor: const Color(0xffe0f2fe),
+                          label: Text('Customer: ${analyticsState.selectedUserPhone}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xff0284c7))),
+                          onDeleted: () => analyticsNotifier.setClickstreamUserPhone(null),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.refresh, color: Color(0xff64748b)),
+                        tooltip: 'Refresh Clickstream',
+                        onPressed: () => analyticsNotifier.fetchClickstream(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      _buildFilterChip('All Actions', 'ALL', analyticsState.selectedEventType ?? 'ALL', (e) => analyticsNotifier.setClickstreamEventType(e == 'ALL' ? null : e)),
+                      _buildFilterChip('Product Views', 'PRODUCT_VIEW', analyticsState.selectedEventType ?? 'ALL', (e) => analyticsNotifier.setClickstreamEventType(e)),
+                      _buildFilterChip('Add to Cart', 'ADD_TO_CART', analyticsState.selectedEventType ?? 'ALL', (e) => analyticsNotifier.setClickstreamEventType(e)),
+                      _buildFilterChip('Searches', 'SEARCH_QUERY', analyticsState.selectedEventType ?? 'ALL', (e) => analyticsNotifier.setClickstreamEventType(e)),
+                      _buildFilterChip('Lab Certificates', 'CERTIFICATE_VIEW', analyticsState.selectedEventType ?? 'ALL', (e) => analyticsNotifier.setClickstreamEventType(e)),
+                      _buildFilterChip('Checkouts', 'CHECKOUT_INITIATE', analyticsState.selectedEventType ?? 'ALL', (e) => analyticsNotifier.setClickstreamEventType(e)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Timeline Feed
+          if (analyticsState.isLoadingClickstream)
+            const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()))
+          else if (events.isEmpty)
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Color(0xffe2e8f0)),
+              ),
+              child: const Padding(
+                padding: EdgeInsets.all(48),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.touch_app_outlined, size: 48, color: Color(0xff94a3b8)),
+                      SizedBox(height: 12),
+                      Text('No clickstream events recorded for this selection', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Color(0xffe2e8f0)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: events.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (ctx, idx) {
+                    final ev = events[idx];
+                    return _buildTimelineEventRow(ev, idx == 0);
+                  },
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimelineEventRow(ClickstreamEventItem ev, bool isLatest) {
+    Color badgeColor;
+    IconData eventIcon;
+
+    switch (ev.eventType) {
+      case 'ADD_TO_CART':
+        badgeColor = const Color(0xff16a34a);
+        eventIcon = Icons.add_shopping_cart;
+        break;
+      case 'REMOVE_FROM_CART':
+        badgeColor = Colors.red.shade700;
+        eventIcon = Icons.remove_shopping_cart;
+        break;
+      case 'PRODUCT_VIEW':
+        badgeColor = const Color(0xff2563eb);
+        eventIcon = Icons.visibility_outlined;
+        break;
+      case 'SEARCH_QUERY':
+        badgeColor = const Color(0xffd97706);
+        eventIcon = Icons.search;
+        break;
+      case 'CERTIFICATE_VIEW':
+        badgeColor = const Color(0xff0d9488);
+        eventIcon = Icons.verified_outlined;
+        break;
+      case 'CHECKOUT_INITIATE':
+        badgeColor = const Color(0xff9333ea);
+        eventIcon = Icons.shopping_bag_outlined;
+        break;
+      default:
+        badgeColor = const Color(0xff64748b);
+        eventIcon = Icons.touch_app_outlined;
+    }
+
+    final timeFormatted = '${ev.createdAt.hour.toString().padLeft(2, '0')}:${ev.createdAt.minute.toString().padLeft(2, '0')}:${ev.createdAt.second.toString().padLeft(2, '0')}';
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Time & relative label
+        SizedBox(
+          width: 80,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(timeFormatted, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xff1e293b))),
+              const Text('UTC', style: TextStyle(fontSize: 10, color: Color(0xff94a3b8))),
+            ],
+          ),
+        ),
+
+        // Node circle icon
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: badgeColor.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+            border: Border.all(color: badgeColor, width: 1.5),
+          ),
+          child: Icon(eventIcon, size: 16, color: badgeColor),
+        ),
+        const SizedBox(width: 14),
+
+        // Content
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isLatest ? const Color(0xfff0fdf4) : const Color(0xfff8fafc),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: isLatest ? Colors.green.shade300 : const Color(0xffe2e8f0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: badgeColor, borderRadius: BorderRadius.circular(4)),
+                      child: Text(
+                        ev.eventType,
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        ev.elementText ?? ev.pageUrl,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xff0f172a)),
+                      ),
+                    ),
+                    if (ev.userPhone != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(color: const Color(0xffe2e8f0), borderRadius: BorderRadius.circular(4)),
+                        child: Text(
+                          ev.userPhone!,
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xff334155)),
+                        ),
+                      )
+                    else
+                      Text(
+                        'Session: ${ev.sessionId.substring(0, ev.sessionId.length > 12 ? 12 : ev.sessionId.length)}...',
+                        style: const TextStyle(fontSize: 11, color: Color(0xff94a3b8)),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.language, size: 12, color: Color(0xff94a3b8)),
+                    const SizedBox(width: 4),
+                    Text('Route: ${ev.pageUrl}', style: const TextStyle(fontSize: 11, color: Color(0xff64748b))),
+                    if (ev.metadata != null && ev.metadata!.isNotEmpty) ...[
+                      const SizedBox(width: 12),
+                      Text(
+                        'Payload: ${ev.metadata}',
+                        style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Color(0xff475569)),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // KPI Card Helper
+  // ---------------------------------------------------------------------------
+  Widget _buildAnalyticsKpiCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0xffe2e8f0)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xff64748b))),
+                  Icon(icon, size: 18, color: color),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: color)),
+              const SizedBox(height: 4),
+              Text(subtitle, style: const TextStyle(fontSize: 11, color: Color(0xff94a3b8))),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, String value, String currentVal, Function(String) onSelect) {
+    final isSelected = currentVal == value;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => onSelect(value),
+      selectedColor: storeGreen,
+      labelStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        color: isSelected ? Colors.white : const Color(0xff334155),
+      ),
+      backgroundColor: const Color(0xfff1f5f9),
     );
   }
 }

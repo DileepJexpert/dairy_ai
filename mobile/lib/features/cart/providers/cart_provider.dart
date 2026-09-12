@@ -2,10 +2,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import 'package:dairy_ai/features/marketplace/models/product_models.dart';
+import 'package:dairy_ai/core/analytics_service.dart';
 import '../models/cart_models.dart';
 
 final cartProvider = StateNotifierProvider<CartNotifier, AsyncValue<Cart>>(
-    (ref) => CartNotifier(ref.read(dioProvider)));
+    (ref) => CartNotifier(ref.read(dioProvider), ref.read(analyticsServiceProvider)));
 
 final cartItemCountProvider =
     Provider<int>((ref) => ref.watch(cartProvider).valueOrNull?.itemCount ?? 0);
@@ -34,11 +35,12 @@ class SavedForLaterNotifier extends StateNotifier<List<CartItem>> {
 }
 
 class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
-  CartNotifier(this._dio) : super(AsyncValue.data(_createEmptyCart())) {
+  CartNotifier(this._dio, [this._analytics]) : super(AsyncValue.data(_createEmptyCart())) {
     refresh();
   }
 
   final Dio _dio;
+  final AnalyticsService? _analytics;
 
   static Cart _createEmptyCart() {
     return const Cart(
@@ -77,6 +79,12 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
       'product_id': productId,
       'quantity': quantity,
     });
+    _analytics?.trackAddToCart(
+      productId,
+      product?.title ?? 'Product',
+      quantity,
+      product?.price ?? 0.0,
+    );
     await refresh(throwOnError: true);
   }
 
@@ -93,6 +101,7 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
   }
 
   Future<void> remove(String itemId) async {
+    _analytics?.trackRemoveFromCart(itemId, 'Cart Item');
     await _dio.delete('/marketplace/cart/items/$itemId');
     await refresh(throwOnError: true);
   }

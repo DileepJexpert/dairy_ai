@@ -47,3 +47,4 @@ from app.models.commerce_taxonomy import TaxonomyNode, TaxonomyLock, ProductClas
 from app.models.cart import Cart, CartItem, CartStatus
 from app.models.delivery_address import DeliveryAddress
 from app.models.order import Order, OrderItem, OrderStatus, PaymentStatus, FulfillmentStatus
+from app.models.analytics import VisitorSession, ClickstreamEvent, ClickstreamEventType

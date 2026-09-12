@@ -6,6 +6,7 @@ import '../features/commerce/screens/commerce_orders_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
+import '../core/analytics_service.dart';
 
 // Auth
 import 'package:dairy_ai/features/auth/screens/login_screen.dart';
@@ -115,12 +116,14 @@ final _cooperativeShellKey = GlobalKey<NavigatorState>();
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
   final currentUser = ref.watch(currentUserProvider);
+  final analytics = ref.watch(analyticsServiceProvider);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     // Customers should be able to browse the catalogue before creating an account.
     initialLocation: '/shop',
     debugLogDiagnostics: false,
+    observers: [AnalyticsRouteObserver(analytics)],
     redirect: (context, state) {
       final isAuthenticated = authState.maybeWhen(
         authenticated: (_) => true,

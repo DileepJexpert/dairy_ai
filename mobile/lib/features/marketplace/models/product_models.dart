@@ -327,9 +327,37 @@ class Product {
 const defaultMilterraProducts = <Product>[
   // ---- 1. Retail Dairy Foods (Household Consumers) ----
   Product(
+    id: 'mil-ghee-250',
+    vendorId: 'vendor-milterra-dairy',
+    title: 'MILTERRA A2 Desi Cow Ghee (Trial Jar)',
+    category: ProductCategory.feedNutrition,
+    price: 425,
+    unit: 'jar',
+    brand: 'MILTERRA',
+    packSize: '250 ml',
+    description:
+        'Vedic A2 Bilona cultured Gir cow ghee in an accessible trial glass jar. Perfect for testing purity, aroma, and golden granulate texture.',
+    taxonomy: {
+      'department_name': 'Dairy Foods',
+      'category_name': 'Cow ghee',
+      'department_id': 'dairy-foods',
+      'category_id': 'cow-ghee'
+    },
+    inStock: true,
+    availableQuantity: 50,
+    minOrderQuantity: 1,
+    specifications: {
+      'Source': 'A2 Gir Cow Milk',
+      'Process': 'Traditional Bilona',
+      'Format': 'Trial Size Glass Jar',
+      'Shelf Life': '12 Months',
+      'Diet Type': 'Vegetarian'
+    },
+  ),
+  Product(
     id: 'mil-ghee-500',
     vendorId: 'vendor-milterra-dairy',
-    title: 'MILTERRA A2 Desi Cow Ghee',
+    title: 'MILTERRA A2 Desi Cow Ghee (Family Jar)',
     category: ProductCategory.feedNutrition,
     price: 799,
     unit: 'jar',
@@ -356,7 +384,7 @@ const defaultMilterraProducts = <Product>[
   Product(
     id: 'mil-ghee-1000',
     vendorId: 'vendor-milterra-dairy',
-    title: 'MILTERRA A2 Desi Cow Ghee',
+    title: 'MILTERRA A2 Desi Cow Ghee (Kitchen Jar)',
     category: ProductCategory.feedNutrition,
     price: 1499,
     unit: 'jar',
@@ -381,9 +409,36 @@ const defaultMilterraProducts = <Product>[
     },
   ),
   Product(
+    id: 'mil-ghee-5000',
+    vendorId: 'vendor-milterra-dairy',
+    title: 'MILTERRA A2 Desi Cow Ghee (Heritage Tin)',
+    category: ProductCategory.feedNutrition,
+    price: 6999,
+    unit: 'tin',
+    brand: 'MILTERRA',
+    packSize: '5 litre',
+    description:
+        'Bulk family pack of pure A2 Gir cow bilona ghee packed in food-grade heritage tin. Maximum value for large households and festive cooking.',
+    taxonomy: {
+      'department_name': 'Dairy Foods',
+      'category_name': 'Cow ghee',
+      'department_id': 'dairy-foods',
+      'category_id': 'cow-ghee'
+    },
+    inStock: true,
+    availableQuantity: 15,
+    minOrderQuantity: 1,
+    specifications: {
+      'Source': 'A2 Gir Cow Milk',
+      'Process': 'Traditional Bilona',
+      'Shelf Life': '12 Months',
+      'Diet Type': 'Vegetarian'
+    },
+  ),
+  Product(
     id: 'mil-buff-500',
     vendorId: 'vendor-milterra-dairy',
-    title: 'MILTERRA Rich Buffalo Ghee',
+    title: 'MILTERRA Traditional Cultured Buffalo Ghee',
     category: ProductCategory.feedNutrition,
     price: 699,
     unit: 'jar',
@@ -404,6 +459,118 @@ const defaultMilterraProducts = <Product>[
       'Source': 'Murrah Buffalo Milk',
       'Texture': 'Danedaar / Granular',
       'Shelf Life': '12 Months'
+    },
+  ),
+  Product(
+    id: 'mil-buff-1000',
+    vendorId: 'vendor-milterra-dairy',
+    title: 'MILTERRA Traditional Cultured Buffalo Ghee',
+    category: ProductCategory.feedNutrition,
+    price: 1299,
+    unit: 'jar',
+    brand: 'MILTERRA',
+    packSize: '1 litre',
+    description:
+        'Full-bodied, granular Murrah buffalo ghee in a 1-litre kitchen jar. Rich natural aroma with higher smoke point.',
+    taxonomy: {
+      'department_name': 'Dairy Foods',
+      'category_name': 'Buffalo ghee',
+      'department_id': 'dairy-foods',
+      'category_id': 'buffalo-ghee'
+    },
+    inStock: true,
+    availableQuantity: 24,
+    minOrderQuantity: 1,
+    specifications: {
+      'Source': 'Murrah Buffalo Milk',
+      'Texture': 'Danedaar / White Granular',
+      'Shelf Life': '12 Months'
+    },
+  ),
+  Product(
+    id: 'mil-ghee-single-farm',
+    vendorId: 'vendor-milterra-dairy',
+    title: 'MILTERRA Single-Farm A2 Cultured Ghee',
+    category: ProductCategory.feedNutrition,
+    price: 899,
+    unit: 'jar',
+    brand: 'MILTERRA Signature',
+    packSize: '500 ml',
+    description:
+        '100% Single-Origin Traceable to our own Lucknow heritage pasture farm. Churned from single-herd free-grazing desi cows with QR-code batch certificate.',
+    taxonomy: {
+      'department_name': 'Dairy Foods',
+      'category_name': 'Single-farm ghee',
+      'department_id': 'dairy-foods',
+      'category_id': 'single-farm-ghee'
+    },
+    inStock: true,
+    availableQuantity: 25,
+    minOrderQuantity: 1,
+    specifications: {
+      'Origin': 'Lucknow Heritage Farm Pasture',
+      'Traceability': '100% Single Herd',
+      'Process': 'Vedic Bilona Churned',
+      'Batch Size': 'Limited to 60 Jars/Week',
+      'Shelf Life': '12 Months'
+    },
+  ),
+  Product(
+    id: 'mil-ghee-full-moon',
+    vendorId: 'vendor-milterra-dairy',
+    title: 'MILTERRA Full Moon (Purnima Batch) Ghee',
+    category: ProductCategory.feedNutrition,
+    price: 999,
+    unit: 'jar',
+    brand: 'MILTERRA Reserve',
+    packSize: '500 ml',
+    description:
+        'Crafted exclusively on the auspicious night of Purnima (full moon). Churned before sunrise and clarified on wood fire for heightened Ayurvedic prana.',
+    taxonomy: {
+      'department_name': 'Dairy Foods',
+      'category_name': 'Full moon ghee',
+      'department_id': 'dairy-foods',
+      'category_id': 'full-moon-ghee'
+    },
+    inStock: true,
+    availableQuantity: 18,
+    minOrderQuantity: 1,
+    specifications: {
+      'Batch Edition': 'Sharad Purnima Lunar Churn',
+      'Lunar Phase': 'Waxing Full Moon',
+      'Packaging': 'Collector Gold Foil Glass Jar',
+      'Prana Rating': 'High Ayurvedic Vitality',
+      'Shelf Life': '12 Months'
+    },
+  ),
+  Product(
+    id: 'mil-ghee-ashwagandha',
+    vendorId: 'vendor-milterra-dairy',
+    title: 'MILTERRA Ashwagandha & Brahmi Medhya Ghee',
+    category: ProductCategory.feedNutrition,
+    price: 850,
+    unit: 'jar',
+    brand: 'MILTERRA Ayurveda',
+    packSize: '300 g',
+    description:
+        'Vedic herbal formulation of whole curd A2 ghee slow-infused with wild Ashwagandha roots and organic Brahmi leaves for mental clarity and nervous system rejuvenation.',
+    taxonomy: {
+      'department_name': 'Dairy Foods',
+      'category_name': 'Herbal ghee',
+      'department_id': 'dairy-foods',
+      'category_id': 'herbal-ghee',
+      'concept': true,
+      'status': 'Concept Preview',
+    },
+    inStock: false,
+    availableQuantity: 0,
+    minOrderQuantity: 1,
+    specifications: {
+      'concept': true,
+      'listing_status': 'in_development',
+      'Herbal Actives': 'Withania Somnifera (Ashwagandha) & Bacopa Monnieri (Brahmi)',
+      'Regulatory': 'Formulation under FSSAI Ayurvedic Aahar review',
+      'Target Release': 'Winter 2026',
     },
   ),
   Product(
@@ -1292,6 +1459,16 @@ const List<ProductFamily> defaultMilterraProductFamilies = [
     fssaiLicense: '10019021004312',
     variants: [
       ProductVariant(
+        id: 'ghee-gir-250ml',
+        sku: 'MIL-GHEE-GIR-250',
+        packSize: '250 ml',
+        price: 425,
+        compareAtPrice: 499,
+        stockQuantity: 160,
+        inStock: true,
+        weightGrams: 230,
+      ),
+      ProductVariant(
         id: 'ghee-gir-500ml',
         sku: 'MIL-GHEE-GIR-500',
         packSize: '500 ml',
@@ -1320,6 +1497,68 @@ const List<ProductFamily> defaultMilterraProductFamilies = [
         stockQuantity: 25,
         inStock: true,
         weightGrams: 4575,
+      ),
+    ],
+  ),
+  ProductFamily(
+    id: 'fam-ghee-single-farm',
+    title: 'Milterra Single-Farm A2 Cultured Cow Ghee',
+    brand: 'Milterra Signature',
+    department: 'Dairy Foods',
+    taxonomyNodeId: 'cat-single-farm-ghee',
+    taxonomyPath: 'Dairy Foods / Single-Farm Ghee',
+    description:
+        '100% Single-Origin Traceable to our own Lucknow heritage pasture farm. Churned in small artisanal batches with QR-code farm and purity certificate.',
+    primaryImage: 'assets/store/cow-ghee.png',
+    isOrganic: true,
+    purityGrade: 'Single-Origin Heritage (99.8% Purity)',
+    fssaiLicense: '10019021004312',
+    variants: [
+      ProductVariant(
+        id: 'ghee-single-500ml',
+        sku: 'MIL-GHEE-SF-500',
+        packSize: '500 ml',
+        price: 899,
+        compareAtPrice: 1050,
+        stockQuantity: 50,
+        inStock: true,
+        weightGrams: 460,
+      ),
+      ProductVariant(
+        id: 'ghee-single-1l',
+        sku: 'MIL-GHEE-SF-1000',
+        packSize: '1 L',
+        price: 1699,
+        compareAtPrice: 1999,
+        stockQuantity: 30,
+        inStock: true,
+        weightGrams: 915,
+      ),
+    ],
+  ),
+  ProductFamily(
+    id: 'fam-ghee-full-moon',
+    title: 'Milterra Full Moon (Purnima Batch) Bilona Ghee',
+    brand: 'Milterra Reserve',
+    department: 'Dairy Foods',
+    taxonomyNodeId: 'cat-full-moon-ghee',
+    taxonomyPath: 'Dairy Foods / Limited Batch Ghee',
+    description:
+        'Vedic bilona ghee churned and clarified on the auspicious night of Purnima. High Ayurvedic vitality with gold foil numbered packaging.',
+    primaryImage: 'assets/store/cow-ghee.png',
+    isOrganic: true,
+    purityGrade: 'Purnima Vedic Churn (High Prana)',
+    fssaiLicense: '10019021004312',
+    variants: [
+      ProductVariant(
+        id: 'ghee-moon-500ml',
+        sku: 'MIL-GHEE-MOON-500',
+        packSize: '500 ml',
+        price: 999,
+        compareAtPrice: 1250,
+        stockQuantity: 35,
+        inStock: true,
+        weightGrams: 460,
       ),
     ],
   ),

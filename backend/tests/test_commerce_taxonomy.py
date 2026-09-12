@@ -104,3 +104,25 @@ async def test_disabled_rollout_does_not_break_legacy_catalogue(client, admin_he
     assert (await client.get('/api/v1/marketplace/taxonomy')).json() == {'success': True, 'enabled': False, 'data': []}
     assert (await client.get('/api/v1/marketplace/products')).status_code == 200
     assert (await client.get('/api/v1/admin/commerce/taxonomy', headers=admin_headers)).status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_public_catalogue_can_resolve_a_product_by_sku(client, vendor_user, db_session):
+    vendor = Vendor(user_id=vendor_user.id, business_name='Milterra', vendor_type=VendorType.feed_supplier)
+    db_session.add(vendor)
+    await db_session.flush()
+    product = Product(
+        id=uuid.uuid4(), vendor_id=vendor.id, sku='MIL-GHEE-500',
+        title='Milterra A2 Desi Cow Ghee', slug='mil-ghee-500',
+        category=ProductCategory.feed_nutrition, base_price=799, unit='jar',
+        is_active=True,
+    )
+    db_session.add(product)
+    await db_session.flush()
+    db_session.add(ProductInventory(product_id=product.id, available_quantity=4, reserved_quantity=0))
+    await db_session.flush()
+
+    response = await client.get('/api/v1/marketplace/products', params={'sku': 'MIL-GHEE-500'})
+    assert response.status_code == 200
+    assert response.json()['total'] == 1
+    assert response.json()['data'][0]['id'] == str(product.id)

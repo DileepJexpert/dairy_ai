@@ -26,7 +26,7 @@ async def enrich(db,p):
   result['taxonomy'] = (await taxonomy.product_metadata(db,[p.id])).get(str(p.id))
  return result
 @router.get("/marketplace/products")
-async def products(category:str|None=None,subcategory:str|None=None,brand:str|None=None,query:str|None=None,min_price:Decimal|None=Query(None,ge=0),max_price:Decimal|None=Query(None,ge=0),vendor_id:str|None=None,in_stock:bool|None=None,is_rentable:bool|None=None,sort_by:str="newest",page:int=Query(1,ge=1),per_page:int=Query(20,ge=1,le=100),taxonomy_id:uuid.UUID|None=None,db:AsyncSession=Depends(get_db)):
+async def products(category:str|None=None,subcategory:str|None=None,brand:str|None=None,sku:str|None=None,query:str|None=None,min_price:Decimal|None=Query(None,ge=0),max_price:Decimal|None=Query(None,ge=0),vendor_id:str|None=None,in_stock:bool|None=None,is_rentable:bool|None=None,sort_by:str="newest",page:int=Query(1,ge=1),per_page:int=Query(20,ge=1,le=100),taxonomy_id:uuid.UUID|None=None,db:AsyncSession=Depends(get_db)):
  product_category = None
  if category:
   try:
@@ -44,7 +44,7 @@ async def products(category:str|None=None,subcategory:str|None=None,brand:str|No
   for _ in public:
    category_ids.update(n['id'] for n in public if n['parent_id'] in category_ids)
   category_ids = [uuid.UUID(x) for x in category_ids]
- items,total=await product_repo.search(db,{"category":product_category,"brand":brand,"query":query,"min_price":min_price,"max_price":max_price,"vendor_id":uid(vendor_id,"vendor") if vendor_id else None,"sort_by":sort_by,"taxonomy_ids":category_ids,"subcategory":subcategory,"in_stock":in_stock,"is_rentable":is_rentable},page,per_page)
+ items,total=await product_repo.search(db,{"category":product_category,"brand":brand,"sku":sku,"query":query,"min_price":min_price,"max_price":max_price,"vendor_id":uid(vendor_id,"vendor") if vendor_id else None,"sort_by":sort_by,"taxonomy_ids":category_ids,"subcategory":subcategory,"in_stock":in_stock,"is_rentable":is_rentable},page,per_page)
  data=[await enrich(db,x) for x in items]
  return {"success":True,"data":data,"total":total,"page":page,"per_page":per_page,"message":"Products"}
 @router.get("/marketplace/products/{product_id}")

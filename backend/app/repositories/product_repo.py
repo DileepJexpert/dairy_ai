@@ -15,6 +15,7 @@ async def search(db:AsyncSession,filters:dict,page:int,per_page:int):
  q=select(Product).where(Product.is_active.is_(True))
  if filters.get('category'):q=q.where(Product.category==filters['category'])
  if filters.get('brand'):q=q.where(Product.brand.ilike(f"%{filters['brand']}%"))
+ if filters.get('sku'):q=q.where(Product.sku==filters['sku'])
  if filters.get('query'):q=q.where(or_(Product.title.ilike(f"%{filters['query']}%"),Product.description.ilike(f"%{filters['query']}%")))
  if filters.get('min_price') is not None:q=q.where(Product.base_price>=filters['min_price'])
  if filters.get('max_price') is not None:q=q.where(Product.base_price<=filters['max_price'])

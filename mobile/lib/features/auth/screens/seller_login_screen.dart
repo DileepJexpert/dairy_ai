@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
 import '../../admin/providers/admin_marketplace_provider.dart';
 import '../../vendor/providers/seller_portal_provider.dart';
@@ -13,14 +14,69 @@ class SellerLoginScreen extends ConsumerStatefulWidget {
 }
 
 class _SellerLoginScreenState extends ConsumerState<SellerLoginScreen> {
-  final _phoneCtrl = TextEditingController(text: '+91 98765 43210');
-  String? _selectedSellerId = 'seller-milterra-direct';
+  final _emailCtrl = TextEditingController(text: 'seller@milterra.com');
+  final _passwordCtrl = TextEditingController(text: 'seller#milterra2026');
   bool _busy = false;
+
+  Future<void> _handleSellerLogin() async {
+    final username = _emailCtrl.text.trim();
+    final password = _passwordCtrl.text;
+    if (username.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: storeError,
+          content: Text('Please enter seller credentials.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _busy = true);
+    try {
+      final success = await ref.read(authProvider.notifier).loginWithPassword(
+            username: username,
+            password: password,
+          );
+      if (!mounted) return;
+      if (success) {
+        final currentUser = ref.read(currentUserProvider);
+        final role = currentUser?.role.toLowerCase();
+        if (role == 'vendor' || role == 'seller' || role == 'admin' || role == 'super_admin') {
+          final sellers = ref.read(adminMarketplaceProvider).sellers;
+          final match = sellers.firstWhere(
+            (s) => s.id == currentUser?.id || s.contactEmail == username,
+            orElse: () => sellers.first,
+          );
+          ref.read(sellerPortalProvider.notifier).loginAsSeller(match);
+          if (mounted) {
+            context.go('/seller/dashboard');
+          }
+          return;
+        } else {
+          await ref.read(authProvider.notifier).logout();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: storeError,
+              content: Text('Access Denied: Account is not registered as a seller or vendor.'),
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: storeError,
+            content: Text('Authentication failed. Invalid seller credentials.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final sellers = ref.watch(adminMarketplaceProvider).sellers;
-
     return Scaffold(
       backgroundColor: storeCream,
       body: Center(
@@ -82,37 +138,25 @@ class _SellerLoginScreenState extends ConsumerState<SellerLoginScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Fast Demo Switcher between approved sellers
-                    const Text('Select Verified Seller Account', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    const Text('Seller Username / Business Email', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
-                      value: _selectedSellerId,
+                    TextField(
+                      controller: _emailCtrl,
                       decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.business_outlined, size: 18),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
-                      items: sellers.map((s) {
-                        return DropdownMenuItem<String>(
-                          value: s.id,
-                          child: Text(
-                            '${s.businessName} (${s.status.name.toUpperCase()})',
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) setState(() => _selectedSellerId = val);
-                      },
                     ),
                     const SizedBox(height: 16),
 
-                    const Text('Registered Phone Number', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    const Text('Password', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
                     TextField(
-                      controller: _phoneCtrl,
+                      controller: _passwordCtrl,
+                      obscureText: true,
                       decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.phone_outlined, size: 18),
+                        prefixIcon: const Icon(Icons.lock_outline, size: 18),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
@@ -128,19 +172,7 @@ class _SellerLoginScreenState extends ConsumerState<SellerLoginScreen> {
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
-                        onPressed: _busy
-                            ? null
-                            : () async {
-                                setState(() => _busy = true);
-                                await Future.delayed(const Duration(milliseconds: 500));
-                                if (!mounted) return;
-                                final match = sellers.firstWhere((s) => s.id == _selectedSellerId);
-                                ref.read(sellerPortalProvider.notifier).loginAsSeller(match);
-                                setState(() => _busy = false);
-                                if (mounted) {
-                                  context.go('/seller/dashboard');
-                                }
-                              },
+                        onPressed: _busy ? null : _handleSellerLogin,
                         child: _busy
                             ? const SizedBox(
                                 width: 20,

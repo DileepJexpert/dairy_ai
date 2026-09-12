@@ -128,10 +128,63 @@ final routerProvider = Provider<GoRouter>((ref) {
         orElse: () => false,
       );
 
+      final location = state.uri.path;
+      final userRole = currentUser?.role.toLowerCase();
+      final isAdmin = userRole == 'admin' || userRole == 'super_admin';
+      final isSeller = isAdmin || userRole == 'vendor' || userRole == 'seller';
+
+      final isAdminArea = location == '/admin/ecommerce' ||
+          location == '/admin-dashboard' ||
+          location == '/admin-farmers' ||
+          location == '/admin-vets' ||
+          location.startsWith('/admin/commerce');
+
+      final isSellerArea = location == '/seller/dashboard' ||
+          location == '/vendor-dashboard' ||
+          location == '/vendor-orders' ||
+          location == '/vendor-profile' ||
+          location == '/vendor/products';
+
+      // 1. Role-based protection for Admin routes
+      if (isAdminArea) {
+        if (!isAuthenticated) {
+          return Uri(path: '/admin/login', queryParameters: {
+            'next': location,
+          }).toString();
+        }
+        if (!isAdmin) {
+          return '/shop';
+        }
+      }
+
+      // 2. Role-based protection for Seller/Vendor routes
+      if (isSellerArea) {
+        if (!isAuthenticated) {
+          return Uri(path: '/seller/login', queryParameters: {
+            'next': location,
+          }).toString();
+        }
+        if (!isSeller) {
+          return '/shop';
+        }
+      }
+
+      // 3. Login redirects if already authenticated with matching role
+      if (isAuthenticated && isAdmin && location == '/admin/login') {
+        return '/admin/ecommerce';
+      }
+      if (isAuthenticated && isSeller && location == '/seller/login') {
+        return '/seller/dashboard';
+      }
+
       final isAuthRoute = state.matchedLocation == '/login' ||
           state.matchedLocation == '/register' ||
-          state.matchedLocation == '/otp-verify';
-      final location = state.uri.path;
+          state.matchedLocation == '/otp-verify' ||
+          location == '/admin/login' ||
+          location == '/seller/login' ||
+          location == '/seller/onboarding' ||
+          location == '/vendor-register';
+
       final isPublicRoute = location == '/shop' ||
           location.startsWith('/shop/') ||
           location.startsWith('/product/') ||
@@ -182,7 +235,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           'next': shoppingReturnPath(state.uri.toString())
         }).toString();
       }
-      if (isAuthenticated && isAuthRoute) {
+      if (isAuthenticated && (state.matchedLocation == '/login' || state.matchedLocation == '/register')) {
         final next = state.uri.queryParameters['next'];
         return shoppingReturnPath(next);
       }

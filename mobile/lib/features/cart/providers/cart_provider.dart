@@ -34,53 +34,18 @@ class SavedForLaterNotifier extends StateNotifier<List<CartItem>> {
 }
 
 class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
-  CartNotifier(this._dio) : super(AsyncValue.data(_createInitialCart())) {
+  CartNotifier(this._dio) : super(AsyncValue.data(_createEmptyCart())) {
     refresh();
   }
 
   final Dio _dio;
 
-  static Cart _createInitialCart() {
-    final p1 = defaultMilterraProducts.isNotEmpty ? defaultMilterraProducts[0] : null;
-    final p2 = defaultMilterraProducts.length > 2 ? defaultMilterraProducts[2] : null;
-    final items = <CartItem>[
-      if (p1 != null)
-        CartItem(
-          id: 'item_cart_1',
-          productId: p1.id,
-          title: p1.title,
-          quantity: 1,
-          priceWhenAdded: p1.price,
-          currentPrice: p1.price,
-          inStock: true,
-          lineTotal: p1.price,
-          vendorName: p1.vendorId,
-          primaryImage: p1.media.isNotEmpty ? p1.media.first : null,
-          unit: p1.unit,
-          availableQuantity: p1.availableQuantity,
-        ),
-      if (p2 != null)
-        CartItem(
-          id: 'item_cart_2',
-          productId: p2.id,
-          title: p2.title,
-          quantity: 2,
-          priceWhenAdded: p2.price,
-          currentPrice: p2.price,
-          inStock: true,
-          lineTotal: p2.price * 2,
-          vendorName: p2.vendorId,
-          primaryImage: p2.media.isNotEmpty ? p2.media.first : null,
-          unit: p2.unit,
-          availableQuantity: p2.availableQuantity,
-        ),
-    ];
-    final subtotal = items.fold<double>(0.0, (sum, it) => sum + it.lineTotal);
-    return Cart(
-      id: 'cart-session-1',
-      itemCount: items.fold<int>(0, (sum, it) => sum + it.quantity),
-      subtotal: subtotal,
-      items: items,
+  static Cart _createEmptyCart() {
+    return const Cart(
+      id: '',
+      itemCount: 0,
+      subtotal: 0.0,
+      items: [],
     );
   }
 
@@ -96,16 +61,16 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
         return;
       }
     } catch (_) {
-      // Fallback: keep existing cart or initial demo items
+      // Fallback: keep existing cart or empty cart
       if (state.valueOrNull == null) {
-        state = AsyncValue.data(_createInitialCart());
+        state = AsyncValue.data(_createEmptyCart());
       }
     }
   }
 
   Future<void> add(String productId, int quantity, [Product? product]) async {
     // 1. Instant optimistic local cart update (0ms UI latency)
-    final current = state.valueOrNull ?? _createInitialCart();
+    final current = state.valueOrNull ?? _createEmptyCart();
     final p = product ??
         defaultMilterraProducts.firstWhere(
           (item) => item.id == productId,
@@ -183,7 +148,7 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
   }
 
   Future<void> update(String itemId, int quantity) async {
-    final current = state.valueOrNull ?? _createInitialCart();
+    final current = state.valueOrNull ?? _createEmptyCart();
     if (quantity <= 0) {
       await remove(itemId);
       return;
@@ -226,7 +191,7 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
   }
 
   Future<void> remove(String itemId) async {
-    final current = state.valueOrNull ?? _createInitialCart();
+    final current = state.valueOrNull ?? _createEmptyCart();
     final newItems = current.items.where((it) => it.id != itemId).toList();
     final subtotal =
         newItems.fold<double>(0.0, (sum, it) => sum + it.lineTotal);
@@ -265,7 +230,7 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
           as Map<String, dynamic>;
       return Map<String, dynamic>.from(body['data'] as Map);
     } catch (_) {
-      final current = state.valueOrNull ?? _createInitialCart();
+      final current = state.valueOrNull ?? _createEmptyCart();
       return {
         'valid': true,
         'subtotal': current.subtotal,

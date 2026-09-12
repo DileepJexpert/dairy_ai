@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
 
 class AdminLoginScreen extends ConsumerStatefulWidget {
@@ -24,17 +25,58 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
   ];
 
   Future<void> _handleLogin() async {
+    final username = _emailCtrl.text.trim();
+    final password = _passwordCtrl.text;
+    if (username.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: storeError,
+          content: Text('Please enter admin credentials.'),
+        ),
+      );
+      return;
+    }
+
     setState(() => _busy = true);
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    setState(() => _busy = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: storeGreen,
-        content: Text('Welcome! Authenticated as $_selectedRole.'),
-      ),
-    );
-    context.go('/admin/ecommerce');
+    try {
+      final success = await ref.read(authProvider.notifier).loginWithPassword(
+            username: username,
+            password: password,
+          );
+      if (!mounted) return;
+      if (success) {
+        final currentUser = ref.read(currentUserProvider);
+        final role = currentUser?.role.toLowerCase();
+        if (role == 'admin' || role == 'super_admin') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: storeGreen,
+              content: Text('Welcome! Authenticated as ${currentUser?.role}.'),
+            ),
+          );
+          context.go('/admin/ecommerce');
+          return;
+        } else {
+          await ref.read(authProvider.notifier).logout();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: storeError,
+              content: Text('Access Denied: Account lacks administrative privileges.'),
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: storeError,
+            content: Text('Authentication failed. Invalid admin credentials.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -105,7 +147,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                     const Text('Select Admin Role', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
-                      value: _selectedRole,
+                      initialValue: _selectedRole,
                       decoration: InputDecoration(
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),

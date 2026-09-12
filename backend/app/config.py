@@ -16,12 +16,6 @@ class Settings(BaseSettings):
     # Enable after an explicit local full rebuild (see scripts/rebuild_local_database.py).
     COMMERCE_TAXONOMY_ENABLED: bool = False
 
-    # Feature Flags / IoT / Local Lab
-    IOT_ENABLED: bool = True
-    MQTT_ENABLED: bool = True
-    REDIS_ENABLED: bool = False
-    TIMESCALE_FEATURES_ENABLED: bool = False
-
     # WhatsApp
     WHATSAPP_TOKEN: str = ""
     WHATSAPP_PHONE_ID: str = ""

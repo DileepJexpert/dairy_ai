@@ -50,12 +50,12 @@ Dio createDioClient(SecureStorageService storage) {
     ),
   );
 
-  // --- Detailed Logging interceptor ---
+  // --- Detailed Logging interceptor (with credential sanitization) ---
   dio.interceptors.add(
     InterceptorsWrapper(
       onRequest: (options, handler) {
         debugPrint(
-            '[HTTP REQ] ${options.method} ${options.baseUrl}${options.path} data: ${options.data} query: ${options.queryParameters}');
+            '[HTTP REQ] ${options.method} ${options.baseUrl}${options.path} data: ${_sanitizeLogPayload(options.data)} query: ${options.queryParameters}');
         return handler.next(options);
       },
       onResponse: (response, handler) {
@@ -67,15 +67,46 @@ Dio createDioClient(SecureStorageService storage) {
         debugPrint(
             '[HTTP ERR] ${error.response?.statusCode} ${error.requestOptions.method} ${error.requestOptions.path}: ${error.message}');
         if (error.response?.data != null) {
-          debugPrint('[HTTP ERR BODY] ${error.response?.data}');
+          debugPrint('[HTTP ERR BODY] ${_sanitizeLogPayload(error.response?.data)}');
         }
-        debugPrint('[HTTP ERR STACK] ${error.stackTrace}');
+        if (kDebugMode) {
+          debugPrint('[HTTP ERR STACK] ${error.stackTrace}');
+        }
         return handler.next(error);
       },
     ),
   );
 
   return dio;
+}
+
+/// Redacts sensitive keys such as passwords, tokens, OTPs, and card details from log output.
+dynamic _sanitizeLogPayload(dynamic data) {
+  if (data is Map) {
+    const sensitiveKeys = {
+      'password',
+      'token',
+      'access_token',
+      'refresh_token',
+      'secret',
+      'otp',
+      'authorization',
+      'card_number',
+      'cvv',
+      'idempotency_key',
+    };
+    final sanitized = <String, dynamic>{};
+    for (final entry in data.entries) {
+      final key = entry.key.toString();
+      if (sensitiveKeys.contains(key.toLowerCase())) {
+        sanitized[key] = '***REDACTED***';
+      } else {
+        sanitized[key] = _sanitizeLogPayload(entry.value);
+      }
+    }
+    return sanitized;
+  }
+  return data;
 }
 
 /// Attempts to refresh the access token using the stored refresh token.

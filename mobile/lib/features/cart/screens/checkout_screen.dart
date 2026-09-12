@@ -2,6 +2,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
+import 'package:dairy_ai/core/api_client.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../../finance/providers/wallet_provider.dart';
 import '../models/delivery_address.dart';
@@ -83,7 +85,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         return;
       }
       setState(() => _submitting = true);
-      ref.read(milterraWalletProvider.notifier).payOrder(totalAmount, generatedOrderId);
       await _finalizeOrderPlacement(
         generatedOrderId: generatedOrderId,
         totalAmount: totalAmount,
@@ -140,18 +141,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     setState(() => _submitting = true);
     final cart = ref.read(cartProvider).valueOrNull;
 
-    // Persist to unified Order Repository before cart is cleared
-    ref.read(ordersNotifierProvider.notifier).placeOrder(
-      orderId: generatedOrderId,
-      cartItems: cart?.items ?? [],
-      deliveryAddress: addressMap,
-      paymentMethod: _paymentMethod,
-      subtotal: subtotal,
-      discount: discount,
-      total: totalAmount,
-      paymentStatus: paymentStatus,
-    );
-
     try {
       final key =
           'flutter-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(9999)}';
@@ -160,16 +149,33 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         'payment_method': _paymentMethod,
         'idempotency_key': key,
       });
+
+      final body = res.data as Map?;
+      final data = body?['data'] as Map?;
+      final realOrderId = data?['id']?.toString() ?? generatedOrderId;
+      final serverPaymentStatus =
+          data?['payment_status']?.toString().toUpperCase() ?? paymentStatus;
+
+      // Deduct wallet only after server successfully creates the order
+      if (_paymentMethod == 'wallet') {
+        ref.read(milterraWalletProvider.notifier).payOrder(totalAmount, realOrderId);
+      }
+
+      // Persist to unified Order Repository now that backend has accepted the order
+      ref.read(ordersNotifierProvider.notifier).placeOrder(
+        orderId: realOrderId,
+        cartItems: cart?.items ?? [],
+        deliveryAddress: addressMap,
+        paymentMethod: _paymentMethod,
+        subtotal: subtotal,
+        discount: discount,
+        total: totalAmount,
+        paymentStatus: serverPaymentStatus,
+      );
+
       ref.read(appliedCouponProvider.notifier).removeCoupon();
       ref.read(cartProvider.notifier).refresh();
-      if (mounted) {
-        final data = (res.data as Map?)?['data'] as Map?;
-        final orderId = data?['id']?.toString() ?? generatedOrderId;
-        context.go('/marketplace/orders/$orderId');
-      }
-    } catch (_) {
-      ref.read(appliedCouponProvider.notifier).removeCoupon();
-      ref.read(cartProvider.notifier).clear().catchError((_) {});
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -181,7 +187,25 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ),
           ),
         );
-        context.go('/marketplace/orders/$generatedOrderId');
+        context.go('/marketplace/orders/$realOrderId');
+      }
+    } on DioException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: storeError,
+            content: Text('Order failed: ${dioErrorMessage(e)}'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: storeError,
+            content: Text('Unable to complete order. Please verify cart items and try again.'),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -418,7 +442,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                   subtotal: subtotal,
                                   discount: discount,
                                   addressMap: addressMap,
-                                  paymentStatus: 'PAID',
+                                  paymentStatus: 'PENDING_PAYMENT',
                                 );
                               },
                         child: verifying
@@ -784,7 +808,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                     subtotal: subtotal,
                                     discount: discount,
                                     addressMap: addressMap,
-                                    paymentStatus: 'PAID',
+                                    paymentStatus: 'PENDING_PAYMENT',
                                   );
                                 },
                           child: processing
@@ -955,7 +979,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                   subtotal: subtotal,
                                   discount: discount,
                                   addressMap: addressMap,
-                                  paymentStatus: 'PAID',
+                                  paymentStatus: 'PENDING_PAYMENT',
                                 );
                               },
                         child: processing

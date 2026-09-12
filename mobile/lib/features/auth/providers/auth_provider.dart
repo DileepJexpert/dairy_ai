@@ -96,27 +96,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = AuthState.authenticated(user: user);
         return true;
       }
-    } catch (_) {
-      // Offline/demo fallback
-      final cleanName =
-          username.contains('@') ? username.split('@').first : username;
-      final user = UserModel(
-        id: 'usr_${cleanName.toLowerCase()}',
-        name: cleanName.isNotEmpty
-            ? cleanName[0].toUpperCase() + cleanName.substring(1)
-            : 'Milterra Customer',
-        phone: '+91 98765 43210',
-        role: username.toLowerCase().contains('farmer') ? 'farmer' : 'customer',
-        accessToken: 'demo-token-${DateTime.now().millisecondsSinceEpoch}',
-        refreshToken: 'demo-refresh-${DateTime.now().millisecondsSinceEpoch}',
+      state = AuthState.error(
+        message: (body['message'] as String?) ?? 'Invalid credentials',
       );
-      await _storage.setAccessToken(user.accessToken!);
-      await _storage.setRefreshToken(user.refreshToken!);
-      await _storage.setUserData(user.toJson());
-      state = AuthState.authenticated(user: user);
-      return true;
+      return false;
+    } on DioException catch (e) {
+      state = AuthState.error(message: dioErrorMessage(e));
+      return false;
+    } catch (e) {
+      state = AuthState.error(message: 'Login failed: ${e.toString()}');
+      return false;
     }
-    return false;
   }
 
   /// Register new user profile (Full Name, Username, Phone, Password, Role) without OTP.
@@ -158,25 +148,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = AuthState.authenticated(user: user);
         return true;
       }
-    } catch (_) {
-      // Offline/demo fallback
-      final user = UserModel(
-        id: 'usr-${DateTime.now().millisecondsSinceEpoch}',
-        name: name.trim(),
-        phone: phone?.trim().isNotEmpty == true
-            ? phone!.trim()
-            : '+91 98765 43210',
-        role: role,
-        accessToken: 'demo-token-${DateTime.now().millisecondsSinceEpoch}',
-        refreshToken: 'demo-refresh-${DateTime.now().millisecondsSinceEpoch}',
+      state = AuthState.error(
+        message: (body['message'] as String?) ?? 'Registration failed',
       );
-      await _storage.setAccessToken(user.accessToken!);
-      await _storage.setRefreshToken(user.refreshToken!);
-      await _storage.setUserData(user.toJson());
-      state = AuthState.authenticated(user: user);
-      return true;
+      return false;
+    } on DioException catch (e) {
+      state = AuthState.error(message: dioErrorMessage(e));
+      return false;
+    } catch (e) {
+      state = AuthState.error(message: 'Registration failed: ${e.toString()}');
+      return false;
     }
-    return false;
   }
 
   /// Request an OTP for the given phone number.

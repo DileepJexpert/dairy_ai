@@ -1,14 +1,10 @@
 import logging
 import time
-import traceback
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 
 from fastapi import FastAPI, Request
-from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.auth import router as auth_router
 from app.api.farmers import router as farmer_router
@@ -67,28 +63,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     else:
         logger.info("Skipping schema creation; migrations must be applied before startup")
 
-    # Start MQTT subscriber if broker configured and IoT/MQTT flags enabled
-    if settings.IOT_ENABLED and settings.MQTT_ENABLED and settings.MQTT_BROKER_HOST:
-        from app.iot.mqtt_client import mqtt_subscriber
+    # Start MQTT subscriber if broker configured
+    from app.iot.mqtt_client import mqtt_subscriber
+    if settings.MQTT_BROKER_HOST:
         logger.info(f"Starting MQTT subscriber → {settings.MQTT_BROKER_HOST}:{settings.MQTT_BROKER_PORT}")
-        try:
-            await mqtt_subscriber.connect()
-        except Exception as e:
-            logger.warning(f"MQTT: Failed to connect to broker on startup (non-fatal): {e}")
+        await mqtt_subscriber.connect()
     else:
-        logger.info("MQTT/IoT: Disabled or no broker configured, skipping MQTT subscriber")
+        logger.info("MQTT: No broker configured, skipping MQTT subscriber")
 
     logger.info("All routers registered. API is ready to serve requests!")
     logger.info("=" * 60)
     yield
     logger.info("DairyAI API shutting down...")
-    if settings.IOT_ENABLED and settings.MQTT_ENABLED:
-        try:
-            from app.iot.mqtt_client import mqtt_subscriber
-            if mqtt_subscriber.is_connected:
-                await mqtt_subscriber.disconnect()
-        except Exception as e:
-            logger.warning(f"MQTT: Error during shutdown disconnect: {e}")
+    if mqtt_subscriber.is_connected:
+        await mqtt_subscriber.disconnect()
     logger.info("=" * 60)
 
 
@@ -111,7 +99,7 @@ app.add_middleware(
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    """Log every incoming request and response with timing and error traces."""
+    """Log every incoming request and response with timing."""
     start_time = time.time()
     method = request.method
     path = request.url.path
@@ -119,52 +107,12 @@ async def log_requests(request: Request, call_next):
 
     logger.info(f">>> {method} {path} | client={client}")
 
-    try:
-        response = await call_next(request)
-        duration_ms = round((time.time() - start_time) * 1000, 2)
-        logger.info(f"<<< {method} {path} | status={response.status_code} | {duration_ms}ms")
-        return response
-    except Exception as exc:
-        duration_ms = round((time.time() - start_time) * 1000, 2)
-        logger.error(
-            f"<<< {method} {path} | FAILED ({duration_ms}ms) | {exc}\n{traceback.format_exc()}"
-        )
-        raise
+    response = await call_next(request)
 
+    duration_ms = round((time.time() - start_time) * 1000, 2)
+    logger.info(f"<<< {method} {path} | status={response.status_code} | {duration_ms}ms")
 
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.error(
-        f"VALIDATION ERROR on {request.method} {request.url.path}:\n"
-        f"Errors: {exc.errors()}\n"
-        f"Body: {exc.body}"
-    )
-    return JSONResponse(
-        status_code=422,
-        content={"success": False, "message": "Validation Error", "errors": exc.errors()},
-    )
-
-
-@app.exception_handler(StarletteHTTPException)
-async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    if exc.status_code >= 400:
-        logger.warning(f"HTTP {exc.status_code} on {request.method} {request.url.path}: {exc.detail}")
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"success": False, "message": exc.detail},
-    )
-
-
-@app.exception_handler(Exception)
-async def unhandled_exception_handler(request: Request, exc: Exception):
-    logger.error(
-        f"UNHANDLED EXCEPTION on {request.method} {request.url.path}: {exc}\n"
-        f"{traceback.format_exc()}"
-    )
-    return JSONResponse(
-        status_code=500,
-        content={"success": False, "message": "Internal server error", "detail": str(exc)},
-    )
+    return response
 
 
 app.include_router(auth_router, prefix="/api/v1")
@@ -200,13 +148,7 @@ app.include_router(cart_router, prefix="/api/v1")
 app.include_router(delivery_address_router, prefix="/api/v1")
 app.include_router(order_router, prefix="/api/v1")
 
-logger.info(
-    "Registered routers: auth, farmers, cattle, health, milk, feed, breeding, "
-    "finance, vet, chat, whatsapp, notifications, admin, super-admin, vendor, "
-    "cooperative, collection, payments, marketplace, outbreak, withdrawal, "
-    "carbon, vision, schemes, mandi, pashu-aadhaar, milk-purity, products, "
-    "commerce-taxonomy, cart, delivery-addresses, orders"
-)
+logger.info("Registered routers: auth, farmers, cattle, health, milk, feed, breeding, finance, vet, chat, whatsapp, notifications, admin, super-admin, vendor, cooperative, collection, payments, marketplace, outbreak, withdrawal, carbon, vision, schemes, mandi, pashu-aadhaar, milk-purity")
 
 
 @app.get("/health")

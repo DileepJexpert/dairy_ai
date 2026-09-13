@@ -16,7 +16,7 @@ String _previewTitle(Product p) {
 
 /// Editorial previews are deliberately separate from the API's sellable stock.
 /// Legacy preview URLs stay valid. No commercial fallback is injected on errors.
-final conceptCatalogue = defaultMilterraProducts
+List<Product> get conceptCatalogue => defaultMilterraProducts
     .where((p) => p.isConcept || p.title.toLowerCase().contains('white butter'))
     .map((p) => p.copyWith(
           title: _previewTitle(p),
@@ -28,12 +28,16 @@ final conceptCatalogue = defaultMilterraProducts
             'concept': true,
             'status': 'Concept Preview'
           },
-          specifications: const {
+          specifications: {
+            ...?p.specifications,
             'listing_status': 'concept',
-            'imagery': 'Concept packaging'
+            'imagery': 'Concept packaging',
+            'concept': true,
           },
-          media: p.title.toLowerCase().contains('white butter')
-              ? const ['assets/store/white-butter-concept.png']
-              : p.media,
+          media: p.media.isNotEmpty
+              ? p.media
+              : (p.title.toLowerCase().contains('white butter')
+                  ? const ['assets/store/white-butter-concept.png']
+                  : const []),
         ))
     .toList(growable: false);

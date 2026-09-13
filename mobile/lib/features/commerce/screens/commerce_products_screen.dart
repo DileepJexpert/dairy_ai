@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../../marketplace/models/product_models.dart';
+import '../../marketplace/providers/product_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
 
 class CommerceProductsScreen extends ConsumerStatefulWidget {
@@ -18,39 +20,101 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
 
   // 0: Product Families & Pack Variants, 1: Flat SKU Inventory Table
   int _viewMode = 0;
+  bool _isLoading = false;
 
   // Local stateful lists for admin catalog mutations
   late List<Product> _products;
   late List<ProductFamily> _families;
+  List<Map<String, String>> _vendorOptions = const [];
+  String? _selectedVendorId;
+  String? _loadError;
 
   @override
   void initState() {
     super.initState();
-    _products = List<Product>.from(defaultMilterraProducts);
-    _families = List<ProductFamily>.from(defaultMilterraProductFamilies);
+    _products = [];
+    _families = [];
+    WidgetsBinding.instance.addPostFrameCallback((_) => _fetchBackendData());
+  }
+
+  Future<void> _fetchBackendData() async {
+    setState(() => _isLoading = true);
+    try {
+      final dio = ref.read(dioProvider);
+
+      // Fetch families from backend API
+      final famResp = await dio.get('/vendor/families');
+      if (famResp.data is Map && famResp.data['data'] is List) {
+        final famList = (famResp.data['data'] as List)
+            .whereType<Map>()
+            .map((m) => ProductFamily.fromJson(Map<String, dynamic>.from(m)))
+            .toList();
+        if (famList.isNotEmpty) {
+          setState(() => _families = famList);
+        }
+      }
+
+      // This is an admin screen: include drafts, but never fall back to fixture
+      // data that could be mistaken for a real catalogue.
+      final prodResp = await dio.get('/vendor/products');
+      if (prodResp.data is Map && prodResp.data['data'] is List) {
+        final prodList = (prodResp.data['data'] as List)
+            .whereType<Map>()
+            .map((m) => Product.fromJson(Map<String, dynamic>.from(m)))
+            .toList();
+        if (prodList.isNotEmpty) {
+          setState(() => _products = prodList);
+        }
+      }
+      final vendorResp = await dio.get('/admin/marketplace/vendors');
+      if (vendorResp.data is Map && vendorResp.data['data'] is List) {
+        final options = (vendorResp.data['data'] as List)
+            .whereType<Map>()
+            .map((v) => <String, String>{
+                  'id': v['id'].toString(),
+                  'name': v['business_name'].toString(),
+                })
+            .toList();
+        setState(() {
+          _vendorOptions = options;
+          _selectedVendorId ??= options.length == 1 ? options.single['id'] : null;
+          _loadError = null;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadError =
+            'The live catalogue could not be loaded. Check your admin session and API connection.');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   // ---------------------------------------------------------------------------
   // Variant Mutations
   // ---------------------------------------------------------------------------
 
-  void _toggleVariantStock(ProductFamily family, ProductVariant variant) {
+  Future<void> _toggleVariantStock(ProductFamily family, ProductVariant variant) async {
+    final newInStock = !variant.inStock;
+    final newStock = newInStock ? (variant.stockQuantity > 0 ? variant.stockQuantity : 50) : 0;
+
     setState(() {
       final famIdx = _families.indexWhere((f) => f.id == family.id);
       if (famIdx != -1) {
         final currentFam = _families[famIdx];
         final updatedVariants = currentFam.variants.map((v) {
           if (v.id == variant.id) {
-            final newInStock = !v.inStock;
             return ProductVariant(
               id: v.id,
               sku: v.sku,
               packSize: v.packSize,
               price: v.price,
               compareAtPrice: v.compareAtPrice,
-              stockQuantity: newInStock ? (v.stockQuantity > 0 ? v.stockQuantity : 50) : 0,
+              stockQuantity: newStock,
               inStock: newInStock,
               weightGrams: v.weightGrams,
+              publicationStatus: v.publicationStatus,
             );
           }
           return v;
@@ -64,19 +128,37 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
       if (prodIdx != -1) {
         final cur = _products[prodIdx];
         _products[prodIdx] = cur.copyWith(
-          inStock: !cur.inStock,
-          availableQuantity: cur.inStock ? 0 : 50,
+          inStock: newInStock,
+          availableQuantity: newStock,
         );
       }
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${variant.packSize} (${variant.sku}) stock toggled'),
-        backgroundColor: storeGreen,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    try {
+      await ref.read(dioProvider).put(
+        '/vendor/products/${variant.id}/inventory',
+        data: {'available_quantity': newStock},
+      );
+      ref.invalidate(productsProvider);
+    } catch (_) {
+      await _fetchBackendData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Stock was not saved. Please try again.')),
+        );
+      }
+      return;
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${variant.packSize} (${variant.sku}) stock toggled to ${newInStock ? "In Stock ($newStock)" : "Out of Stock"}'),
+          backgroundColor: storeGreen,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   void _editVariantPriceAndStock(ProductFamily family, ProductVariant variant) {
@@ -147,6 +229,7 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                           stockQuantity: newStock,
                           inStock: newStock > 0,
                           weightGrams: v.weightGrams,
+                          publicationStatus: v.publicationStatus,
                         );
                       }
                       return v;
@@ -158,11 +241,28 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                   if (prodIdx != -1) {
                     _products[prodIdx] = _products[prodIdx].copyWith(
                       price: newPrice,
+                      compareAtPrice: newCompare,
                       inStock: newStock > 0,
                       availableQuantity: newStock,
                     );
                   }
                 });
+
+                // Persist changes to backend API asynchronously
+                ref.read(dioProvider).put(
+                  '/vendor/products/${variant.id}',
+                  data: {
+                    'base_price': newPrice,
+                    if (newCompare != null) 'compare_at_price': newCompare,
+                  },
+                ).then((_) {
+                  ref.read(dioProvider).put(
+                    '/vendor/products/${variant.id}/inventory',
+                    data: {'available_quantity': newStock},
+                  ).then((_) {
+                    ref.invalidate(productsProvider);
+                  }).catchError((_) {});
+                }).catchError((_) {});
 
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -245,7 +345,7 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: storeAmber, foregroundColor: storeGreen),
-            onPressed: () {
+            onPressed: () async {
               final pack = packCtrl.text.trim();
               final sku = skuCtrl.text.trim().isNotEmpty
                   ? skuCtrl.text.trim()
@@ -261,14 +361,42 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                 return;
               }
 
+              String variantId = 'var-${DateTime.now().millisecondsSinceEpoch}';
+              try {
+                final vRes = await ref.read(dioProvider).post(
+                  '/vendor/families/${family.id}/variants',
+                  data: {
+                    'sku': sku,
+                    'pack_size': pack,
+                    'base_price': price,
+                    if (compare != null) 'compare_at_price': compare,
+                    'initial_stock': stock,
+                    'publication_status': 'published',
+                  },
+                );
+                if (vRes.data is Map && vRes.data['data'] is Map && vRes.data['data']['id'] != null) {
+                  variantId = vRes.data['data']['id'].toString();
+                }
+                ref.invalidate(productsProvider);
+              } catch (_) {
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Variant was not created. No local change was saved.')),
+                  );
+                }
+                return;
+              }
+
               final newVariant = ProductVariant(
-                id: 'var-${DateTime.now().millisecondsSinceEpoch}',
+                id: variantId,
                 sku: sku,
                 packSize: pack,
                 price: price,
                 compareAtPrice: compare,
                 stockQuantity: stock,
                 inStock: stock > 0,
+                publicationStatus: 'published',
               );
 
               setState(() {
@@ -290,10 +418,13 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                         ? ProductCategory.equipment
                         : ProductCategory.feedNutrition,
                     price: price,
+                    compareAtPrice: compare,
                     unit: pack,
                     brand: family.brand,
                     packSize: pack,
                     description: family.description,
+                    familyId: family.id,
+                    publicationStatus: 'published',
                     taxonomy: {
                       'department_name': family.department,
                       'category_name': family.taxonomyPath ?? family.department,
@@ -305,13 +436,17 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                 );
               });
 
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Added $pack variant to "${family.title}"'),
-                  backgroundColor: storeGreen,
-                ),
-              );
+              if (ctx.mounted) {
+                Navigator.pop(ctx);
+              }
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Added $pack variant ($sku) to "${family.title}"'),
+                    backgroundColor: storeGreen,
+                  ),
+                );
+              }
             },
             child: const Text('Add Variant', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
@@ -363,7 +498,37 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                         IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
                       ],
                     ),
-                    const Divider(height: 20),
+                     const Divider(height: 20),
+
+                    if (_vendorOptions.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 14),
+                        child: Text(
+                          'No active vendor is available. Create or activate a vendor before adding a product family.',
+                          style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                        ),
+                      )
+                    else ...[
+                      const Text('Listing vendor', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<String>(
+                        value: _selectedVendorId,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                        items: _vendorOptions
+                            .map((vendor) => DropdownMenuItem(
+                                  value: vendor['id'],
+                                  child: Text(vendor['name'] ?? 'Vendor'),
+                                ))
+                            .toList(),
+                        onChanged: (value) => setModalState(
+                          () => _selectedVendorId = value,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
 
                     // Department & Brand
                     Row(
@@ -602,16 +767,55 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                           foregroundColor: storeGreen,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
                         ),
-                        onPressed: () {
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final nav = Navigator.of(ctx);
                           final title = titleCtrl.text.trim();
                           if (title.isEmpty || variants.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               const SnackBar(content: Text('Please enter a product title and at least one variant.')),
                             );
                             return;
                           }
 
-                          final familyId = 'fam-${DateTime.now().millisecondsSinceEpoch}';
+                          if (_selectedVendorId == null) {
+                            messenger.showSnackBar(
+                              const SnackBar(content: Text('Select an active vendor before creating a product family.')),
+                            );
+                            return;
+                          }
+                          String familyId = '';
+                          try {
+                            final famRes = await ref.read(dioProvider).post(
+                              '/vendor/families',
+                              data: {
+                                'title': title,
+                                'brand': brandCtrl.text.trim(),
+                                'department': department,
+                                'collection': department == 'Dairy Foods' ? 'Ghee' : null,
+                                'description': descCtrl.text.trim(),
+                                'is_published': true,
+                                'vendor_id': _selectedVendorId,
+                              },
+                            );
+                            if (famRes.data is Map &&
+                                famRes.data['data'] is Map &&
+                                famRes.data['data']['id'] != null) {
+                              familyId = famRes.data['data']['id'].toString();
+                            }
+                            if (familyId.isEmpty) {
+                              messenger.showSnackBar(
+                                const SnackBar(content: Text('The API did not return a product-family ID.')),
+                              );
+                              return;
+                            }
+                          } catch (_) {
+                            messenger.showSnackBar(
+                              const SnackBar(content: Text('Product family was not created. No local change was saved.')),
+                            );
+                            return;
+                          }
+
                           final builtVariants = <ProductVariant>[];
                           final builtProducts = <Product>[];
 
@@ -622,7 +826,32 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                             final compare = double.tryParse(v['compare']?.toString() ?? '');
                             final stock = int.tryParse(v['stock']?.toString() ?? '50') ?? 50;
 
-                            final varId = 'var-${sku.hashCode.abs()}';
+                            String varId = 'var-${sku.hashCode.abs()}';
+                            try {
+                              final vRes = await ref.read(dioProvider).post(
+                                '/vendor/families/$familyId/variants',
+                                data: {
+                                  'sku': sku,
+                                  'pack_size': pack,
+                                  'base_price': price,
+                                  if (compare != null) 'compare_at_price': compare,
+                                  'initial_stock': stock,
+                                  'publication_status': 'published',
+                                },
+                              );
+                              if (vRes.data is Map &&
+                                  vRes.data['data'] is Map &&
+                                  vRes.data['data']['id'] != null) {
+                                varId = vRes.data['data']['id'].toString();
+                              }
+                            } catch (_) {
+                              await _fetchBackendData();
+                              messenger.showSnackBar(
+                                const SnackBar(content: Text('A pack variant was not saved. The catalogue was refreshed.')),
+                              );
+                              return;
+                            }
+
                             final variantObj = ProductVariant(
                               id: varId,
                               sku: sku,
@@ -631,6 +860,7 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                               compareAtPrice: compare,
                               stockQuantity: stock,
                               inStock: stock > 0,
+                              publicationStatus: 'published',
                             );
                             builtVariants.add(variantObj);
 
@@ -643,12 +873,15 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                                     ? ProductCategory.equipment
                                     : ProductCategory.feedNutrition,
                                 price: price,
+                                compareAtPrice: compare,
                                 unit: pack,
                                 brand: brandCtrl.text.trim(),
                                 packSize: pack,
                                 description: descCtrl.text.trim().isNotEmpty
                                     ? descCtrl.text.trim()
                                     : 'Certified Milterra Pure Dairy Product.',
+                                familyId: familyId,
+                                publicationStatus: 'published',
                                 taxonomy: {
                                   'department_name': department,
                                   'category_name': department,
@@ -665,12 +898,14 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                             title: title,
                             brand: brandCtrl.text.trim(),
                             department: department,
+                            collection: department == 'Dairy Foods' ? 'Ghee' : null,
                             taxonomyPath: '$department / ${title.split(' ').last}',
                             description: descCtrl.text.trim().isNotEmpty
                                 ? descCtrl.text.trim()
                                 : 'Authentic Milterra farm-fresh quality.',
                             variants: builtVariants,
                             isOrganic: isOrganic,
+                            isPublished: true,
                             purityGrade: purityCtrl.text.trim(),
                             fssaiLicense: fssaiCtrl.text.trim(),
                           );
@@ -679,9 +914,12 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                             _families.insert(0, newFamily);
                             _products.insertAll(0, builtProducts);
                           });
+                          ref.invalidate(productsProvider);
 
-                          Navigator.pop(ctx);
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          if (ctx.mounted) {
+                            nav.pop();
+                          }
+                          messenger.showSnackBar(
                             SnackBar(
                               content: Text('Created Product Family "$title" with ${builtVariants.length} variants!'),
                               backgroundColor: storeGreen,
@@ -779,19 +1017,28 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
           const SizedBox(width: 16),
         ],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isMobile = constraints.maxWidth < StoreLayout.tablet;
+      body: Column(
+        children: [
+          if (_isLoading)
+            const LinearProgressIndicator(
+              color: storeGold,
+              backgroundColor: storeGreen,
+              minHeight: 3,
+            ),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isMobile = constraints.maxWidth < StoreLayout.tablet;
 
-          return SingleChildScrollView(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: StoreLayout.maxWidth),
-                child: Padding(
-                  padding: EdgeInsets.all(isMobile ? 12 : 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                return SingleChildScrollView(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: StoreLayout.maxWidth),
+                      child: Padding(
+                        padding: EdgeInsets.all(isMobile ? 12 : 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                       // Breadcrumb
                       Row(
                         children: [
@@ -833,7 +1080,21 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                           ),
                         ],
                       ),
-                      const SizedBox(height: 18),
+                       const SizedBox(height: 18),
+
+                      if (_loadError != null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xfffff4f2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xffd84a3a)),
+                          ),
+                          child: Text(_loadError!, style: const TextStyle(color: Color(0xff8f1d12))),
+                        ),
+                        const SizedBox(height: 18),
+                      ],
 
                       // View Mode Segmented Control
                       Container(
@@ -913,8 +1174,11 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                 ),
               ),
             ),
-          );
-        },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1100,10 +1364,13 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'PACK VARIANTS · STARTING FROM ${storeMoney(family.startingPrice)} (TOTAL INVENTORY: ${family.totalStock} UNITS)',
+                      family.isConcept
+                          ? 'CONCEPT FAMILY · NOT FOR SALE'
+                          : 'PACK VARIANTS · STARTING FROM ${storeMoney(family.startingPrice)} (TOTAL INVENTORY: ${family.totalStock} UNITS)',
                       style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: storeMuted, letterSpacing: 0.5),
                     ),
-                    TextButton.icon(
+                    if (!family.isConcept)
+                      TextButton.icon(
                       style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
                       onPressed: () => _showAddVariantToFamilyDialog(family),
                       icon: const Icon(Icons.add, size: 14, color: storeGreen),
@@ -1113,8 +1380,17 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                 ),
                 const SizedBox(height: 10),
 
-                // Variants list
-                for (final variant in family.variants)
+                if (family.isConcept)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 4),
+                    child: Text(
+                      'This concept is in development. Pricing, stock, and checkout controls are intentionally unavailable.',
+                      style: TextStyle(fontSize: 12, color: storeMuted),
+                    ),
+                  )
+                else
+                  // Variants list
+                  for (final variant in family.variants)
                   Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

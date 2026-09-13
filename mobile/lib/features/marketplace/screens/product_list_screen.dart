@@ -9,7 +9,6 @@ import '../widgets/store_design.dart';
 import '../widgets/store_product_card.dart';
 import '../widgets/hero_split_showcase.dart';
 import '../models/hero_showcase_config.dart';
-import '../widgets/product_information.dart';
 import '../../cart/widgets/store_cart_drawer.dart';
 import '../../commerce/models/taxonomy.dart';
 import '../../commerce/providers/commerce_provider.dart';
@@ -67,6 +66,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     }
     return switch (value) {
       'Dairy Foods' => 'Dairy Foods',
+      'All Ghee' || 'all-ghee' || 'Ghee' => 'Ghee Collection',
       'MILTERRA Earth' || 'milterra-earth' || 'Earth' => '🌱 MILTERRA Earth',
       'Vermicompost' => 'Premium Vermicompost',
       'Farm Manure' => 'Cow-Dung Farm Manure',
@@ -86,6 +86,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       'Equipment' => 'Dairy & Farm Equipment',
       'Cow ghee' => 'A2 Desi Cow Ghee',
       'Buffalo ghee' => 'Rich Buffalo Ghee',
+      'Herbal Ghee' || 'Herbal ghee' || 'herbal-ghee' => 'Herbal Infused Ghee',
       'Paneer' => 'Fresh Malai Paneer',
       'Other products' => 'White Butter (Makhan)',
       _ => value,
@@ -97,6 +98,11 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     super.initState();
     _search.text = widget.initialQuery;
     _category = widget.initialCategory;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.invalidate(productsProvider);
+      }
+    });
   }
 
   @override
@@ -229,14 +235,12 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Hero Banner & Purity Trust Strip (Home / Unfiltered view)
+                              // Hero Banner (Home / Unfiltered view)
                               if (_search.text.isEmpty &&
                                   (_category == 'All products' ||
                                       _category == 'All')) ...[
                                 _hero(size.maxWidth),
-                                const SizedBox(height: 14),
-                                _buildTrustAndQualityStrip(isMobile),
-                                const SizedBox(height: 18),
+                                const SizedBox(height: 24),
                               ],
 
                               // Amazon Catalogue Section (Results Bar + Sidebar + Grid)
@@ -494,17 +498,6 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     );
   }
 
-  Widget _buildTrustAndQualityStrip(bool isMobile) => const StorePanel(
-        child: Wrap(
-            spacing: 16,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(
-                  'Explore dairy foods, farm essentials and product concepts.'),
-              ProductQualityLink()
-            ]),
-      );
 
   Widget _buildDepartmentLandingBanner(bool isMobile) => StorePanel(
         title: _label(_category),
@@ -545,8 +538,10 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     final groups = <String, Map<String, String>>{
       'Dairy Foods': {
         'Dairy Foods': 'All Dairy Foods',
+        'All Ghee': 'All Ghee',
         'Cow ghee': 'Cow ghee',
         'Buffalo ghee': 'Buffalo ghee',
+        'Herbal Ghee': 'Herbal Ghee',
         'Paneer': 'Paneer',
         'Other products': 'White Butter (Makhan)'
       },
@@ -728,8 +723,15 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       {bool indent = false, IconData? icon}) {
     final catLower = _category.toLowerCase();
     final valLower = value.toLowerCase();
+    final selectedNode = _taxonomy?.nodes
+        .where((n) => n.id == _category || n.slug == _category)
+        .firstOrNull;
     final isSelected = _category == value ||
         catLower == valLower ||
+        (selectedNode != null &&
+            (selectedNode.id == value ||
+                selectedNode.slug == value ||
+                selectedNode.name.toLowerCase() == valLower)) ||
         (value == 'Animal nutrition' &&
             (catLower.contains('animal') ||
                 catLower.contains('cattle nutrition') ||
@@ -794,9 +796,16 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     final isDairyFoodsCategory = catLower == 'dairy foods' ||
         catLower == 'dairy-foods' ||
         catLower == 'cat-dairy-foods';
+    final isAllGheeCategory = catLower == 'all ghee' ||
+        catLower == 'all-ghee' ||
+        catLower == 'ghee' ||
+        catLower == 'ghee collection';
     final isCowGheeCategory = catLower == 'cow ghee' || catLower == 'cow-ghee';
     final isBuffGheeCategory =
         catLower == 'buffalo ghee' || catLower == 'buffalo-ghee';
+    final isHerbalGheeCategory = catLower == 'herbal ghee' ||
+        catLower == 'herbal-ghee' ||
+        catLower == 'herbal infused ghee';
     final isPaneerCategory = catLower == 'paneer';
     final isButterCategory = catLower == 'other products' ||
         catLower == 'butter' ||
@@ -844,6 +853,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         catLower == 'soil';
 
     return all.where((p) {
+      if (p.isDraft) return false;
+
       // Category filter
       final bool matchesCategory;
       if (isAllCategory) {
@@ -875,9 +886,17 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         matchesCategory = p.title.toLowerCase().contains('soil mix') ||
             (p.title.toLowerCase().contains('soil') &&
                 p.title.toLowerCase().contains('garden'));
+      } else if (isAllGheeCategory) {
+        matchesCategory = storeCategory(p) == 'Cow ghee' ||
+            storeCategory(p) == 'Buffalo ghee' ||
+            storeCategory(p) == 'Herbal Ghee' ||
+            p.title.toLowerCase().contains('ghee') ||
+            p.taxonomy?['category_name']?.toString().toLowerCase().contains('ghee') == true ||
+            p.taxonomy?['collection']?.toString().toLowerCase() == 'ghee';
       } else if (isDairyFoodsCategory) {
         matchesCategory = storeCategory(p) == 'Cow ghee' ||
             storeCategory(p) == 'Buffalo ghee' ||
+            storeCategory(p) == 'Herbal Ghee' ||
             storeCategory(p) == 'Paneer' ||
             storeCategory(p) == 'Other products' ||
             p.taxonomy?['department_name'] == 'Dairy Foods';
@@ -887,6 +906,14 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       } else if (isBuffGheeCategory) {
         matchesCategory = storeCategory(p) == 'Buffalo ghee' ||
             p.title.toLowerCase().contains('buffalo ghee');
+      } else if (isHerbalGheeCategory) {
+        matchesCategory = storeCategory(p) == 'Herbal Ghee' ||
+            p.taxonomy?['category_name']?.toString().toLowerCase() == 'herbal ghee' ||
+            p.taxonomy?['category_id'] == 'herbal-ghee' ||
+            p.title.toLowerCase().contains('tulsi') ||
+            p.title.toLowerCase().contains('brahmi') ||
+            p.title.toLowerCase().contains('ashwagandha') ||
+            (p.title.toLowerCase().contains('ghee') && p.title.toLowerCase().contains('herbal'));
       } else if (isPaneerCategory) {
         matchesCategory = storeCategory(p) == 'Paneer' ||
             p.title.toLowerCase().contains('paneer');
@@ -1004,8 +1031,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
 
   Widget _products(List<Product> all, bool small) {
     final items = _categoryProducts(all).where((p) {
-      if (_packs.isNotEmpty && !_packs.contains(p.packSize ?? p.unit))
+      if (_packs.isNotEmpty && !_packs.contains(p.packSize ?? p.unit)) {
         return false;
+      }
       if (!_conceptOnly) {
         if (_inStock && (p.isConcept || !p.inStock)) return false;
         if ((_priceMin > 0 || _priceMax > 0) && p.isConcept) return false;

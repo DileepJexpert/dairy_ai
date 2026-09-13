@@ -10,6 +10,7 @@ class ProductVariant {
     this.stockQuantity = 0,
     this.inStock = true,
     this.weightGrams,
+    this.publicationStatus = 'published',
   });
 
   final String id;
@@ -20,22 +21,34 @@ class ProductVariant {
   final int stockQuantity;
   final bool inStock;
   final int? weightGrams;
+  final String publicationStatus;
+
+  bool get isDraft => publicationStatus.toLowerCase() == 'draft';
 
   factory ProductVariant.fromJson(Map<String, dynamic> json) => ProductVariant(
         id: json['id']?.toString() ?? '',
         sku: json['sku']?.toString() ?? '',
         packSize: json['pack_size']?.toString() ?? '',
-        price: double.tryParse(json['price']?.toString() ?? '0') ?? 0.0,
+        price: double.tryParse(
+                (json['base_price'] ?? json['price'])?.toString() ?? '0') ??
+            0.0,
         compareAtPrice: json['compare_at_price'] != null
             ? double.tryParse(json['compare_at_price'].toString())
             : null,
-        stockQuantity: json['stock_quantity'] is int
-            ? json['stock_quantity']
-            : int.tryParse(json['stock_quantity']?.toString() ?? '0') ?? 0,
+        stockQuantity: (json['available_quantity'] ?? json['stock_quantity'])
+                    is int
+            ? (json['available_quantity'] ?? json['stock_quantity']) as int
+            : int.tryParse(
+                    (json['available_quantity'] ?? json['stock_quantity'])
+                            ?.toString() ??
+                        '0') ??
+                0,
         inStock: json['in_stock'] ?? true,
         weightGrams: json['weight_grams'] != null
             ? int.tryParse(json['weight_grams'].toString())
             : null,
+        publicationStatus:
+            json['publication_status']?.toString() ?? 'published',
       );
 
   Map<String, dynamic> toJson() => {
@@ -47,6 +60,7 @@ class ProductVariant {
         'stock_quantity': stockQuantity,
         'in_stock': inStock,
         'weight_grams': weightGrams,
+        'publication_status': publicationStatus,
       };
 }
 
@@ -58,6 +72,12 @@ class ProductFamily {
     required this.title,
     required this.brand,
     required this.department,
+    this.slug,
+    this.vendorId,
+    this.collection,
+    this.milkSource,
+    this.productionMethod,
+    this.ingredients,
     this.taxonomyNodeId,
     this.taxonomyPath,
     required this.description,
@@ -65,6 +85,8 @@ class ProductFamily {
     this.media = const [],
     this.variants = const [],
     this.isOrganic = false,
+    this.isPublished = true,
+    this.isConcept = false,
     this.purityGrade,
     this.fssaiLicense,
   });
@@ -73,6 +95,12 @@ class ProductFamily {
   final String title;
   final String brand;
   final String department;
+  final String? slug;
+  final String? vendorId;
+  final String? collection;
+  final String? milkSource;
+  final String? productionMethod;
+  final String? ingredients;
   final String? taxonomyNodeId;
   final String? taxonomyPath;
   final String description;
@@ -80,6 +108,8 @@ class ProductFamily {
   final List<String> media;
   final List<ProductVariant> variants;
   final bool isOrganic;
+  final bool isPublished;
+  final bool isConcept;
   final String? purityGrade;
   final String? fssaiLicense;
 
@@ -105,6 +135,12 @@ class ProductFamily {
     String? title,
     String? brand,
     String? department,
+    String? slug,
+    String? vendorId,
+    String? collection,
+    String? milkSource,
+    String? productionMethod,
+    String? ingredients,
     String? taxonomyNodeId,
     String? taxonomyPath,
     String? description,
@@ -112,6 +148,8 @@ class ProductFamily {
     List<String>? media,
     List<ProductVariant>? variants,
     bool? isOrganic,
+    bool? isPublished,
+    bool? isConcept,
     String? purityGrade,
     String? fssaiLicense,
   }) {
@@ -120,6 +158,12 @@ class ProductFamily {
       title: title ?? this.title,
       brand: brand ?? this.brand,
       department: department ?? this.department,
+      slug: slug ?? this.slug,
+      vendorId: vendorId ?? this.vendorId,
+      collection: collection ?? this.collection,
+      milkSource: milkSource ?? this.milkSource,
+      productionMethod: productionMethod ?? this.productionMethod,
+      ingredients: ingredients ?? this.ingredients,
       taxonomyNodeId: taxonomyNodeId ?? this.taxonomyNodeId,
       taxonomyPath: taxonomyPath ?? this.taxonomyPath,
       description: description ?? this.description,
@@ -127,6 +171,8 @@ class ProductFamily {
       media: media ?? this.media,
       variants: variants ?? this.variants,
       isOrganic: isOrganic ?? this.isOrganic,
+      isPublished: isPublished ?? this.isPublished,
+      isConcept: isConcept ?? this.isConcept,
       purityGrade: purityGrade ?? this.purityGrade,
       fssaiLicense: fssaiLicense ?? this.fssaiLicense,
     );
@@ -137,6 +183,12 @@ class ProductFamily {
         title: json['title']?.toString() ?? '',
         brand: json['brand']?.toString() ?? 'Milterra',
         department: json['department']?.toString() ?? 'Dairy Foods',
+        slug: json['slug']?.toString(),
+        vendorId: json['vendor_id']?.toString(),
+        collection: json['collection']?.toString(),
+        milkSource: json['milk_source']?.toString(),
+        productionMethod: json['production_method']?.toString(),
+        ingredients: json['ingredients']?.toString(),
         taxonomyNodeId: json['taxonomy_node_id']?.toString(),
         taxonomyPath: json['taxonomy_path']?.toString(),
         description: json['description']?.toString() ?? '',
@@ -150,6 +202,8 @@ class ProductFamily {
                 .toList() ??
             const [],
         isOrganic: json['is_organic'] ?? false,
+        isPublished: json['is_published'] ?? true,
+        isConcept: json['is_concept'] ?? false,
         purityGrade: json['purity_grade']?.toString(),
         fssaiLicense: json['fssai_license']?.toString(),
       );
@@ -159,6 +213,12 @@ class ProductFamily {
         'title': title,
         'brand': brand,
         'department': department,
+        'slug': slug,
+        'vendor_id': vendorId,
+        'collection': collection,
+        'milk_source': milkSource,
+        'production_method': productionMethod,
+        'ingredients': ingredients,
         'taxonomy_node_id': taxonomyNodeId,
         'taxonomy_path': taxonomyPath,
         'description': description,
@@ -166,6 +226,8 @@ class ProductFamily {
         'media': media,
         'variants': variants.map((v) => v.toJson()).toList(),
         'is_organic': isOrganic,
+        'is_published': isPublished,
+        'is_concept': isConcept,
         'purity_grade': purityGrade,
         'fssai_license': fssaiLicense,
       };
@@ -193,7 +255,11 @@ class Product {
       this.isRentable = false,
       this.rentalRatePerHour,
       this.rentalRatePerAcre,
-      this.variants = const []});
+      this.variants = const [],
+      this.familyId,
+      this.publicationStatus,
+      this.compareAtPrice,
+      this.weightGrams});
   final String id, vendorId, title, unit;
   final ProductCategory category;
   final double price;
@@ -208,6 +274,10 @@ class Product {
   final double? rentalRatePerHour;
   final dynamic rentalRatePerAcre;
   final List<ProductVariant> variants;
+  final String? familyId;
+  final String? publicationStatus;
+  final double? compareAtPrice;
+  final int? weightGrams;
 
   /// Explicit lifecycle metadata, never inferred from a product category or price.
   bool get isConcept {
@@ -223,12 +293,17 @@ class Product {
         status == 'coming soon';
   }
 
-  bool get canPurchase => !isConcept;
+  bool get isDraft => (publicationStatus ?? '').toLowerCase() == 'draft';
+  bool get isPublished =>
+      (publicationStatus ?? 'published').toLowerCase() == 'published';
+
+  bool get canPurchase => !isConcept && !isDraft;
   static const conceptExplanation = 'This product concept is in development. '
       'Share your feedback and register for future updates.';
 
   /// Seller-scoped presentation family; the selected pack keeps its original ID.
   String get familyKey =>
+      familyId ??
       '$vendorId|${specifications['family_id'] ?? title.trim().toLowerCase()}|${category.name}|$isConcept';
 
   List<Uri> get labReports => (specifications['lab_reports'] is List
@@ -263,6 +338,10 @@ class Product {
     double? rentalRatePerHour,
     dynamic rentalRatePerAcre,
     List<ProductVariant>? variants,
+    String? familyId,
+    String? publicationStatus,
+    double? compareAtPrice,
+    int? weightGrams,
   }) =>
       Product(
         id: id ?? this.id,
@@ -286,6 +365,10 @@ class Product {
         rentalRatePerHour: rentalRatePerHour ?? this.rentalRatePerHour,
         rentalRatePerAcre: rentalRatePerAcre ?? this.rentalRatePerAcre,
         variants: variants ?? this.variants,
+        familyId: familyId ?? this.familyId,
+        publicationStatus: publicationStatus ?? this.publicationStatus,
+        compareAtPrice: compareAtPrice ?? this.compareAtPrice,
+        weightGrams: weightGrams ?? this.weightGrams,
       );
 
   factory Product.fromJson(Map<String, dynamic> j) => Product(
@@ -320,7 +403,15 @@ class Product {
       variants: (j['variants'] as List? ?? [])
           .map((v) =>
               ProductVariant.fromJson(Map<String, dynamic>.from(v as Map)))
-          .toList());
+          .toList(),
+      familyId: j['family_id']?.toString(),
+      publicationStatus: j['publication_status']?.toString(),
+      compareAtPrice: j['compare_at_price'] != null
+          ? double.tryParse(j['compare_at_price'].toString())
+          : null,
+      weightGrams: j['weight_grams'] != null
+          ? int.tryParse(j['weight_grams'].toString())
+          : null);
 }
 
 /// Rich default multi-department catalogue serving Retail Consumers & Dairy Farmers
@@ -328,6 +419,8 @@ const defaultMilterraProducts = <Product>[
   // ---- 1. Retail Dairy Foods (Household Consumers) ----
   Product(
     id: 'mil-ghee-250',
+    familyId: 'a1111111-1111-1111-1111-111111111111',
+    publicationStatus: 'draft',
     vendorId: 'vendor-milterra-dairy',
     title: 'MILTERRA A2 Desi Cow Ghee (Trial Jar)',
     category: ProductCategory.feedNutrition,
@@ -356,6 +449,8 @@ const defaultMilterraProducts = <Product>[
   ),
   Product(
     id: 'mil-ghee-500',
+    familyId: 'a1111111-1111-1111-1111-111111111111',
+    publicationStatus: 'published',
     vendorId: 'vendor-milterra-dairy',
     title: 'MILTERRA A2 Desi Cow Ghee (Family Jar)',
     category: ProductCategory.feedNutrition,
@@ -383,6 +478,8 @@ const defaultMilterraProducts = <Product>[
   ),
   Product(
     id: 'mil-ghee-1000',
+    familyId: 'a1111111-1111-1111-1111-111111111111',
+    publicationStatus: 'published',
     vendorId: 'vendor-milterra-dairy',
     title: 'MILTERRA A2 Desi Cow Ghee (Kitchen Jar)',
     category: ProductCategory.feedNutrition,
@@ -410,6 +507,8 @@ const defaultMilterraProducts = <Product>[
   ),
   Product(
     id: 'mil-ghee-5000',
+    familyId: 'a1111111-1111-1111-1111-111111111111',
+    publicationStatus: 'published',
     vendorId: 'vendor-milterra-dairy',
     title: 'MILTERRA A2 Desi Cow Ghee (Heritage Tin)',
     category: ProductCategory.feedNutrition,
@@ -437,6 +536,8 @@ const defaultMilterraProducts = <Product>[
   ),
   Product(
     id: 'mil-buff-500',
+    familyId: 'b2222222-2222-2222-2222-222222222222',
+    publicationStatus: 'published',
     vendorId: 'vendor-milterra-dairy',
     title: 'MILTERRA Traditional Cultured Buffalo Ghee',
     category: ProductCategory.feedNutrition,
@@ -463,6 +564,8 @@ const defaultMilterraProducts = <Product>[
   ),
   Product(
     id: 'mil-buff-1000',
+    familyId: 'b2222222-2222-2222-2222-222222222222',
+    publicationStatus: 'published',
     vendorId: 'vendor-milterra-dairy',
     title: 'MILTERRA Traditional Cultured Buffalo Ghee',
     category: ProductCategory.feedNutrition,
@@ -489,6 +592,7 @@ const defaultMilterraProducts = <Product>[
   ),
   Product(
     id: 'mil-ghee-single-farm',
+    publicationStatus: 'draft',
     vendorId: 'vendor-milterra-dairy',
     title: 'MILTERRA Single-Farm A2 Cultured Ghee',
     category: ProductCategory.feedNutrition,
@@ -517,6 +621,7 @@ const defaultMilterraProducts = <Product>[
   ),
   Product(
     id: 'mil-ghee-full-moon',
+    publicationStatus: 'draft',
     vendorId: 'vendor-milterra-dairy',
     title: 'MILTERRA Full Moon (Purnima Batch) Ghee',
     category: ProductCategory.feedNutrition,
@@ -544,37 +649,114 @@ const defaultMilterraProducts = <Product>[
     },
   ),
   Product(
-    id: 'mil-ghee-ashwagandha',
+    id: 'mil-ghee-tulsi',
+    familyId: 'fam-ghee-tulsi',
     vendorId: 'vendor-milterra-dairy',
-    title: 'MILTERRA Ashwagandha & Brahmi Medhya Ghee',
+    title: 'MILTERRA Tulsi Ghee',
     category: ProductCategory.feedNutrition,
-    price: 850,
+    price: 0,
     unit: 'jar',
-    brand: 'MILTERRA Ayurveda',
+    brand: 'MILTERRA',
     packSize: '300 g',
     description:
-        'Vedic herbal formulation of whole curd A2 ghee slow-infused with wild Ashwagandha roots and organic Brahmi leaves for mental clarity and nervous system rejuvenation.',
+        'Artisanal cultured bilona ghee slow-infused with sacred Tulsi (Holy Basil) leaves. Traditional Ayurvedic formulation in development.',
     taxonomy: {
       'department_name': 'Dairy Foods',
-      'category_name': 'Herbal ghee',
+      'category_name': 'Herbal Ghee',
       'department_id': 'dairy-foods',
       'category_id': 'herbal-ghee',
+      'collection': 'Ghee',
       'concept': true,
       'status': 'Concept Preview',
     },
+    media: [
+      'assets/store/milterra-tulsi-ghee.webp',
+    ],
     inStock: false,
     availableQuantity: 0,
     minOrderQuantity: 1,
     specifications: {
       'concept': true,
       'listing_status': 'in_development',
-      'Herbal Actives': 'Withania Somnifera (Ashwagandha) & Bacopa Monnieri (Brahmi)',
-      'Regulatory': 'Formulation under FSSAI Ayurvedic Aahar review',
-      'Target Release': 'Winter 2026',
+      'Herbal Actives': 'Ocimum Sanctum (Sacred Tulsi)',
+      'Base': 'A2 Cultured Desi Cow Ghee (Bilona)',
+      'Regulatory': 'Concept preview in formulation development',
+    },
+  ),
+  Product(
+    id: 'mil-ghee-brahmi',
+    familyId: 'fam-ghee-brahmi',
+    vendorId: 'vendor-milterra-dairy',
+    title: 'MILTERRA Brahmi Ghee',
+    category: ProductCategory.feedNutrition,
+    price: 0,
+    unit: 'jar',
+    brand: 'MILTERRA',
+    packSize: '300 g',
+    description:
+        'Traditional cultured bilona ghee gently clarified with organic Brahmi (Bacopa monnieri) leaves. Ayurvedic formulation in development.',
+    taxonomy: {
+      'department_name': 'Dairy Foods',
+      'category_name': 'Herbal Ghee',
+      'department_id': 'dairy-foods',
+      'category_id': 'herbal-ghee',
+      'collection': 'Ghee',
+      'concept': true,
+      'status': 'Concept Preview',
+    },
+    media: [
+      'assets/store/milterra-brahmi-ghee.webp',
+    ],
+    inStock: false,
+    availableQuantity: 0,
+    minOrderQuantity: 1,
+    specifications: {
+      'concept': true,
+      'listing_status': 'in_development',
+      'Herbal Actives': 'Bacopa Monnieri (Brahmi / Waterhyssop)',
+      'Base': 'A2 Cultured Desi Cow Ghee (Bilona)',
+      'Regulatory': 'Concept preview in formulation development',
+    },
+  ),
+  Product(
+    id: 'mil-ghee-ashwagandha',
+    familyId: 'fam-ghee-ashwagandha',
+    vendorId: 'vendor-milterra-dairy',
+    title: 'MILTERRA Ashwagandha Ghee',
+    category: ProductCategory.feedNutrition,
+    price: 0,
+    unit: 'jar',
+    brand: 'MILTERRA',
+    packSize: '300 g',
+    description:
+        'Vedic bilona ghee slow-clarified with pure Ashwagandha (Withania somnifera) roots. Ayurvedic formulation in development.',
+    taxonomy: {
+      'department_name': 'Dairy Foods',
+      'category_name': 'Herbal Ghee',
+      'department_id': 'dairy-foods',
+      'category_id': 'herbal-ghee',
+      'collection': 'Ghee',
+      'concept': true,
+      'status': 'Concept Preview',
+    },
+    media: [
+      'assets/store/milterra-ashwagandha-ghee.webp',
+    ],
+    inStock: false,
+    availableQuantity: 0,
+    minOrderQuantity: 1,
+    specifications: {
+      'concept': true,
+      'listing_status': 'in_development',
+      'Herbal Actives': 'Withania Somnifera (Ashwagandha)',
+      'Base': 'A2 Cultured Desi Cow Ghee (Bilona)',
+      'Regulatory': 'Concept preview in formulation development',
     },
   ),
   Product(
     id: 'mil-paneer-200',
+    familyId: 'c3333333-3333-3333-3333-333333333333',
+    publicationStatus: 'published',
     vendorId: 'vendor-milterra-dairy',
     title: 'MILTERRA Fresh Malai Paneer',
     category: ProductCategory.feedNutrition,
@@ -601,6 +783,8 @@ const defaultMilterraProducts = <Product>[
   ),
   Product(
     id: 'mil-paneer-500',
+    familyId: 'c3333333-3333-3333-3333-333333333333',
+    publicationStatus: 'published',
     vendorId: 'vendor-milterra-dairy',
     title: 'MILTERRA Fresh Malai Paneer',
     category: ProductCategory.feedNutrition,
@@ -1445,212 +1629,215 @@ const defaultMilterraProducts = <Product>[
 /// Seed list of authentic Milterra Product Families linking SKU pack variants
 const List<ProductFamily> defaultMilterraProductFamilies = [
   ProductFamily(
-    id: 'fam-ghee-gir',
-    title: 'Milterra Pure A2 Gir Cow Bilona Ghee',
-    brand: 'Milterra Pure',
+    id: 'a1111111-1111-1111-1111-111111111111',
+    title: 'MILTERRA A2 Desi Cow Ghee',
+    brand: 'MILTERRA',
     department: 'Dairy Foods',
+    collection: 'Ghee',
+    milkSource: 'Gir & Sahiwal Cow Milk',
+    productionMethod: 'Traditional Bilona',
+    ingredients: 'Clarified Butterfat (Cow Milk)',
     taxonomyNodeId: 'cat-desi-ghee',
     taxonomyPath: 'Dairy Foods / Desi Ghee',
     description:
         'Slow-simmered Vedic A2 cultured Gir cow bilona ghee from free-grazing grass-fed indigenous cows. Clarified over gentle firewood embers.',
     primaryImage: 'assets/store/cow-ghee.png',
     isOrganic: true,
+    isPublished: true,
     purityGrade: 'Grade A+ (99.4% Purity Verified)',
     fssaiLicense: '10019021004312',
     variants: [
       ProductVariant(
-        id: 'ghee-gir-250ml',
-        sku: 'MIL-GHEE-GIR-250',
-        packSize: '250 ml',
-        price: 425,
-        compareAtPrice: 499,
-        stockQuantity: 160,
-        inStock: true,
-        weightGrams: 230,
-      ),
-      ProductVariant(
-        id: 'ghee-gir-500ml',
-        sku: 'MIL-GHEE-GIR-500',
+        id: 'mil-ghee-500',
+        sku: 'MIL-GHEE-500',
         packSize: '500 ml',
-        price: 780,
+        price: 799,
         compareAtPrice: 950,
-        stockQuantity: 120,
+        stockQuantity: 45,
         inStock: true,
         weightGrams: 460,
+        publicationStatus: 'published',
       ),
       ProductVariant(
-        id: 'ghee-gir-1l',
-        sku: 'MIL-GHEE-GIR-1000',
-        packSize: '1 L',
-        price: 1450,
+        id: 'mil-ghee-1000',
+        sku: 'MIL-GHEE-1000',
+        packSize: '1 litre',
+        price: 1499,
         compareAtPrice: 1850,
-        stockQuantity: 85,
-        inStock: true,
-        weightGrams: 915,
-      ),
-      ProductVariant(
-        id: 'ghee-gir-5l',
-        sku: 'MIL-GHEE-GIR-5000',
-        packSize: '5 L',
-        price: 6950,
-        compareAtPrice: 8500,
-        stockQuantity: 25,
-        inStock: true,
-        weightGrams: 4575,
-      ),
-    ],
-  ),
-  ProductFamily(
-    id: 'fam-ghee-single-farm',
-    title: 'Milterra Single-Farm A2 Cultured Cow Ghee',
-    brand: 'Milterra Signature',
-    department: 'Dairy Foods',
-    taxonomyNodeId: 'cat-single-farm-ghee',
-    taxonomyPath: 'Dairy Foods / Single-Farm Ghee',
-    description:
-        '100% Single-Origin Traceable to our own Lucknow heritage pasture farm. Churned in small artisanal batches with QR-code farm and purity certificate.',
-    primaryImage: 'assets/store/cow-ghee.png',
-    isOrganic: true,
-    purityGrade: 'Single-Origin Heritage (99.8% Purity)',
-    fssaiLicense: '10019021004312',
-    variants: [
-      ProductVariant(
-        id: 'ghee-single-500ml',
-        sku: 'MIL-GHEE-SF-500',
-        packSize: '500 ml',
-        price: 899,
-        compareAtPrice: 1050,
-        stockQuantity: 50,
-        inStock: true,
-        weightGrams: 460,
-      ),
-      ProductVariant(
-        id: 'ghee-single-1l',
-        sku: 'MIL-GHEE-SF-1000',
-        packSize: '1 L',
-        price: 1699,
-        compareAtPrice: 1999,
         stockQuantity: 30,
         inStock: true,
         weightGrams: 915,
+        publicationStatus: 'published',
       ),
-    ],
-  ),
-  ProductFamily(
-    id: 'fam-ghee-full-moon',
-    title: 'Milterra Full Moon (Purnima Batch) Bilona Ghee',
-    brand: 'Milterra Reserve',
-    department: 'Dairy Foods',
-    taxonomyNodeId: 'cat-full-moon-ghee',
-    taxonomyPath: 'Dairy Foods / Limited Batch Ghee',
-    description:
-        'Vedic bilona ghee churned and clarified on the auspicious night of Purnima. High Ayurvedic vitality with gold foil numbered packaging.',
-    primaryImage: 'assets/store/cow-ghee.png',
-    isOrganic: true,
-    purityGrade: 'Purnima Vedic Churn (High Prana)',
-    fssaiLicense: '10019021004312',
-    variants: [
       ProductVariant(
-        id: 'ghee-moon-500ml',
-        sku: 'MIL-GHEE-MOON-500',
-        packSize: '500 ml',
-        price: 999,
-        compareAtPrice: 1250,
-        stockQuantity: 35,
+        id: 'mil-ghee-5000',
+        sku: 'MIL-GHEE-5000',
+        packSize: '5 litre',
+        price: 6999,
+        compareAtPrice: 8500,
+        stockQuantity: 15,
         inStock: true,
-        weightGrams: 460,
+        weightGrams: 4575,
+        publicationStatus: 'published',
+      ),
+      ProductVariant(
+        id: 'mil-ghee-250',
+        sku: 'MIL-GHEE-250',
+        packSize: '250 ml',
+        price: 425,
+        compareAtPrice: 499,
+        stockQuantity: 50,
+        inStock: true,
+        weightGrams: 230,
+        publicationStatus: 'draft',
       ),
     ],
   ),
   ProductFamily(
-    id: 'fam-ghee-buffalo',
-    title: 'Milterra Traditional Cultured Buffalo Bilona Ghee',
-    brand: 'Milterra Pure',
+    id: 'b2222222-2222-2222-2222-222222222222',
+    title: 'MILTERRA Traditional Cultured Buffalo Ghee',
+    brand: 'MILTERRA',
     department: 'Dairy Foods',
+    collection: 'Ghee',
+    milkSource: 'Murrah Buffalo Milk',
+    productionMethod: 'Traditional Cultured Churn',
+    ingredients: 'Clarified Buffalo Butterfat',
     taxonomyNodeId: 'cat-desi-ghee',
     taxonomyPath: 'Dairy Foods / Desi Ghee',
     description:
         'Thick, rich granular white bilona ghee made from whole cultured Murrah buffalo milk. Unadulterated and lab certified.',
     primaryImage: 'assets/store/buffalo-ghee.png',
     isOrganic: true,
+    isPublished: true,
     purityGrade: 'Grade A+ (99.2% Purity Verified)',
     fssaiLicense: '10019021004312',
     variants: [
       ProductVariant(
-        id: 'ghee-buff-500ml',
-        sku: 'MIL-GHEE-BUF-500',
+        id: 'mil-buff-500',
+        sku: 'MIL-BUFF-500',
         packSize: '500 ml',
-        price: 640,
+        price: 699,
         compareAtPrice: 790,
-        stockQuantity: 150,
+        stockQuantity: 28,
         inStock: true,
         weightGrams: 465,
+        publicationStatus: 'published',
       ),
       ProductVariant(
-        id: 'ghee-buff-1l',
-        sku: 'MIL-GHEE-BUF-1000',
-        packSize: '1 L',
-        price: 1200,
+        id: 'mil-buff-1000',
+        sku: 'MIL-BUFF-1000',
+        packSize: '1 litre',
+        price: 1299,
         compareAtPrice: 1480,
-        stockQuantity: 100,
+        stockQuantity: 24,
         inStock: true,
         weightGrams: 920,
-      ),
-      ProductVariant(
-        id: 'ghee-buff-5l',
-        sku: 'MIL-GHEE-BUF-5000',
-        packSize: '5 L',
-        price: 5600,
-        compareAtPrice: 6800,
-        stockQuantity: 30,
-        inStock: true,
-        weightGrams: 4600,
+        publicationStatus: 'published',
       ),
     ],
   ),
   ProductFamily(
-    id: 'fam-paneer-artisan',
-    title: 'Milterra Farm Kitchen Fresh Malai Paneer',
-    brand: 'Milterra Pure',
+    id: 'c3333333-3333-3333-3333-333333333333',
+    title: 'MILTERRA Farm Kitchen Fresh Malai Paneer',
+    brand: 'MILTERRA',
     department: 'Dairy Foods',
+    collection: 'Fresh Dairy',
+    milkSource: 'Whole Cow Milk',
+    productionMethod: 'Lemon Coagulation Churn',
+    ingredients: 'Pasteurised Whole Milk, Lemon Juice',
     taxonomyNodeId: 'cat-paneer',
     taxonomyPath: 'Dairy Foods / Fresh Paneer',
     description:
         'Soft, spongy, protein-rich artisanal cottage cheese coagulated with natural lemon. No starch, preservatives, or chemical emulsifiers.',
     primaryImage: 'assets/store/paneer.png',
     isOrganic: true,
+    isPublished: true,
     purityGrade: 'Farm Fresh (18g Natural Protein)',
     fssaiLicense: '10019021004312',
     variants: [
       ProductVariant(
-        id: 'paneer-200g',
-        sku: 'MIL-PAN-200',
+        id: 'mil-paneer-200',
+        sku: 'MIL-PANEER-200',
         packSize: '200 g',
-        price: 110,
-        compareAtPrice: 130,
-        stockQuantity: 80,
+        price: 160,
+        compareAtPrice: 190,
+        stockQuantity: 50,
         inStock: true,
         weightGrams: 200,
+        publicationStatus: 'published',
       ),
       ProductVariant(
-        id: 'paneer-500g',
-        sku: 'MIL-PAN-500',
+        id: 'mil-paneer-500',
+        sku: 'MIL-PANEER-500',
         packSize: '500 g',
-        price: 260,
-        compareAtPrice: 310,
-        stockQuantity: 95,
+        price: 380,
+        compareAtPrice: 420,
+        stockQuantity: 35,
         inStock: true,
         weightGrams: 500,
+        publicationStatus: 'published',
       ),
+    ],
+  ),
+  ProductFamily(
+    id: 'fam-ghee-single-farm',
+    title: 'MILTERRA Single-Farm A2 Cultured Cow Ghee',
+    brand: 'MILTERRA Signature',
+    department: 'Dairy Foods',
+    collection: 'Ghee',
+    milkSource: 'Single-Herd Desi Cow Milk',
+    productionMethod: 'Vedic Bilona',
+    taxonomyNodeId: 'cat-single-farm-ghee',
+    taxonomyPath: 'Dairy Foods / Single-Farm Ghee',
+    description:
+        '100% Single-Origin Traceable to our own Lucknow heritage pasture farm. Churned in small artisanal batches with QR-code farm and purity certificate.',
+    primaryImage: 'assets/store/cow-ghee.png',
+    isOrganic: true,
+    isPublished: false,
+    purityGrade: 'Single-Origin Heritage (99.8% Purity)',
+    fssaiLicense: '10019021004312',
+    variants: [
       ProductVariant(
-        id: 'paneer-1kg',
-        sku: 'MIL-PAN-1000',
-        packSize: '1 kg',
-        price: 500,
-        compareAtPrice: 590,
-        stockQuantity: 40,
+        id: 'mil-ghee-single-farm',
+        sku: 'MIL-GHEE-SINGLE-FARM',
+        packSize: '500 ml',
+        price: 899,
+        compareAtPrice: 1050,
+        stockQuantity: 25,
         inStock: true,
-        weightGrams: 1000,
+        weightGrams: 460,
+        publicationStatus: 'draft',
+      ),
+    ],
+  ),
+  ProductFamily(
+    id: 'fam-ghee-full-moon',
+    title: 'MILTERRA Full Moon (Purnima Batch) Bilona Ghee',
+    brand: 'MILTERRA Reserve',
+    department: 'Dairy Foods',
+    collection: 'Ghee',
+    milkSource: 'A2 Desi Cow Milk',
+    productionMethod: 'Lunar Fire Clarification',
+    taxonomyNodeId: 'cat-full-moon-ghee',
+    taxonomyPath: 'Dairy Foods / Limited Batch Ghee',
+    description:
+        'Vedic bilona ghee churned and clarified on the auspicious night of Purnima. High Ayurvedic vitality with gold foil numbered packaging.',
+    primaryImage: 'assets/store/cow-ghee.png',
+    isOrganic: true,
+    isPublished: false,
+    purityGrade: 'Purnima Vedic Churn (High Prana)',
+    fssaiLicense: '10019021004312',
+    variants: [
+      ProductVariant(
+        id: 'mil-ghee-full-moon',
+        sku: 'MIL-GHEE-FULL-MOON',
+        packSize: '500 ml',
+        price: 999,
+        compareAtPrice: 1250,
+        stockQuantity: 18,
+        inStock: true,
+        weightGrams: 460,
+        publicationStatus: 'draft',
       ),
     ],
   ),
@@ -1726,6 +1913,115 @@ const List<ProductFamily> defaultMilterraProductFamilies = [
         stockQuantity: 8,
         inStock: true,
         weightGrams: 55000,
+      ),
+    ],
+  ),
+  ProductFamily(
+    id: 'fam-ghee-tulsi',
+    title: 'MILTERRA Tulsi Ghee',
+    brand: 'MILTERRA',
+    department: 'Dairy Foods',
+    collection: 'Ghee',
+    milkSource: 'A2 Desi Cow Milk',
+    productionMethod: 'Herbal Decoction Infusion',
+    ingredients: 'Cultured Desi Cow Ghee, Holy Basil (Ocimum Sanctum) Extract',
+    taxonomyNodeId: 'herbal-ghee',
+    taxonomyPath: 'Dairy Foods / Herbal Ghee',
+    description:
+        'Artisanal cultured bilona ghee slow-infused with sacred Tulsi (Holy Basil) leaves. Traditional Ayurvedic formulation in development.',
+    primaryImage: 'assets/store/milterra-tulsi-ghee.webp',
+    media: [
+      'assets/store/milterra-tulsi-ghee.webp',
+    ],
+    isOrganic: true,
+    isPublished: true,
+    isConcept: true,
+    purityGrade: 'Ayurvedic Concept Batch',
+    fssaiLicense: '10019021004312',
+    variants: [
+      ProductVariant(
+        id: 'mil-ghee-tulsi',
+        sku: 'MIL-GHEE-TULSI',
+        packSize: '300 g',
+        price: 0,
+        compareAtPrice: 0,
+        stockQuantity: 0,
+        inStock: false,
+        weightGrams: 300,
+        publicationStatus: 'concept',
+      ),
+    ],
+  ),
+  ProductFamily(
+    id: 'fam-ghee-brahmi',
+    title: 'MILTERRA Brahmi Ghee',
+    brand: 'MILTERRA',
+    department: 'Dairy Foods',
+    collection: 'Ghee',
+    milkSource: 'A2 Desi Cow Milk',
+    productionMethod: 'Medhya Rasayana Clarification',
+    ingredients: 'Cultured Desi Cow Ghee, Brahmi (Bacopa Monnieri) Extract',
+    taxonomyNodeId: 'herbal-ghee',
+    taxonomyPath: 'Dairy Foods / Herbal Ghee',
+    description:
+        'Traditional cultured bilona ghee gently clarified with organic Brahmi (Bacopa monnieri) leaves. Ayurvedic formulation in development.',
+    primaryImage: 'assets/store/milterra-brahmi-ghee.webp',
+    media: [
+      'assets/store/milterra-brahmi-ghee.webp',
+    ],
+    isOrganic: true,
+    isPublished: true,
+    isConcept: true,
+    purityGrade: 'Ayurvedic Concept Batch',
+    fssaiLicense: '10019021004312',
+    variants: [
+      ProductVariant(
+        id: 'mil-ghee-brahmi',
+        sku: 'MIL-GHEE-BRAHMI',
+        packSize: '300 g',
+        price: 0,
+        compareAtPrice: 0,
+        stockQuantity: 0,
+        inStock: false,
+        weightGrams: 300,
+        publicationStatus: 'concept',
+      ),
+    ],
+  ),
+  ProductFamily(
+    id: 'fam-ghee-ashwagandha',
+    title: 'MILTERRA Ashwagandha Ghee',
+    brand: 'MILTERRA',
+    department: 'Dairy Foods',
+    collection: 'Ghee',
+    milkSource: 'A2 Desi Cow Milk',
+    productionMethod: 'Ayurvedic Herb Clarification',
+    ingredients:
+        'Cultured Desi Cow Ghee, Organic Ashwagandha (Withania Somnifera) Root Extract',
+    taxonomyNodeId: 'herbal-ghee',
+    taxonomyPath: 'Dairy Foods / Herbal Ghee',
+    description:
+        'Vedic bilona ghee slow-clarified with pure Ashwagandha (Withania somnifera) roots. Ayurvedic formulation in development.',
+    primaryImage: 'assets/store/milterra-ashwagandha-ghee.webp',
+    media: [
+      'assets/store/milterra-ashwagandha-ghee.webp',
+    ],
+    isOrganic: true,
+    isPublished: true,
+    isConcept: true,
+    purityGrade: 'Ayurvedic Concept Batch',
+    fssaiLicense: '10019021004312',
+    variants: [
+      ProductVariant(
+        id: 'mil-ghee-ashwagandha',
+        sku: 'MIL-GHEE-ASHWA',
+        packSize: '300 g',
+        price: 0,
+        compareAtPrice: 0,
+        stockQuantity: 0,
+        inStock: false,
+        weightGrams: 300,
+        publicationStatus: 'concept',
       ),
     ],
   ),

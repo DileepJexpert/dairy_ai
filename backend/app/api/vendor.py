@@ -64,6 +64,7 @@ async def register_vendor(
 
 
 @router.get("/me")
+@router.get("/profile")
 async def get_my_profile(
     current_user: User = Depends(require_role(UserRole.vendor)),
     db: AsyncSession = Depends(get_db),
@@ -83,6 +84,7 @@ async def get_my_profile(
 
 
 @router.put("/me")
+@router.put("/profile")
 async def update_my_profile(
     data: VendorUpdate,
     current_user: User = Depends(require_role(UserRole.vendor)),

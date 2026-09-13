@@ -2,6 +2,7 @@
 ///
 /// Plain Dart classes with factory [fromJson] constructors and [toJson]
 /// methods — no code generation required.
+library vendor_models;
 
 class VendorProfile {
   final String id;
@@ -101,10 +102,11 @@ class VendorDashboard {
   });
 
   factory VendorDashboard.fromJson(Map<String, dynamic> json) {
+    final stats = json['stats'] as Map<String, dynamic>?;
     return VendorDashboard(
-      totalRevenue: (json['total_revenue'] as num?)?.toDouble() ?? 0.0,
-      totalOrders: (json['total_orders'] as num?)?.toInt() ?? 0,
-      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      totalRevenue: (stats?['total_revenue'] ?? json['total_revenue'] as num?)?.toDouble() ?? 0.0,
+      totalOrders: (stats?['total_orders'] ?? json['total_orders'] as num?)?.toInt() ?? 0,
+      rating: (stats?['rating_avg'] ?? json['rating'] as num?)?.toDouble() ?? 0.0,
       pendingOrders: (json['pending_orders'] as num?)?.toInt() ?? 0,
       completedOrders: (json['completed_orders'] as num?)?.toInt() ?? 0,
       recentOrders: ((json['recent_orders'] as List<dynamic>?) ?? [])

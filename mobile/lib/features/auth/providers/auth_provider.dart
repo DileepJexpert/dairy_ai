@@ -121,6 +121,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           id: profile['id'] as String,
           phone: profile['phone'] as String,
           role: profile['role'] as String,
+          name: profile['name'] as String?,
           accessToken: accessToken,
           refreshToken: body['refresh_token'] as String,
         );

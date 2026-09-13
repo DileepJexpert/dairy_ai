@@ -54,9 +54,14 @@ def taxonomy_id(slug):
 
 async def seed_foundation(db, demo=False):
     db.add(TaxonomyLock(id=1))
-    rows = [("dairy-foods", "Dairy Foods", None), ("farm-essentials", "Farm Essentials", None),
-            ("cow-ghee", "Cow ghee", "dairy-foods"), ("buffalo-ghee", "Buffalo ghee", "dairy-foods"),
-            ("paneer", "Paneer", "dairy-foods"), ("animal-nutrition", "Animal nutrition", "farm-essentials"),
+    rows = [("dairy-foods", "Dairy Foods", None),
+            ("all-ghee", "All Ghee", "dairy-foods"),
+            ("cow-ghee", "Cow ghee", "dairy-foods"),
+            ("buffalo-ghee", "Buffalo ghee", "dairy-foods"),
+            ("herbal-ghee", "Herbal Ghee", "dairy-foods"),
+            ("paneer", "Paneer", "dairy-foods"),
+            ("farm-essentials", "Farm Essentials", None),
+            ("animal-nutrition", "Animal nutrition", "farm-essentials"),
             ("equipment", "Equipment", "farm-essentials")]
     for order, (slug, name, parent) in enumerate(rows):
         db.add(TaxonomyNode(id=taxonomy_id(slug), kind="category" if parent else "department",

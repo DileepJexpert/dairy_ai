@@ -114,26 +114,30 @@ final _cooperativeShellKey = GlobalKey<NavigatorState>();
 // ---------------------------------------------------------------------------
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
-  final currentUser = ref.watch(currentUserProvider);
-  final analytics = ref.watch(analyticsServiceProvider);
+  // Keep one router instance for the life of the app. Recreating GoRouter
+  // whenever auth changes resets the browser's deep link to initialLocation,
+  // which previously turned an admin login URL into /shop.
+  final analytics = ref.read(analyticsServiceProvider);
+  late final GoRouter router;
 
-  return GoRouter(
+  router = GoRouter(
     navigatorKey: _rootNavigatorKey,
     // Customers should be able to browse the catalogue before creating an account.
     initialLocation: '/shop',
     debugLogDiagnostics: false,
     observers: [AnalyticsRouteObserver(analytics)],
     redirect: (context, state) {
-      final isAuthenticated = authState.maybeWhen(
-        authenticated: (_) => true,
-        orElse: () => false,
+      final authState = ref.read(authProvider);
+      final currentUser = authState.maybeWhen(
+        authenticated: (user) => user,
+        orElse: () => null,
       );
+      final isAuthenticated = currentUser != null;
 
       final location = state.uri.path;
-      final userRole = currentUser?.role.toLowerCase();
+      final userRole = (currentUser?.role ?? '').trim().toLowerCase();
       final isAdmin = userRole == 'admin' || userRole == 'super_admin';
-      final isSeller = isAdmin || userRole == 'vendor';
+      final isSeller = isAdmin || userRole == 'vendor' || userRole == 'seller';
 
       final isAdminArea = location == '/admin/ecommerce' ||
           location == '/admin-dashboard' ||
@@ -149,34 +153,46 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // 1. Role-based protection for Admin routes
       if (isAdminArea) {
-        if (!isAuthenticated) {
+        if (!isAuthenticated || !isAdmin) {
           return Uri(path: '/admin/login', queryParameters: {
             'next': location,
           }).toString();
-        }
-        if (!isAdmin) {
-          return '/shop';
         }
       }
 
       // 2. Role-based protection for Seller/Vendor routes
       if (isSellerArea) {
-        if (!isAuthenticated) {
+        if (!isAuthenticated || !isSeller) {
           return Uri(path: '/seller/login', queryParameters: {
             'next': location,
           }).toString();
-        }
-        if (!isSeller) {
-          return '/shop';
         }
       }
 
       // 3. Login redirects if already authenticated with matching role
       if (isAuthenticated && isAdmin && location == '/admin/login') {
-        return '/admin/ecommerce';
+        return shoppingReturnPath(
+          state.uri.queryParameters['next'] ?? '/admin/ecommerce',
+        );
       }
       if (isAuthenticated && isSeller && location == '/seller/login') {
-        return '/seller/dashboard';
+        return shoppingReturnPath(
+          state.uri.queryParameters['next'] ?? '/vendor-dashboard',
+        );
+      }
+
+      // 4. If already authenticated and visiting OTP screen, redirect to appropriate destination
+      if (isAuthenticated &&
+          (state.matchedLocation == '/otp-verify' ||
+              location == '/otp-verify')) {
+        final next = state.uri.queryParameters['next'];
+        if (isAdmin) {
+          return shoppingReturnPath(next ?? '/admin/ecommerce');
+        }
+        if (isSeller) {
+          return shoppingReturnPath(next ?? '/vendor-dashboard');
+        }
+        return shoppingReturnPath(next);
       }
 
       final isAuthRoute = state.matchedLocation == '/login' ||
@@ -241,7 +257,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           (state.matchedLocation == '/login' ||
               state.matchedLocation == '/register')) {
         final next = state.uri.queryParameters['next'];
-        return shoppingReturnPath(next);
+        if (next != null && next.isNotEmpty) {
+          return shoppingReturnPath(next);
+        }
+        if (isAdmin) return '/admin/ecommerce';
+        if (isSeller) return '/vendor-dashboard';
+        return '/shop';
       }
       return null;
     },
@@ -550,13 +571,13 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/herd',
                 builder: (context, state) => HerdListScreen(
-                  farmerId: currentUser?.id ?? '',
+                  farmerId: ref.read(currentUserProvider)?.id ?? '',
                 ),
                 routes: [
                   GoRoute(
                     path: 'add',
                     builder: (context, state) => AddCattleScreen(
-                      farmerId: currentUser?.id ?? '',
+                      farmerId: ref.read(currentUserProvider)?.id ?? '',
                     ),
                   ),
                   GoRoute(
@@ -885,6 +906,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+
+  // Refresh route protection after an OTP verification, logout, or restored
+  // session without replacing the active router or its current location.
+  ref.listen(authProvider, (_, __) => router.refresh());
+  return router;
 });
 
 // ---------------------------------------------------------------------------

@@ -20,6 +20,7 @@ class LoginScreen extends ConsumerStatefulWidget {
     this.heading = 'Sign in or create an account',
     this.description =
         'Use your registered mobile number. We will send a secure one-time password.',
+    this.initialPhone,
   });
 
   // Retained for route compatibility with /register. OTP is both sign-in and
@@ -28,6 +29,7 @@ class LoginScreen extends ConsumerStatefulWidget {
   final String? nextPath;
   final String heading;
   final String description;
+  final String? initialPhone;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -35,8 +37,14 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _phoneController = TextEditingController();
+  late final TextEditingController _phoneController;
   bool _submitted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _phoneController = TextEditingController(text: widget.initialPhone ?? '');
+  }
 
   @override
   void dispose() {
@@ -112,7 +120,154 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               textAlign: TextAlign.center,
                               style: StoreType.body,
                             ),
-                            const SizedBox(height: 28),
+                            const SizedBox(height: 16),
+                            if ((widget.nextPath?.contains('admin') ?? false) ||
+                                widget.heading.toLowerCase().contains('admin')) ...[
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 20),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xfff0fdf4),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xff86efac)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.shield_outlined,
+                                        color: storeGreen, size: 22),
+                                    const SizedBox(width: 10),
+                                    const Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Dev Admin Credential',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                              color: storeDarkGreenNav,
+                                            ),
+                                          ),
+                                          SizedBox(height: 2),
+                                          Text(
+                                            'Phone: 9999900000  •  OTP: 123456',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: storeMuted,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    TextButton.icon(
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
+                                        backgroundColor:
+                                            storeGreen.withValues(alpha: 0.1),
+                                      ),
+                                      onPressed: () {
+                                        _phoneController.text = '9999900000';
+                                        Clipboard.setData(const ClipboardData(
+                                            text: '9999900000'));
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                'Copied & autofilled Admin phone: 9999900000 (OTP: 123456)'),
+                                            duration: Duration(seconds: 2),
+                                            backgroundColor: storeGreen,
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.copy,
+                                          size: 13, color: storeGreen),
+                                      label: const Text(
+                                        'Autofill',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: storeGreen,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ] else if ((widget.nextPath?.contains('seller') ?? false) ||
+                                (widget.nextPath?.contains('vendor') ?? false) ||
+                                widget.heading.toLowerCase().contains('seller') ||
+                                widget.heading.toLowerCase().contains('vendor')) ...[
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 20),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xfffffbeb),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xfffde68a)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.storefront_outlined,
+                                        color: Color(0xffb45309), size: 22),
+                                    const SizedBox(width: 10),
+                                    const Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Dev Seller Credential',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                              color: Color(0xff78350f),
+                                            ),
+                                          ),
+                                          SizedBox(height: 2),
+                                          Text(
+                                            'Phone: 9999900090  •  OTP: 123456',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: storeMuted,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    TextButton.icon(
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
+                                        backgroundColor: const Color(0xffb45309)
+                                            .withValues(alpha: 0.1),
+                                      ),
+                                      onPressed: () {
+                                        _phoneController.text = '9999900090';
+                                        Clipboard.setData(const ClipboardData(
+                                            text: '9999900090'));
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                'Copied & autofilled Seller phone: 9999900090 (OTP: 123456)'),
+                                            duration: Duration(seconds: 2),
+                                            backgroundColor: Color(0xffb45309),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.copy,
+                                          size: 13, color: Color(0xffb45309)),
+                                      label: const Text(
+                                        'Autofill',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xffb45309),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                             TextFormField(
                               controller: _phoneController,
                               keyboardType: TextInputType.phone,

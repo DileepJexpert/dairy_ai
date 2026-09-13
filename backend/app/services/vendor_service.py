@@ -64,6 +64,12 @@ async def get_vendor_dashboard(db: AsyncSession, vendor_id: uuid.UUID, user_id: 
             "total_revenue": round(float(vendor.total_revenue), 2),
             "rating_avg": round(float(vendor.rating_avg), 2),
         },
+        "total_orders": vendor.total_orders,
+        "total_revenue": round(float(vendor.total_revenue), 2),
+        "rating": round(float(vendor.rating_avg), 2),
+        "pending_orders": 0,
+        "completed_orders": vendor.total_orders,
+        "recent_orders": [],
         "products_services": vendor.products_services or [],
         "service_areas": vendor.service_areas or [],
     }

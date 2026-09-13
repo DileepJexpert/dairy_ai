@@ -130,10 +130,17 @@ Future<bool> _tryRefreshToken(
     );
 
     final data = response.data;
-    if (data['success'] == true) {
-      await storage.setAccessToken(data['data']['access_token'] as String);
-      await storage.setRefreshToken(data['data']['refresh_token'] as String);
-      return true;
+    if (data['success'] == true && data['data'] is Map) {
+      final tokenData = data['data'] as Map<String, dynamic>;
+      final newAccessToken = tokenData['access_token'] as String?;
+      if (newAccessToken != null) {
+        await storage.setAccessToken(newAccessToken);
+        final newRefreshToken = tokenData['refresh_token'] as String?;
+        if (newRefreshToken != null) {
+          await storage.setRefreshToken(newRefreshToken);
+        }
+        return true;
+      }
     }
     return false;
   } catch (_) {

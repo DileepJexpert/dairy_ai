@@ -12,10 +12,30 @@ class ProductCategory(str, enum.Enum):
     feed_nutrition = "FEED_NUTRITION"
 class MediaType(str, enum.Enum): image = "image"; video = "video"
 
+class ProductFamily(Base):
+    __tablename__ = "product_families"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("vendors.id"), index=True, nullable=False)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
+    brand: Mapped[str] = mapped_column(String(100), default="MILTERRA")
+    department: Mapped[str] = mapped_column(String(100), default="Dairy Foods")
+    collection: Mapped[str | None] = mapped_column(String(100), default="Ghee")
+    milk_source: Mapped[str | None] = mapped_column(String(50))
+    production_method: Mapped[str | None] = mapped_column(String(100))
+    ingredients: Mapped[str | None] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
+    is_published: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    is_concept: Mapped[bool] = mapped_column(Boolean, default=False)
+    supporting_documents: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 class Product(Base):
     __tablename__ = "products"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("vendors.id"), index=True, nullable=False)
+    family_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("product_families.id"), nullable=True, index=True)
     sku: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     slug: Mapped[str] = mapped_column(String(240), index=True, nullable=False)
@@ -27,8 +47,11 @@ class Product(Base):
     subcategory: Mapped[str | None] = mapped_column(String(100)); brand: Mapped[str | None] = mapped_column(String(100))
     description: Mapped[str | None] = mapped_column(Text); short_description: Mapped[str | None] = mapped_column(String(500))
     base_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    compare_at_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     gst_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2)); unit: Mapped[str] = mapped_column(String(30), nullable=False)
-    pack_size: Mapped[str | None] = mapped_column(String(100)); specifications: Mapped[dict] = mapped_column(JSON, default=dict)
+    pack_size: Mapped[str | None] = mapped_column(String(100)); weight_grams: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    specifications: Mapped[dict] = mapped_column(JSON, default=dict)
+    publication_status: Mapped[str] = mapped_column(String(30), default="published", index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True); is_featured: Mapped[bool] = mapped_column(Boolean, default=False)
     is_rentable: Mapped[bool] = mapped_column(Boolean, default=False); rental_rate_per_hour: Mapped[Decimal | None] = mapped_column(Numeric(12, 2)); rental_rate_per_acre: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     min_order_quantity: Mapped[int] = mapped_column(Integer, default=1)

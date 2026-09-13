@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../app/shopping_navigation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +10,7 @@ import 'package:dairy_ai/app/theme.dart';
 import 'package:dairy_ai/core/constants.dart';
 import 'package:dairy_ai/core/extensions.dart';
 import 'package:dairy_ai/features/auth/models/auth_state.dart';
+import 'package:dairy_ai/features/auth/models/user_model.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import 'package:dairy_ai/shared/widgets/loading_overlay.dart';
 import 'package:dairy_ai/shared/widgets/error_dialog.dart';
@@ -33,6 +35,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   void initState() {
     super.initState();
     _startResendTimer();
+    if (widget.phone.startsWith('99999')) {
+      _otpController.text = '123456';
+    }
   }
 
   void _startResendTimer() {
@@ -77,14 +82,52 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     _startResendTimer();
   }
 
+  Future<void> _completeAuthentication(UserModel user) async {
+    final destination = shoppingReturnPath(widget.nextPath);
+    final role = user.role.toLowerCase();
+    final isAdmin = role == 'admin' || role == 'super_admin';
+    final isSeller = isAdmin || role == 'vendor' || role == 'seller';
+    final requiresAdmin = destination == '/admin/ecommerce' ||
+        destination == '/admin-dashboard' ||
+        destination == '/admin-farmers' ||
+        destination == '/admin-vets' ||
+        destination.startsWith('/admin/commerce');
+    final requiresSeller = destination == '/seller/dashboard' ||
+        destination == '/vendor-dashboard' ||
+        destination == '/vendor-orders' ||
+        destination == '/vendor-profile' ||
+        destination == '/vendor/products';
+
+    if ((requiresAdmin && !isAdmin) || (requiresSeller && !isSeller)) {
+      // A successful OTP proves phone ownership, not that this account has the
+      // requested workspace role. Clear the newly-created session rather than
+      // silently falling back to the customer storefront.
+      await ref.read(authProvider.notifier).logout();
+      if (!mounted) return;
+      final loginPath = requiresAdmin ? '/admin/login' : '/seller/login';
+      showErrorDialog(
+        context,
+        message: requiresAdmin
+            ? 'This mobile number is not assigned to an administrator account.'
+            : 'This mobile number is not assigned to an approved seller account.',
+      );
+      context.go(
+        Uri(path: loginPath, queryParameters: {'next': destination}).toString(),
+      );
+      return;
+    }
+
+    if (mounted) context.go(destination);
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
 
     ref.listen<AuthState>(authProvider, (prev, next) {
       next.maybeWhen(
-        authenticated: (_) {
-          context.go(shoppingReturnPath(widget.nextPath));
+        authenticated: (user) {
+          unawaited(_completeAuthentication(user));
         },
         error: (message) => showErrorDialog(context, message: message),
         orElse: () {},
@@ -99,10 +142,13 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
         message: 'Verifying...',
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
                 const SizedBox(height: 48),
 
                 // Back button
@@ -110,7 +156,26 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                   alignment: Alignment.centerLeft,
                   child: IconButton(
                     icon: const Icon(Icons.arrow_back),
-                    onPressed: () => context.go('/login'),
+                    onPressed: () {
+                      final next = (widget.nextPath ?? '').toLowerCase();
+                      if (next.contains('admin')) {
+                        context.go(Uri(
+                          path: '/admin/login',
+                          queryParameters: widget.nextPath != null
+                              ? {'next': widget.nextPath!}
+                              : null,
+                        ).toString());
+                      } else if (next.contains('seller')) {
+                        context.go(Uri(
+                          path: '/seller/login',
+                          queryParameters: widget.nextPath != null
+                              ? {'next': widget.nextPath!}
+                              : null,
+                        ).toString());
+                      } else {
+                        context.go('/login');
+                      }
+                    },
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -135,7 +200,52 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 40),
+                if (widget.phone.startsWith('99999')) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xfffef3c7),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xfff59e0b)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.key, size: 16, color: Color(0xffb45309)),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Dev OTP: 123456 (Pre-filled)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xff92400e),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: () {
+                            _otpController.text = '123456';
+                            Clipboard.setData(
+                                const ClipboardData(text: '123456'));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content:
+                                    Text('Copied & autofilled OTP: 123456'),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                          },
+                          child: const Icon(Icons.copy,
+                              size: 15, color: Color(0xffb45309)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 32),
 
                 // --- PIN fields ---
                 PinCodeTextField(
@@ -181,6 +291,8 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                         style: context.textTheme.bodySmall,
                       ),
               ],
+                ),
+              ),
             ),
           ),
         ),

@@ -60,6 +60,12 @@ String storeCategory(Product p) {
   }
   if (p.category == ProductCategory.equipment) return 'Equipment';
   if (name.contains('paneer')) return 'Paneer';
+  if (name.contains('tulsi') ||
+      name.contains('brahmi') ||
+      name.contains('ashwagandha') ||
+      (name.contains('ghee') && name.contains('herbal'))) {
+    return 'Herbal Ghee';
+  }
   if (name.contains('ghee') && name.contains('buffalo')) return 'Buffalo ghee';
   if (name.contains('ghee')) return 'Cow ghee';
   if (name.contains('butter')) return 'Other products';
@@ -260,10 +266,14 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                     _sectionHeader('🥛 Household Dairy Collection'),
                     _drawerTile(context, 'All Dairy Foods',
                         () => storeBrowse(context, category: 'Dairy Foods')),
+                    _drawerTile(context, 'All Ghee',
+                        () => storeBrowse(context, category: 'All Ghee')),
                     _drawerTile(context, 'A2 Desi Cow Ghee (Bilona)',
                         () => storeBrowse(context, category: 'Cow ghee')),
                     _drawerTile(context, 'Rich Granular Buffalo Ghee',
                         () => storeBrowse(context, category: 'Buffalo ghee')),
+                    _drawerTile(context, 'Herbal Infused Ghee',
+                        () => storeBrowse(context, category: 'Herbal Ghee')),
                     _drawerTile(context, 'Fresh Malai Paneer',
                         () => storeBrowse(context, category: 'Paneer')),
                     _drawerTile(context, 'Cultured White Butter (Makhan)',
@@ -375,6 +385,17 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                       Navigator.pop(context);
                       storeAccountRoute(context, ref, '/marketplace/addresses');
                     }),
+                    const Divider(height: 16),
+                    _sectionHeader('Portals & Access'),
+                    _drawerTile(context, '🛡️ Milterra Admin Portal', () {
+                      Navigator.pop(context);
+                      context.go('/admin/ecommerce');
+                    }),
+                    _drawerTile(context, '🏪 Seller / Vendor Portal', () {
+                      Navigator.pop(context);
+                      context.go('/seller/login');
+                    }),
+                    const Divider(height: 16),
                     if (user != null)
                       _drawerTile(context, 'Sign Out', () async {
                         Navigator.pop(context);
@@ -876,9 +897,11 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
     final baseCategories = <String, String>{
       'All': 'All Departments',
       'Dairy Foods': '🥛 Dairy Foods',
+      'All Ghee': 'All Ghee',
       'MILTERRA Earth': '🌱 MILTERRA Earth',
       'Cow ghee': 'Cow Ghee',
       'Buffalo ghee': 'Buffalo Ghee',
+      'Herbal Ghee': 'Herbal Ghee',
       'Paneer': 'Fresh Paneer',
       'Animal nutrition': '🌾 Cattle Nutrition',
       'Equipment': '⚙️ Farm Machinery',
@@ -1059,17 +1082,80 @@ class StoreCategoryNavigation extends ConsumerWidget {
 
     final entries = <String, String>{
       'All products': 'All Products',
-      if (taxonomy?.enabled == true)
-        for (final node in taxonomy!.nodes) node.id: node.name
-      else if (legacyEquipment)
-        'Equipment': 'Equipment'
-      else ...{
-        'Dairy Foods': '🥛 Dairy Foods',
-        'MILTERRA Earth': '🌱 MILTERRA Earth',
-        'Animal nutrition': '🌾 Animal Nutrition',
-        'Equipment': '⚙️ Farm Equipment',
-      }
     };
+
+    if (taxonomy?.enabled == true) {
+      final nodes = taxonomy!.nodes.where((n) => n.isActive).toList();
+      final dairyDept = nodes
+          .where((n) =>
+              n.slug == 'dairy-foods' ||
+              n.name.toLowerCase() == 'dairy foods')
+          .firstOrNull;
+      final farmDept = nodes
+          .where((n) =>
+              n.slug == 'farm-essentials' ||
+              n.name.toLowerCase() == 'farm essentials')
+          .firstOrNull;
+
+      if (dairyDept != null) {
+        entries[dairyDept.id] = dairyDept.name;
+        final allGheeNode = nodes
+            .where((n) =>
+                n.slug == 'all-ghee' || n.name.toLowerCase() == 'all ghee')
+            .firstOrNull;
+        if (allGheeNode != null) {
+          entries[allGheeNode.id] = allGheeNode.name;
+        } else {
+          entries['All Ghee'] = 'All Ghee';
+        }
+        for (final child in nodes.where((n) =>
+            n.parentId == dairyDept.id &&
+            n.slug != 'all-ghee' &&
+            n.name.toLowerCase() != 'all ghee')) {
+          entries[child.id] = child.name;
+        }
+      } else {
+        entries['Dairy Foods'] = 'Dairy Foods';
+        entries['All Ghee'] = 'All Ghee';
+        entries['Cow ghee'] = 'Cow ghee';
+        entries['Buffalo ghee'] = 'Buffalo ghee';
+        entries['Herbal Ghee'] = 'Herbal Ghee';
+        entries['Paneer'] = 'Paneer';
+      }
+
+      if (farmDept != null) {
+        entries[farmDept.id] = farmDept.name;
+        for (final child in nodes.where((n) => n.parentId == farmDept.id)) {
+          entries[child.id] = child.name;
+        }
+      } else {
+        entries['Farm Essentials'] = 'Farm Essentials';
+        entries['Animal nutrition'] = 'Animal nutrition';
+        entries['Equipment'] = 'Equipment';
+      }
+
+      for (final n in nodes) {
+        if (!entries.containsKey(n.id) &&
+            n.id != dairyDept?.id &&
+            n.id != farmDept?.id &&
+            n.parentId != dairyDept?.id &&
+            n.parentId != farmDept?.id) {
+          entries[n.id] = n.name;
+        }
+      }
+    } else if (legacyEquipment) {
+      entries['Equipment'] = 'Equipment';
+    } else {
+      entries['Dairy Foods'] = 'Dairy Foods';
+      entries['All Ghee'] = 'All Ghee';
+      entries['Cow ghee'] = 'Cow ghee';
+      entries['Buffalo ghee'] = 'Buffalo ghee';
+      entries['Herbal Ghee'] = 'Herbal Ghee';
+      entries['Paneer'] = 'Paneer';
+      entries['Farm Essentials'] = 'Farm Essentials';
+      entries['Animal nutrition'] = 'Animal nutrition';
+      entries['Equipment'] = 'Equipment';
+    }
 
     return Container(
       height: 36,
@@ -1207,7 +1293,7 @@ class StoreCategoryNavigation extends ConsumerWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.science_outlined,
                               color: storeGold,
                               size: 14,
@@ -1382,6 +1468,7 @@ abstract final class StoreImages {
   static String? category(String kind) => switch (kind.toLowerCase()) {
         'cow ghee' || 'cow-ghee' => 'assets/store/cow-ghee.png',
         'buffalo ghee' || 'buffalo-ghee' => 'assets/store/buffalo-ghee.png',
+        'herbal ghee' || 'herbal-ghee' => 'assets/store/milterra-tulsi-ghee.webp',
         'paneer' => 'assets/store/paneer.png',
         'white butter' ||
         'other products' =>
@@ -1429,22 +1516,30 @@ abstract final class StoreImages {
       return p.media.first;
     }
     final title = p.title.toLowerCase();
-    if (title.contains('butter') || title.contains('makhan'))
+    if (title.contains('butter') || title.contains('makhan')) {
       return 'assets/store/white-butter-concept.png';
+    }
     final isEarth = p.taxonomy?['is_earth'] == true ||
         title.contains('earth') ||
         title.contains('vermicompost') ||
         title.contains('farm manure');
 
     if (isEarth) {
-      if (title.contains('vermicompost'))
+      if (title.contains('vermicompost')) {
         return 'assets/store/earth-vermicompost.jpg';
-      if (title.contains('manure')) return 'assets/store/earth-manure.jpg';
-      if (title.contains('soil mix') || title.contains('soil'))
+      }
+      if (title.contains('manure')) {
+        return 'assets/store/earth-manure.jpg';
+      }
+      if (title.contains('soil mix') || title.contains('soil')) {
         return 'assets/store/earth-soil-mix.jpg';
-      if (title.contains('cake')) return 'assets/store/earth-cakes.jpg';
-      if (title.contains('starter') || title.contains('compost'))
+      }
+      if (title.contains('cake')) {
+        return 'assets/store/earth-cakes.jpg';
+      }
+      if (title.contains('starter') || title.contains('compost')) {
         return 'assets/store/earth-vermicompost.jpg';
+      }
       return 'assets/store/earth-vermicompost.jpg';
     }
 
@@ -1493,6 +1588,11 @@ abstract final class StoreImages {
         title.contains('vitagrow') ||
         title.contains('milk-pro')) {
       return 'assets/store/nutrition-lineup.jpg';
+    }
+    if (title.contains('tulsi')) return 'assets/store/milterra-tulsi-ghee.webp';
+    if (title.contains('brahmi')) return 'assets/store/milterra-brahmi-ghee.webp';
+    if (title.contains('ashwagandha')) {
+      return 'assets/store/milterra-ashwagandha-ghee.webp';
     }
     if (title.contains('cow ghee')) return 'assets/store/cow-ghee.png';
     if (title.contains('buffalo ghee')) return 'assets/store/buffalo-ghee.png';

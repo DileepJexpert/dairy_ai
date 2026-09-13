@@ -37,6 +37,9 @@ flutter:
     - assets/store/buffalo-ghee.png
     - assets/store/cow-ghee.png
     - assets/store/paneer.png
+    - assets/store/milterra-tulsi-ghee.webp
+    - assets/store/milterra-brahmi-ghee.webp
+    - assets/store/milterra-ashwagandha-ghee.webp
     - assets/store/hero.png
     - assets/store/farm-pasture.jpg
     - assets/store/farm-bilona.jpg

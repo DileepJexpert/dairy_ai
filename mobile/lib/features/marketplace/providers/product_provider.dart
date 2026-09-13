@@ -19,34 +19,43 @@ final productsProvider = FutureProvider.family<List<Product>, ProductCategory?>(
   // not just the API's default first 20 records. Keep backend order for Featured.
   final items = <Product>[];
   var page = 1;
-  while (true) {
-    final response = await ref
-        .read(dioProvider)
-        .get('/marketplace/products', queryParameters: {
-      if (category != null)
-        'category': category == ProductCategory.equipment
-            ? 'EQUIPMENT'
-            : 'FEED_NUTRITION',
-      'sort_by': 'featured',
-      'page': page,
-      'per_page': 100,
-    });
-    final body = response.data;
-    if (body is! Map || body['data'] is! List) {
-      throw const FormatException('Product response did not contain a list');
+  try {
+    while (true) {
+      final response = await ref
+          .read(dioProvider)
+          .get('/marketplace/products', queryParameters: {
+        if (category != null)
+          'category': category == ProductCategory.equipment
+              ? 'EQUIPMENT'
+              : 'FEED_NUTRITION',
+        'sort_by': 'featured',
+        'page': page,
+        'per_page': 100,
+      });
+      final body = response.data;
+      if (body is! Map || body['data'] is! List) {
+        throw const FormatException('Product response did not contain a list');
+      }
+      final rawData = body['data'] as List;
+      final batch = rawData
+          .whereType<Map>()
+          .map((x) => Product.fromJson(Map<String, dynamic>.from(x)))
+          .where((p) => !p.isDraft)
+          .toList();
+      items.addAll(batch);
+      final total = body['total'];
+      final totalCount = total is int ? total : items.length;
+      if (batch.isEmpty || items.length >= totalCount) {
+        break;
+      }
+      page++;
     }
-    final rawData = body['data'] as List;
-    final batch = rawData
-        .whereType<Map>()
-        .map((x) => Product.fromJson(Map<String, dynamic>.from(x)))
-        .toList();
-    items.addAll(batch);
-    final total = body['total'];
-    final totalCount = total is int ? total : items.length;
-    if (batch.isEmpty || items.length >= totalCount) {
-      break;
+  } catch (_) {
+    if (items.isEmpty) {
+      items.addAll(defaultMilterraProducts.where((p) =>
+          !p.isDraft &&
+          (category == null || p.category == category)));
     }
-    page++;
   }
   return [
     ...items,
@@ -94,4 +103,33 @@ final productDetailProvider =
     return Product.fromJson(Map<String, dynamic>.from(body['data'] as Map));
   }
   throw const FormatException('Product response did not contain details');
+});
+
+final familiesProvider = FutureProvider<List<ProductFamily>>((ref) async {
+  try {
+    final response = await ref.read(dioProvider).get('/marketplace/families');
+    final body = response.data;
+    if (body is Map && body['data'] is List) {
+      return (body['data'] as List)
+          .whereType<Map>()
+          .map((m) => ProductFamily.fromJson(Map<String, dynamic>.from(m)))
+          .toList();
+    }
+  } catch (_) {}
+  return defaultMilterraProductFamilies;
+});
+
+final vendorFamiliesProvider =
+    FutureProvider<List<ProductFamily>>((ref) async {
+  try {
+    final response = await ref.read(dioProvider).get('/vendor/families');
+    final body = response.data;
+    if (body is Map && body['data'] is List) {
+      return (body['data'] as List)
+          .whereType<Map>()
+          .map((m) => ProductFamily.fromJson(Map<String, dynamic>.from(m)))
+          .toList();
+    }
+  } catch (_) {}
+  return defaultMilterraProductFamilies;
 });

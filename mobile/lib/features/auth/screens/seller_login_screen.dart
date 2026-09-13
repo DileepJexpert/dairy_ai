@@ -13,5 +13,6 @@ class SellerLoginScreen extends StatelessWidget {
         heading: 'Seller and vendor sign in',
         description:
             'Continue with the mobile number linked to your approved vendor profile.',
+        initialPhone: '9999900090',
       );
 }

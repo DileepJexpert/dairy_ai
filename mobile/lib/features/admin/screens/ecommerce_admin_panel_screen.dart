@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
 import '../../marketplace/models/marketplace_models.dart';
 import '../../marketplace/models/product_models.dart';
@@ -14,10 +15,12 @@ class EcommerceAdminPanelScreen extends ConsumerStatefulWidget {
   const EcommerceAdminPanelScreen({super.key});
 
   @override
-  ConsumerState<EcommerceAdminPanelScreen> createState() => _EcommerceAdminPanelScreenState();
+  ConsumerState<EcommerceAdminPanelScreen> createState() =>
+      _EcommerceAdminPanelScreenState();
 }
 
-class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelScreen>
+class _EcommerceAdminPanelScreenState
+    extends ConsumerState<EcommerceAdminPanelScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
@@ -36,6 +39,10 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
   @override
   Widget build(BuildContext context) {
     final adminState = ref.watch(adminMarketplaceProvider);
+    final adminUser = ref.watch(currentUserProvider);
+    final adminLabel = adminUser?.name?.trim().isNotEmpty == true
+        ? adminUser!.name!.trim()
+        : 'Administrator';
 
     return Scaffold(
       backgroundColor: const Color(0xfff4f6f8),
@@ -51,13 +58,54 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                 color: storeGreen,
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: const Text('ADMIN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.white)),
+              child: const Text('ADMIN',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white)),
             ),
             const SizedBox(width: 10),
-            const Text('Milterra Enterprise Ecommerce Control Panel', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('Milterra Enterprise Ecommerce Control Panel',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ],
         ),
         actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircleAvatar(
+                  radius: 16,
+                  backgroundColor: storeGreen,
+                  child:
+                      Icon(Icons.person_outline, color: Colors.white, size: 19),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      adminLabel,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      adminUser?.phone ?? '',
+                      style: const TextStyle(
+                        color: Color(0xff94a3b8),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
           IconButton(
             tooltip: 'View Customer Storefront',
             icon: const Icon(Icons.storefront_outlined),
@@ -71,7 +119,10 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
           IconButton(
             tooltip: 'Logout',
             icon: const Icon(Icons.logout),
-            onPressed: () => context.go('/admin/login'),
+            onPressed: () async {
+              await ref.read(authProvider.notifier).logout();
+              if (context.mounted) context.go('/admin/login');
+            },
           ),
         ],
         bottom: TabBar(
@@ -82,19 +133,45 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
           indicatorColor: const Color(0xffff9900),
           indicatorWeight: 3,
           tabs: const [
-            Tab(icon: Icon(Icons.inventory_2_outlined, size: 18), text: 'Products'),
-            Tab(icon: Icon(Icons.science_outlined, size: 18), text: 'Animal Nutrition'),
-            Tab(icon: Icon(Icons.shopping_cart_checkout_outlined, size: 18), text: 'Live Carts'),
-            Tab(icon: Icon(Icons.public_outlined, size: 18), text: 'Traffic & Geo'),
-            Tab(icon: Icon(Icons.ads_click_outlined, size: 18), text: 'User Clickstream'),
-            Tab(icon: Icon(Icons.local_shipping_outlined, size: 18), text: 'Shipments & Logistics'),
-            Tab(icon: Icon(Icons.verified_outlined, size: 18), text: 'Batch Certificates'),
-            Tab(icon: Icon(Icons.verified_user_outlined, size: 18), text: 'Sellers & KYC'),
-            Tab(icon: Icon(Icons.local_offer_outlined, size: 18), text: 'Seller Offers'),
-            Tab(icon: Icon(Icons.bolt_outlined, size: 18), text: 'Deals Engine'),
-            Tab(icon: Icon(Icons.confirmation_number_outlined, size: 18), text: 'Coupons'),
-            Tab(icon: Icon(Icons.warehouse_outlined, size: 18), text: 'Inventory'),
-            Tab(icon: Icon(Icons.history_edu_outlined, size: 18), text: 'Audit Trail'),
+            Tab(
+                icon: Icon(Icons.inventory_2_outlined, size: 18),
+                text: 'Products'),
+            Tab(
+                icon: Icon(Icons.science_outlined, size: 18),
+                text: 'Animal Nutrition'),
+            Tab(
+                icon: Icon(Icons.shopping_cart_checkout_outlined, size: 18),
+                text: 'Live Carts'),
+            Tab(
+                icon: Icon(Icons.public_outlined, size: 18),
+                text: 'Traffic & Geo'),
+            Tab(
+                icon: Icon(Icons.ads_click_outlined, size: 18),
+                text: 'User Clickstream'),
+            Tab(
+                icon: Icon(Icons.local_shipping_outlined, size: 18),
+                text: 'Shipments & Logistics'),
+            Tab(
+                icon: Icon(Icons.verified_outlined, size: 18),
+                text: 'Batch Certificates'),
+            Tab(
+                icon: Icon(Icons.verified_user_outlined, size: 18),
+                text: 'Sellers & KYC'),
+            Tab(
+                icon: Icon(Icons.local_offer_outlined, size: 18),
+                text: 'Seller Offers'),
+            Tab(
+                icon: Icon(Icons.bolt_outlined, size: 18),
+                text: 'Deals Engine'),
+            Tab(
+                icon: Icon(Icons.confirmation_number_outlined, size: 18),
+                text: 'Coupons'),
+            Tab(
+                icon: Icon(Icons.warehouse_outlined, size: 18),
+                text: 'Inventory'),
+            Tab(
+                icon: Icon(Icons.history_edu_outlined, size: 18),
+                text: 'Audit Trail'),
           ],
         ),
       ),
@@ -123,7 +200,8 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
   // TAB 1: Products & Catalog
   // ---------------------------------------------------------------------------
   Widget _buildProductsTab() {
-    final catalog = ref.watch(productsProvider(null)).valueOrNull ?? defaultMilterraProducts;
+    final catalog = ref.watch(productsProvider(null)).valueOrNull ??
+        defaultMilterraProducts;
     final customProducts = ref.watch(adminMarketplaceProvider).customProducts;
     final allProducts = [...customProducts, ...catalog];
 
@@ -137,7 +215,10 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
             children: [
               Text(
                 'Canonical Product Catalog (${allProducts.length} Items)',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: storeGreen),
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: storeGreen),
               ),
               FilledButton.icon(
                 style: FilledButton.styleFrom(backgroundColor: storeGreen),
@@ -149,7 +230,8 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
           ),
           const SizedBox(height: 16),
           Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -157,8 +239,13 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, i) {
                 final p = allProducts[i];
-                final isConcept = p.taxonomy?['concept'] == true;
-                final status = p.taxonomy?['status']?.toString() ?? (isConcept ? 'Concept Preview' : 'Active Commercial');
+                final isConcept = p.isConcept;
+                final status = isConcept
+                    ? 'Concept Preview'
+                    : p.taxonomy?['status']?.toString() ?? 'Active Commercial';
+                final pricing = isConcept
+                    ? 'Price not announced · Not for sale'
+                    : 'Base MRP: ${storeMoney(p.price)}';
 
                 return ListTile(
                   leading: SizedBox(
@@ -166,37 +253,50 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                     height: 48,
                     child: ProductArtwork(product: p),
                   ),
-                  title: Text(p.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  title: Text(p.title,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 14)),
                   subtitle: Text(
-                    'Category: ${storeCategory(p)} · ${p.packSize ?? p.unit} · Base MRP: ${storeMoney(p.price)}',
+                    'Category: ${storeCategory(p)} · ${p.packSize ?? p.unit} · $pricing',
                     style: const TextStyle(fontSize: 12, color: storeMuted),
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: isConcept ? const Color(0xffe8f5e9) : const Color(0xffe3f2fd),
+                          color: isConcept
+                              ? const Color(0xffe8f5e9)
+                              : const Color(0xffe3f2fd),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: isConcept ? storeGreen : const Color(0xff90caf9)),
+                          border: Border.all(
+                              color: isConcept
+                                  ? storeGreen
+                                  : const Color(0xff90caf9)),
                         ),
                         child: Text(
                           status,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: isConcept ? storeGreen : const Color(0xff1565c0),
+                            color: isConcept
+                                ? storeGreen
+                                : const Color(0xff1565c0),
                           ),
                         ),
                       ),
                       const SizedBox(width: 10),
                       IconButton(
-                        icon: const Icon(Icons.edit_outlined, size: 18, color: storeGreen),
+                        icon: const Icon(Icons.edit_outlined,
+                            size: 18, color: storeGreen),
                         tooltip: 'Edit Catalog Metadata',
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Editing metadata for ${p.title}')),
+                            SnackBar(
+                                content:
+                                    Text('Editing metadata for ${p.title}')),
                           );
                         },
                       ),
@@ -212,12 +312,14 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
   }
 
   void _showCreateProductDialog() {
-    final titleCtrl = TextEditingController(text: 'Milterra Single-Farm Cultured Cow Ghee');
-    final brandCtrl = TextEditingController(text: 'MILTERRA Pure');
+    final titleCtrl =
+        TextEditingController(text: 'Milterra Single-Farm Cultured Cow Ghee');
+    final brandCtrl = TextEditingController(text: 'MILTERRA');
     final priceCtrl = TextEditingController(text: '899');
     final stockCtrl = TextEditingController(text: '40');
     final descCtrl = TextEditingController(
-      text: 'Artisanal Vedic Bilona cultured cow ghee from our own Lucknow heritage pasture farm. Lab-certified 100% pure.',
+      text:
+          'Artisanal cultured cow ghee proposed for the Milterra dairy catalogue.',
     );
     String selectedSource = 'Single-Farm Lucknow Heritage';
     String selectedPackSize = '500 ml';
@@ -228,20 +330,27 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          scrollable: true,
+          insetPadding: const EdgeInsets.all(16),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           title: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: const Color(0xffdcfce7), borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.add_business_outlined, color: storeGreen, size: 22),
+                decoration: BoxDecoration(
+                    color: const Color(0xffdcfce7),
+                    borderRadius: BorderRadius.circular(8)),
+                child: const Icon(Icons.add_business_outlined,
+                    color: storeGreen, size: 22),
               ),
               const SizedBox(width: 10),
-              const Text('Add New Product to Storefront', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Text('Add New Product to Storefront',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ],
           ),
           content: SizedBox(
-            width: 500,
+            width: 720,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -257,80 +366,110 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: selectedCategory,
-                          decoration: const InputDecoration(labelText: 'Department', border: OutlineInputBorder(), isDense: true),
-                          items: const [
-                            DropdownMenuItem(value: 'Dairy Foods', child: Text('Dairy Foods')),
-                            DropdownMenuItem(value: 'Animal Nutrition', child: Text('Animal Nutrition')),
-                            DropdownMenuItem(value: 'Farm Machinery', child: Text('Farm Machinery')),
-                            DropdownMenuItem(value: 'MILTERRA Earth', child: Text('MILTERRA Earth')),
-                          ],
-                          onChanged: (v) => setDialogState(() => selectedCategory = v ?? 'Dairy Foods'),
-                        ),
+                  _responsiveDialogFields(
+                    [
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        initialValue: selectedCategory,
+                        decoration: const InputDecoration(
+                            labelText: 'Department',
+                            border: OutlineInputBorder(),
+                            isDense: true),
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'Dairy Foods', child: Text('Dairy Foods')),
+                          DropdownMenuItem(
+                              value: 'Animal Nutrition',
+                              child: Text('Animal Nutrition')),
+                          DropdownMenuItem(
+                              value: 'Farm Machinery',
+                              child: Text('Farm Machinery')),
+                          DropdownMenuItem(
+                              value: 'MILTERRA Earth',
+                              child: Text('MILTERRA Earth')),
+                        ],
+                        onChanged: (v) => setDialogState(
+                            () => selectedCategory = v ?? 'Dairy Foods'),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: selectedSource,
-                          decoration: const InputDecoration(labelText: 'Milk / Batch Type', border: OutlineInputBorder(), isDense: true),
-                          items: const [
-                            DropdownMenuItem(value: 'A2 Gir Cow Milk', child: Text('A2 Gir Cow (Cultured Ghee)')),
-                            DropdownMenuItem(value: 'Murrah Buffalo Milk', child: Text('Murrah Buffalo Ghee')),
-                            DropdownMenuItem(value: 'Single-Farm Lucknow Heritage', child: Text('Single-Farm Lucknow')),
-                            DropdownMenuItem(value: 'Full Moon Purnima Batch', child: Text('Full Moon Batch')),
-                            DropdownMenuItem(value: 'Herbal Infusion', child: Text('Herbal Infused Ghee')),
-                          ],
-                          onChanged: (v) => setDialogState(() => selectedSource = v ?? 'A2 Gir Cow Milk'),
-                        ),
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        initialValue: selectedSource,
+                        decoration: const InputDecoration(
+                            labelText: 'Milk / Batch Type',
+                            border: OutlineInputBorder(),
+                            isDense: true),
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'A2 Gir Cow Milk',
+                              child: Text('A2 Gir Cow (Cultured Ghee)')),
+                          DropdownMenuItem(
+                              value: 'Murrah Buffalo Milk',
+                              child: Text('Murrah Buffalo Ghee')),
+                          DropdownMenuItem(
+                              value: 'Single-Farm Lucknow Heritage',
+                              child: Text('Single-Farm Lucknow')),
+                          DropdownMenuItem(
+                              value: 'Full Moon Purnima Batch',
+                              child: Text('Full Moon Batch')),
+                          DropdownMenuItem(
+                              value: 'Herbal Infusion',
+                              child: Text('Herbal Infused Ghee')),
+                        ],
+                        onChanged: (v) => setDialogState(
+                            () => selectedSource = v ?? 'A2 Gir Cow Milk'),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: selectedPackSize,
-                          decoration: const InputDecoration(labelText: 'Pack Size / Volume', border: OutlineInputBorder(), isDense: true),
-                          items: const [
-                            DropdownMenuItem(value: '250 ml', child: Text('250 ml (Trial Glass Jar)')),
-                            DropdownMenuItem(value: '500 ml', child: Text('500 ml (Family Glass Jar)')),
-                            DropdownMenuItem(value: '1 litre', child: Text('1 Litre (Kitchen Jar)')),
-                            DropdownMenuItem(value: '5 litre', child: Text('5 Litres (Heritage Tin)')),
-                            DropdownMenuItem(value: '200 g', child: Text('200 g Block')),
-                            DropdownMenuItem(value: '500 g', child: Text('500 g Block')),
-                            DropdownMenuItem(value: '1 kg', child: Text('1 kg Pack')),
-                          ],
-                          onChanged: (v) => setDialogState(() => selectedPackSize = v ?? '500 ml'),
+                  _responsiveDialogFields(
+                    [
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        initialValue: selectedPackSize,
+                        decoration: const InputDecoration(
+                            labelText: 'Pack Size / Volume',
+                            border: OutlineInputBorder(),
+                            isDense: true),
+                        items: const [
+                          DropdownMenuItem(
+                              value: '250 ml',
+                              child: Text('250 ml (Trial Glass Jar)')),
+                          DropdownMenuItem(
+                              value: '500 ml',
+                              child: Text('500 ml (Family Glass Jar)')),
+                          DropdownMenuItem(
+                              value: '1 litre',
+                              child: Text('1 Litre (Kitchen Jar)')),
+                          DropdownMenuItem(
+                              value: '5 litre',
+                              child: Text('5 Litres (Heritage Tin)')),
+                          DropdownMenuItem(
+                              value: '200 g', child: Text('200 g Block')),
+                          DropdownMenuItem(
+                              value: '500 g', child: Text('500 g Block')),
+                          DropdownMenuItem(
+                              value: '1 kg', child: Text('1 kg Pack')),
+                        ],
+                        onChanged: (v) => setDialogState(
+                            () => selectedPackSize = v ?? '500 ml'),
+                      ),
+                      TextField(
+                        controller: priceCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Selling Price (₹)',
+                          prefixText: '₹ ',
+                          border: OutlineInputBorder(),
+                          isDense: true,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: priceCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Selling Price (₹)',
-                            prefixText: '₹ ',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: stockCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Warehouse Stock',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
+                      TextField(
+                        controller: stockCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Warehouse Stock',
+                          border: OutlineInputBorder(),
+                          isDense: true,
                         ),
                       ),
                     ],
@@ -341,7 +480,8 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                     maxLines: 2,
                     decoration: const InputDecoration(
                       labelText: 'Product Story & Description',
-                      hintText: 'Describe origin, bilona churn method, farm traceability...',
+                      hintText:
+                          'Describe origin, bilona churn method, farm traceability...',
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
@@ -352,12 +492,16 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                       Checkbox(
                         value: isActiveCommercial,
                         activeColor: storeGreen,
-                        onChanged: (v) => setDialogState(() => isActiveCommercial = v ?? true),
+                        onChanged: (v) => setDialogState(
+                            () => isActiveCommercial = v ?? true),
                       ),
                       const Expanded(
                         child: Text(
                           'Publish as Active Commercial Product (Immediately available for purchase)',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xff334155)),
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xff334155)),
                         ),
                       ),
                     ],
@@ -367,14 +511,19 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
             FilledButton.icon(
               style: FilledButton.styleFrom(backgroundColor: storeGreen),
               icon: const Icon(Icons.check, size: 16),
               label: const Text('Publish Product to Website'),
               onPressed: () {
-                final price = double.tryParse(priceCtrl.text.trim()) ?? 499.0;
-                final stock = int.tryParse(stockCtrl.text.trim()) ?? 25;
+                final enteredPrice =
+                    double.tryParse(priceCtrl.text.trim()) ?? 0.0;
+                final enteredStock = int.tryParse(stockCtrl.text.trim()) ?? 0;
+                final price = isActiveCommercial ? enteredPrice : 0.0;
+                final stock = isActiveCommercial ? enteredStock : 0;
                 final newProd = Product(
                   id: 'prod-${DateTime.now().millisecondsSinceEpoch}',
                   vendorId: 'vendor-milterra-direct',
@@ -388,7 +537,9 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                   taxonomy: {
                     'department_name': selectedCategory,
                     'category_name': selectedSource,
-                    'status': isActiveCommercial ? 'Active Commercial' : 'Concept Preview',
+                    'status': isActiveCommercial
+                        ? 'Active Commercial'
+                        : 'Concept Preview',
                     'concept': !isActiveCommercial,
                   },
                   inStock: stock > 0,
@@ -398,17 +549,19 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                     'Milk Source': selectedSource,
                     'Process': 'Vedic Bilona Churned',
                     'Pack Size': selectedPackSize,
-                    'Purity Tested': '99.4% Verified',
                     'Diet Type': 'Vegetarian',
                   },
                 );
 
-                ref.read(adminMarketplaceProvider.notifier).addCustomProduct(newProd);
+                ref
+                    .read(adminMarketplaceProvider.notifier)
+                    .addCustomProduct(newProd);
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     backgroundColor: storeGreen,
-                    content: Text('Product "${newProd.title}" successfully added to website catalog!'),
+                    content: Text(
+                        'Product "${newProd.title}" successfully added to website catalog!'),
                   ),
                 );
               },
@@ -419,30 +572,77 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
     );
   }
 
+  Widget _responsiveDialogFields(List<Widget> fields) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 640) {
+          return Column(
+            children: [
+              for (var index = 0; index < fields.length; index++) ...[
+                fields[index],
+                if (index < fields.length - 1) const SizedBox(height: 12),
+              ],
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var index = 0; index < fields.length; index++) ...[
+              Expanded(child: fields[index]),
+              if (index < fields.length - 1) const SizedBox(width: 12),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
   void _showAddNutritionConceptDialog() {
-    final titleCtrl = TextEditingController(text: 'MILTERRA RUMI-PRO High-Energy Rumen Bypass Fat');
+    final titleCtrl =
+        TextEditingController(text: 'MILTERRA RUMEN-PRO Rumen Support Concept');
     final subcatCtrl = TextEditingController(text: 'Bypass Nutrients');
-    final taglineCtrl = TextEditingController(text: 'Increases Peak Lactation Yield by 1.8 Litres/Day');
+    final descriptionCtrl = TextEditingController();
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
+        insetPadding: const EdgeInsets.all(16),
         title: const Text('Add Nutrition Concept Formulation'),
         content: SizedBox(
-          width: 440,
+          width: 600,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Formulation Title', border: OutlineInputBorder())),
+              TextField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Formulation Title',
+                      border: OutlineInputBorder())),
               const SizedBox(height: 10),
-              TextField(controller: subcatCtrl, decoration: const InputDecoration(labelText: 'Nutritional Subcategory', border: OutlineInputBorder())),
+              TextField(
+                  controller: subcatCtrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Nutritional Subcategory',
+                      border: OutlineInputBorder())),
               const SizedBox(height: 10),
-              TextField(controller: taglineCtrl, decoration: const InputDecoration(labelText: 'Formulation Tagline & Bio-availability', border: OutlineInputBorder())),
+              TextField(
+                controller: descriptionCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Concept purpose',
+                  hintText:
+                      'Describe the proposed purpose without unverified performance claims',
+                  border: OutlineInputBorder(),
+                ),
+              ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: storeGreen),
             onPressed: () {
@@ -450,7 +650,8 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   backgroundColor: storeGreen,
-                  content: Text('Nutrition concept "${titleCtrl.text}" staged for farmer survey!'),
+                  content: Text(
+                      'Nutrition concept "${titleCtrl.text}" registered as a concept preview.'),
                 ),
               );
             },
@@ -460,6 +661,7 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
       ),
     );
   }
+
   // TAB 2: Animal Nutrition Hub
   // ---------------------------------------------------------------------------
   Widget _buildAnimalNutritionTab() {
@@ -476,10 +678,13 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                 children: [
                   Text(
                     'MILTERRA CATTLE NUTRITION SOLUTIONS',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: storeGreen),
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: storeGreen),
                   ),
                   Text(
-                    'Virtual catalogue, formulation lifecycle staging, farmer trial cohort validation.',
+                    'Concept catalogue and formulation lifecycle management.',
                     style: TextStyle(fontSize: 12, color: storeMuted),
                   ),
                 ],
@@ -504,23 +709,38 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
             ),
             child: Row(
               children: [
-                _stagePill('1. Concept Preview', 'Virtual formulation showcase', const Color(0xffe8f5e9), storeGreen),
+                _stagePill('1. Concept Preview', 'Proposed formulation',
+                    const Color(0xffe8f5e9), storeGreen),
                 const Icon(Icons.arrow_forward, size: 16, color: storeMuted),
-                _stagePill('2. Farmer Feedback Open', 'Field survey collection', const Color(0xfffff8e1), storeAmberDark),
+                _stagePill(
+                    '2. Feedback Registration',
+                    'Register interest and feedback',
+                    const Color(0xfffff8e1),
+                    storeAmberDark),
                 const Icon(Icons.arrow_forward, size: 16, color: storeMuted),
-                _stagePill('3. In Development', 'Pilot batch farmer trials', const Color(0xffe0f2f1), const Color(0xff00695c)),
+                _stagePill(
+                    '3. Validation',
+                    'Requires recorded validation evidence',
+                    const Color(0xffe0f2f1),
+                    const Color(0xff00695c)),
                 const Icon(Icons.arrow_forward, size: 16, color: storeMuted),
-                _stagePill('4. Commercial Launch', 'Full cart & checkout unlock', const Color(0xffe3f2fd), const Color(0xff1565c0)),
+                _stagePill(
+                    '4. Commercial Launch',
+                    'Full cart & checkout unlock',
+                    const Color(0xffe3f2fd),
+                    const Color(0xff1565c0)),
               ],
             ),
           ),
           const SizedBox(height: 20),
 
           // Active Nutrition Concepts Table
-          const Text('Active Nutrition Formulations & Stages', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+          const Text('Active Nutrition Formulations & Stages',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
           Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             child: ListView(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -529,27 +749,21 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                   title: 'MILTERRA Mineral Supplement (Minera-360 Concentrate)',
                   subcategory: 'Supplements',
                   stage: 'Concept Preview',
-                  tagline: 'Natural Nutrition for Healthy Livestock',
-                  feedbackCount: 38,
-                  trialSignups: 92,
+                  tagline: Product.conceptExplanation,
                 ),
                 const Divider(height: 1),
                 _nutritionConceptRow(
                   title: 'JANAM·42 Calving & Transition Course',
                   subcategory: 'Stage-Based Nutrition Courses',
-                  stage: 'Farmer Feedback Open',
-                  tagline: '42-Day Scientific Transition Nutrition Kit',
-                  feedbackCount: 54,
-                  trialSignups: 140,
+                  stage: 'Concept Preview',
+                  tagline: Product.conceptExplanation,
                 ),
                 const Divider(height: 1),
                 _nutritionConceptRow(
                   title: 'Bovine Gold Balanced Cattle Feed (50kg Pellets)',
                   subcategory: 'Pashu Aahar / Cattle Feed',
-                  stage: 'In Development',
-                  tagline: 'High Protein & Energy Balanced Ration',
-                  feedbackCount: 88,
-                  trialSignups: 210,
+                  stage: 'Concept Preview',
+                  tagline: Product.conceptExplanation,
                 ),
               ],
             ),
@@ -559,7 +773,8 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
     );
   }
 
-  Widget _stagePill(String title, String desc, Color bg, Color text) => Expanded(
+  Widget _stagePill(String title, String desc, Color bg, Color text) =>
+      Expanded(
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 4),
           padding: const EdgeInsets.all(10),
@@ -570,9 +785,12 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: text)),
+              Text(title,
+                  style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.bold, color: text)),
               const SizedBox(height: 2),
-              Text(desc, style: const TextStyle(fontSize: 10, color: storeMuted)),
+              Text(desc,
+                  style: const TextStyle(fontSize: 10, color: storeMuted)),
             ],
           ),
         ),
@@ -583,8 +801,6 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
     required String subcategory,
     required String stage,
     required String tagline,
-    required int feedbackCount,
-    required int trialSignups,
   }) {
     return ListTile(
       leading: Container(
@@ -595,8 +811,10 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
         ),
         child: const Icon(Icons.science_outlined, color: storeGreen),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-      subtitle: Text('Subcategory: $subcategory · "$tagline"', style: const TextStyle(fontSize: 11, color: storeMuted)),
+      title: Text(title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+      subtitle: Text('Subcategory: $subcategory · "$tagline"',
+          style: const TextStyle(fontSize: 11, color: storeMuted)),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -607,10 +825,12 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
               borderRadius: BorderRadius.circular(4),
               border: Border.all(color: storeGreen),
             ),
-            child: Text(stage, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: storeGreen)),
+            child: Text(stage,
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: storeGreen)),
           ),
-          const SizedBox(width: 12),
-          Text('$feedbackCount Feedback\n$trialSignups Trials', textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: storeDarkGreenNav)),
         ],
       ),
     );
@@ -627,11 +847,13 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
         children: [
           Text(
             'Seller Accounts & KYC Moderation (${state.sellers.length} Registered)',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: storeGreen),
+            style: const TextStyle(
+                fontSize: 18, fontWeight: FontWeight.bold, color: storeGreen),
           ),
           const SizedBox(height: 16),
           Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -643,22 +865,35 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                 final isApproved = s.status == SellerStatus.approved;
 
                 return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   leading: CircleAvatar(
                     backgroundColor: isApproved ? storeGreen : storeAmber,
-                    child: Text(s.businessName.substring(0, 1), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: Text(s.businessName.substring(0, 1),
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                   title: Row(
                     children: [
-                      Text(s.businessName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text(s.businessName,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14)),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: isApproved ? const Color(0xffe8f5e9) : const Color(0xfffff8e1),
+                          color: isApproved
+                              ? const Color(0xffe8f5e9)
+                              : const Color(0xfffff8e1),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: Text(s.status.name.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isApproved ? storeGreen : storeAmberDark)),
+                        child: Text(s.status.name.toUpperCase(),
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color:
+                                    isApproved ? storeGreen : storeAmberDark)),
                       ),
                     ],
                   ),
@@ -671,17 +906,29 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                     children: [
                       if (isPending) ...[
                         FilledButton(
-                          style: FilledButton.styleFrom(backgroundColor: storeGreen, minimumSize: const Size(80, 32)),
-                          onPressed: () => ref.read(adminMarketplaceProvider.notifier).approveSeller(s.id),
-                          child: const Text('Approve KYC', style: TextStyle(fontSize: 11)),
+                          style: FilledButton.styleFrom(
+                              backgroundColor: storeGreen,
+                              minimumSize: const Size(80, 32)),
+                          onPressed: () => ref
+                              .read(adminMarketplaceProvider.notifier)
+                              .approveSeller(s.id),
+                          child: const Text('Approve KYC',
+                              style: TextStyle(fontSize: 11)),
                         ),
                         const SizedBox(width: 8),
                       ],
                       if (isApproved) ...[
                         OutlinedButton(
-                          style: OutlinedButton.styleFrom(minimumSize: const Size(80, 32), side: const BorderSide(color: storeError)),
-                          onPressed: () => ref.read(adminMarketplaceProvider.notifier).suspendSeller(s.id, 'Quality standard violation'),
-                          child: const Text('Suspend', style: TextStyle(fontSize: 11, color: storeError)),
+                          style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(80, 32),
+                              side: const BorderSide(color: storeError)),
+                          onPressed: () => ref
+                              .read(adminMarketplaceProvider.notifier)
+                              .suspendSeller(
+                                  s.id, 'Quality standard violation'),
+                          child: const Text('Suspend',
+                              style:
+                                  TextStyle(fontSize: 11, color: storeError)),
                         ),
                       ],
                     ],
@@ -704,12 +951,19 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Marketplace Seller SKU Offers', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: storeGreen)),
+          const Text('Marketplace Seller SKU Offers',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: storeGreen)),
           const SizedBox(height: 6),
-          const Text('Compare prices and inventory across sellers for the same canonical catalog SKU.', style: TextStyle(fontSize: 12, color: storeMuted)),
+          const Text(
+              'Compare prices and inventory across sellers for the same canonical catalog SKU.',
+              style: TextStyle(fontSize: 12, color: storeMuted)),
           const SizedBox(height: 16),
           Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -724,13 +978,22 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                   ),
                   title: Row(
                     children: [
-                      Text('${o.sellerName} · SKU: ${o.sellerSku}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      Text('${o.sellerName} · SKU: ${o.sellerSku}',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 13)),
                       if (o.isBuyBoxWinner) ...[
                         const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: const Color(0xff232f3e), borderRadius: BorderRadius.circular(4)),
-                          child: const Text('BUY BOX WINNER', style: TextStyle(fontSize: 9, color: Color(0xffff9900), fontWeight: FontWeight.bold)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                              color: const Color(0xff232f3e),
+                              borderRadius: BorderRadius.circular(4)),
+                          child: const Text('BUY BOX WINNER',
+                              style: TextStyle(
+                                  fontSize: 9,
+                                  color: Color(0xffff9900),
+                                  fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ],
@@ -743,12 +1006,14 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.price_change_outlined, size: 18, color: storeGreen),
+                        icon: const Icon(Icons.price_change_outlined,
+                            size: 18, color: storeGreen),
                         tooltip: 'Adjust Offer Price',
                         onPressed: () => _showEditOfferPriceDialog(o),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.inventory_outlined, size: 18, color: storeAmberDark),
+                        icon: const Icon(Icons.inventory_outlined,
+                            size: 18, color: storeAmberDark),
                         tooltip: 'Adjust Stock Level',
                         onPressed: () => _showEditOfferStockDialog(o),
                       ),
@@ -775,7 +1040,11 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Active Promotions & Lightning Deals', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: storeGreen)),
+              const Text('Active Promotions & Lightning Deals',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: storeGreen)),
               FilledButton.icon(
                 style: FilledButton.styleFrom(backgroundColor: storeGreen),
                 icon: const Icon(Icons.add, size: 18),
@@ -788,7 +1057,8 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
           for (final d in state.deals) ...[
             Card(
               margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
@@ -799,27 +1069,40 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                         color: const Color(0xfffff3e0),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.bolt, color: storeOrange, size: 24),
+                      child:
+                          const Icon(Icons.bolt, color: storeOrange, size: 24),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(d.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text(d.title,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14)),
                           const SizedBox(height: 4),
                           Text(
                             'Deal Price: ${storeMoney(d.dealPrice)} (MRP ${storeMoney(d.mrp)} · -${d.discountPercent.toStringAsFixed(0)}%)',
-                            style: const TextStyle(fontSize: 12, color: storeMuted),
+                            style: const TextStyle(
+                                fontSize: 12, color: storeMuted),
                           ),
-                          Text('Runs until: ${d.endTime.toLocal()}', style: const TextStyle(fontSize: 11, color: storeGreen)),
+                          Text('Runs until: ${d.endTime.toLocal()}',
+                              style: const TextStyle(
+                                  fontSize: 11, color: storeGreen)),
                         ],
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: const Color(0xffe8f5e9), borderRadius: BorderRadius.circular(12)),
-                      child: const Text('ACTIVE LIVE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: storeGreen)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                          color: const Color(0xffe8f5e9),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: const Text('ACTIVE LIVE',
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: storeGreen)),
                     ),
                   ],
                 ),
@@ -843,7 +1126,11 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Platform Coupons & Discount Rules', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: storeGreen)),
+              const Text('Platform Coupons & Discount Rules',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: storeGreen)),
               FilledButton.icon(
                 style: FilledButton.styleFrom(backgroundColor: storeGreen),
                 icon: const Icon(Icons.add, size: 18),
@@ -856,16 +1143,30 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
           for (final c in state.coupons) ...[
             Card(
               margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
               child: ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: storeSage, borderRadius: BorderRadius.circular(8)),
-                  child: const Icon(Icons.confirmation_number_outlined, color: storeGreen),
+                  decoration: BoxDecoration(
+                      color: storeSage, borderRadius: BorderRadius.circular(8)),
+                  child: const Icon(Icons.confirmation_number_outlined,
+                      color: storeGreen),
                 ),
-                title: Text(c.code, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: 1.0, color: storeGreen)),
-                subtitle: Text('${c.description} · Min Order: ${storeMoney(c.minOrderValue)} · Redemptions: ${c.usageCount}', style: const TextStyle(fontSize: 12, color: storeMuted)),
-                trailing: const Text('ACTIVE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: storeGreen)),
+                title: Text(c.code,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                        letterSpacing: 1.0,
+                        color: storeGreen)),
+                subtitle: Text(
+                    '${c.description} · Min Order: ${storeMoney(c.minOrderValue)} · Redemptions: ${c.usageCount}',
+                    style: const TextStyle(fontSize: 12, color: storeMuted)),
+                trailing: const Text('ACTIVE',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: storeGreen)),
               ),
             ),
           ],
@@ -883,10 +1184,15 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Warehouse Stock & Reorder Levels', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: storeGreen)),
+          const Text('Warehouse Stock & Reorder Levels',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: storeGreen)),
           const SizedBox(height: 16),
           Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -897,18 +1203,29 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                 final isLow = o.availableStock <= o.lowStockThreshold;
 
                 return ListTile(
-                  leading: Icon(Icons.inventory, color: isLow ? storeError : storeGreen),
-                  title: Text('${o.sellerSku} (${o.sellerName})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  subtitle: Text('Available: ${o.availableStock} units · Threshold: ${o.lowStockThreshold} units', style: const TextStyle(fontSize: 12, color: storeMuted)),
+                  leading: Icon(Icons.inventory,
+                      color: isLow ? storeError : storeGreen),
+                  title: Text('${o.sellerSku} (${o.sellerName})',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13)),
+                  subtitle: Text(
+                      'Available: ${o.availableStock} units · Threshold: ${o.lowStockThreshold} units',
+                      style: const TextStyle(fontSize: 12, color: storeMuted)),
                   trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isLow ? const Color(0xffffebee) : const Color(0xffe8f5e9),
+                      color: isLow
+                          ? const Color(0xffffebee)
+                          : const Color(0xffe8f5e9),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       isLow ? 'LOW STOCK ALERT' : 'HEALTHY STOCK',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isLow ? storeError : storeGreen),
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: isLow ? storeError : storeGreen),
                     ),
                   ),
                 );
@@ -929,12 +1246,19 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Immutable Marketplace Audit Trail', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: storeGreen)),
+          const Text('Immutable Marketplace Audit Trail',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: storeGreen)),
           const SizedBox(height: 6),
-          const Text('Tracks who modified prices, inventory, seller approvals, or promotions.', style: TextStyle(fontSize: 12, color: storeMuted)),
+          const Text(
+              'Tracks who modified prices, inventory, seller approvals, or promotions.',
+              style: TextStyle(fontSize: 12, color: storeMuted)),
           const SizedBox(height: 16),
           Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -944,8 +1268,14 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                 final log = state.auditLogs[i];
                 return ListTile(
                   leading: const Icon(Icons.shield_outlined, color: storeGreen),
-                  title: Text('${log.action.name.toUpperCase()} on ${log.entityType}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  subtitle: Text('${log.details}\nBy ${log.userIdentifier} (${log.userRole}) · ${log.timestamp}', style: const TextStyle(fontSize: 11, color: storeMuted, height: 1.3)),
+                  title: Text(
+                      '${log.action.name.toUpperCase()} on ${log.entityType}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13)),
+                  subtitle: Text(
+                      '${log.details}\nBy ${log.userIdentifier} (${log.userRole}) · ${log.timestamp}',
+                      style: const TextStyle(
+                          fontSize: 11, color: storeMuted, height: 1.3)),
                 );
               },
             ),
@@ -959,9 +1289,9 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
   // Dialog Helpers
   // ---------------------------------------------------------------------------
 
-
   void _showEditOfferPriceDialog(SellerOffer o) {
-    final priceCtrl = TextEditingController(text: o.sellingPrice.toStringAsFixed(0));
+    final priceCtrl =
+        TextEditingController(text: o.sellingPrice.toStringAsFixed(0));
     final mrpCtrl = TextEditingController(text: o.mrp.toStringAsFixed(0));
 
     showDialog(
@@ -971,19 +1301,29 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: priceCtrl, decoration: const InputDecoration(labelText: 'Selling Price (₹)', border: OutlineInputBorder())),
+            TextField(
+                controller: priceCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Selling Price (₹)',
+                    border: OutlineInputBorder())),
             const SizedBox(height: 12),
-            TextField(controller: mrpCtrl, decoration: const InputDecoration(labelText: 'MRP (₹)', border: OutlineInputBorder())),
+            TextField(
+                controller: mrpCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'MRP (₹)', border: OutlineInputBorder())),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: storeGreen),
             onPressed: () {
               final np = double.tryParse(priceCtrl.text) ?? o.sellingPrice;
               final nm = double.tryParse(mrpCtrl.text) ?? o.mrp;
-              ref.read(adminMarketplaceProvider.notifier).updateOfferPrice(o.id, np, nm);
+              ref
+                  .read(adminMarketplaceProvider.notifier)
+                  .updateOfferPrice(o.id, np, nm);
               Navigator.pop(ctx);
             },
             child: const Text('Update Price'),
@@ -1000,14 +1340,21 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Update Stock for ${o.sellerSku}'),
-        content: TextField(controller: stockCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Available Units', border: OutlineInputBorder())),
+        content: TextField(
+            controller: stockCtrl,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+                labelText: 'Available Units', border: OutlineInputBorder())),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: storeGreen),
             onPressed: () {
               final ns = int.tryParse(stockCtrl.text) ?? o.availableStock;
-              ref.read(adminMarketplaceProvider.notifier).updateOfferStock(o.id, ns);
+              ref
+                  .read(adminMarketplaceProvider.notifier)
+                  .updateOfferStock(o.id, ns);
               Navigator.pop(ctx);
             },
             child: const Text('Save Stock'),
@@ -1029,19 +1376,33 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Deal Title', border: OutlineInputBorder())),
+            TextField(
+                controller: titleCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Deal Title', border: OutlineInputBorder())),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: TextField(controller: dealPriceCtrl, decoration: const InputDecoration(labelText: 'Deal Price (₹)', border: OutlineInputBorder()))),
+                Expanded(
+                    child: TextField(
+                        controller: dealPriceCtrl,
+                        decoration: const InputDecoration(
+                            labelText: 'Deal Price (₹)',
+                            border: OutlineInputBorder()))),
                 const SizedBox(width: 12),
-                Expanded(child: TextField(controller: mrpCtrl, decoration: const InputDecoration(labelText: 'MRP (₹)', border: OutlineInputBorder()))),
+                Expanded(
+                    child: TextField(
+                        controller: mrpCtrl,
+                        decoration: const InputDecoration(
+                            labelText: 'MRP (₹)',
+                            border: OutlineInputBorder()))),
               ],
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: storeGreen),
             onPressed: () {
@@ -1083,26 +1444,42 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: codeCtrl, decoration: const InputDecoration(labelText: 'Coupon Code (UPPERCASE)', border: OutlineInputBorder())),
+            TextField(
+                controller: codeCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Coupon Code (UPPERCASE)',
+                    border: OutlineInputBorder())),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: TextField(controller: discCtrl, decoration: const InputDecoration(labelText: 'Discount %', border: OutlineInputBorder()))),
+                Expanded(
+                    child: TextField(
+                        controller: discCtrl,
+                        decoration: const InputDecoration(
+                            labelText: 'Discount %',
+                            border: OutlineInputBorder()))),
                 const SizedBox(width: 12),
-                Expanded(child: TextField(controller: minCtrl, decoration: const InputDecoration(labelText: 'Min Order (₹)', border: OutlineInputBorder()))),
+                Expanded(
+                    child: TextField(
+                        controller: minCtrl,
+                        decoration: const InputDecoration(
+                            labelText: 'Min Order (₹)',
+                            border: OutlineInputBorder()))),
               ],
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: storeGreen),
             onPressed: () {
               final coupon = PlatformCoupon(
                 id: 'cpn-${DateTime.now().millisecondsSinceEpoch}',
                 code: codeCtrl.text.trim().toUpperCase(),
-                description: '${discCtrl.text}% instant savings on orders above ₹${minCtrl.text}',
+                description:
+                    '${discCtrl.text}% instant savings on orders above ₹${minCtrl.text}',
                 discountValue: double.tryParse(discCtrl.text) ?? 10.0,
                 minOrderValue: double.tryParse(minCtrl.text) ?? 500.0,
                 validUntil: DateTime.now().add(const Duration(days: 30)),
@@ -1122,8 +1499,14 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
   // ---------------------------------------------------------------------------
   Widget _buildShipmentsTab() {
     final allOrders = ref.watch(ordersNotifierProvider);
-    final pendingCount = allOrders.where((o) => !o.status.toUpperCase().contains('DELIVERED') && !o.status.toUpperCase().contains('CANCEL')).length;
-    final deliveredCount = allOrders.where((o) => o.status.toUpperCase().contains('DELIVERED')).length;
+    final pendingCount = allOrders
+        .where((o) =>
+            !o.status.toUpperCase().contains('DELIVERED') &&
+            !o.status.toUpperCase().contains('CANCEL'))
+        .length;
+    final deliveredCount = allOrders
+        .where((o) => o.status.toUpperCase().contains('DELIVERED'))
+        .length;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -1138,7 +1521,10 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                 children: [
                   const Text(
                     'Global Shipments & Logistics Fulfillment',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: storeGreen),
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: storeGreen),
                   ),
                   Text(
                     'Total Orders: ${allOrders.length} | Active Shipments: $pendingCount | Completed: $deliveredCount',
@@ -1156,7 +1542,8 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
           ),
           const SizedBox(height: 16),
           Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -1164,14 +1551,18 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, i) {
                 final order = allOrders[i];
-                final isDelivered = order.status.toUpperCase().contains('DELIVERED');
+                final isDelivered =
+                    order.status.toUpperCase().contains('DELIVERED');
 
                 return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   leading: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: isDelivered ? const Color(0xffe8f5e9) : const Color(0xffe0f2fe),
+                      color: isDelivered
+                          ? const Color(0xffe8f5e9)
+                          : const Color(0xffe0f2fe),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
@@ -1184,13 +1575,17 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                     children: [
                       Text(
                         '# ${order.id}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: isDelivered ? const Color(0xffdcfce7) : const Color(0xfffef3c7),
+                          color: isDelivered
+                              ? const Color(0xffdcfce7)
+                              : const Color(0xfffef3c7),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -1198,14 +1593,19 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
-                            color: isDelivered ? const Color(0xff15803d) : const Color(0xffb45309),
+                            color: isDelivered
+                                ? const Color(0xff15803d)
+                                : const Color(0xffb45309),
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         '• ${order.carrier}',
-                        style: const TextStyle(fontSize: 11, color: storeMuted, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                            fontSize: 11,
+                            color: storeMuted,
+                            fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
@@ -1213,7 +1613,8 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       'Buyer: ${order.address['recipient_name']} (${order.address['city']}) • Items: ${order.items.length} • Total: ${storeMoney(order.total)} • AWB: ${order.trackingNumber}',
-                      style: const TextStyle(fontSize: 12, color: Color(0xff475569)),
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xff475569)),
                     ),
                   ),
                   trailing: Row(
@@ -1221,19 +1622,25 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                     children: [
                       OutlinedButton(
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
                           side: const BorderSide(color: storeBorder),
                         ),
                         onPressed: () {
-                          ref.read(ordersNotifierProvider.notifier).simulateCourierStep(order.id);
+                          ref
+                              .read(ordersNotifierProvider.notifier)
+                              .simulateCourierStep(order.id);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               backgroundColor: storeGreen,
-                              content: Text('Simulated next fulfillment checkpoint for #${order.id}!'),
+                              content: Text(
+                                  'Simulated next fulfillment checkpoint for #${order.id}!'),
                             ),
                           );
                         },
-                        child: const Text('Advance Milestone', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        child: const Text('Advance Milestone',
+                            style: TextStyle(
+                                fontSize: 11, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
@@ -1265,7 +1672,10 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                 children: [
                   const Text(
                     'Batch Quality & Lab Test Certificates',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: storeGreen),
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: storeGreen),
                   ),
                   Text(
                     'FSSAI, Agmark & Soil Analysis verified batches (${certificates.length} Total)',
@@ -1316,7 +1726,8 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: const Color(0xffdcfce7),
                             borderRadius: BorderRadius.circular(4),
@@ -1324,29 +1735,42 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.verified, size: 13, color: Color(0xff166534)),
+                              const Icon(Icons.verified,
+                                  size: 13, color: Color(0xff166534)),
                               const SizedBox(width: 4),
                               Text(
                                 cert.status,
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Color(0xff166534)),
+                                style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xff166534)),
                               ),
                             ],
                           ),
                         ),
                         Text(
                           'Purity: ${cert.purityPercent}%',
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: storeGreen),
+                          style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                              color: storeGreen),
                         ),
                       ],
                     ),
                     const SizedBox(height: 10),
                     Text(
                       'BATCH #${cert.batchNumber}',
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: storeGreen),
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          color: storeGreen),
                     ),
                     Text(
                       cert.productTitle,
-                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xff1e293b)),
+                      style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xff1e293b)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1368,11 +1792,15 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                       children: [
                         Text(
                           'Signatory: ${cert.certifiedBy.split('(').first.trim()}',
-                          style: const TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: Color(0xff64748b)),
+                          style: const TextStyle(
+                              fontSize: 10.5,
+                              fontStyle: FontStyle.italic,
+                              color: Color(0xff64748b)),
                         ),
                         FilledButton.tonal(
                           onPressed: () => _showCertificateDetailsDialog(cert),
-                          child: const Text('View Report', style: TextStyle(fontSize: 11)),
+                          child: const Text('View Report',
+                              style: TextStyle(fontSize: 11)),
                         ),
                       ],
                     ),
@@ -1388,9 +1816,11 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
 
   void _showCreateCertificateDialog() {
     final batchCtrl = TextEditingController(text: 'MIL-GH-2026-10A');
-    final productCtrl = TextEditingController(text: 'Milterra Pure A2 Gir Cow Bilona Ghee (1L)');
+    final productCtrl = TextEditingController(
+        text: 'Milterra Pure A2 Gir Cow Bilona Ghee (1L)');
     final purityCtrl = TextEditingController(text: '99.6');
-    final labCtrl = TextEditingController(text: 'National Dairy Research & Quality Laboratory, Karnal');
+    final labCtrl = TextEditingController(
+        text: 'National Dairy Research & Quality Laboratory, Karnal');
     final fssaiCtrl = TextEditingController(text: '10722001000456');
 
     showDialog(
@@ -1402,24 +1832,46 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: batchCtrl, decoration: const InputDecoration(labelText: 'Batch Number', border: OutlineInputBorder())),
+              TextField(
+                  controller: batchCtrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Batch Number', border: OutlineInputBorder())),
               const SizedBox(height: 10),
-              TextField(controller: productCtrl, decoration: const InputDecoration(labelText: 'Product Title', border: OutlineInputBorder())),
+              TextField(
+                  controller: productCtrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Product Title',
+                      border: OutlineInputBorder())),
               const SizedBox(height: 10),
               Row(
                 children: [
-                  Expanded(child: TextField(controller: purityCtrl, decoration: const InputDecoration(labelText: 'Purity %', border: OutlineInputBorder()))),
+                  Expanded(
+                      child: TextField(
+                          controller: purityCtrl,
+                          decoration: const InputDecoration(
+                              labelText: 'Purity %',
+                              border: OutlineInputBorder()))),
                   const SizedBox(width: 10),
-                  Expanded(child: TextField(controller: fssaiCtrl, decoration: const InputDecoration(labelText: 'FSSAI License', border: OutlineInputBorder()))),
+                  Expanded(
+                      child: TextField(
+                          controller: fssaiCtrl,
+                          decoration: const InputDecoration(
+                              labelText: 'FSSAI License',
+                              border: OutlineInputBorder()))),
                 ],
               ),
               const SizedBox(height: 10),
-              TextField(controller: labCtrl, decoration: const InputDecoration(labelText: 'Testing Laboratory Name', border: OutlineInputBorder())),
+              TextField(
+                  controller: labCtrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Testing Laboratory Name',
+                      border: OutlineInputBorder())),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: storeGreen),
             onPressed: () {
@@ -1441,12 +1893,15 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                 certifiedBy: 'Chief Analytical Quality Officer',
                 remarks: 'Certified for release to customer market.',
               );
-              ref.read(adminMarketplaceProvider.notifier).addBatchCertificate(cert);
+              ref
+                  .read(adminMarketplaceProvider.notifier)
+                  .addBatchCertificate(cert);
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   backgroundColor: storeGreen,
-                  content: Text('Batch #${cert.batchNumber} certificate issued!'),
+                  content:
+                      Text('Batch #${cert.batchNumber} certificate issued!'),
                 ),
               );
             },
@@ -1475,8 +1930,11 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                     children: [
                       Container(
                         padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: storeGreen, borderRadius: BorderRadius.circular(8)),
-                        child: const Icon(Icons.verified, color: Colors.white, size: 24),
+                        decoration: BoxDecoration(
+                            color: storeGreen,
+                            borderRadius: BorderRadius.circular(8)),
+                        child: const Icon(Icons.verified,
+                            color: Colors.white, size: 24),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1484,22 +1942,41 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text('MILTERRA QUALITY ASSURANCE CERTIFICATE',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: storeGreen, letterSpacing: 0.8)),
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w900,
+                                    color: storeGreen,
+                                    letterSpacing: 0.8)),
                             Text('Batch #${cert.batchNumber}',
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                style: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
                     ],
                   ),
                   const Divider(height: 24),
-                  Text('Product: ${cert.productTitle}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  Text('Product: ${cert.productTitle}',
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  Text('Laboratory: ${cert.laboratory}', style: const TextStyle(fontSize: 12, color: Color(0xff475569))),
-                  Text('FSSAI / Agro License: ${cert.fssaiLicense}', style: const TextStyle(fontSize: 12, color: Color(0xff475569))),
-                  Text('Purity Score: ${cert.purityPercent}%', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: storeGreen)),
+                  Text('Laboratory: ${cert.laboratory}',
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xff475569))),
+                  Text('FSSAI / Agro License: ${cert.fssaiLicense}',
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xff475569))),
+                  Text('Purity Score: ${cert.purityPercent}%',
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: storeGreen)),
                   const SizedBox(height: 16),
-                  const Text('LABORATORY TEST MATRIX', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: storeMuted)),
+                  const Text('LABORATORY TEST MATRIX',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: storeMuted)),
                   const SizedBox(height: 8),
                   Container(
                     decoration: BoxDecoration(
@@ -1510,15 +1987,24 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                       children: [
                         for (final entry in cert.testParameters.entries)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
                             decoration: const BoxDecoration(
-                              border: Border(bottom: BorderSide(color: Color(0xfff1f5f9))),
+                              border: Border(
+                                  bottom: BorderSide(color: Color(0xfff1f5f9))),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(entry.key, style: const TextStyle(fontSize: 11.5, color: Color(0xff334155))),
-                                Text(entry.value, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: storeGreen)),
+                                Text(entry.key,
+                                    style: const TextStyle(
+                                        fontSize: 11.5,
+                                        color: Color(0xff334155))),
+                                Text(entry.value,
+                                    style: const TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: storeGreen)),
                               ],
                             ),
                           ),
@@ -1526,13 +2012,22 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text('Remarks: ${cert.remarks}', style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Color(0xff64748b))),
-                  Text('Certified By: ${cert.certifiedBy}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xff334155))),
+                  Text('Remarks: ${cert.remarks}',
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontStyle: FontStyle.italic,
+                          color: Color(0xff64748b))),
+                  Text('Certified By: ${cert.certifiedBy}',
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xff334155))),
                   const SizedBox(height: 20),
                   Align(
                     alignment: Alignment.centerRight,
                     child: FilledButton(
-                      style: FilledButton.styleFrom(backgroundColor: storeGreen),
+                      style:
+                          FilledButton.styleFrom(backgroundColor: storeGreen),
                       onPressed: () => Navigator.pop(ctx),
                       child: const Text('Close'),
                     ),
@@ -1554,9 +2049,12 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
     final analyticsNotifier = ref.read(adminAnalyticsProvider.notifier);
 
     final carts = analyticsState.carts;
-    final activeCount = carts.where((c) => !c.isAbandoned && c.status == 'ACTIVE').length;
+    final activeCount =
+        carts.where((c) => !c.isAbandoned && c.status == 'ACTIVE').length;
     final abandonedCount = carts.where((c) => c.isAbandoned).length;
-    final totalAtRisk = carts.where((c) => c.isAbandoned).fold(0.0, (sum, c) => sum + c.subtotal);
+    final totalAtRisk = carts
+        .where((c) => c.isAbandoned)
+        .fold(0.0, (sum, c) => sum + c.subtotal);
 
     return RefreshIndicator(
       onRefresh: () => analyticsNotifier.fetchCarts(),
@@ -1594,8 +2092,8 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                 const SizedBox(width: 16),
                 _buildAnalyticsKpiCard(
                   title: 'Recovery Rate',
-                  value: '34.2%',
-                  subtitle: 'Via automated WhatsApp nudges',
+                  value: '—',
+                  subtitle: 'Requires completed recovery events',
                   icon: Icons.trending_up,
                   color: Colors.teal.shade700,
                 ),
@@ -1618,27 +2116,47 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                       flex: 2,
                       child: TextField(
                         decoration: InputDecoration(
-                          hintText: 'Search by customer phone (+91...) or product...',
-                          prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xff64748b)),
+                          hintText:
+                              'Search by customer phone (+91...) or product...',
+                          prefixIcon: const Icon(Icons.search,
+                              size: 20, color: Color(0xff64748b)),
                           isDense: true,
                           filled: true,
                           fillColor: const Color(0xfff8fafc),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(color: Color(0xffe2e8f0)),
+                            borderSide:
+                                const BorderSide(color: Color(0xffe2e8f0)),
                           ),
                         ),
-                        onChanged: (val) => analyticsNotifier.setCartSearch(val),
+                        onChanged: (val) =>
+                            analyticsNotifier.setCartSearch(val),
                       ),
                     ),
                     const SizedBox(width: 16),
                     Wrap(
                       spacing: 8,
                       children: [
-                        _buildFilterChip('All Carts', 'all', analyticsState.cartFilter, (f) => analyticsNotifier.setCartFilter(f)),
-                        _buildFilterChip('Active Only', 'active', analyticsState.cartFilter, (f) => analyticsNotifier.setCartFilter(f)),
-                        _buildFilterChip('Abandoned', 'abandoned', analyticsState.cartFilter, (f) => analyticsNotifier.setCartFilter(f)),
-                        _buildFilterChip('High Value (>₹1k)', 'high_value', analyticsState.cartFilter, (f) => analyticsNotifier.setCartFilter(f)),
+                        _buildFilterChip(
+                            'All Carts',
+                            'all',
+                            analyticsState.cartFilter,
+                            (f) => analyticsNotifier.setCartFilter(f)),
+                        _buildFilterChip(
+                            'Active Only',
+                            'active',
+                            analyticsState.cartFilter,
+                            (f) => analyticsNotifier.setCartFilter(f)),
+                        _buildFilterChip(
+                            'Abandoned',
+                            'abandoned',
+                            analyticsState.cartFilter,
+                            (f) => analyticsNotifier.setCartFilter(f)),
+                        _buildFilterChip(
+                            'High Value (>₹1k)',
+                            'high_value',
+                            analyticsState.cartFilter,
+                            (f) => analyticsNotifier.setCartFilter(f)),
                       ],
                     ),
                     const Spacer(),
@@ -1655,7 +2173,16 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
 
             // Carts List
             if (analyticsState.isLoadingCarts)
-              const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()))
+              const Center(
+                  child: Padding(
+                      padding: EdgeInsets.all(40),
+                      child: CircularProgressIndicator()))
+            else if (analyticsState.cartsError != null)
+              _buildAdminDataState(
+                message: analyticsState.cartsError!,
+                icon: Icons.cloud_off_outlined,
+                onRetry: analyticsNotifier.fetchCarts,
+              )
             else if (carts.isEmpty)
               Card(
                 elevation: 0,
@@ -1668,9 +2195,12 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                   child: Center(
                     child: Column(
                       children: [
-                        Icon(Icons.shopping_cart_outlined, size: 48, color: Color(0xff94a3b8)),
+                        Icon(Icons.shopping_cart_outlined,
+                            size: 48, color: Color(0xff94a3b8)),
                         SizedBox(height: 12),
-                        Text('No carts match the current filter', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text('No carts match the current filter',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16)),
                       ],
                     ),
                   ),
@@ -1693,13 +2223,16 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
     );
   }
 
-  Widget _buildAdminCartCard(AdminCartSummary cart, AdminAnalyticsNotifier notifier) {
+  Widget _buildAdminCartCard(
+      AdminCartSummary cart, AdminAnalyticsNotifier notifier) {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: cart.isAbandoned ? Colors.orange.shade300 : const Color(0xffe2e8f0),
+          color: cart.isAbandoned
+              ? Colors.orange.shade300
+              : const Color(0xffe2e8f0),
           width: cart.isAbandoned ? 1.5 : 1.0,
         ),
       ),
@@ -1714,12 +2247,17 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: cart.isAbandoned ? Colors.orange.shade50 : const Color(0xfff0fdf4),
+                    color: cart.isAbandoned
+                        ? Colors.orange.shade50
+                        : const Color(0xfff0fdf4),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
-                    cart.isAbandoned ? Icons.remove_shopping_cart : Icons.shopping_bag,
-                    color: cart.isAbandoned ? Colors.orange.shade800 : storeGreen,
+                    cart.isAbandoned
+                        ? Icons.remove_shopping_cart
+                        : Icons.shopping_bag,
+                    color:
+                        cart.isAbandoned ? Colors.orange.shade800 : storeGreen,
                     size: 20,
                   ),
                 ),
@@ -1731,18 +2269,25 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                       children: [
                         Text(
                           cart.userPhone,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xff0f172a)),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: Color(0xff0f172a)),
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: const Color(0xffe2e8f0),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             cart.userRole.toUpperCase(),
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xff475569)),
+                            style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xff475569)),
                           ),
                         ),
                       ],
@@ -1750,25 +2295,35 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                     const SizedBox(height: 2),
                     Text(
                       'Last activity: ${cart.inactiveDurationMinutes < 60 ? "${cart.inactiveDurationMinutes}m ago" : "${cart.inactiveDurationMinutes ~/ 60}h ago"}',
-                      style: const TextStyle(fontSize: 11, color: Color(0xff64748b)),
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xff64748b)),
                     ),
                   ],
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: cart.isAbandoned ? Colors.red.shade50 : const Color(0xffdcfce7),
+                    color: cart.isAbandoned
+                        ? Colors.red.shade50
+                        : const Color(0xffdcfce7),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: cart.isAbandoned ? Colors.red.shade200 : Colors.green.shade200),
+                    border: Border.all(
+                        color: cart.isAbandoned
+                            ? Colors.red.shade200
+                            : Colors.green.shade200),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        cart.isAbandoned ? Icons.warning_amber_rounded : Icons.check_circle_outline,
+                        cart.isAbandoned
+                            ? Icons.warning_amber_rounded
+                            : Icons.check_circle_outline,
                         size: 14,
-                        color: cart.isAbandoned ? Colors.red.shade700 : storeGreen,
+                        color:
+                            cart.isAbandoned ? Colors.red.shade700 : storeGreen,
                       ),
                       const SizedBox(width: 5),
                       Text(
@@ -1776,7 +2331,9 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: cart.isAbandoned ? Colors.red.shade800 : storeGreen,
+                          color: cart.isAbandoned
+                              ? Colors.red.shade800
+                              : storeGreen,
                         ),
                       ),
                     ],
@@ -1801,26 +2358,37 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(color: const Color(0xffe2e8f0)),
                         ),
-                        child: const Icon(Icons.inventory_2_outlined, size: 18, color: storeGreen),
+                        child: const Icon(Icons.inventory_2_outlined,
+                            size: 18, color: storeGreen),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(it.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xff1e293b))),
-                            Text('SKU: ${it.productId}', style: const TextStyle(fontSize: 11, color: Color(0xff94a3b8))),
+                            Text(it.title,
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xff1e293b))),
+                            Text('SKU: ${it.productId}',
+                                style: const TextStyle(
+                                    fontSize: 11, color: Color(0xff94a3b8))),
                           ],
                         ),
                       ),
                       Text(
                         '${it.quantity} × ₹${it.unitPrice.toStringAsFixed(0)}',
-                        style: const TextStyle(fontSize: 13, color: Color(0xff64748b)),
+                        style: const TextStyle(
+                            fontSize: 13, color: Color(0xff64748b)),
                       ),
                       const SizedBox(width: 16),
                       Text(
                         '₹${it.lineTotal.toStringAsFixed(0)}',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xff0f172a)),
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xff0f172a)),
                       ),
                     ],
                   ),
@@ -1836,15 +2404,20 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                 RichText(
                   text: TextSpan(
                     text: 'Total Cart Value: ',
-                    style: const TextStyle(fontSize: 14, color: Color(0xff475569)),
+                    style:
+                        const TextStyle(fontSize: 14, color: Color(0xff475569)),
                     children: [
                       TextSpan(
                         text: '₹${cart.subtotal.toStringAsFixed(0)}',
-                        style: const TextStyle(fontWeight: FontWeight.w900, color: storeGreen, fontSize: 16),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            color: storeGreen,
+                            fontSize: 16),
                       ),
                       TextSpan(
                         text: ' (${cart.itemCount} items)',
-                        style: const TextStyle(fontSize: 12, color: Color(0xff94a3b8)),
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xff94a3b8)),
                       ),
                     ],
                   ),
@@ -1854,13 +2427,16 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xff334155),
                     side: const BorderSide(color: Color(0xffcbd5e1)),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   ),
                   icon: const Icon(Icons.ads_click, size: 16),
-                  label: const Text('Inspect Journey', style: TextStyle(fontSize: 12)),
+                  label: const Text('Inspect Journey',
+                      style: TextStyle(fontSize: 12)),
                   onPressed: () {
                     notifier.setClickstreamUserPhone(cart.userPhone);
-                    _tabController.animateTo(4); // Jump to User Clickstream Tab (index 4)
+                    _tabController
+                        .animateTo(4); // Jump to User Clickstream Tab (index 4)
                   },
                 ),
                 const SizedBox(width: 10),
@@ -1868,10 +2444,13 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xff25d366), // WhatsApp Green
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   ),
                   icon: const Icon(Icons.chat_outlined, size: 16),
-                  label: const Text('WhatsApp Recovery Nudge', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  label: const Text('WhatsApp Recovery Nudge',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                   onPressed: () => _showWhatsAppNudgeDialog(cart, notifier),
                 ),
               ],
@@ -1882,7 +2461,8 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
     );
   }
 
-  void _showWhatsAppNudgeDialog(AdminCartSummary cart, AdminAnalyticsNotifier notifier) async {
+  void _showWhatsAppNudgeDialog(
+      AdminCartSummary cart, AdminAnalyticsNotifier notifier) async {
     final link = await notifier.getNudgeLink(cart.cartId);
     if (!mounted) return;
 
@@ -1894,11 +2474,15 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
           children: [
             Container(
               padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(color: const Color(0xffdcfce7), borderRadius: BorderRadius.circular(8)),
-              child: const Icon(Icons.chat_outlined, color: Color(0xff25d366), size: 22),
+              decoration: BoxDecoration(
+                  color: const Color(0xffdcfce7),
+                  borderRadius: BorderRadius.circular(8)),
+              child: const Icon(Icons.chat_outlined,
+                  color: Color(0xff25d366), size: 22),
             ),
             const SizedBox(width: 10),
-            const Text('Cart Recovery Nudge', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('Cart Recovery Nudge',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ],
         ),
         content: SizedBox(
@@ -1907,11 +2491,15 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Target Customer: ${cart.userPhone} (${cart.userRole.toUpperCase()})',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              Text(
+                  'Target Customer: ${cart.userPhone} (${cart.userRole.toUpperCase()})',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 13)),
               const SizedBox(height: 6),
-              Text('Cart Contents: ${cart.items.map((i) => i.title).join(", ")}',
-                  style: const TextStyle(fontSize: 12, color: Color(0xff64748b))),
+              Text(
+                  'Cart Contents: ${cart.items.map((i) => i.title).join(", ")}',
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xff64748b))),
               const SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -1924,11 +2512,13 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                   'Message Preview:\n"Namaste! We noticed you left items in your MILTERRA dairy cart. '
                   'Complete your order today with special coupon code *RECOVER10* for 10% OFF! '
                   'Tap to checkout: https://milterra.in/shop/cart"',
-                  style: TextStyle(fontSize: 12.5, height: 1.4, color: Color(0xff334155)),
+                  style: TextStyle(
+                      fontSize: 12.5, height: 1.4, color: Color(0xff334155)),
                 ),
               ),
               const SizedBox(height: 14),
-              const Text('Recovery Link:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              const Text('Recovery Link:',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
               SelectableText(
                 link ?? 'https://wa.me/91${cart.userPhone}',
                 style: const TextStyle(fontSize: 11, color: storeGreen),
@@ -1937,15 +2527,19 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xff25d366)),
+            style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xff25d366)),
             icon: const Icon(Icons.open_in_new, size: 16),
             label: const Text('Send WhatsApp Message'),
             onPressed: () {
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Recovery reminder triggered for ${cart.userPhone}')),
+                SnackBar(
+                    content: Text(
+                        'Recovery reminder triggered for ${cart.userPhone}')),
               );
             },
           ),
@@ -1960,17 +2554,29 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
   Widget _buildTrafficGeoTab() {
     final analyticsState = ref.watch(adminAnalyticsProvider);
     final traffic = analyticsState.traffic;
+    final analyticsNotifier = ref.read(adminAnalyticsProvider.notifier);
 
     if (analyticsState.isLoadingTraffic && traffic == null) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final totalVisits = traffic?.totalVisitors ?? 428;
-    final todayVisits = traffic?.todayVisitors ?? 74;
-    final liveVisits = traffic?.liveVisitors30m ?? 14;
-    final totalPageViews = traffic?.totalPageViews ?? 1580;
-    final bounceRate = traffic?.bounceRatePercent ?? 31.8;
-    final avgDurationSecs = traffic?.avgSessionDurationSeconds ?? 184;
+    if (traffic == null) {
+      return _buildAdminDataState(
+        message: analyticsState.trafficError ??
+            'No traffic analytics have been recorded yet.',
+        icon: analyticsState.trafficError == null
+            ? Icons.analytics_outlined
+            : Icons.cloud_off_outlined,
+        onRetry: analyticsNotifier.fetchTraffic,
+      );
+    }
+
+    final totalVisits = traffic.totalVisitors;
+    final todayVisits = traffic.todayVisitors;
+    final liveVisits = traffic.liveVisitors30m;
+    final totalPageViews = traffic.totalPageViews;
+    final bounceRate = traffic.bounceRatePercent;
+    final avgDurationSecs = traffic.avgSessionDurationSeconds;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -1991,7 +2597,7 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
               _buildAnalyticsKpiCard(
                 title: 'Today\'s Visitors',
                 value: todayVisits.toString(),
-                subtitle: '+18% vs yesterday',
+                subtitle: 'Sessions recorded today',
                 icon: Icons.today_outlined,
                 color: const Color(0xff2563eb),
               ),
@@ -2007,7 +2613,8 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
               _buildAnalyticsKpiCard(
                 title: 'Total Page Views',
                 value: totalPageViews.toString(),
-                subtitle: 'Avg ${(totalPageViews / totalVisits).toStringAsFixed(1)} pages/visit',
+                subtitle:
+                    'Avg ${totalVisits == 0 ? '0.0' : (totalPageViews / totalVisits).toStringAsFixed(1)} pages/visit',
                 icon: Icons.visibility_outlined,
                 color: Colors.purple.shade700,
               ),
@@ -2015,7 +2622,7 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
               _buildAnalyticsKpiCard(
                 title: 'Bounce Rate',
                 value: '$bounceRate%',
-                subtitle: 'Target < 40%',
+                subtitle: 'Recorded session bounce rate',
                 icon: Icons.exit_to_app_outlined,
                 color: Colors.orange.shade800,
               ),
@@ -2023,7 +2630,7 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
               _buildAnalyticsKpiCard(
                 title: 'Avg Session Duration',
                 value: '${avgDurationSecs ~/ 60}m ${avgDurationSecs % 60}s',
-                subtitle: 'High engagement in shop',
+                subtitle: 'Across recorded sessions',
                 icon: Icons.timer_outlined,
                 color: Colors.teal.shade700,
               ),
@@ -2052,21 +2659,36 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                           children: [
                             Container(
                               padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(color: const Color(0xffdbeafe), borderRadius: BorderRadius.circular(8)),
-                              child: const Icon(Icons.public, color: Color(0xff2563eb), size: 20),
+                              decoration: BoxDecoration(
+                                  color: const Color(0xffdbeafe),
+                                  borderRadius: BorderRadius.circular(8)),
+                              child: const Icon(Icons.public,
+                                  color: Color(0xff2563eb), size: 20),
                             ),
                             const SizedBox(width: 12),
                             const Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Visitor Geographic Distribution', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xff0f172a))),
-                                Text('Where customers are visiting your store from in India', style: TextStyle(fontSize: 12, color: Color(0xff64748b))),
+                                Text('Visitor Geographic Distribution',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xff0f172a))),
+                                Text(
+                                    'Where customers are visiting your store from in India',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xff64748b))),
                               ],
                             ),
                           ],
                         ),
                         const SizedBox(height: 20),
-                        const Text('Top States & Dairy Belts', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xff334155))),
+                        const Text('Top States & Dairy Belts',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xff334155))),
                         const SizedBox(height: 12),
                         ...((traffic?.topStates ?? []).map((s) {
                           return Padding(
@@ -2075,17 +2697,29 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(s.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xff1e293b))),
-                                    Text('${s.visitorsCount} visits (${s.percent}%)', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xff2563eb))),
+                                    Text(s.name,
+                                        style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xff1e293b))),
+                                    Text(
+                                        '${s.visitorsCount} visits (${s.percent}%)',
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xff2563eb))),
                                   ],
                                 ),
                                 const SizedBox(height: 6),
                                 LinearProgressIndicator(
                                   value: s.percent / 100.0,
                                   backgroundColor: const Color(0xfff1f5f9),
-                                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xff2563eb)),
+                                  valueColor:
+                                      const AlwaysStoppedAnimation<Color>(
+                                          Color(0xff2563eb)),
                                   minHeight: 6,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
@@ -2093,32 +2727,49 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                             ),
                           );
                         })),
-
                         const Divider(height: 32, color: Color(0xfff1f5f9)),
-                        const Text('Top Cities', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xff334155))),
+                        const Text('Top Cities',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xff334155))),
                         const SizedBox(height: 12),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
                           children: (traffic?.topCities ?? []).map((c) {
                             return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
                                 color: const Color(0xfff8fafc),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: const Color(0xffe2e8f0)),
+                                border:
+                                    Border.all(color: const Color(0xffe2e8f0)),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.location_on_outlined, size: 14, color: storeGreen),
+                                  const Icon(Icons.location_on_outlined,
+                                      size: 14, color: storeGreen),
                                   const SizedBox(width: 6),
-                                  Text(c.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xff0f172a))),
+                                  Text(c.name,
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xff0f172a))),
                                   const SizedBox(width: 8),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(color: const Color(0xffe2e8f0), borderRadius: BorderRadius.circular(4)),
-                                    child: Text('${c.visitorsCount}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xff475569))),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                        color: const Color(0xffe2e8f0),
+                                        borderRadius: BorderRadius.circular(4)),
+                                    child: Text('${c.visitorsCount}',
+                                        style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xff475569))),
                                   ),
                                 ],
                               ),
@@ -2149,21 +2800,36 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                           children: [
                             Container(
                               padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(color: const Color(0xfffef3c7), borderRadius: BorderRadius.circular(8)),
-                              child: const Icon(Icons.alt_route, color: Color(0xffd97706), size: 20),
+                              decoration: BoxDecoration(
+                                  color: const Color(0xfffef3c7),
+                                  borderRadius: BorderRadius.circular(8)),
+                              child: const Icon(Icons.alt_route,
+                                  color: Color(0xffd97706), size: 20),
                             ),
                             const SizedBox(width: 12),
                             const Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Traffic Acquisition & Sources', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xff0f172a))),
-                                Text('How visitors discovered and arrived at your storefront', style: TextStyle(fontSize: 12, color: Color(0xff64748b))),
+                                Text('Traffic Acquisition & Sources',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xff0f172a))),
+                                Text(
+                                    'How visitors discovered and arrived at your storefront',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xff64748b))),
                               ],
                             ),
                           ],
                         ),
                         const SizedBox(height: 20),
-                        const Text('Traffic Sources', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xff334155))),
+                        const Text('Traffic Sources',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xff334155))),
                         const SizedBox(height: 12),
                         ...((traffic?.topReferrers ?? []).map((r) {
                           IconData refIcon = Icons.link;
@@ -2188,16 +2854,26 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                                   children: [
                                     Icon(refIcon, size: 16, color: refColor),
                                     const SizedBox(width: 8),
-                                    Text(r.source, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xff1e293b))),
+                                    Text(r.source,
+                                        style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xff1e293b))),
                                     const Spacer(),
-                                    Text('${r.visitorsCount} visits (${r.percent}%)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: refColor)),
+                                    Text(
+                                        '${r.visitorsCount} visits (${r.percent}%)',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: refColor)),
                                   ],
                                 ),
                                 const SizedBox(height: 6),
                                 LinearProgressIndicator(
                                   value: r.percent / 100.0,
                                   backgroundColor: const Color(0xfff1f5f9),
-                                  valueColor: AlwaysStoppedAnimation<Color>(refColor),
+                                  valueColor:
+                                      AlwaysStoppedAnimation<Color>(refColor),
                                   minHeight: 6,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
@@ -2205,9 +2881,12 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                             ),
                           );
                         })),
-
                         const Divider(height: 32, color: Color(0xfff1f5f9)),
-                        const Text('Device & Technology Breakdown', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xff334155))),
+                        const Text('Device & Technology Breakdown',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xff334155))),
                         const SizedBox(height: 12),
                         Row(
                           children: [
@@ -2215,7 +2894,8 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                               child: _buildDeviceCard(
                                 icon: Icons.phone_android,
                                 label: 'Mobile App / Web',
-                                count: traffic?.deviceBreakdown['mobile'] ?? 334,
+                                count:
+                                    traffic?.deviceBreakdown['mobile'] ?? 334,
                                 percent: '78%',
                               ),
                             ),
@@ -2224,7 +2904,8 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                               child: _buildDeviceCard(
                                 icon: Icons.laptop_mac,
                                 label: 'Desktop Browser',
-                                count: traffic?.deviceBreakdown['desktop'] ?? 82,
+                                count:
+                                    traffic?.deviceBreakdown['desktop'] ?? 82,
                                 percent: '19%',
                               ),
                             ),
@@ -2251,7 +2932,11 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
     );
   }
 
-  Widget _buildDeviceCard({required IconData icon, required String label, required int count, required String percent}) {
+  Widget _buildDeviceCard(
+      {required IconData icon,
+      required String label,
+      required int count,
+      required String percent}) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -2264,9 +2949,18 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
         children: [
           Icon(icon, size: 20, color: const Color(0xff64748b)),
           const SizedBox(height: 8),
-          Text(percent, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xff0f172a))),
-          Text('$count visits', style: const TextStyle(fontSize: 11, color: Color(0xff64748b))),
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xff475569))),
+          Text(percent,
+              style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xff0f172a))),
+          Text('$count visits',
+              style: const TextStyle(fontSize: 11, color: Color(0xff64748b))),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xff475569))),
         ],
       ),
     );
@@ -2301,15 +2995,25 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                     children: [
                       Container(
                         padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: const Color(0xfff3e8ff), borderRadius: BorderRadius.circular(8)),
-                        child: const Icon(Icons.ads_click, color: Color(0xff9333ea), size: 20),
+                        decoration: BoxDecoration(
+                            color: const Color(0xfff3e8ff),
+                            borderRadius: BorderRadius.circular(8)),
+                        child: const Icon(Icons.ads_click,
+                            color: Color(0xff9333ea), size: 20),
                       ),
                       const SizedBox(width: 12),
                       const Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('User Clickstream & Interaction Journey', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xff0f172a))),
-                          Text('Step-by-step click log: what a particular user or visitor clicked on your website', style: TextStyle(fontSize: 12, color: Color(0xff64748b))),
+                          Text('User Clickstream & Interaction Journey',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xff0f172a))),
+                          Text(
+                              'Step-by-step click log: what a particular user or visitor clicked on your website',
+                              style: TextStyle(
+                                  fontSize: 12, color: Color(0xff64748b))),
                         ],
                       ),
                     ],
@@ -2321,31 +3025,43 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                         flex: 2,
                         child: TextField(
                           decoration: InputDecoration(
-                            hintText: 'Filter by customer phone (e.g. 9820112345) or session ID...',
-                            prefixIcon: const Icon(Icons.person_search, size: 20, color: Color(0xff64748b)),
+                            hintText:
+                                'Filter by customer phone (e.g. 9820112345) or session ID...',
+                            prefixIcon: const Icon(Icons.person_search,
+                                size: 20, color: Color(0xff64748b)),
                             isDense: true,
                             filled: true,
                             fillColor: const Color(0xfff8fafc),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: Color(0xffe2e8f0)),
+                              borderSide:
+                                  const BorderSide(color: Color(0xffe2e8f0)),
                             ),
                           ),
-                          onSubmitted: (val) => analyticsNotifier.setClickstreamUserPhone(val.trim().isEmpty ? null : val.trim()),
+                          onSubmitted: (val) =>
+                              analyticsNotifier.setClickstreamUserPhone(
+                                  val.trim().isEmpty ? null : val.trim()),
                         ),
                       ),
                       const SizedBox(width: 12),
                       if (analyticsState.selectedUserPhone != null) ...[
                         Chip(
                           backgroundColor: const Color(0xffe0f2fe),
-                          label: Text('Customer: ${analyticsState.selectedUserPhone}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xff0284c7))),
-                          onDeleted: () => analyticsNotifier.setClickstreamUserPhone(null),
+                          label: Text(
+                              'Customer: ${analyticsState.selectedUserPhone}',
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xff0284c7))),
+                          onDeleted: () =>
+                              analyticsNotifier.setClickstreamUserPhone(null),
                         ),
                         const SizedBox(width: 12),
                       ],
                       const Spacer(),
                       IconButton(
-                        icon: const Icon(Icons.refresh, color: Color(0xff64748b)),
+                        icon:
+                            const Icon(Icons.refresh, color: Color(0xff64748b)),
                         tooltip: 'Refresh Clickstream',
                         onPressed: () => analyticsNotifier.fetchClickstream(),
                       ),
@@ -2355,12 +3071,37 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                   Wrap(
                     spacing: 8,
                     children: [
-                      _buildFilterChip('All Actions', 'ALL', analyticsState.selectedEventType ?? 'ALL', (e) => analyticsNotifier.setClickstreamEventType(e == 'ALL' ? null : e)),
-                      _buildFilterChip('Product Views', 'PRODUCT_VIEW', analyticsState.selectedEventType ?? 'ALL', (e) => analyticsNotifier.setClickstreamEventType(e)),
-                      _buildFilterChip('Add to Cart', 'ADD_TO_CART', analyticsState.selectedEventType ?? 'ALL', (e) => analyticsNotifier.setClickstreamEventType(e)),
-                      _buildFilterChip('Searches', 'SEARCH_QUERY', analyticsState.selectedEventType ?? 'ALL', (e) => analyticsNotifier.setClickstreamEventType(e)),
-                      _buildFilterChip('Lab Certificates', 'CERTIFICATE_VIEW', analyticsState.selectedEventType ?? 'ALL', (e) => analyticsNotifier.setClickstreamEventType(e)),
-                      _buildFilterChip('Checkouts', 'CHECKOUT_INITIATE', analyticsState.selectedEventType ?? 'ALL', (e) => analyticsNotifier.setClickstreamEventType(e)),
+                      _buildFilterChip(
+                          'All Actions',
+                          'ALL',
+                          analyticsState.selectedEventType ?? 'ALL',
+                          (e) => analyticsNotifier
+                              .setClickstreamEventType(e == 'ALL' ? null : e)),
+                      _buildFilterChip(
+                          'Product Views',
+                          'PRODUCT_VIEW',
+                          analyticsState.selectedEventType ?? 'ALL',
+                          (e) => analyticsNotifier.setClickstreamEventType(e)),
+                      _buildFilterChip(
+                          'Add to Cart',
+                          'ADD_TO_CART',
+                          analyticsState.selectedEventType ?? 'ALL',
+                          (e) => analyticsNotifier.setClickstreamEventType(e)),
+                      _buildFilterChip(
+                          'Searches',
+                          'SEARCH_QUERY',
+                          analyticsState.selectedEventType ?? 'ALL',
+                          (e) => analyticsNotifier.setClickstreamEventType(e)),
+                      _buildFilterChip(
+                          'Lab Certificates',
+                          'CERTIFICATE_VIEW',
+                          analyticsState.selectedEventType ?? 'ALL',
+                          (e) => analyticsNotifier.setClickstreamEventType(e)),
+                      _buildFilterChip(
+                          'Checkouts',
+                          'CHECKOUT_INITIATE',
+                          analyticsState.selectedEventType ?? 'ALL',
+                          (e) => analyticsNotifier.setClickstreamEventType(e)),
                     ],
                   ),
                 ],
@@ -2371,7 +3112,16 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
 
           // Timeline Feed
           if (analyticsState.isLoadingClickstream)
-            const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()))
+            const Center(
+                child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: CircularProgressIndicator()))
+          else if (analyticsState.clickstreamError != null)
+            _buildAdminDataState(
+              message: analyticsState.clickstreamError!,
+              icon: Icons.cloud_off_outlined,
+              onRetry: analyticsNotifier.fetchClickstream,
+            )
           else if (events.isEmpty)
             Card(
               elevation: 0,
@@ -2384,9 +3134,12 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                 child: Center(
                   child: Column(
                     children: [
-                      Icon(Icons.touch_app_outlined, size: 48, color: Color(0xff94a3b8)),
+                      Icon(Icons.touch_app_outlined,
+                          size: 48, color: Color(0xff94a3b8)),
                       SizedBox(height: 12),
-                      Text('No clickstream events recorded for this selection', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text('No clickstream events recorded for this selection',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
                     ],
                   ),
                 ),
@@ -2452,7 +3205,8 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
         eventIcon = Icons.touch_app_outlined;
     }
 
-    final timeFormatted = '${ev.createdAt.hour.toString().padLeft(2, '0')}:${ev.createdAt.minute.toString().padLeft(2, '0')}:${ev.createdAt.second.toString().padLeft(2, '0')}';
+    final timeFormatted =
+        '${ev.createdAt.hour.toString().padLeft(2, '0')}:${ev.createdAt.minute.toString().padLeft(2, '0')}:${ev.createdAt.second.toString().padLeft(2, '0')}';
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2463,8 +3217,13 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(timeFormatted, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xff1e293b))),
-              const Text('UTC', style: TextStyle(fontSize: 10, color: Color(0xff94a3b8))),
+              Text(timeFormatted,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: Color(0xff1e293b))),
+              const Text('UTC',
+                  style: TextStyle(fontSize: 10, color: Color(0xff94a3b8))),
             ],
           ),
         ),
@@ -2486,9 +3245,13 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isLatest ? const Color(0xfff0fdf4) : const Color(0xfff8fafc),
+              color:
+                  isLatest ? const Color(0xfff0fdf4) : const Color(0xfff8fafc),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isLatest ? Colors.green.shade300 : const Color(0xffe2e8f0)),
+              border: Border.all(
+                  color: isLatest
+                      ? Colors.green.shade300
+                      : const Color(0xffe2e8f0)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2496,47 +3259,69 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: badgeColor, borderRadius: BorderRadius.circular(4)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                          color: badgeColor,
+                          borderRadius: BorderRadius.circular(4)),
                       child: Text(
                         ev.eventType,
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         ev.elementText ?? ev.pageUrl,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xff0f172a)),
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xff0f172a)),
                       ),
                     ),
                     if (ev.userPhone != null)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: const Color(0xffe2e8f0), borderRadius: BorderRadius.circular(4)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                            color: const Color(0xffe2e8f0),
+                            borderRadius: BorderRadius.circular(4)),
                         child: Text(
                           ev.userPhone!,
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xff334155)),
+                          style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xff334155)),
                         ),
                       )
                     else
                       Text(
                         'Session: ${ev.sessionId.substring(0, ev.sessionId.length > 12 ? 12 : ev.sessionId.length)}...',
-                        style: const TextStyle(fontSize: 11, color: Color(0xff94a3b8)),
+                        style: const TextStyle(
+                            fontSize: 11, color: Color(0xff94a3b8)),
                       ),
                   ],
                 ),
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(Icons.language, size: 12, color: Color(0xff94a3b8)),
+                    const Icon(Icons.language,
+                        size: 12, color: Color(0xff94a3b8)),
                     const SizedBox(width: 4),
-                    Text('Route: ${ev.pageUrl}', style: const TextStyle(fontSize: 11, color: Color(0xff64748b))),
+                    Text('Route: ${ev.pageUrl}',
+                        style: const TextStyle(
+                            fontSize: 11, color: Color(0xff64748b))),
                     if (ev.metadata != null && ev.metadata!.isNotEmpty) ...[
                       const SizedBox(width: 12),
                       Text(
                         'Payload: ${ev.metadata}',
-                        style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Color(0xff475569)),
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                            color: Color(0xff475569)),
                       ),
                     ],
                   ],
@@ -2552,6 +3337,54 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
   // ---------------------------------------------------------------------------
   // KPI Card Helper
   // ---------------------------------------------------------------------------
+  Widget _buildAdminDataState({
+    required String message,
+    required IconData icon,
+    VoidCallback? onRetry,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: Color(0xffe2e8f0)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 40, color: const Color(0xff64748b)),
+                  const SizedBox(height: 12),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color(0xff334155),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (onRetry != null) ...[
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('Retry'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildAnalyticsKpiCard({
     required String title,
     required String value,
@@ -2574,14 +3407,22 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xff64748b))),
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xff64748b))),
                   Icon(icon, size: 18, color: color),
                 ],
               ),
               const SizedBox(height: 10),
-              Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: color)),
+              Text(value,
+                  style: TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.w900, color: color)),
               const SizedBox(height: 4),
-              Text(subtitle, style: const TextStyle(fontSize: 11, color: Color(0xff94a3b8))),
+              Text(subtitle,
+                  style:
+                      const TextStyle(fontSize: 11, color: Color(0xff94a3b8))),
             ],
           ),
         ),
@@ -2589,7 +3430,8 @@ class _EcommerceAdminPanelScreenState extends ConsumerState<EcommerceAdminPanelS
     );
   }
 
-  Widget _buildFilterChip(String label, String value, String currentVal, Function(String) onSelect) {
+  Widget _buildFilterChip(String label, String value, String currentVal,
+      Function(String) onSelect) {
     final isSelected = currentVal == value;
     return ChoiceChip(
       label: Text(label),

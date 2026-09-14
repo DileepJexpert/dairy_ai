@@ -66,7 +66,18 @@ class ProductUpdate(BaseModel):
     publication_status: Literal["draft", "published"] | None = None
 
 class InventoryUpdate(BaseModel): available_quantity:int=Field(ge=0); reserved_quantity:int=Field(default=0,ge=0); reorder_level:int=Field(default=0,ge=0); warehouse_location:str|None=None; batch_number:str|None=None; manufacture_date:date|None=None; expiry_date:date|None=None
-class ProductMediaCreate(BaseModel): url:str=Field(min_length=1,max_length=500); media_type:MediaType=MediaType.image; sort_order:int=Field(default=0,ge=0); is_primary:bool=False
+class ProductMediaCreate(BaseModel):
+    url: str = Field(min_length=1, max_length=500)
+    media_type: MediaType = MediaType.image
+    sort_order: int = Field(default=0, ge=0)
+    is_primary: bool = False
+
+    @field_validator('url')
+    @classmethod
+    def reserved_upload_path(cls, value):
+        if value.startswith('/api/v1/marketplace/media/'):
+            raise ValueError('Local image references are assigned by the upload endpoint')
+        return value
 
 
 class ProductReviewCreate(BaseModel):

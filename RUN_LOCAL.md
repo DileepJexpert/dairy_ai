@@ -18,6 +18,36 @@ Both services should show as running. This starts existing containers without re
 
 ## 2. Start the backend — terminal 1
 
+### Product image uploads (new)
+
+Update dependencies once, then restart your usual backend and Flutter commands:
+
+```powershell
+Set-Location C:\dileepkm\Learning\dairy_ai\backend
+python -m pip install -r requirements.txt
+
+Set-Location C:\dileepkm\Learning\dairy_ai\mobile
+flutter pub get
+```
+
+No new database migration or rebuild is needed for image uploads. Open admin
+**Products → Manage product images** (photo icon), or seller **Catalogue → Images**.
+Upload a JPEG, PNG or WebP, choose the primary image, and refresh the storefront.
+The full admin catalogue also has photo icons on its SKU/variant rows.
+Draft previews require your authenticated admin/seller session.
+
+Files are saved under `backend/storage/product-media` when running from the
+backend directory. Set `PRODUCT_MEDIA_DIR` to an absolute folder if desired.
+Back up this folder **and PostgreSQL together**. Files are excluded from Git;
+committing code does not back up uploaded photos. Docker Compose uses its
+`product_media` volume; do not remove volumes when restarting services.
+No S3 account is used. On hosting, this directory requires persistent disk.
+Removing an image detaches it from that product; original bytes are retained
+so other seller offers using the image do not break. Orphan-file cleanup is
+not automatic. Uploads are limited to 12 images per SKU, 5 MB per upload,
+16 million pixels and still images only. Concept families without SKUs retain
+their current URL/asset-based images in this slice.
+
 ### One-time setup for backend-managed admin controls
 
 With PostgreSQL running, stop the backend and run this **once** for an existing database:

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../marketplace/models/product_models.dart';
 import '../../marketplace/widgets/store_design.dart';
+import '../../marketplace/widgets/product_media_manager.dart';
 
 final vendorProductsProvider =
     FutureProvider.autoDispose<List<Product>>((ref) async {
@@ -469,20 +470,32 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
               const SizedBox(height: 8),
 
               // Active / Inactive switch
+              TextButton.icon(
+                icon: const Icon(Icons.photo_library_outlined),
+                label: const Text('Images'),
+                onPressed: () async {
+                  await showDialog<void>(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (_) =>
+                          ProductMediaManager(productId: p.id, title: p.title));
+                  ref.invalidate(vendorProductsProvider);
+                },
+              ),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    p.inStock ? 'Listed' : 'Paused',
+                    p.isActive ? 'Listed' : 'Paused',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: p.inStock ? storeGreen : storeMuted,
+                      color: p.isActive ? storeGreen : storeMuted,
                     ),
                   ),
                   const SizedBox(width: 4),
                   Switch(
-                    value: p.inStock,
+                    value: p.isActive,
                     activeThumbColor: storeGreen,
                     onChanged: (val) => _toggleProductStatus(p, val),
                   ),
@@ -540,8 +553,7 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
   // Quick Stock Adjustment Dialog
   // --------------------------------------------------------------------------
   Future<void> _openStockAdjustmentDialog(Product p) async {
-    final stockCtrl =
-        TextEditingController(text: '${p.availableQuantity.clamp(0, 9999)}');
+    final stockCtrl = TextEditingController();
 
     await showDialog<void>(
       context: context,
@@ -552,7 +564,7 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Enter the new available inventory count for this SKU:',
+              'Enter the total warehouse count, including reserved units. Existing reservations are protected:',
               style: TextStyle(fontSize: 13, color: storeMuted),
             ),
             const SizedBox(height: 16),
@@ -561,7 +573,7 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
               keyboardType: TextInputType.number,
               autofocus: true,
               decoration: const InputDecoration(
-                labelText: 'Available Quantity',
+                labelText: 'Total warehouse quantity',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.warehouse_outlined),
               ),
@@ -585,9 +597,9 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
 
               try {
                 final dio = ref.read(dioProvider);
-                await dio.put(
-                  '/vendor/products/${p.id}/inventory',
-                  data: {'available_quantity': newStock},
+                await dio.patch(
+                  '/vendor/commerce/offers/${p.id}',
+                  data: {'available_stock': newStock},
                 );
                 ref.invalidate(vendorProductsProvider);
                 if (mounted) {
@@ -603,7 +615,8 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Stock updated locally in session.'),
+                      content: Text(
+                          'Stock was not saved. Check your connection and try again.'),
                     ),
                   );
                 }
@@ -633,8 +646,10 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
       }
       ref.invalidate(vendorProductsProvider);
     } catch (_) {
-      // Local fallback for offline mode
       ref.invalidate(vendorProductsProvider);
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Listing status was not saved. Please try again.')));
     }
   }
 

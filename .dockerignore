@@ -1,0 +1,10 @@
+.git
+**/.env
+**/.env.local
+**/.venv
+**/venv
+**/__pycache__
+**/.pytest_cache
+backend/storage
+mobile/build
+mobile/.dart_tool

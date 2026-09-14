@@ -1,5 +1,6 @@
 import re,uuid
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.product import Product, ProductFamily, ProductInventory, ProductMedia, ProductCategory
 from app.repositories import product_repo
@@ -111,6 +112,8 @@ async def update_inventory(db:AsyncSession,p:Product,vendor_id:uuid.UUID,is_admi
 
 async def add_media(db:AsyncSession,p:Product,vendor_id:uuid.UUID,is_admin:bool,data:ProductMediaCreate):
  if not is_admin and p.vendor_id!=vendor_id:raise HTTPException(403,"You can manage only your products")
+ await db.execute(select(Product.id).where(Product.id==p.id).with_for_update())
+ if len(await product_repo.media(db,p.id)) >= 12:raise HTTPException(422,"A product can have at most 12 images; remove one first")
  if data.is_primary:
   for x in await product_repo.media(db,p.id):x.is_primary=False
  x=ProductMedia(product_id=p.id,**data.model_dump());db.add(x);await db.flush();return x

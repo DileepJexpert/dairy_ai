@@ -49,6 +49,11 @@ services:
       - postgres
     env_file:
       - ../.env
+    environment:
+      PRODUCT_MEDIA_DIR: /app/storage/product-media
+    volumes:
+      - product_media:/app/storage/product-media
 
 volumes:
   postgres_data:
+  product_media:

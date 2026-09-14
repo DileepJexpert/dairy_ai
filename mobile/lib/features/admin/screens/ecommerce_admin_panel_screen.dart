@@ -11,6 +11,7 @@ import '../providers/admin_marketplace_provider.dart';
 import '../models/analytics_models.dart';
 import '../providers/admin_analytics_provider.dart';
 import '../../marketplace/widgets/support_panel.dart';
+import '../../marketplace/widgets/product_media_manager.dart';
 
 final adminCatalogProductsProvider =
     FutureProvider.autoDispose<List<Product>>((ref) async {
@@ -490,6 +491,18 @@ class _EcommerceAdminPanelScreenState
                           ),
                         ),
                         const SizedBox(width: 10),
+                        IconButton(
+                          icon: const Icon(Icons.photo_library_outlined),
+                          tooltip: 'Manage product images',
+                          onPressed: () async {
+                            await showDialog<void>(
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (_) => ProductMediaManager(
+                                    productId: p.id, title: p.title));
+                            ref.invalidate(adminCatalogProductsProvider);
+                          },
+                        ),
                         IconButton(
                           icon: const Icon(Icons.edit_outlined,
                               size: 18, color: storeGreen),

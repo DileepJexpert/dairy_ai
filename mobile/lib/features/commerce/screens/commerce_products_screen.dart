@@ -5,6 +5,7 @@ import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../../marketplace/models/product_models.dart';
 import '../../marketplace/providers/product_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
+import '../../marketplace/widgets/product_media_manager.dart';
 import '../../admin/providers/admin_marketplace_provider.dart';
 
 class CommerceProductsScreen extends ConsumerStatefulWidget {
@@ -52,9 +53,7 @@ class _CommerceProductsScreenState
             .whereType<Map>()
             .map((m) => ProductFamily.fromJson(Map<String, dynamic>.from(m)))
             .toList();
-        if (famList.isNotEmpty) {
-          setState(() => _families = famList);
-        }
+        if (mounted) setState(() => _families = famList);
       }
 
       // This is an admin screen: include drafts, but never fall back to fixture
@@ -65,9 +64,7 @@ class _CommerceProductsScreenState
             .whereType<Map>()
             .map((m) => Product.fromJson(Map<String, dynamic>.from(m)))
             .toList();
-        if (prodList.isNotEmpty) {
-          setState(() => _products = prodList);
-        }
+        if (mounted) setState(() => _products = prodList);
       }
       final vendorResp = await dio.get('/admin/marketplace/vendors');
       if (vendorResp.data is Map && vendorResp.data['data'] is List) {
@@ -101,82 +98,16 @@ class _CommerceProductsScreenState
 
   Future<void> _toggleVariantStock(
       ProductFamily family, ProductVariant variant) async {
-    final newInStock = !variant.inStock;
-    final newStock = newInStock
-        ? (variant.stockQuantity > 0 ? variant.stockQuantity : 50)
-        : 0;
-
-    setState(() {
-      final famIdx = _families.indexWhere((f) => f.id == family.id);
-      if (famIdx != -1) {
-        final currentFam = _families[famIdx];
-        final updatedVariants = currentFam.variants.map((v) {
-          if (v.id == variant.id) {
-            return ProductVariant(
-              id: v.id,
-              sku: v.sku,
-              packSize: v.packSize,
-              price: v.price,
-              compareAtPrice: v.compareAtPrice,
-              stockQuantity: newStock,
-              inStock: newInStock,
-              weightGrams: v.weightGrams,
-              publicationStatus: v.publicationStatus,
-            );
-          }
-          return v;
-        }).toList();
-
-        _families[famIdx] = currentFam.copyWith(variants: updatedVariants);
-      }
-
-      // Also sync matching product in _products if present
-      final prodIdx = _products.indexWhere((p) => p.id == variant.id);
-      if (prodIdx != -1) {
-        final cur = _products[prodIdx];
-        _products[prodIdx] = cur.copyWith(
-          inStock: newInStock,
-          availableQuantity: newStock,
-        );
-      }
-    });
-
-    try {
-      await ref.read(dioProvider).put(
-        '/vendor/products/${variant.id}/inventory',
-        data: {'available_quantity': newStock},
-      );
-      ref.invalidate(productsProvider);
-    } catch (_) {
-      await _fetchBackendData();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Stock was not saved. Please try again.')),
-        );
-      }
-      return;
-    }
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              '${variant.packSize} (${variant.sku}) stock toggled to ${newInStock ? "In Stock ($newStock)" : "Out of Stock"}'),
-          backgroundColor: storeGreen,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
+    // Stock must be entered explicitly, never synthesized by a switch.
+    _editVariantPriceAndStock(family, variant);
   }
 
   void _editVariantPriceAndStock(ProductFamily family, ProductVariant variant) {
     final priceCtrl =
-        TextEditingController(text: variant.price.toStringAsFixed(0));
+        TextEditingController(text: variant.price.toStringAsFixed(2));
     final compareCtrl = TextEditingController(
-        text: variant.compareAtPrice?.toStringAsFixed(0) ?? '');
-    final stockCtrl =
-        TextEditingController(text: variant.stockQuantity.toString());
+        text: variant.compareAtPrice?.toStringAsFixed(2) ?? '');
+    final stockCtrl = TextEditingController();
 
     showDialog<void>(
       context: context,
@@ -210,7 +141,9 @@ class _CommerceProductsScreenState
               controller: stockCtrl,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: 'Available Stock Quantity',
+                labelText: 'Total warehouse stock (optional)',
+                helperText:
+                    'Includes reserved units. Leave blank to keep stock.',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -228,7 +161,10 @@ class _CommerceProductsScreenState
                   ? price
                   : double.tryParse(compareCtrl.text.trim());
               final stock = int.tryParse(stockCtrl.text.trim());
-              if (price == null || mrp == null || stock == null) {
+              if (price == null ||
+                  mrp == null ||
+                  (stockCtrl.text.trim().isNotEmpty &&
+                      (stock == null || stock < 0))) {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     content: Text('Enter valid price, MRP and stock values.')));
                 return;
@@ -243,7 +179,7 @@ class _CommerceProductsScreenState
                     .patch('$base/offers/${variant.id}', data: {
                   'selling_price': price,
                   'mrp': mrp,
-                  'available_stock': stock,
+                  if (stock != null) 'available_stock': stock,
                 });
                 ref.invalidate(productsProvider);
                 ref.invalidate(productDetailProvider);
@@ -1686,6 +1622,12 @@ class _CommerceProductsScreenState
 
                           // Edit Variant
                           IconButton(
+                            tooltip: 'Manage product images',
+                            icon: const Icon(Icons.photo_library_outlined),
+                            onPressed: () =>
+                                _manageImages(variant.id, family.title),
+                          ),
+                          IconButton(
                             tooltip: 'Edit Price & Stock',
                             icon: const Icon(Icons.edit_outlined,
                                 size: 18, color: storeMuted),
@@ -1808,18 +1750,7 @@ class _CommerceProductsScreenState
                     Switch(
                       value: p.inStock,
                       activeThumbColor: storeGreen,
-                      onChanged: (_) {
-                        setState(() {
-                          final idx = _products.indexWhere((x) => x.id == p.id);
-                          if (idx != -1) {
-                            _products[idx] = _products[idx].copyWith(
-                              inStock: !_products[idx].inStock,
-                              availableQuantity:
-                                  _products[idx].inStock ? 0 : 50,
-                            );
-                          }
-                        });
-                      },
+                      onChanged: (_) => _editFlatProductPrice(p),
                     ),
                     Text(
                       p.inStock
@@ -1839,6 +1770,11 @@ class _CommerceProductsScreenState
 
                 // View on Storefront button
                 IconButton(
+                  tooltip: 'Manage product images',
+                  icon: const Icon(Icons.photo_library_outlined),
+                  onPressed: () => _manageImages(p.id, p.title),
+                ),
+                IconButton(
                   tooltip: 'View on storefront',
                   icon: const Icon(Icons.open_in_new,
                       size: 18, color: Color(0xff007185)),
@@ -1852,50 +1788,102 @@ class _CommerceProductsScreenState
     );
   }
 
-  void _editFlatProductPrice(Product p) {
-    final priceCtrl = TextEditingController(text: p.price.toStringAsFixed(0));
-    showDialog<void>(
+  Future<void> _manageImages(String id, String title) async {
+    await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => ProductMediaManager(productId: id, title: title));
+    if (mounted) await _fetchBackendData();
+  }
+
+  Future<void> _editFlatProductPrice(Product p) async {
+    final priceCtrl = TextEditingController(text: p.price.toStringAsFixed(2));
+    final stockCtrl = TextEditingController();
+    bool saving = false;
+    final route = DialogRoute<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Edit Price · ${p.title}'),
-        content: TextField(
-          controller: priceCtrl,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Base Price (₹)',
-            border: OutlineInputBorder(),
-            prefixText: '₹ ',
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(
-                backgroundColor: storeAmber, foregroundColor: storeGreen),
-            onPressed: () {
-              final newPrice = double.tryParse(priceCtrl.text.trim());
-              if (newPrice != null && newPrice > 0) {
-                setState(() {
-                  final index = _products.indexWhere((x) => x.id == p.id);
-                  if (index != -1) {
-                    _products[index] =
-                        _products[index].copyWith(price: newPrice);
-                  }
-                });
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content:
-                          Text('Updated price to ${storeMoney(newPrice)}')),
-                );
-              }
-            },
-            child: const Text('Save Price',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+          builder: (ctx, update) => PopScope(
+              canPop: !saving,
+              child: AlertDialog(
+                title: Text('Edit Price & Stock · ${p.title}'),
+                content: Column(mainAxisSize: MainAxisSize.min, children: [
+                  TextField(
+                    controller: priceCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Base Price (₹)',
+                      border: OutlineInputBorder(),
+                      prefixText: '₹ ',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                      controller: stockCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                          labelText: 'Total warehouse stock (optional)',
+                          helperText:
+                              'Includes reserved units. Leave blank to keep stock.',
+                          border: OutlineInputBorder()))
+                ]),
+                actions: [
+                  TextButton(
+                      onPressed: saving ? null : () => Navigator.pop(ctx),
+                      child: const Text('Cancel')),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                        backgroundColor: storeAmber,
+                        foregroundColor: storeGreen),
+                    onPressed: saving
+                        ? null
+                        : () async {
+                            final newPrice =
+                                double.tryParse(priceCtrl.text.trim());
+                            final stock = int.tryParse(stockCtrl.text.trim());
+                            if (newPrice == null ||
+                                !newPrice.isFinite ||
+                                newPrice <= 0 ||
+                                (stockCtrl.text.trim().isNotEmpty &&
+                                    (stock == null || stock < 0))) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text(
+                                          'Enter a positive price and non-negative stock.')));
+                              return;
+                            }
+                            update(() => saving = true);
+                            try {
+                              await ref.read(dioProvider).patch(
+                                  '/admin/commerce/offers/${p.id}',
+                                  data: {
+                                    'selling_price': newPrice,
+                                    if (stock != null) 'available_stock': stock
+                                  });
+                              ref.invalidate(productsProvider);
+                              ref.invalidate(productDetailProvider);
+                              await _fetchBackendData();
+                              if (ctx.mounted) Navigator.pop(ctx);
+                            } catch (error) {
+                              if (mounted)
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(commerceError(error))));
+                            } finally {
+                              if (ctx.mounted) update(() => saving = false);
+                            }
+                          },
+                    child: const Text('Save Price & Stock',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ))),
     );
+    await Navigator.of(context, rootNavigator: true).push(route);
+    // The pop future resolves before the closing animation removes TextFields.
+    await route.completed;
+    priceCtrl.dispose();
+    stockCtrl.dispose();
   }
 }

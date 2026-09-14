@@ -1,3 +1,5 @@
+import '../../../core/media_url.dart';
+
 enum ProductCategory { equipment, feedNutrition }
 
 class ProductVariant {
@@ -192,9 +194,11 @@ class ProductFamily {
         taxonomyNodeId: json['taxonomy_node_id']?.toString(),
         taxonomyPath: json['taxonomy_path']?.toString(),
         description: json['description']?.toString() ?? '',
-        primaryImage: json['primary_image']?.toString(),
+        primaryImage: json['primary_image'] == null
+            ? null
+            : resolveMediaUrl(json['primary_image'].toString()),
         media: (json['media'] as List<dynamic>?)
-                ?.map((e) => e.toString())
+                ?.map((e) => resolveMediaUrl(e.toString()))
                 .toList() ??
             const [],
         variants: (json['variants'] as List<dynamic>?)
@@ -247,6 +251,7 @@ class Product {
       this.taxonomy,
       this.taxonomyEnabled = false,
       this.specifications = const {},
+      this.isActive = true,
       this.inStock = false,
       this.availableQuantity = 0,
       this.minOrderQuantity = 1,
@@ -267,7 +272,7 @@ class Product {
   final Map<String, dynamic>? taxonomy;
   final bool taxonomyEnabled;
   final Map<String, dynamic> specifications;
-  final bool inStock, isRentable;
+  final bool inStock, isRentable, isActive;
   final int availableQuantity, minOrderQuantity;
   final List<String> media;
   final Map<String, dynamic>? vendor;
@@ -329,6 +334,7 @@ class Product {
     Map<String, dynamic>? taxonomy,
     bool? taxonomyEnabled,
     Map<String, dynamic>? specifications,
+    bool? isActive,
     bool? inStock,
     int? availableQuantity,
     int? minOrderQuantity,
@@ -356,6 +362,7 @@ class Product {
         taxonomy: taxonomy ?? this.taxonomy,
         taxonomyEnabled: taxonomyEnabled ?? this.taxonomyEnabled,
         specifications: specifications ?? this.specifications,
+        isActive: isActive ?? this.isActive,
         inStock: inStock ?? this.inStock,
         availableQuantity: availableQuantity ?? this.availableQuantity,
         minOrderQuantity: minOrderQuantity ?? this.minOrderQuantity,
@@ -388,11 +395,13 @@ class Product {
           ? null
           : Map<String, dynamic>.from(j['taxonomy']),
       specifications: Map<String, dynamic>.from(j['specifications'] ?? {}),
+      isActive: j['is_active'] ?? true,
       inStock: j['in_stock'] ?? false,
       availableQuantity: j['available_quantity'] ?? 0,
       minOrderQuantity: j['min_order_quantity'] ?? 1,
-      media:
-          (j['media'] as List? ?? []).map((x) => x['url'].toString()).toList(),
+      media: (j['media'] as List? ?? [])
+          .map((x) => resolveMediaUrl(x['url'].toString()))
+          .toList(),
       vendor:
           j['vendor'] is Map ? Map<String, dynamic>.from(j['vendor']) : null,
       isRentable: j['is_rentable'] ?? false,

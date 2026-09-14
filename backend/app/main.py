@@ -41,6 +41,7 @@ from app.api.orders import router as order_router
 from app.api.analytics import router as analytics_router
 from app.api.commerce_admin import router as commerce_admin_router
 from app.api.customer_commerce import router as customer_commerce_router
+from app.api.product_media import router as product_media_router
 from app.database import init_db
 from app.config import settings
 
@@ -153,6 +154,7 @@ app.include_router(order_router, prefix="/api/v1")
 app.include_router(analytics_router, prefix="/api/v1")
 app.include_router(commerce_admin_router, prefix="/api/v1")
 app.include_router(customer_commerce_router, prefix="/api/v1")
+app.include_router(product_media_router, prefix="/api/v1")
 
 logger.info("Registered routers: auth, farmers, cattle, health, milk, feed, breeding, finance, vet, chat, whatsapp, notifications, admin, super-admin, vendor, cooperative, collection, payments, marketplace, outbreak, withdrawal, carbon, vision, schemes, mandi, pashu-aadhaar, milk-purity, products, taxonomy, cart, addresses, orders, analytics")
 

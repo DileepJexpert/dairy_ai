@@ -24,6 +24,10 @@ Implemented customer integrations:
 - Published help content, authenticated enquiries, admin replies and notifications.
 - Seller quick-publish form uses existing backend product/inventory APIs. It
   creates drafts before publishing; inspect saved drafts after a partial failure.
+- SKU image uploads, gallery/primary selection and removal now use backend
+  records and local disk, with vendor ownership checks and private draft previews.
+  Admin flat-SKU price/stock edits now call the offer API; restocking requires
+  explicit quantities instead of an automatic 50-unit value.
 
 Already integrated admin controls from the previous slice remain: seller approval,
 offer pricing/stock, coupons, certificates, product publishing, placements and audit.
@@ -47,8 +51,11 @@ This is **not a claim that every DairyAI module is production-ready**.
 - Marketing story assets, some informational copy and legal pages remain
   code-managed, not a complete content-management system. FAQs/contact content
   are admin-editable now. Static presentation code is not business-record storage.
-- Media remains existing asset/URL based. No paid S3 service was introduced;
-  general local file upload/storage lifecycle is a separate feature.
+- Product SKU images support local uploads; concept families without SKUs and
+  certificate documents still use asset/URL inputs. No paid S3 service was added.
+  Disk and database backups are both required. Detached files are retained to
+  preserve copied seller-offer references; scheduled orphan cleanup, global disk
+  quotas and direct family/document uploads remain future work.
 - WhatsApp recovery prepares a backend message with an eligible persisted
   coupon (if any), and copies a link for manual use. It never claims a message
   was sent or a sale recovered. No RECOVER10 coupon is invented.
@@ -93,3 +100,30 @@ The local service on port 8002 returned 404 for the new help endpoint before
 restart. Database initialization succeeded against localhost:5432/dairy_ai with
 APP_ENV=development; browser-to-live-server acceptance remains to be performed
 after restarting backend and Flutter. Deployment remains pending.
+
+## Follow-on image and catalogue slice (2026-09-14)
+
+Implemented local SKU image uploads (JPEG/PNG/WebP), re-encoding with metadata
+stripping, 5 MB/16-million-pixel limits, primary selection, attachment removal,
+private draft previews, and published-image serving. All mutations check admin
+or active owning-vendor access. Removing an attachment does not delete shared
+file bytes or break another seller offer that still references the image.
+Existing product-media tables are reused; no migration or database reset.
+
+The full admin catalogue's flat-SKU price and stock controls now persist through
+the offer API. Inventory updates preserve reservations and require explicit
+counts. Seller listing status uses is_active rather than confusing it with
+stock availability. Failed saves no longer report local-session success.
+
+Validation: full backend run 262 passed / 1 skipped before the additional
+pixel-limit test; all 9 focused image tests passed after the final validation additions.
+Flutter commerce/storefront/media suite: 44 passed, plus the admin catalogue
+interaction test passed separately. Media dialog tested at 390/768/1440 pixels.
+Release JavaScript web compilation succeeded (existing secure-storage Wasm
+warnings remain). Docker Compose configuration validates. Live browser file
+selection against the restarted local API has not yet been manually accepted.
+
+See RUN_LOCAL.md for dependency installation, storage backups and photo-manager
+entry points. The development upload folder is Git-ignored and Docker-ignored;
+the Compose backend mounts a persistent media volume. No paid storage service,
+real payment integration or outbound marketing was enabled.

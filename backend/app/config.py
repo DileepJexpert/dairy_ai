@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     # Demand-validation mode: checkout records intent without charging a
     # customer or consuming sellable inventory.
     PRELAUNCH_MODE: bool = True
+    # Keep this directory on persistent disk and back it up with the database.
+    PRODUCT_MEDIA_DIR: str = "storage/product-media"
     # Enable after an explicit local full rebuild (see scripts/rebuild_local_database.py).
     COMMERCE_TAXONOMY_ENABLED: bool = False
 

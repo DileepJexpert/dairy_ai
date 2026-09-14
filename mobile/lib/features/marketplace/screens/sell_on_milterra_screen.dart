@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../models/marketplace_models.dart';
 import '../providers/marketplace_provider.dart';
+import '../providers/product_provider.dart';
+import '../../admin/providers/admin_marketplace_provider.dart';
 import '../widgets/store_design.dart';
 
 class SellOnMilterraScreen extends ConsumerStatefulWidget {
@@ -12,7 +14,8 @@ class SellOnMilterraScreen extends ConsumerStatefulWidget {
   final int initialTab;
 
   @override
-  ConsumerState<SellOnMilterraScreen> createState() => _SellOnMilterraScreenState();
+  ConsumerState<SellOnMilterraScreen> createState() =>
+      _SellOnMilterraScreenState();
 }
 
 class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
@@ -21,37 +24,41 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
 
   // Livestock Form Controllers
   ListingCategory _cattleCategory = ListingCategory.cow;
-  final _cattleTitleCtrl = TextEditingController(text: 'High-Yield Pure Gir Cow (2nd Lactation)');
+  final _cattleTitleCtrl =
+      TextEditingController(text: 'High-Yield Pure Gir Cow (2nd Lactation)');
   final _cattleBreedCtrl = TextEditingController(text: 'Gir Cow');
   final _cattlePriceCtrl = TextEditingController(text: '65000');
   final _cattleYieldCtrl = TextEditingController(text: '16.5');
   final _cattleAgeCtrl = TextEditingController(text: '38');
   final _cattleLocationCtrl = TextEditingController(text: 'Karnal, Haryana');
   final _cattleDescCtrl = TextEditingController(
-      text: 'Healthy 2nd lactation Gir cow with proven daily milk yield of 16-18L. Vaccinated and docile.');
+      text:
+          'Healthy 2nd lactation Gir cow with proven daily milk yield of 16-18L. Vaccinated and docile.');
   bool _cattleIsPregnant = true;
   bool _cattleHealthVerified = true;
   bool _publishingCattle = false;
 
   // Dairy Product Form Controllers
   String _productCategory = 'Dairy Foods';
-  final _prodTitleCtrl = TextEditingController(text: 'Milterra Farm Fresh Vedic Bilona A2 Ghee (500ml)');
+  final _prodTitleCtrl = TextEditingController(
+      text: 'Milterra Farm Fresh Vedic Bilona A2 Ghee (500ml)');
   final _prodBrandCtrl = TextEditingController(text: 'Milterra Pure Organics');
   final _prodPackCtrl = TextEditingController(text: '500 ml Glass Jar');
   final _prodPriceCtrl = TextEditingController(text: '850');
   final _prodStockCtrl = TextEditingController(text: '45');
   final _prodDescCtrl = TextEditingController(
-      text: 'Handcrafted Vedic Bilona Ghee made by churning whole curd from grass-fed Gir cows in brass vessels.');
-  bool _prodCertified = true;
+      text:
+          'Handcrafted Vedic Bilona Ghee made by churning whole curd from grass-fed Gir cows in brass vessels.');
   bool _publishingProduct = false;
 
   // Vendor Onboarding Controllers
-  final _vendorOrgCtrl = TextEditingController(text: 'Karnal Farmers Cooperative Federation');
+  final _vendorOrgCtrl =
+      TextEditingController(text: 'Karnal Farmers Cooperative Federation');
   String _vendorOrgType = 'Dairy Cooperative Society';
   final _vendorGstinCtrl = TextEditingController(text: '08AAACM4592L1Z5');
   final _vendorFssaiCtrl = TextEditingController(text: '10822003000412');
-  final _vendorBankAccCtrl = TextEditingController(text: '92100200458129');
-  final _vendorIfscCtrl = TextEditingController(text: 'SBIN0001428');
+  final _vendorBankAccCtrl = TextEditingController();
+  final _vendorIfscCtrl = TextEditingController();
   bool _submittingVendor = false;
   bool _vendorRegistered = false;
 
@@ -122,7 +129,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: storeGreen,
-            content: Text('Livestock listing "$title" published successfully to Milterra Marketplace!'),
+            content: Text(
+                'Livestock listing "$title" published successfully to Milterra Marketplace!'),
             action: SnackBarAction(
               label: 'View Listings',
               textColor: storeAmber,
@@ -136,7 +144,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: storeGreen,
-            content: Text('Livestock listing "$title" published successfully! (Saved to marketplace)'),
+            content: const Text(
+                'Listing was not saved. Check your login and try again.'),
             action: SnackBarAction(
               label: 'View Listings',
               textColor: storeAmber,
@@ -163,99 +172,82 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
       return;
     }
 
+    if (ref.read(currentUserProvider) == null) {
+      context.push('/login');
+      return;
+    }
+    final stock = int.tryParse(_prodStockCtrl.text.trim());
+    if (stock == null || stock < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enter a valid stock quantity.')));
+      return;
+    }
     setState(() => _publishingProduct = true);
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (mounted) {
-      setState(() => _publishingProduct = false);
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: storeWhite,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
-            children: [
-              Icon(Icons.check_circle, color: storeGreen, size: 24),
-              SizedBox(width: 8),
-              Text('Product Listed!', style: TextStyle(fontWeight: FontWeight.w800, color: storeGreen)),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '"$title" has been successfully registered in the Milterra Store catalogue under "$_productCategory".',
-                style: const TextStyle(fontSize: 13),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xffe8f5e9),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.verified, size: 18, color: storeGreen),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Purity Verified · Standard FSSAI Packaging · Stock: ${_prodStockCtrl.text} units',
-                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: storeGreen),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Add Another Product'),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: storeGreen,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                context.go('/shop');
-              },
-              child: const Text('Go to Store Front'),
-            ),
-          ],
-        ),
-      );
+    try {
+      // Create as draft first. Partial inventory failure never publishes a half-created listing.
+      final created =
+          await ref.read(dioProvider).post('/vendor/products', data: {
+        'sku': 'SELLER-${DateTime.now().microsecondsSinceEpoch}',
+        'title': title,
+        'brand': _prodBrandCtrl.text.trim(),
+        'category': _productCategory.toLowerCase().contains('equipment')
+            ? 'EQUIPMENT'
+            : 'FEED_NUTRITION',
+        'subcategory': _productCategory,
+        'base_price': price,
+        'unit': 'pack',
+        'pack_size': _prodPackCtrl.text.trim(),
+        'description': _prodDescCtrl.text.trim(),
+        'publication_status': 'draft',
+      });
+      final id = created.data['data']['id'];
+      await ref.read(dioProvider).put('/vendor/products/$id/inventory',
+          data: {'available_quantity': stock});
+      await ref.read(dioProvider).put('/vendor/products/$id',
+          data: {'publication_status': 'published'});
+      ref.invalidate(productsProvider);
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Product saved and published. Manage photos from Seller Products.')));
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Could not publish: ${commerceError(e)}. Check Seller Products for any saved draft before retrying.')));
+    } finally {
+      if (mounted) setState(() => _publishingProduct = false);
     }
   }
 
   Future<void> _submitVendorOnboarding() async {
-    final org = _vendorOrgCtrl.text.trim();
-    if (org.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: storeError,
-          content: Text('Please enter your business or cooperative name.'),
-        ),
-      );
+    if (ref.read(currentUserProvider) == null) {
+      context.push('/login');
       return;
     }
-
+    final org = _vendorOrgCtrl.text.trim();
+    if (org.isEmpty) return;
     setState(() => _submittingVendor = true);
-    await Future.delayed(const Duration(milliseconds: 1100));
-    if (mounted) {
-      setState(() {
-        _submittingVendor = false;
-        _vendorRegistered = true;
+    try {
+      await ref.read(dioProvider).post('/vendor/register', data: {
+        'business_name': org,
+        'vendor_type': 'other',
+        'gst_number': _vendorGstinCtrl.text.trim(),
+        'license_number': _vendorFssaiCtrl.text.trim(),
+        'description': _vendorOrgType,
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: storeGreen,
-          content: Text('Vendor onboarding application submitted! Tier 1 Partner badge activated.'),
-        ),
-      );
+      if (mounted) {
+        setState(() => _vendorRegistered = true);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Business profile saved. Approval and seller access are managed by admin. Bank payout setup is not active during pre-launch.')));
+      }
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not register: ${commerceError(e)}')));
+    } finally {
+      if (mounted) setState(() => _submittingVendor = false);
     }
   }
 
@@ -274,9 +266,11 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                   _buildSellerHeroHeader(),
                   Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: StoreLayout.maxWidth),
+                      constraints:
+                          const BoxConstraints(maxWidth: StoreLayout.maxWidth),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 20),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
@@ -293,11 +287,14 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                                 indicatorWeight: 3,
                                 labelColor: storeGreen,
                                 unselectedLabelColor: storeMuted,
-                                labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-                                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                labelStyle: const TextStyle(
+                                    fontWeight: FontWeight.w800, fontSize: 13),
+                                unselectedLabelStyle: const TextStyle(
+                                    fontWeight: FontWeight.w600, fontSize: 13),
                                 tabs: const [
                                   Tab(
-                                    icon: Icon(Icons.inventory_2_outlined, size: 18),
+                                    icon: Icon(Icons.inventory_2_outlined,
+                                        size: 18),
                                     text: 'Sell Dairy & Supplies',
                                   ),
                                   Tab(
@@ -305,7 +302,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                                     text: 'Sell Cattle & Livestock',
                                   ),
                                   Tab(
-                                    icon: Icon(Icons.verified_user_outlined, size: 18),
+                                    icon: Icon(Icons.verified_user_outlined,
+                                        size: 18),
                                     text: 'Vendor Onboarding',
                                   ),
                                 ],
@@ -364,7 +362,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: storeAmber.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
@@ -400,17 +399,22 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                     const SizedBox(height: 8),
                     const Text(
                       'Connect directly with 50,000+ verified dairy farmers, rural cooperatives, and nationwide consumers with zero middlemen.',
-                      style: TextStyle(fontSize: 14, color: Color(0xffc5d8ce), height: 1.4),
+                      style: TextStyle(
+                          fontSize: 14, color: Color(0xffc5d8ce), height: 1.4),
                     ),
                     const SizedBox(height: 18),
                     Wrap(
                       spacing: 12,
                       runSpacing: 8,
                       children: [
-                        _heroFeaturePill(Icons.handshake_outlined, '0% Cattle Commission'),
-                        _heroFeaturePill(Icons.speed, 'Instant Milterra Wallet Payouts'),
-                        _heroFeaturePill(Icons.local_shipping_outlined, 'DTDC Cold-Chain Logistics'),
-                        _heroFeaturePill(Icons.verified_outlined, 'FSSAI Tested Seal'),
+                        _heroFeaturePill(
+                            Icons.handshake_outlined, '0% Cattle Commission'),
+                        _heroFeaturePill(
+                            Icons.speed, 'Instant Milterra Wallet Payouts'),
+                        _heroFeaturePill(Icons.local_shipping_outlined,
+                            'DTDC Cold-Chain Logistics'),
+                        _heroFeaturePill(
+                            Icons.verified_outlined, 'FSSAI Tested Seal'),
                       ],
                     ),
                   ],
@@ -438,7 +442,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
           const SizedBox(width: 6),
           Text(
             text,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(
+                fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
           ),
         ],
       ),
@@ -465,7 +470,10 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                 children: [
                   Text(
                     'List Dairy Products & Farm Equipment',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: storeGreen),
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: storeGreen),
                   ),
                   SizedBox(height: 2),
                   Text(
@@ -481,7 +489,9 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                 ),
                 onPressed: () => context.go('/admin/commerce/products'),
                 icon: const Icon(Icons.manage_accounts, size: 16),
-                label: const Text('Manage Inventory', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                label: const Text('Manage Inventory',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -493,12 +503,19 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
             decoration: const InputDecoration(
               labelText: 'Product Category',
               border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
             items: const [
-              DropdownMenuItem(value: 'Dairy Foods', child: Text('🥛 Dairy Foods (Ghee, Butter, Paneer, Dahi)')),
-              DropdownMenuItem(value: 'Animal nutrition', child: Text('🌾 Animal Nutrition & Cattle Feed')),
-              DropdownMenuItem(value: 'Equipment', child: Text('⚙️ Farm & Milking Equipment')),
+              DropdownMenuItem(
+                  value: 'Dairy Foods',
+                  child: Text('🥛 Dairy Foods (Ghee, Butter, Paneer, Dahi)')),
+              DropdownMenuItem(
+                  value: 'Animal nutrition',
+                  child: Text('🌾 Animal Nutrition & Cattle Feed')),
+              DropdownMenuItem(
+                  value: 'Equipment',
+                  child: Text('⚙️ Farm & Milking Equipment')),
             ],
             onChanged: (val) {
               if (val != null) setState(() => _productCategory = val);
@@ -512,7 +529,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
               labelText: 'Product Title',
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.title),
-              contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
           ),
           const SizedBox(height: 14),
@@ -526,7 +544,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                     labelText: 'Brand / Dairy Cooperative Name',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.business),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
               ),
@@ -538,7 +557,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                     labelText: 'Pack Size / Volume (e.g. 500ml, 1 Kg)',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.straighten),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
               ),
@@ -556,7 +576,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                     labelText: 'Price (₹ MRP inclusive of GST)',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.currency_rupee),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
               ),
@@ -569,7 +590,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                     labelText: 'Stock Units Available',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.inventory),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
               ),
@@ -589,16 +611,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
           ),
           const SizedBox(height: 12),
 
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            controlAffinity: ListTileControlAffinity.leading,
-            value: _prodCertified,
-            onChanged: (v) => setState(() => _prodCertified = v ?? true),
-            title: const Text(
-              'I certify that this product meets Milterra 0% adulteration criteria and has FSSAI regulatory clearance.',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: storeGreen),
-            ),
-          ),
+          const Text(
+              'Listing a product does not certify its quality. Actual reports must be reviewed and published separately by admin.'),
           const SizedBox(height: 18),
 
           SizedBox(
@@ -608,7 +622,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
               style: FilledButton.styleFrom(
                 backgroundColor: storeAmber,
                 foregroundColor: storeGreen,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: _publishingProduct ? null : _publishProductListing,
               child: _publishingProduct
@@ -618,15 +633,20 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                         SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: storeGreen),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: storeGreen),
                         ),
                         SizedBox(width: 10),
-                        Text('Registering in Store Catalogue…', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text('Registering in Store Catalogue…',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                       ],
                     )
                   : const Text(
                       'Publish Product to Milterra Storefront',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: storeGreen),
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: storeGreen),
                     ),
             ),
           ),
@@ -655,7 +675,10 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                 children: [
                   Text(
                     'Sell Verified Cattle & Livestock',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: storeGreen),
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: storeGreen),
                   ),
                   SizedBox(height: 2),
                   Text(
@@ -671,7 +694,9 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                 ),
                 onPressed: () => context.go('/marketplace'),
                 icon: const Icon(Icons.search, size: 16),
-                label: const Text('Browse Marketplace', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                label: const Text('Browse Marketplace',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -683,7 +708,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
             decoration: const InputDecoration(
               labelText: 'Animal Category',
               border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
             items: ListingCategory.values
                 .map((x) => DropdownMenuItem(
@@ -701,7 +727,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
               labelText: 'Listing Title',
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.title),
-              contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
           ),
           const SizedBox(height: 14),
@@ -715,7 +742,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                     labelText: 'Breed (e.g. Gir, Murrah, Sahiwal)',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.pets),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
               ),
@@ -728,7 +756,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                     labelText: 'Daily Milk Yield (Liters/Day)',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.water_drop_outlined),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
               ),
@@ -746,7 +775,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                     labelText: 'Asking Price (₹)',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.currency_rupee),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
               ),
@@ -759,7 +789,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                     labelText: 'Age (in Months)',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.calendar_today_outlined),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
               ),
@@ -773,7 +804,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
               labelText: 'Location (Village, District, State)',
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.location_on_outlined),
-              contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
           ),
           const SizedBox(height: 14),
@@ -797,8 +829,10 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
                   value: _cattleIsPregnant,
-                  onChanged: (v) => setState(() => _cattleIsPregnant = v ?? false),
-                  title: const Text('Currently Pregnant / In-Calf', style: TextStyle(fontSize: 12)),
+                  onChanged: (v) =>
+                      setState(() => _cattleIsPregnant = v ?? false),
+                  title: const Text('Currently Pregnant / In-Calf',
+                      style: TextStyle(fontSize: 12)),
                 ),
               ),
               Expanded(
@@ -806,9 +840,13 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
                   value: _cattleHealthVerified,
-                  onChanged: (v) => setState(() => _cattleHealthVerified = v ?? false),
+                  onChanged: (v) =>
+                      setState(() => _cattleHealthVerified = v ?? false),
                   title: const Text('Veterinary Health & FMD Vaccinated',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: storeGreen)),
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: storeGreen)),
                 ),
               ),
             ],
@@ -822,7 +860,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
               style: FilledButton.styleFrom(
                 backgroundColor: storeAmber,
                 foregroundColor: storeGreen,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: _publishingCattle ? null : _publishCattleListing,
               child: _publishingCattle
@@ -832,15 +871,20 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                         SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: storeGreen),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: storeGreen),
                         ),
                         SizedBox(width: 10),
-                        Text('Publishing Livestock Listing…', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text('Publishing Livestock Listing…',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                       ],
                     )
                   : const Text(
                       'Publish Livestock Listing (0% Commission)',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: storeGreen),
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: storeGreen),
                     ),
             ),
           ),
@@ -869,7 +913,10 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                 children: [
                   Text(
                     'Vendor & Cooperative Partner Verification',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: storeGreen),
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: storeGreen),
                   ),
                   SizedBox(height: 2),
                   Text(
@@ -879,7 +926,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xffe8f5e9),
                   borderRadius: BorderRadius.circular(12),
@@ -889,14 +937,21 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _vendorRegistered ? Icons.verified : Icons.pending_outlined,
+                      _vendorRegistered
+                          ? Icons.verified
+                          : Icons.pending_outlined,
                       size: 14,
                       color: storeGreen,
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      _vendorRegistered ? 'Tier 1 Certified' : 'Status: Verification Open',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: storeGreen),
+                      _vendorRegistered
+                          ? 'Tier 1 Certified'
+                          : 'Status: Verification Open',
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: storeGreen),
                     ),
                   ],
                 ),
@@ -904,7 +959,6 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
             ],
           ),
           const Divider(height: 24),
-
           if (_vendorRegistered) ...[
             Container(
               padding: const EdgeInsets.all(16),
@@ -923,12 +977,16 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                       children: [
                         Text(
                           'Congratulations! You are a Certified Milterra Vendor Partner',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: storeGreen),
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: storeGreen),
                         ),
                         SizedBox(height: 2),
                         Text(
                           'Your GSTIN and FSSAI Central License have been validated. Direct settlements will route into your registered bank account.',
-                          style: TextStyle(fontSize: 12, color: Color(0xff2e7d32)),
+                          style:
+                              TextStyle(fontSize: 12, color: Color(0xff2e7d32)),
                         ),
                       ],
                     ),
@@ -938,37 +996,45 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
             ),
             const SizedBox(height: 20),
           ],
-
           TextField(
             controller: _vendorOrgCtrl,
             decoration: const InputDecoration(
-              labelText: 'Enterprise / Cooperative / Producer Organization Name',
+              labelText:
+                  'Enterprise / Cooperative / Producer Organization Name',
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.corporate_fare),
-              contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
           ),
           const SizedBox(height: 14),
-
           DropdownButtonFormField<String>(
             initialValue: _vendorOrgType,
             decoration: const InputDecoration(
               labelText: 'Entity Legal Structure',
               border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
             items: const [
-              DropdownMenuItem(value: 'Dairy Cooperative Society', child: Text('Dairy Cooperative Society (DCS / Union)')),
-              DropdownMenuItem(value: 'Farmer Producer Company (FPC)', child: Text('Farmer Producer Company (FPC / FPO)')),
-              DropdownMenuItem(value: 'Private Limited / LLP', child: Text('Private Limited / LLP Dairy Processor')),
-              DropdownMenuItem(value: 'Proprietorship Farm', child: Text('Sole Proprietorship Vedic Farm')),
+              DropdownMenuItem(
+                  value: 'Dairy Cooperative Society',
+                  child: Text('Dairy Cooperative Society (DCS / Union)')),
+              DropdownMenuItem(
+                  value: 'Farmer Producer Company (FPC)',
+                  child: Text('Farmer Producer Company (FPC / FPO)')),
+              DropdownMenuItem(
+                  value: 'Private Limited / LLP',
+                  child: Text('Private Limited / LLP Dairy Processor')),
+              DropdownMenuItem(
+                  value: 'Proprietorship Farm',
+                  child: Text('Sole Proprietorship Vedic Farm')),
             ],
             onChanged: (val) {
               if (val != null) setState(() => _vendorOrgType = val);
             },
           ),
           const SizedBox(height: 14),
-
           Row(
             children: [
               Expanded(
@@ -978,7 +1044,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                     labelText: 'GSTIN Number (15 Digits)',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.badge_outlined),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
               ),
@@ -990,25 +1057,27 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                     labelText: 'FSSAI License Number (14 Digits)',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.verified_outlined),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 14),
-
           Row(
             children: [
               Expanded(
                 flex: 3,
                 child: TextField(
                   controller: _vendorBankAccCtrl,
+                  enabled: false,
                   decoration: const InputDecoration(
-                    labelText: 'Payout Settlement Bank Account Number',
+                    labelText: 'Bank payouts not enabled',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.account_balance),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
               ),
@@ -1017,18 +1086,19 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                 flex: 2,
                 child: TextField(
                   controller: _vendorIfscCtrl,
+                  enabled: false,
                   decoration: const InputDecoration(
                     labelText: 'IFSC Code',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.code),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 20),
-
           SizedBox(
             width: double.infinity,
             height: 48,
@@ -1036,7 +1106,8 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
               style: FilledButton.styleFrom(
                 backgroundColor: storeGreen,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: _submittingVendor ? null : _submitVendorOnboarding,
               child: _submittingVendor
@@ -1046,15 +1117,18 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                         SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
                         ),
                         SizedBox(width: 10),
-                        Text('Submitting Verification Documents…', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text('Submitting Verification Documents…',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                       ],
                     )
                   : const Text(
                       'Submit Vendor Verification Dossier',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
                     ),
             ),
           ),

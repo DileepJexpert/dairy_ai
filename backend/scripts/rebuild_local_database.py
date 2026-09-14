@@ -15,10 +15,10 @@ from app.config import settings
 from app.database import Base
 import app.models  # noqa: F401 - register the COMPLETE application schema
 from app.models.commerce_taxonomy import TaxonomyLock, TaxonomyNode, ProductClassification
-from app.models.product import Product, ProductCategory, ProductInventory
+from app.models.product import Product, ProductCategory, ProductFamily, ProductInventory, ProductReview, MerchandisingPlacement
 from app.models.user import User, UserRole
 from app.models.vendor import Vendor, VendorType
-from scripts.seed_milterra_demo import PRODUCTS
+from scripts.seed_milterra_demo import CONCEPT_EXPLANATION, CONCEPT_FAMILIES, PRODUCTS, product_specifications
 
 
 def validate_target(database_url, environment, confirmation=None, execute=False):
@@ -70,26 +70,95 @@ async def seed_foundation(db, demo=False):
         await db.flush()
     if not demo:
         return
+    from scripts.initialize_commerce_admin import seed_coupons
+    await seed_coupons(db)
     vendor_user = User(id=uuid.uuid4(), phone="9999900090", role=UserRole.vendor, is_active=True)
+    admin_user = User(id=uuid.uuid4(), phone="9999900000", role=UserRole.admin, is_active=True)
     # Explicit demo mode ONLY; no fixed OTP is persisted by this script.
-    db.add_all([vendor_user, User(id=uuid.uuid4(), phone="9999900000", role=UserRole.admin, is_active=True)])
+    db.add_all([vendor_user, admin_user])
     await db.flush()
     vendor = Vendor(id=uuid.uuid4(), user_id=vendor_user.id, business_name="Milterra Dairy",
                     vendor_type=VendorType.other, district="Lucknow", state="Uttar Pradesh",
                     is_active=True, is_verified=True)
     db.add(vendor)
     await db.flush()
-    assignments = {"MIL-GHEE-500": "cow-ghee", "MIL-GHEE-1000": "cow-ghee",
-                   "MIL-BUFF-500": "buffalo-ghee", "MIL-PANEER-200": "paneer"}
+    for title, slug, subcategory in CONCEPT_FAMILIES:
+        db.add(ProductFamily(
+            id=uuid.uuid4(),
+            vendor_id=vendor.id,
+            slug=slug,
+            title=title,
+            brand="MILTERRA",
+            department="Farm Essentials",
+            collection="Animal Nutrition",
+            description=CONCEPT_EXPLANATION,
+            production_method=(
+                "Proposed formulation; composition and claims require validation before launch."
+            ),
+            is_published=True,
+            is_concept=True,
+            supporting_documents={
+                "subcategory": subcategory,
+                "status": "concept_preview",
+            },
+        ))
+    await db.flush()
+    created_products = {}
     for sku, title, pack, description, price, stock in PRODUCTS:
         product = Product(id=uuid.uuid4(), vendor_id=vendor.id, sku=sku, slug=sku.lower(),
                           title=title, pack_size=pack, description=description, base_price=Decimal(price),
                           category=ProductCategory.feed_nutrition, brand="Milterra", unit="pack",
+                          specifications=product_specifications(sku),
                           is_active=True, is_featured=True, min_order_quantity=1)
         db.add(product)
         await db.flush()
+        created_products[sku] = product
         db.add(ProductInventory(product_id=product.id, available_quantity=stock, reorder_level=5))
-        db.add(ProductClassification(product_id=product.id, category_id=taxonomy_id(assignments[sku]), version=1))
+        taxonomy_slug = (
+            "buffalo-ghee"
+            if sku.startswith("MIL-BUFF-")
+            else "paneer"
+            if sku.startswith("MIL-PANEER-")
+            else "cow-ghee"
+        )
+        db.add(ProductClassification(
+            product_id=product.id,
+            category_id=taxonomy_id(taxonomy_slug),
+            version=1,
+        ))
+    highlighted = created_products.get("MIL-GHEE-500")
+    if highlighted:
+        db.add(MerchandisingPlacement(
+            product_id=highlighted.id,
+            placement_type="new_launch",
+            headline="Discover Milterra A2 Sahiwal Cow Ghee",
+            subheadline="Planned cultured-butter bilona process · 500 ml family jar",
+            badge="NEW LAUNCH PREVIEW",
+            priority=250,
+            is_active=True,
+            created_by_user_id=admin_user.id,
+        ))
+    seeded_feedback = [
+        ("MIL-GHEE-500", "Pre-launch taster", 5, "Promising premium presentation",
+         "The jar, label and pack-size idea feel suitable for a premium household ghee brand."),
+        ("MIL-BUFF-500", "Catalogue preview participant", 4, "Would like more sourcing detail",
+         "The product idea is interesting. I would like to see origin, batch and preparation details before launch."),
+        ("MIL-PANEER-200", "Early catalogue visitor", 4, "Useful everyday pack size",
+         "The proposed pack size looks convenient for a small family and I would consider trying it after launch."),
+    ]
+    for sku, author, rating, headline, content in seeded_feedback:
+        product = created_products.get(sku)
+        if product:
+            db.add(ProductReview(
+                product_id=product.id,
+                author_name=author,
+                rating=rating,
+                headline=headline,
+                content=content,
+                source_label="Illustrative pre-launch feedback",
+                is_seeded=True,
+                is_approved=True,
+            ))
     await db.flush()
 
 

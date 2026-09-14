@@ -6,20 +6,13 @@ import '../../marketplace/widgets/store_design.dart';
 
 final vendorProductsProvider =
     FutureProvider.autoDispose<List<Product>>((ref) async {
-  try {
-    final res = await ref.read(dioProvider).get('/vendor/products');
-    final body = res.data as Map<String, dynamic>;
-    final list = (body['data'] as List? ?? [])
-        .map((x) => Product.fromJson(Map<String, dynamic>.from(x as Map)))
-        .toList();
-    return list;
-  } catch (_) {
-    // Return sample vendor products when backend is unreachable or offline
-    return defaultMilterraProducts
-        .where((p) => p.vendorId == 'vendor-milterra-dairy' || p.vendorId.isNotEmpty)
-        .take(8)
-        .toList();
-  }
+  ref.watch(currentUserProvider);
+  final res = await ref.read(dioProvider).get('/vendor/products');
+  final body = res.data as Map<String, dynamic>;
+  final list = (body['data'] as List? ?? [])
+      .map((x) => Product.fromJson(Map<String, dynamic>.from(x as Map)))
+      .toList();
+  return list;
 });
 
 class VendorProductsScreen extends ConsumerStatefulWidget {
@@ -601,7 +594,8 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       backgroundColor: storeGreen,
-                      content: Text('Updated inventory for ${p.title} to $newStock units.'),
+                      content: Text(
+                          'Updated inventory for ${p.title} to $newStock units.'),
                     ),
                   );
                 }
@@ -719,7 +713,8 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
                     ),
                     DropdownMenuItem(
                       value: 'Animal nutrition',
-                      child: Text('🌾 Cattle Feed & Nutrition (Pellets, Minerals)'),
+                      child: Text(
+                          '🌾 Cattle Feed & Nutrition (Pellets, Minerals)'),
                     ),
                     DropdownMenuItem(
                       value: 'Equipment',
@@ -842,7 +837,8 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
                   maxLines: 2,
                   decoration: const InputDecoration(
                     labelText: 'Short Description',
-                    hintText: 'Key features, purity certification, source farm...',
+                    hintText:
+                        'Key features, purity certification, source farm...',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -865,7 +861,8 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
                           double.tryParse(price.text) == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Please enter a valid title and price.'),
+                            content:
+                                Text('Please enter a valid title and price.'),
                           ),
                         );
                         return;
@@ -873,18 +870,21 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
 
                       try {
                         final dio = ref.read(dioProvider);
-                        final created = (await dio.post('/vendor/products', data: {
+                        final created =
+                            (await dio.post('/vendor/products', data: {
                           'sku': 'APP-${DateTime.now().microsecondsSinceEpoch}',
                           'title': title.text.trim(),
                           'brand': brand.text.trim(),
                           'pack_size': packSize.text.trim(),
                           'description': desc.text.trim(),
-                          'category': backendCategory == ProductCategory.equipment
-                              ? 'EQUIPMENT'
-                              : 'FEED_NUTRITION',
+                          'category':
+                              backendCategory == ProductCategory.equipment
+                                  ? 'EQUIPMENT'
+                                  : 'FEED_NUTRITION',
                           'base_price': price.text.trim(),
                           'unit': unit.text.trim(),
-                        })).data['data'];
+                        }))
+                                .data['data'];
 
                         final id = created['id'];
                         await dio.put(

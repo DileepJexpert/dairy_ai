@@ -9,6 +9,7 @@ import '../features/auth/providers/auth_provider.dart';
 final analyticsServiceProvider = Provider<AnalyticsService>((ref) {
   final dio = ref.watch(dioProvider);
   final service = AnalyticsService(dio);
+  ref.onDispose(service.dispose);
   service.initSession();
   return service;
 });

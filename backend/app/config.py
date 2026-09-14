@@ -13,8 +13,21 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5000,http://localhost:8000"
     INIT_DB_ON_STARTUP: bool = True
+    # Demand-validation mode: checkout records intent without charging a
+    # customer or consuming sellable inventory.
+    PRELAUNCH_MODE: bool = True
     # Enable after an explicit local full rebuild (see scripts/rebuild_local_database.py).
     COMMERCE_TAXONOMY_ENABLED: bool = False
+
+    # Optional zero-software-cost email delivery. Gmail SMTP can be used with
+    # an account-specific App Password; leave blank for local reset-link testing.
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_USE_TLS: bool = True
+    STOREFRONT_BASE_URL: str = "http://127.0.0.1:5051"
 
     # WhatsApp
     WHATSAPP_TOKEN: str = ""

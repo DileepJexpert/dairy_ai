@@ -152,4 +152,5 @@ async def test_admin_carts_and_nudge(client, db_session, admin_headers, test_use
     assert nudge_res.status_code == 200
     nudge_data = nudge_res.json()["data"]
     assert "whatsapp_link" in nudge_data
-    assert "RECOVER10" in nudge_data["whatsapp_link"]
+    assert nudge_data['coupon_code'] == ''  # No unconfigured coupon promises.
+    assert 'preparing' in nudge_data['sms_message']

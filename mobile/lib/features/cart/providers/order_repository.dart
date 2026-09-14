@@ -1,10 +1,7 @@
-import 'dart:math';
-import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
+import '../../auth/providers/auth_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dairy_ai/features/cart/models/cart_models.dart';
-import 'package:dairy_ai/features/finance/providers/wallet_provider.dart';
-import 'package:dairy_ai/features/notifications/models/notification_models.dart';
-import 'package:dairy_ai/features/notifications/providers/notification_provider.dart';
 
 /// Single item within a placed order.
 class StoreOrderItem {
@@ -25,7 +22,7 @@ class StoreOrderItem {
     required this.unitPrice,
     required this.lineTotal,
     this.image,
-    this.fulfillmentStatus = 'CONFIRMED',
+    this.fulfillmentStatus = 'PENDING_PAYMENT',
   });
 
   factory StoreOrderItem.fromCartItem(CartItem item) {
@@ -37,7 +34,7 @@ class StoreOrderItem {
       unitPrice: item.currentPrice,
       lineTotal: item.lineTotal,
       image: item.primaryImage,
-      fulfillmentStatus: 'CONFIRMED',
+      fulfillmentStatus: 'PENDING_PAYMENT',
     );
   }
 
@@ -50,7 +47,8 @@ class StoreOrderItem {
       unitPrice: double.tryParse(map['unit_price']?.toString() ?? '0') ?? 0.0,
       lineTotal: double.tryParse(map['line_total']?.toString() ?? '0') ?? 0.0,
       image: map['image']?.toString(),
-      fulfillmentStatus: map['fulfillment_status']?.toString() ?? 'CONFIRMED',
+      fulfillmentStatus:
+          map['fulfillment_status']?.toString() ?? 'PENDING_PAYMENT',
     );
   }
 
@@ -104,6 +102,7 @@ class OrderTimelineEvent {
 /// Complete representation of an e-commerce order.
 class StoreOrder {
   final String id;
+  final bool isPrelaunchInterest;
   final String createdAt;
   final String
       status; // CONFIRMED, PACKED, DISPATCHED, OUT_FOR_DELIVERY, DELIVERED, CANCELLED
@@ -121,14 +120,15 @@ class StoreOrder {
   final List<OrderTimelineEvent> timeline;
 
   const StoreOrder({
+    this.isPrelaunchInterest = false,
     required this.id,
     required this.createdAt,
-    this.status = 'CONFIRMED',
-    this.paymentStatus = 'PAID',
-    this.paymentMethod = 'Milterra Wallet',
-    this.carrier = 'DTDC Express Surface',
-    this.trackingNumber = 'DTDC-7749210',
-    this.estimatedDelivery = 'Expected in 1-2 Days',
+    this.status = 'PENDING_PAYMENT',
+    this.paymentStatus = 'PENDING',
+    this.paymentMethod = 'Not specified',
+    this.carrier = 'Not assigned',
+    this.trackingNumber = '',
+    this.estimatedDelivery = 'Not scheduled',
     required this.address,
     required this.items,
     required this.subtotal,
@@ -137,6 +137,34 @@ class StoreOrder {
     required this.total,
     this.timeline = const [],
   });
+
+  factory StoreOrder.fromMap(Map<String, dynamic> j) => StoreOrder(
+        isPrelaunchInterest: j['is_prelaunch_interest'] == true,
+        id: j['id'].toString(),
+        createdAt: j['created_at'].toString(),
+        status: j['status'].toString(),
+        paymentStatus: j['payment_status'].toString(),
+        paymentMethod: j['payment_method']?.toString() ?? 'Not specified',
+        carrier: j['carrier']?.toString().isNotEmpty == true
+            ? j['carrier'].toString()
+            : 'Not assigned',
+        trackingNumber: j['tracking_number']?.toString() ?? '',
+        estimatedDelivery: j['is_prelaunch_interest'] == true
+            ? 'Pre-launch interest · No delivery scheduled'
+            : 'Not scheduled',
+        address: Map<String, dynamic>.from(j['address'] as Map),
+        items: (j['items'] as List)
+            .map((i) => StoreOrderItem.fromMap(Map<String, dynamic>.from(i)))
+            .toList(),
+        subtotal: double.parse(j['subtotal'].toString()),
+        total: double.parse(j['total'].toString()),
+        deliveryFee: double.tryParse(j['delivery_fee'].toString()) ?? 0,
+        discount: double.tryParse(j['discount'].toString()) ?? 0,
+        timeline: (j['timeline'] as List? ?? [])
+            .map(
+                (e) => OrderTimelineEvent.fromMap(Map<String, dynamic>.from(e)))
+            .toList(),
+      );
 
   int get currentStep {
     final s = status.toUpperCase();
@@ -165,6 +193,7 @@ class StoreOrder {
     List<OrderTimelineEvent>? timeline,
   }) {
     return StoreOrder(
+      isPrelaunchInterest: isPrelaunchInterest,
       id: id ?? this.id,
       createdAt: createdAt ?? this.createdAt,
       status: status ?? this.status,
@@ -202,459 +231,48 @@ class StoreOrder {
       };
 }
 
-/// Helper function to format current date/time in Indian e-commerce style.
-String _formatNow() {
-  final now = DateTime.now();
-  final months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec'
-  ];
-  final hour = now.hour % 12 == 0 ? 12 : now.hour % 12;
-  final minute = now.minute.toString().padLeft(2, '0');
-  final ampm = now.hour >= 12 ? 'PM' : 'AM';
-  return '${now.day} ${months[now.month - 1]} ${now.year}, $hour:$minute $ampm';
-}
+final orderLoadStateProvider =
+    StateProvider<AsyncValue<void>>((ref) => const AsyncData(null));
 
-/// State notifier managing real orders placed during the session.
 class OrderNotifier extends StateNotifier<List<StoreOrder>> {
-  final Ref _ref;
+  OrderNotifier(this.ref, {bool enabled = true}) : super([]) {
+    if (enabled) Future.microtask(refresh);
+  }
+  final Ref ref;
+  Dio get dio => ref.read(dioProvider);
 
-  OrderNotifier(this._ref) : super(kDebugMode ? _seedOrders : const []);
-
-  static final List<StoreOrder> _seedOrders = [
-    const StoreOrder(
-      id: 'ORD-2026-8801',
-      createdAt: '11 Sep 2026, 05:40 PM',
-      status: 'DISPATCHED',
-      paymentStatus: 'PAID',
-      paymentMethod: 'Milterra Wallet',
-      carrier: 'DTDC Express Surface',
-      trackingNumber: 'DTDC-7749210',
-      estimatedDelivery: 'Tomorrow by 8 PM',
-      address: {
-        'recipient_name': 'Milterra Member',
-        'street_address': 'Flat 402, Green Meadows, Dairy Farm Road',
-        'city': 'Jaipur',
-        'state': 'Rajasthan',
-        'postal_code': '302001',
-        'phone_number': '+91 98000 00000',
-      },
-      items: [
-        StoreOrderItem(
-          productId: 'mil-ghee-1000',
-          title: 'Milterra Pure A2 Gir Cow Bilona Ghee (1L Glass Jar)',
-          quantity: 1,
-          unitPrice: 1450.0,
-          lineTotal: 1450.0,
-          image:
-              'https://images.unsplash.com/photo-1628088062854-d1870b4553da?w=600&auto=format&fit=crop&q=80',
-          fulfillmentStatus: 'DISPATCHED',
-        ),
-        StoreOrderItem(
-          productId: 'mil-butter-250',
-          title: 'Milterra Cultured Vedic White Makhan (500g)',
-          quantity: 1,
-          unitPrice: 400.0,
-          lineTotal: 400.0,
-          image:
-              'https://images.unsplash.com/photo-1589985270826-4b7bb135bc9d?w=600&auto=format&fit=crop&q=80',
-          fulfillmentStatus: 'DISPATCHED',
-        ),
-      ],
-      subtotal: 1850.0,
-      deliveryFee: 0.0,
-      discount: 0.0,
-      total: 1850.0,
-      timeline: [
-        OrderTimelineEvent(
-          time: '11 Sep 2026, 06:15 PM',
-          title: 'Dispatched via DTDC Express',
-          location: 'DTDC Central Hub, Jaipur',
-          remarks:
-              'Air Waybill DTDC-7749210 allocated. In transit to destination hub.',
-          status: 'DISPATCHED',
-        ),
-        OrderTimelineEvent(
-          time: '11 Sep 2026, 05:55 PM',
-          title: 'Packed & Quality Sealed',
-          location: 'Milterra Pure Hub, Karnal',
-          remarks:
-              'Tested for 99.4% purity and securely packed in temperature-controlled crate.',
-          status: 'PACKED',
-        ),
-        OrderTimelineEvent(
-          time: '11 Sep 2026, 05:40 PM',
-          title: 'Order Placed & Payment Verified',
-          location: 'Milterra Web Store',
-          remarks:
-              'Payment of ₹1,850 successfully debited from Milterra Wallet.',
-          status: 'CONFIRMED',
-        ),
-      ],
-    ),
-    const StoreOrder(
-      id: 'ORD-2026-7652',
-      createdAt: '28 Aug 2026, 11:15 AM',
-      status: 'DELIVERED',
-      paymentStatus: 'PAID',
-      paymentMethod: 'UPI / Razorpay',
-      carrier: 'Delhivery Logistics',
-      trackingNumber: 'DEL-8841920',
-      estimatedDelivery: 'Delivered',
-      address: {
-        'recipient_name': 'Milterra Member',
-        'street_address': 'Flat 402, Green Meadows',
-        'city': 'Jaipur',
-        'state': 'Rajasthan',
-        'postal_code': '302001',
-        'phone_number': '+91 98000 00000',
-      },
-      items: [
-        StoreOrderItem(
-          productId: 'mil-paneer-500',
-          title: 'Milterra Fresh Farm Soft Malai Paneer (500g)',
-          quantity: 2,
-          unitPrice: 200.0,
-          lineTotal: 400.0,
-          image:
-              'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=600&auto=format&fit=crop&q=80',
-          fulfillmentStatus: 'DELIVERED',
-        ),
-      ],
-      subtotal: 400.0,
-      deliveryFee: 0.0,
-      discount: 0.0,
-      total: 400.0,
-      timeline: [
-        OrderTimelineEvent(
-          time: '29 Aug 2026, 04:30 PM',
-          title: 'Package Delivered',
-          location: 'Jaipur Delivery Center',
-          remarks: 'Handed over directly to recipient.',
-          status: 'DELIVERED',
-        ),
-        OrderTimelineEvent(
-          time: '28 Aug 2026, 11:15 AM',
-          title: 'Order Confirmed',
-          location: 'Milterra Web Store',
-          remarks: 'Paid via UPI.',
-          status: 'CONFIRMED',
-        ),
-      ],
-    ),
-  ];
-
-  /// Places a new order into reactive state and sends an immediate notification.
-  StoreOrder placeOrder({
-    required String orderId,
-    required List<CartItem> cartItems,
-    required Map<String, dynamic> deliveryAddress,
-    required String paymentMethod,
-    required double subtotal,
-    required double discount,
-    required double total,
-    String paymentStatus = 'PENDING_PAYMENT',
-    String orderStatus = 'PENDING_PAYMENT',
-    String? carrier,
-    String? trackingNumber,
-  }) {
-    final nowStr = _formatNow();
-    final items = cartItems.map(StoreOrderItem.fromCartItem).toList();
-
-    String methodLabel;
-    switch (paymentMethod.toLowerCase()) {
-      case 'wallet':
-        methodLabel = 'Milterra Wallet';
-        break;
-      case 'cod':
-        methodLabel = 'Cash on Delivery (COD)';
-        break;
-      case 'upi':
-        methodLabel = 'UPI (Instant)';
-        break;
-      case 'card':
-        methodLabel = 'Credit/Debit Card (Visa/MasterCard)';
-        break;
-      case 'netbanking':
-        methodLabel = 'Net Banking';
-        break;
-      default:
-        methodLabel = paymentMethod;
+  Future<void> refresh() async {
+    if (!mounted) return;
+    ref.read(orderLoadStateProvider.notifier).state = const AsyncLoading();
+    try {
+      final response = await dio.get('/marketplace/orders');
+      if (!mounted) return;
+      state = (response.data['data'] as List)
+          .map((j) => StoreOrder.fromMap(Map<String, dynamic>.from(j)))
+          .toList();
+      ref.read(orderLoadStateProvider.notifier).state = const AsyncData(null);
+    } catch (e, st) {
+      if (mounted)
+        ref.read(orderLoadStateProvider.notifier).state = AsyncError(e, st);
     }
-
-    final order = StoreOrder(
-      id: orderId,
-      createdAt: nowStr,
-      status: orderStatus,
-      paymentStatus: paymentStatus,
-      paymentMethod: methodLabel,
-      carrier: carrier ?? 'Carrier pending',
-      trackingNumber: trackingNumber ?? 'Awaiting AWB Generation',
-      estimatedDelivery: 'Calculated after dispatch',
-      address: deliveryAddress,
-      items: items,
-      subtotal: subtotal,
-      deliveryFee: 0.0,
-      discount: discount,
-      total: total,
-      timeline: [
-        OrderTimelineEvent(
-          time: nowStr,
-          title: paymentStatus == 'PAID'
-              ? 'Order Placed & Payment Verified'
-              : 'Order Placed (Payment Pending / COD)',
-          location: 'Milterra Online Store',
-          remarks: paymentMethod == 'wallet'
-              ? 'Order total ₹${total.toStringAsFixed(2)} deducted from Milterra Wallet.'
-              : paymentStatus == 'PAID'
-                  ? 'Payment confirmed via $methodLabel. Awaiting warehouse packaging.'
-                  : 'Order registered. Payment collection pending upon delivery.',
-          status: 'CONFIRMED',
-        ),
-      ],
-    );
-
-    state = [order, ...state];
-
-    // Trigger in-app notification
-    _ref.read(notificationProvider.notifier).pushNotification(
-          NotificationItem(
-            id: 'notif-${DateTime.now().millisecondsSinceEpoch}',
-            userId: 'current-user',
-            type: NotificationType.orderUpdate,
-            title: 'Order Confirmed: #$orderId',
-            body:
-                'Your order for ${items.length} item(s) worth ₹${total.toStringAsFixed(2)} has been placed successfully.',
-            isRead: false,
-            createdAt: DateTime.now(),
-          ),
-        );
-
-    return order;
   }
 
-  /// Cancels an order and automatically refunds the Milterra wallet if prepaid.
-  void cancelOrder(String orderId, {String? reason}) {
-    final index = state.indexWhere((order) => order.id == orderId);
-    if (index < 0) return;
-    final order = state[index];
-
-    if (order.status.toUpperCase() == 'CANCELLED') return;
-
-    // Trigger wallet refund if paid
-    if (order.paymentStatus.toUpperCase() == 'PAID' && order.total > 0) {
-      _ref
-          .read(milterraWalletProvider.notifier)
-          .refundOrder(order.total, order.id);
-    }
-
-    updateOrderStatus(
-      orderId,
-      'CANCELLED',
-      remarks: reason ??
-          'Order cancelled by customer. Refund credited to Milterra Wallet if prepaid.',
-    );
+  void acceptServerOrder(Map<String, dynamic> data) {
+    if (!mounted) return;
+    final order = StoreOrder.fromMap(data);
+    if (mounted) state = [order, ...state.where((o) => o.id != order.id)];
   }
 
-  /// Updates payment status of an order.
-  void updatePaymentStatus(String orderId, String paymentStatus) {
-    state = state.map((o) {
-      if (o.id != orderId) return o;
-      return o.copyWith(paymentStatus: paymentStatus);
-    }).toList();
-  }
-
-  /// Updates an order status with realistic tracking checkpoints and alerts.
-  void updateOrderStatus(
-    String orderId,
-    String newStatus, {
-    String? carrier,
-    String? trackingNumber,
-    String? location,
-    String? remarks,
-  }) {
-    final nowStr = _formatNow();
-    final normalizedStatus = newStatus.toUpperCase();
-
-    state = state.map((order) {
-      if (order.id != orderId) return order;
-
-      final effCarrier = carrier ?? order.carrier;
-      final effTracking = trackingNumber ?? order.trackingNumber;
-
-      String defaultTitle;
-      String defaultLocation;
-      String defaultRemarks;
-
-      switch (normalizedStatus) {
-        case 'PACKED':
-          defaultTitle = 'Packed at Milterra Central Hub';
-          defaultLocation = location ?? 'Milterra Pure Hub, Karnal';
-          defaultRemarks = remarks ??
-              'Package sealed with tamper-proof seal and certified for zero adulteration.';
-          break;
-        case 'DISPATCHED':
-          defaultTitle = 'Picked up by $effCarrier';
-          defaultLocation = location ?? 'DTDC Sorting Facility, Jaipur';
-          defaultRemarks = remarks ??
-              'Consignment assigned to surface cargo vehicle. AWB: $effTracking.';
-          break;
-        case 'OUT_FOR_DELIVERY':
-          defaultTitle = 'Out for Delivery';
-          defaultLocation = location ?? 'Local Area Distribution Center';
-          defaultRemarks = remarks ??
-              'Delivery executive is out for delivery. Estimated delivery today by 8 PM.';
-          break;
-        case 'DELIVERED':
-          defaultTitle = 'Delivered to Recipient';
-          defaultLocation = location ?? 'Customer Delivery Address';
-          defaultRemarks = remarks ??
-              'Handed over directly to ${order.address['recipient_name'] ?? 'recipient'}.';
-          break;
-        case 'CANCELLED':
-          defaultTitle = 'Order Cancelled';
-          defaultLocation = location ?? 'Milterra Customer Desk';
-          defaultRemarks = remarks ?? 'Order cancelled by customer or admin.';
-          break;
-        default:
-          defaultTitle = 'Order Confirmed';
-          defaultLocation = location ?? 'Milterra Store';
-          defaultRemarks = remarks ?? 'Order verified.';
-      }
-
-      final newEvent = OrderTimelineEvent(
-        time: nowStr,
-        title: defaultTitle,
-        location: defaultLocation,
-        remarks: defaultRemarks,
-        status: normalizedStatus,
-      );
-
-      final updatedTimeline = [newEvent, ...order.timeline];
-
-      return order.copyWith(
-        status: normalizedStatus,
-        carrier: effCarrier,
-        trackingNumber: effTracking,
-        timeline: updatedTimeline,
-      );
-    }).toList();
-
-    // Trigger in-app notification based on status
-    final index = state.indexWhere((order) => order.id == orderId);
-    if (index < 0) return;
-    final currentOrder = state[index];
-
-    String notifTitle;
-    String notifBody;
-    NotificationType notifType = NotificationType.orderUpdate;
-
-    if (normalizedStatus == 'PACKED') {
-      notifTitle = 'Order #$orderId Packed';
-      notifBody = 'Your package is packed and awaiting courier partner pickup.';
-    } else if (normalizedStatus == 'DISPATCHED') {
-      notifType = NotificationType.courierTracking;
-      notifTitle = '🚚 Dispatched via ${currentOrder.carrier}';
-      notifBody =
-          'Order #$orderId is on its way (AWB: ${currentOrder.trackingNumber}).';
-    } else if (normalizedStatus == 'OUT_FOR_DELIVERY') {
-      notifType = NotificationType.courierTracking;
-      notifTitle = '🛵 Out for Delivery: #$orderId';
-      notifBody =
-          'Your ${currentOrder.carrier} delivery agent is arriving soon.';
-    } else if (normalizedStatus == 'DELIVERED') {
-      notifTitle = '✅ Order #$orderId Delivered';
-      notifBody =
-          'Your package has been delivered safely. Thank you for choosing Milterra!';
-    } else {
-      notifTitle = 'Order #$orderId Status Updated';
-      notifBody = 'Current fulfillment status: $normalizedStatus.';
-    }
-
-    _ref.read(notificationProvider.notifier).pushNotification(
-          NotificationItem(
-            id: 'notif-${DateTime.now().millisecondsSinceEpoch}',
-            userId: 'current-user',
-            type: notifType,
-            title: notifTitle,
-            body: notifBody,
-            isRead: false,
-            createdAt: DateTime.now(),
-          ),
-        );
-  }
-
-  /// Advances to the next courier milestone for fast interactive testing.
-  void simulateCourierStep(String orderId) {
-    if (!kDebugMode) return;
-    final index = state.indexWhere((order) => order.id == orderId);
-    if (index < 0) return;
-    final match = state[index];
-
-    final s = match.status.toUpperCase();
-    if (s.contains('CONFIRMED') ||
-        s.contains('PLACED') ||
-        s.contains('PENDING')) {
-      updateOrderStatus(orderId, 'PACKED');
-    } else if (s.contains('PACK')) {
-      final randomAwb = 'DTDC-${Random().nextInt(899999) + 100000}';
-      updateOrderStatus(
-        orderId,
-        'DISPATCHED',
-        carrier: 'DTDC Express Surface',
-        trackingNumber: randomAwb,
-        location: 'DTDC Central Hub, Jaipur',
-        remarks:
-            'Parcel picked up by DTDC Courier van. AWB $randomAwb generated.',
-      );
-    } else if (s.contains('DISPATCH') || s.contains('SHIP')) {
-      updateOrderStatus(
-        orderId,
-        'OUT_FOR_DELIVERY',
-        location: 'City Sub-Hub #14',
-        remarks:
-            'Out for delivery with DTDC agent Rajesh (Contact: +91 98210 44321).',
-      );
-    } else if (s.contains('OUT') || s.contains('TRANSIT')) {
-      updateOrderStatus(
-        orderId,
-        'DELIVERED',
-        location: match.address['city']?.toString() ?? 'Customer Address',
-        remarks: 'Delivered to recipient with digital signature confirmation.',
-      );
-    } else {
-      // If already delivered, reset to CONFIRMED for continuous loop testing
-      updateOrderStatus(orderId, 'CONFIRMED',
-          remarks: 'Reset to Confirmed for workflow testing.');
-    }
+  Future<void> cancelOrder(String id, {String? reason}) async {
+    final response = await dio
+        .post('/marketplace/orders/$id/cancel', data: {'reason': reason ?? ''});
+    acceptServerOrder(Map<String, dynamic>.from(response.data['data']));
   }
 }
 
-/// Provider for the list of all orders.
 final ordersNotifierProvider =
-    StateNotifierProvider<OrderNotifier, List<StoreOrder>>((ref) {
-  return OrderNotifier(ref);
-});
+    StateNotifierProvider<OrderNotifier, List<StoreOrder>>((ref) =>
+        OrderNotifier(ref, enabled: ref.watch(currentUserProvider) != null));
 
-/// Provider for retrieving a single order by its ID.
-final singleOrderProvider =
-    Provider.family<StoreOrder?, String>((ref, orderId) {
-  final orders = ref.watch(ordersNotifierProvider);
-  try {
-    return orders.firstWhere(
-      (o) => o.id == orderId || o.id.toUpperCase() == orderId.toUpperCase(),
-    );
-  } catch (_) {
-    return null;
-  }
-});
+final singleOrderProvider = Provider.family<StoreOrder?, String>((ref, id) =>
+    ref.watch(ordersNotifierProvider).where((o) => o.id == id).firstOrNull);

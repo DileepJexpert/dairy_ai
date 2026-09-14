@@ -1,15 +1,71 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
 import '../../marketplace/models/marketplace_models.dart';
 import '../../marketplace/models/product_models.dart';
-import '../../marketplace/providers/product_provider.dart';
-import '../../cart/providers/order_repository.dart';
+import '../../marketplace/providers/merchandising_provider.dart';
 import '../providers/admin_marketplace_provider.dart';
 import '../models/analytics_models.dart';
 import '../providers/admin_analytics_provider.dart';
+import '../../marketplace/widgets/support_panel.dart';
+
+final adminCatalogProductsProvider =
+    FutureProvider.autoDispose<List<Product>>((ref) async {
+  final response = await ref.watch(dioProvider).get('/vendor/products');
+  final body = response.data;
+  if (body is! Map || body['data'] is! List) {
+    throw const FormatException('Admin catalogue response was invalid');
+  }
+  return (body['data'] as List)
+      .whereType<Map>()
+      .map((item) => Product.fromJson(Map<String, dynamic>.from(item)))
+      .toList();
+});
+
+final adminPurchaseInterestsProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final response =
+      await ref.watch(dioProvider).get('/marketplace/orders/admin/interests');
+  final body = response.data;
+  if (body is! Map || body['data'] is! List) {
+    throw const FormatException('Purchase interest response was invalid');
+  }
+  return (body['data'] as List)
+      .whereType<Map>()
+      .map((item) => Map<String, dynamic>.from(item))
+      .toList();
+});
+
+final adminConceptFeedbackProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final response =
+      await ref.watch(dioProvider).get('/admin/marketplace/concept-feedback');
+  final body = response.data;
+  if (body is! Map || body['data'] is! List) {
+    throw const FormatException('Concept feedback response was invalid');
+  }
+  return (body['data'] as List)
+      .whereType<Map>()
+      .map((item) => Map<String, dynamic>.from(item))
+      .toList();
+});
+
+final adminNutritionConceptsProvider =
+    FutureProvider.autoDispose<List<ProductFamily>>((ref) async {
+  final response = await ref.watch(dioProvider).get('/vendor/families');
+  final body = response.data;
+  if (body is! Map || body['data'] is! List) {
+    throw const FormatException('Product-family response was invalid');
+  }
+  return (body['data'] as List)
+      .whereType<Map>()
+      .map((item) => ProductFamily.fromJson(Map<String, dynamic>.from(item)))
+      .where((family) => family.isConcept)
+      .toList();
+});
 
 class EcommerceAdminPanelScreen extends ConsumerStatefulWidget {
   const EcommerceAdminPanelScreen({super.key});
@@ -23,6 +79,98 @@ class _EcommerceAdminPanelScreenState
     extends ConsumerState<EcommerceAdminPanelScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _adminSaving = false;
+
+  Future<void> _editInterest(Map<String, dynamic> interest) async {
+    final notes = TextEditingController(
+        text: interest['followup_notes']?.toString() ?? '');
+    var status = interest['interest_status']?.toString() ?? 'NEW';
+    var saving = false;
+    await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+            builder: (context, setDialog) => AlertDialog(
+                  title: const Text('Customer follow-up'),
+                  content: SizedBox(
+                      width: 440,
+                      child: SingleChildScrollView(
+                          child:
+                              Column(mainAxisSize: MainAxisSize.min, children: [
+                        DropdownButtonFormField<String>(
+                            initialValue: status,
+                            isExpanded: true,
+                            items: ['NEW', 'CONTACTED', 'WAITLISTED', 'CLOSED']
+                                .map((s) =>
+                                    DropdownMenuItem(value: s, child: Text(s)))
+                                .toList(),
+                            onChanged: saving
+                                ? null
+                                : (value) => setDialog(() => status = value!)),
+                        TextField(
+                            controller: notes,
+                            maxLength: 4000,
+                            maxLines: 5,
+                            decoration: const InputDecoration(
+                                labelText: 'Internal contact notes')),
+                        const Text(
+                            'Saves notes only; no automated call, SMS or email is sent.'),
+                      ]))),
+                  actions: [
+                    TextButton(
+                        onPressed: saving ? null : () => Navigator.pop(context),
+                        child: const Text('Cancel')),
+                    FilledButton(
+                        onPressed: saving
+                            ? null
+                            : () async {
+                                setDialog(() => saving = true);
+                                try {
+                                  await ref.read(dioProvider).patch(
+                                      '/marketplace/orders/admin/interests/${interest['id']}',
+                                      data: {
+                                        'interest_status': status,
+                                        'notes': notes.text
+                                      });
+                                  ref.invalidate(
+                                      adminPurchaseInterestsProvider);
+                                  if (context.mounted) Navigator.pop(context);
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    setDialog(() => saving = false);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                            content: Text(commerceError(e))));
+                                  }
+                                }
+                              },
+                        child: Text(saving ? 'Saving…' : 'Save follow-up'))
+                  ],
+                )));
+    notes.dispose();
+  }
+
+  Future<void> _saveAdminAction(Future<void> Function() action,
+      {BuildContext? dialog}) async {
+    if (_adminSaving) return;
+    setState(() => _adminSaving = true);
+    try {
+      await action();
+      ref.invalidate(adminCatalogProductsProvider);
+      if (dialog != null && dialog.mounted) Navigator.pop(dialog);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Saved to the backend.'),
+            backgroundColor: storeGreen));
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(commerceError(error)), backgroundColor: storeError));
+      }
+    } finally {
+      if (mounted) setState(() => _adminSaving = false);
+    }
+  }
 
   @override
   void initState() {
@@ -70,6 +218,16 @@ class _EcommerceAdminPanelScreenState
           ],
         ),
         actions: [
+          IconButton(
+              tooltip: 'Help content & enquiries',
+              icon: const Icon(Icons.support_agent),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const StoreHelpAdminScreen()))),
+          IconButton(
+              tooltip: 'Reload backend data',
+              icon: const Icon(Icons.refresh),
+              onPressed: () =>
+                  ref.read(adminMarketplaceProvider.notifier).refresh()),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
@@ -175,24 +333,35 @@ class _EcommerceAdminPanelScreenState
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildProductsTab(),
-          _buildAnimalNutritionTab(),
-          _buildLiveCartsTab(),
-          _buildTrafficGeoTab(),
-          _buildClickstreamTab(),
-          _buildShipmentsTab(),
-          _buildCertificatesTab(adminState),
-          _buildSellersTab(adminState),
-          _buildSellerOffersTab(adminState),
-          _buildDealsTab(adminState),
-          _buildCouponsTab(adminState),
-          _buildInventoryTab(adminState),
-          _buildAuditLogsTab(adminState),
-        ],
-      ),
+      body: Column(children: [
+        if (adminState.loading || _adminSaving) const LinearProgressIndicator(),
+        if (adminState.error != null)
+          MaterialBanner(content: Text(adminState.error!), actions: [
+            TextButton(
+                onPressed: () =>
+                    ref.read(adminMarketplaceProvider.notifier).refresh(),
+                child: const Text('Retry'))
+          ]),
+        Expanded(
+            child: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildProductsTab(),
+            _buildAnimalNutritionTab(),
+            _buildLiveCartsTab(),
+            _buildTrafficGeoTab(),
+            _buildClickstreamTab(),
+            _buildShipmentsTab(),
+            _buildCertificatesTab(adminState),
+            _buildSellersTab(adminState),
+            _buildSellerOffersTab(adminState),
+            _buildDealsTab(),
+            _buildCouponsTab(adminState),
+            _buildInventoryTab(adminState),
+            _buildAuditLogsTab(adminState),
+          ],
+        )),
+      ]),
     );
   }
 
@@ -200,10 +369,8 @@ class _EcommerceAdminPanelScreenState
   // TAB 1: Products & Catalog
   // ---------------------------------------------------------------------------
   Widget _buildProductsTab() {
-    final catalog = ref.watch(productsProvider(null)).valueOrNull ??
-        defaultMilterraProducts;
-    final customProducts = ref.watch(adminMarketplaceProvider).customProducts;
-    final allProducts = [...customProducts, ...catalog];
+    final catalogState = ref.watch(adminCatalogProductsProvider);
+    final allProducts = catalogState.valueOrNull ?? const <Product>[];
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -224,442 +391,304 @@ class _EcommerceAdminPanelScreenState
                 style: FilledButton.styleFrom(backgroundColor: storeGreen),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Create New Product'),
-                onPressed: () => _showCreateProductDialog(),
+                onPressed: () => context.go('/admin/commerce/products'),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Card(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            child: ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: allProducts.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (context, i) {
-                final p = allProducts[i];
-                final isConcept = p.isConcept;
-                final status = isConcept
-                    ? 'Concept Preview'
-                    : p.taxonomy?['status']?.toString() ?? 'Active Commercial';
-                final pricing = isConcept
-                    ? 'Price not announced · Not for sale'
-                    : 'Base MRP: ${storeMoney(p.price)}';
-
-                return ListTile(
-                  leading: SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: ProductArtwork(product: p),
-                  ),
-                  title: Text(p.title,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 14)),
-                  subtitle: Text(
-                    'Category: ${storeCategory(p)} · ${p.packSize ?? p.unit} · $pricing',
-                    style: const TextStyle(fontSize: 12, color: storeMuted),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isConcept
-                              ? const Color(0xffe8f5e9)
-                              : const Color(0xffe3f2fd),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                              color: isConcept
-                                  ? storeGreen
-                                  : const Color(0xff90caf9)),
-                        ),
-                        child: Text(
-                          status,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: isConcept
-                                ? storeGreen
-                                : const Color(0xff1565c0),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined,
-                            size: 18, color: storeGreen),
-                        tooltip: 'Edit Catalog Metadata',
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content:
-                                    Text('Editing metadata for ${p.title}')),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showCreateProductDialog() {
-    final titleCtrl =
-        TextEditingController(text: 'Milterra Single-Farm Cultured Cow Ghee');
-    final brandCtrl = TextEditingController(text: 'MILTERRA');
-    final priceCtrl = TextEditingController(text: '899');
-    final stockCtrl = TextEditingController(text: '40');
-    final descCtrl = TextEditingController(
-      text:
-          'Artisanal cultured cow ghee proposed for the Milterra dairy catalogue.',
-    );
-    String selectedSource = 'Single-Farm Lucknow Heritage';
-    String selectedPackSize = '500 ml';
-    String selectedCategory = 'Dairy Foods';
-    bool isActiveCommercial = true;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          scrollable: true,
-          insetPadding: const EdgeInsets.all(16),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                    color: const Color(0xffdcfce7),
-                    borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.add_business_outlined,
-                    color: storeGreen, size: 22),
+          if (catalogState.isLoading)
+            const LinearProgressIndicator(color: storeGold),
+          if (catalogState.hasError)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: storeError.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: storeError.withValues(alpha: 0.35)),
               ),
-              const SizedBox(width: 10),
-              const Text('Add New Product to Storefront',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          content: SizedBox(
-            width: 720,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  TextField(
-                    controller: titleCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Product Title',
-                      hintText: 'e.g. Milterra Single-Farm Cultured Cow Ghee',
-                      border: OutlineInputBorder(),
-                      isDense: true,
+                  const Expanded(
+                    child: Text(
+                      'The live backend catalogue could not be loaded. No demonstration products are shown in admin.',
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  _responsiveDialogFields(
-                    [
-                      DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue: selectedCategory,
-                        decoration: const InputDecoration(
-                            labelText: 'Department',
-                            border: OutlineInputBorder(),
-                            isDense: true),
-                        items: const [
-                          DropdownMenuItem(
-                              value: 'Dairy Foods', child: Text('Dairy Foods')),
-                          DropdownMenuItem(
-                              value: 'Animal Nutrition',
-                              child: Text('Animal Nutrition')),
-                          DropdownMenuItem(
-                              value: 'Farm Machinery',
-                              child: Text('Farm Machinery')),
-                          DropdownMenuItem(
-                              value: 'MILTERRA Earth',
-                              child: Text('MILTERRA Earth')),
-                        ],
-                        onChanged: (v) => setDialogState(
-                            () => selectedCategory = v ?? 'Dairy Foods'),
-                      ),
-                      DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue: selectedSource,
-                        decoration: const InputDecoration(
-                            labelText: 'Milk / Batch Type',
-                            border: OutlineInputBorder(),
-                            isDense: true),
-                        items: const [
-                          DropdownMenuItem(
-                              value: 'A2 Gir Cow Milk',
-                              child: Text('A2 Gir Cow (Cultured Ghee)')),
-                          DropdownMenuItem(
-                              value: 'Murrah Buffalo Milk',
-                              child: Text('Murrah Buffalo Ghee')),
-                          DropdownMenuItem(
-                              value: 'Single-Farm Lucknow Heritage',
-                              child: Text('Single-Farm Lucknow')),
-                          DropdownMenuItem(
-                              value: 'Full Moon Purnima Batch',
-                              child: Text('Full Moon Batch')),
-                          DropdownMenuItem(
-                              value: 'Herbal Infusion',
-                              child: Text('Herbal Infused Ghee')),
-                        ],
-                        onChanged: (v) => setDialogState(
-                            () => selectedSource = v ?? 'A2 Gir Cow Milk'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _responsiveDialogFields(
-                    [
-                      DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue: selectedPackSize,
-                        decoration: const InputDecoration(
-                            labelText: 'Pack Size / Volume',
-                            border: OutlineInputBorder(),
-                            isDense: true),
-                        items: const [
-                          DropdownMenuItem(
-                              value: '250 ml',
-                              child: Text('250 ml (Trial Glass Jar)')),
-                          DropdownMenuItem(
-                              value: '500 ml',
-                              child: Text('500 ml (Family Glass Jar)')),
-                          DropdownMenuItem(
-                              value: '1 litre',
-                              child: Text('1 Litre (Kitchen Jar)')),
-                          DropdownMenuItem(
-                              value: '5 litre',
-                              child: Text('5 Litres (Heritage Tin)')),
-                          DropdownMenuItem(
-                              value: '200 g', child: Text('200 g Block')),
-                          DropdownMenuItem(
-                              value: '500 g', child: Text('500 g Block')),
-                          DropdownMenuItem(
-                              value: '1 kg', child: Text('1 kg Pack')),
-                        ],
-                        onChanged: (v) => setDialogState(
-                            () => selectedPackSize = v ?? '500 ml'),
-                      ),
-                      TextField(
-                        controller: priceCtrl,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Selling Price (₹)',
-                          prefixText: '₹ ',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                      ),
-                      TextField(
-                        controller: stockCtrl,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Warehouse Stock',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: descCtrl,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      labelText: 'Product Story & Description',
-                      hintText:
-                          'Describe origin, bilona churn method, farm traceability...',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: isActiveCommercial,
-                        activeColor: storeGreen,
-                        onChanged: (v) => setDialogState(
-                            () => isActiveCommercial = v ?? true),
-                      ),
-                      const Expanded(
-                        child: Text(
-                          'Publish as Active Commercial Product (Immediately available for purchase)',
-                          style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xff334155)),
-                        ),
-                      ),
-                    ],
+                  TextButton(
+                    onPressed: () =>
+                        ref.invalidate(adminCatalogProductsProvider),
+                    child: const Text('Retry'),
                   ),
                 ],
               ),
             ),
+          if (!catalogState.isLoading &&
+              !catalogState.hasError &&
+              allProducts.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Text('No backend products have been published yet.'),
+            ),
+          if (allProducts.isNotEmpty)
+            Card(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+              child: ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: allProducts.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, i) {
+                  final p = allProducts[i];
+                  final isConcept = p.isConcept;
+                  final status = isConcept
+                      ? 'Concept Preview'
+                      : p.taxonomy?['status']?.toString() ??
+                          'Active Commercial';
+                  final pricing = isConcept
+                      ? 'Price not announced · Not for sale'
+                      : 'Base MRP: ${storeMoney(p.price)}';
+
+                  return ListTile(
+                    leading: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: ProductArtwork(product: p),
+                    ),
+                    title: Text(p.title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 14)),
+                    subtitle: Text(
+                      'Category: ${storeCategory(p)} · ${p.packSize ?? p.unit} · $pricing',
+                      style: const TextStyle(fontSize: 12, color: storeMuted),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isConcept
+                                ? const Color(0xffe8f5e9)
+                                : const Color(0xffe3f2fd),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                                color: isConcept
+                                    ? storeGreen
+                                    : const Color(0xff90caf9)),
+                          ),
+                          child: Text(
+                            status,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isConcept
+                                  ? storeGreen
+                                  : const Color(0xff1565c0),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined,
+                              size: 18, color: storeGreen),
+                          tooltip: 'Edit Catalog Metadata',
+                          onPressed: () =>
+                              context.go('/admin/commerce/products'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showAddNutritionConceptDialog() async {
+    final messenger = ScaffoldMessenger.of(context);
+    List<Map<String, String>> vendors;
+    try {
+      final response =
+          await ref.read(dioProvider).get('/admin/marketplace/vendors');
+      final body = response.data;
+      if (body is! Map || body['data'] is! List) {
+        throw const FormatException('Vendor response was invalid');
+      }
+      vendors = (body['data'] as List)
+          .whereType<Map>()
+          .map((item) => {
+                'id': item['id']?.toString() ?? '',
+                'name': item['business_name']?.toString() ?? 'Vendor',
+              })
+          .where((item) => item['id']!.isNotEmpty)
+          .toList();
+    } catch (error) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Could not load active vendors: $error')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    if (vendors.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content:
+              Text('Create and activate a vendor before staging a concept.'),
+        ),
+      );
+      return;
+    }
+
+    final titleCtrl =
+        TextEditingController(text: 'MILTERRA RUMEN-PRO Rumen Support Concept');
+    final subcatCtrl = TextEditingController(text: 'Bypass Nutrients');
+    final descriptionCtrl =
+        TextEditingController(text: Product.conceptExplanation);
+    String vendorId = vendors.first['id']!;
+    bool saving = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          scrollable: true,
+          insetPadding: const EdgeInsets.all(16),
+          title: const Text('Add Nutrition Concept Formulation'),
+          content: SizedBox(
+            width: 600,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  initialValue: vendorId,
+                  decoration: const InputDecoration(
+                    labelText: 'Responsible Vendor',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: vendors
+                      .map((vendor) => DropdownMenuItem(
+                            value: vendor['id'],
+                            child: Text(vendor['name']!),
+                          ))
+                      .toList(),
+                  onChanged: saving
+                      ? null
+                      : (value) =>
+                          setDialogState(() => vendorId = value ?? vendorId),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                    controller: titleCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Formulation Title',
+                        border: OutlineInputBorder())),
+                const SizedBox(height: 10),
+                TextField(
+                    controller: subcatCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Nutritional Subcategory',
+                        border: OutlineInputBorder())),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: descriptionCtrl,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Concept purpose',
+                    hintText:
+                        'Describe the proposed purpose without unverified performance claims',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Concepts have no price, stock, cart, or checkout. A sellable variant can be created only after the family is changed from concept status.',
+                  style: TextStyle(fontSize: 11, color: storeMuted),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: saving ? null : () => Navigator.pop(ctx),
                 child: const Text('Cancel')),
-            FilledButton.icon(
+            FilledButton(
               style: FilledButton.styleFrom(backgroundColor: storeGreen),
-              icon: const Icon(Icons.check, size: 16),
-              label: const Text('Publish Product to Website'),
-              onPressed: () {
-                final enteredPrice =
-                    double.tryParse(priceCtrl.text.trim()) ?? 0.0;
-                final enteredStock = int.tryParse(stockCtrl.text.trim()) ?? 0;
-                final price = isActiveCommercial ? enteredPrice : 0.0;
-                final stock = isActiveCommercial ? enteredStock : 0;
-                final newProd = Product(
-                  id: 'prod-${DateTime.now().millisecondsSinceEpoch}',
-                  vendorId: 'vendor-milterra-direct',
-                  title: titleCtrl.text.trim(),
-                  category: ProductCategory.feedNutrition,
-                  price: price,
-                  unit: selectedPackSize.contains('g') ? 'pack' : 'jar',
-                  brand: brandCtrl.text.trim(),
-                  packSize: selectedPackSize,
-                  description: descCtrl.text.trim(),
-                  taxonomy: {
-                    'department_name': selectedCategory,
-                    'category_name': selectedSource,
-                    'status': isActiveCommercial
-                        ? 'Active Commercial'
-                        : 'Concept Preview',
-                    'concept': !isActiveCommercial,
-                  },
-                  inStock: stock > 0,
-                  availableQuantity: stock,
-                  minOrderQuantity: 1,
-                  specifications: {
-                    'Milk Source': selectedSource,
-                    'Process': 'Vedic Bilona Churned',
-                    'Pack Size': selectedPackSize,
-                    'Diet Type': 'Vegetarian',
-                  },
-                );
-
-                ref
-                    .read(adminMarketplaceProvider.notifier)
-                    .addCustomProduct(newProd);
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: storeGreen,
-                    content: Text(
-                        'Product "${newProd.title}" successfully added to website catalog!'),
-                  ),
-                );
-              },
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final title = titleCtrl.text.trim();
+                      final subcategory = subcatCtrl.text.trim();
+                      final description = descriptionCtrl.text.trim();
+                      if (title.length < 2 || subcategory.length < 2) {
+                        messenger.showSnackBar(const SnackBar(
+                          content: Text(
+                              'Enter a title and nutritional subcategory.'),
+                        ));
+                        return;
+                      }
+                      setDialogState(() => saving = true);
+                      try {
+                        await ref.read(dioProvider).post(
+                          '/vendor/families',
+                          data: {
+                            'vendor_id': vendorId,
+                            'title': title,
+                            'brand': 'MILTERRA',
+                            'department': 'Farm Essentials',
+                            'collection': 'Animal Nutrition',
+                            'description': description.isEmpty
+                                ? Product.conceptExplanation
+                                : description,
+                            'production_method':
+                                'Proposed formulation; composition and claims require validation before launch.',
+                            'is_published': true,
+                            'is_concept': true,
+                            'supporting_documents': {
+                              'subcategory': subcategory,
+                              'status': 'concept_preview',
+                            },
+                          },
+                        );
+                        ref.invalidate(adminNutritionConceptsProvider);
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (mounted) {
+                          messenger.showSnackBar(SnackBar(
+                            backgroundColor: storeGreen,
+                            content: Text(
+                                'Nutrition concept "$title" saved to the backend.'),
+                          ));
+                        }
+                      } catch (error) {
+                        setDialogState(() => saving = false);
+                        if (mounted) {
+                          messenger.showSnackBar(SnackBar(
+                            content: Text('Concept was not saved: $error'),
+                          ));
+                        }
+                      }
+                    },
+              child: saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Stage Concept'),
             ),
           ],
         ),
       ),
     );
-  }
-
-  Widget _responsiveDialogFields(List<Widget> fields) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 640) {
-          return Column(
-            children: [
-              for (var index = 0; index < fields.length; index++) ...[
-                fields[index],
-                if (index < fields.length - 1) const SizedBox(height: 12),
-              ],
-            ],
-          );
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (var index = 0; index < fields.length; index++) ...[
-              Expanded(child: fields[index]),
-              if (index < fields.length - 1) const SizedBox(width: 12),
-            ],
-          ],
-        );
-      },
-    );
-  }
-
-  void _showAddNutritionConceptDialog() {
-    final titleCtrl =
-        TextEditingController(text: 'MILTERRA RUMEN-PRO Rumen Support Concept');
-    final subcatCtrl = TextEditingController(text: 'Bypass Nutrients');
-    final descriptionCtrl = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        scrollable: true,
-        insetPadding: const EdgeInsets.all(16),
-        title: const Text('Add Nutrition Concept Formulation'),
-        content: SizedBox(
-          width: 600,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                  controller: titleCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Formulation Title',
-                      border: OutlineInputBorder())),
-              const SizedBox(height: 10),
-              TextField(
-                  controller: subcatCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Nutritional Subcategory',
-                      border: OutlineInputBorder())),
-              const SizedBox(height: 10),
-              TextField(
-                controller: descriptionCtrl,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Concept purpose',
-                  hintText:
-                      'Describe the proposed purpose without unverified performance claims',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: storeGreen),
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  backgroundColor: storeGreen,
-                  content: Text(
-                      'Nutrition concept "${titleCtrl.text}" registered as a concept preview.'),
-                ),
-              );
-            },
-            child: const Text('Stage Concept'),
-          ),
-        ],
-      ),
-    );
+    titleCtrl.dispose();
+    subcatCtrl.dispose();
+    descriptionCtrl.dispose();
   }
 
   // TAB 2: Animal Nutrition Hub
@@ -738,36 +767,110 @@ class _EcommerceAdminPanelScreenState
           const Text('Active Nutrition Formulations & Stages',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          Card(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            child: ListView(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _nutritionConceptRow(
-                  title: 'MILTERRA Mineral Supplement (Minera-360 Concentrate)',
-                  subcategory: 'Supplements',
-                  stage: 'Concept Preview',
-                  tagline: Product.conceptExplanation,
+          ref.watch(adminNutritionConceptsProvider).when(
+                loading: () => const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(18),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
                 ),
-                const Divider(height: 1),
-                _nutritionConceptRow(
-                  title: 'JANAM·42 Calving & Transition Course',
-                  subcategory: 'Stage-Based Nutrition Courses',
-                  stage: 'Concept Preview',
-                  tagline: Product.conceptExplanation,
+                error: (error, _) => Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text('Could not load nutrition concepts: $error'),
+                  ),
                 ),
-                const Divider(height: 1),
-                _nutritionConceptRow(
-                  title: 'Bovine Gold Balanced Cattle Feed (50kg Pellets)',
-                  subcategory: 'Pashu Aahar / Cattle Feed',
-                  stage: 'Concept Preview',
-                  tagline: Product.conceptExplanation,
+                data: (families) => Card(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  child: families.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.all(18),
+                          child: Text(
+                              'No backend concepts yet. Use Add Nutrition Concept SKU to stage one.'),
+                        )
+                      : ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: families.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final family = families[index];
+                            return _nutritionConceptRow(
+                              title: family.title,
+                              subcategory:
+                                  family.collection ?? 'Animal Nutrition',
+                              stage: family.isPublished
+                                  ? 'Concept Preview'
+                                  : 'Draft Concept',
+                              tagline: family.description.isEmpty
+                                  ? Product.conceptExplanation
+                                  : family.description,
+                            );
+                          },
+                        ),
                 ),
-              ],
-            ),
+              ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Saved Visitor Feedback & Update Requests',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              IconButton(
+                tooltip: 'Refresh feedback',
+                onPressed: () => ref.invalidate(adminConceptFeedbackProvider),
+                icon: const Icon(Icons.refresh),
+              ),
+            ],
           ),
+          const SizedBox(height: 8),
+          ref.watch(adminConceptFeedbackProvider).when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, _) => Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text('Could not load concept feedback: $error'),
+                  ),
+                ),
+                data: (items) => Card(
+                  child: items.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.all(18),
+                          child: Text('No concept responses received yet.'),
+                        )
+                      : ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: items.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final item = items[index];
+                            final contact =
+                                item['email'] ?? item['phone'] ?? '';
+                            return ListTile(
+                              leading: Icon(
+                                item['wants_updates'] == true
+                                    ? Icons.notifications_active_outlined
+                                    : Icons.rate_review_outlined,
+                                color: storeGreen,
+                              ),
+                              title: Text(
+                                '${item['concept_title']} · ${item['visitor_name']}',
+                                style: const TextStyle(
+                                    fontSize: 13, fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: Text(
+                                '${item['message'] ?? 'Update registration'}\n$contact',
+                                style: const TextStyle(
+                                    fontSize: 11, color: storeMuted),
+                              ),
+                              isThreeLine: true,
+                            );
+                          },
+                        ),
+                ),
+              ),
         ],
       ),
     );
@@ -861,7 +964,6 @@ class _EcommerceAdminPanelScreenState
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, i) {
                 final s = state.sellers[i];
-                final isPending = s.status == SellerStatus.pendingApproval;
                 final isApproved = s.status == SellerStatus.approved;
 
                 return ListTile(
@@ -904,14 +1006,14 @@ class _EcommerceAdminPanelScreenState
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (isPending) ...[
+                      if (!isApproved) ...[
                         FilledButton(
                           style: FilledButton.styleFrom(
                               backgroundColor: storeGreen,
                               minimumSize: const Size(80, 32)),
-                          onPressed: () => ref
+                          onPressed: () => _saveAdminAction(() => ref
                               .read(adminMarketplaceProvider.notifier)
-                              .approveSeller(s.id),
+                              .approveSeller(s.id)),
                           child: const Text('Approve KYC',
                               style: TextStyle(fontSize: 11)),
                         ),
@@ -922,10 +1024,10 @@ class _EcommerceAdminPanelScreenState
                           style: OutlinedButton.styleFrom(
                               minimumSize: const Size(80, 32),
                               side: const BorderSide(color: storeError)),
-                          onPressed: () => ref
+                          onPressed: () => _saveAdminAction(() => ref
                               .read(adminMarketplaceProvider.notifier)
                               .suspendSeller(
-                                  s.id, 'Quality standard violation'),
+                                  s.id, 'Suspended by administrator')),
                           child: const Text('Suspend',
                               style:
                                   TextStyle(fontSize: 11, color: storeError)),
@@ -1031,7 +1133,8 @@ class _EcommerceAdminPanelScreenState
   // ---------------------------------------------------------------------------
   // TAB 5: Deals Engine
   // ---------------------------------------------------------------------------
-  Widget _buildDealsTab(AdminMarketplaceState state) {
+  Widget _buildDealsTab() {
+    final placements = ref.watch(adminStorefrontPlacementsProvider);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -1054,61 +1157,102 @@ class _EcommerceAdminPanelScreenState
             ],
           ),
           const SizedBox(height: 16),
-          for (final d in state.deals) ...[
-            Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+          placements.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, _) => Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xfffff3e0),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child:
-                          const Icon(Icons.bolt, color: storeOrange, size: 24),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(d.title,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 14)),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Deal Price: ${storeMoney(d.dealPrice)} (MRP ${storeMoney(d.mrp)} · -${d.discountPercent.toStringAsFixed(0)}%)',
-                            style: const TextStyle(
-                                fontSize: 12, color: storeMuted),
-                          ),
-                          Text('Runs until: ${d.endTime.toLocal()}',
-                              style: const TextStyle(
-                                  fontSize: 11, color: storeGreen)),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                          color: const Color(0xffe8f5e9),
-                          borderRadius: BorderRadius.circular(12)),
-                      child: const Text('ACTIVE LIVE',
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: storeGreen)),
+                    Expanded(child: Text('Could not load promotions: $error')),
+                    TextButton(
+                      onPressed: () =>
+                          ref.invalidate(adminStorefrontPlacementsProvider),
+                      child: const Text('Try again'),
                     ),
                   ],
                 ),
               ),
             ),
-          ],
+            data: (items) => Column(
+              children: [
+                if (items.isEmpty)
+                  const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text(
+                        'No storefront placement is published. Schedule one to show the highlighted product strip.',
+                      ),
+                    ),
+                  ),
+                for (final placement in items)
+                  Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xfffff3e0),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.bolt,
+                                color: storeOrange, size: 24),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(placement.headline,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14)),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${placement.product.title} · ${storeMoney(placement.product.price)} · ${placement.placementType.replaceAll('_', ' ')}',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: storeMuted),
+                                ),
+                                if (placement.endsAt != null)
+                                  Text(
+                                    'Runs until: ${placement.endsAt!.toLocal()}',
+                                    style: const TextStyle(
+                                        fontSize: 11, color: storeGreen),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: placement.isActive,
+                            onChanged: (active) async {
+                              await ref
+                                  .read(merchandisingRepositoryProvider)
+                                  .setActive(placement.id, active);
+                              ref.invalidate(adminStorefrontPlacementsProvider);
+                              ref.invalidate(storefrontPlacementsProvider);
+                            },
+                          ),
+                          Text(
+                            placement.isActive ? 'ACTIVE' : 'PAUSED',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color:
+                                  placement.isActive ? storeGreen : storeMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -1162,11 +1306,17 @@ class _EcommerceAdminPanelScreenState
                 subtitle: Text(
                     '${c.description} · Min Order: ${storeMoney(c.minOrderValue)} · Redemptions: ${c.usageCount}',
                     style: const TextStyle(fontSize: 12, color: storeMuted)),
-                trailing: const Text('ACTIVE',
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: storeGreen)),
+                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                  IconButton(
+                      tooltip: 'Edit coupon',
+                      icon: const Icon(Icons.edit_outlined),
+                      onPressed: () => _showCreateCouponDialog(existing: c)),
+                  Switch(
+                      value: c.isActive,
+                      onChanged: (_) => _saveAdminAction(() => ref
+                          .read(adminMarketplaceProvider.notifier)
+                          .toggleCoupon(c))),
+                ]),
               ),
             ),
           ],
@@ -1319,12 +1469,16 @@ class _EcommerceAdminPanelScreenState
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: storeGreen),
             onPressed: () {
-              final np = double.tryParse(priceCtrl.text) ?? o.sellingPrice;
-              final nm = double.tryParse(mrpCtrl.text) ?? o.mrp;
-              ref
-                  .read(adminMarketplaceProvider.notifier)
-                  .updateOfferPrice(o.id, np, nm);
-              Navigator.pop(ctx);
+              _saveAdminAction(() async {
+                final np = double.tryParse(priceCtrl.text);
+                final nm = double.tryParse(mrpCtrl.text);
+                if (np == null || nm == null) {
+                  throw StateError('Enter valid selling price and MRP values.');
+                }
+                await ref
+                    .read(adminMarketplaceProvider.notifier)
+                    .updateOfferPrice(o.id, np, nm);
+              }, dialog: ctx);
             },
             child: const Text('Update Price'),
           ),
@@ -1351,11 +1505,15 @@ class _EcommerceAdminPanelScreenState
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: storeGreen),
             onPressed: () {
-              final ns = int.tryParse(stockCtrl.text) ?? o.availableStock;
-              ref
-                  .read(adminMarketplaceProvider.notifier)
-                  .updateOfferStock(o.id, ns);
-              Navigator.pop(ctx);
+              _saveAdminAction(() async {
+                final ns = int.tryParse(stockCtrl.text);
+                if (ns == null) {
+                  throw StateError('Enter a whole number of stock units.');
+                }
+                await ref
+                    .read(adminMarketplaceProvider.notifier)
+                    .updateOfferStock(o.id, ns);
+              }, dialog: ctx);
             },
             child: const Text('Save Stock'),
           ),
@@ -1364,149 +1522,290 @@ class _EcommerceAdminPanelScreenState
     );
   }
 
-  void _showCreateDealDialog() {
-    final titleCtrl = TextEditingController(text: 'Flash Deal · Fresh Makhan');
-    final dealPriceCtrl = TextEditingController(text: '199');
-    final mrpCtrl = TextEditingController(text: '240');
+  Future<void> _showCreateDealDialog() async {
+    List<Product> products;
+    try {
+      products = await ref.read(adminCatalogProductsProvider.future);
+      products = products
+          .where((product) => product.isPublished && !product.isConcept)
+          .toList();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not load products: $error')),
+      );
+      return;
+    }
+    if (products.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Create a backend product before scheduling a placement.'),
+        ),
+      );
+      return;
+    }
 
+    final titleCtrl =
+        TextEditingController(text: 'Discover ${products.first.title}');
+    final subtitleCtrl = TextEditingController(
+        text: 'Featured by Milterra · Tap to explore the product');
+    final badgeCtrl = TextEditingController(text: 'NEW LAUNCH');
+    String productId = products.first.id;
+    String placementType = 'new_launch';
+    double durationHours = 24;
+    bool saving = false;
+
+    if (!mounted) return;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Create New Promotional Deal'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-                controller: titleCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Deal Title', border: OutlineInputBorder())),
-            const SizedBox(height: 12),
-            Row(
+      builder: (ctx) => StatefulBuilder(builder: (context, setDialogState) {
+        return AlertDialog(
+          title: const Text('Publish Storefront Highlight'),
+          scrollable: true,
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                    child: TextField(
-                        controller: dealPriceCtrl,
-                        decoration: const InputDecoration(
-                            labelText: 'Deal Price (₹)',
-                            border: OutlineInputBorder()))),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: TextField(
-                        controller: mrpCtrl,
-                        decoration: const InputDecoration(
-                            labelText: 'MRP (₹)',
-                            border: OutlineInputBorder()))),
+                DropdownButtonFormField<String>(
+                  initialValue: productId,
+                  decoration: const InputDecoration(
+                      labelText: 'Canonical Product',
+                      border: OutlineInputBorder()),
+                  items: products
+                      .map((product) => DropdownMenuItem(
+                          value: product.id,
+                          child: Text(product.title,
+                              overflow: TextOverflow.ellipsis)))
+                      .toList(),
+                  onChanged: saving
+                      ? null
+                      : (value) =>
+                          setDialogState(() => productId = value ?? productId),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: placementType,
+                  decoration: const InputDecoration(
+                      labelText: 'Placement Type',
+                      border: OutlineInputBorder()),
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'highlight', child: Text('Highlighted Product')),
+                    DropdownMenuItem(
+                        value: 'deal', child: Text('Deal / Offer')),
+                    DropdownMenuItem(
+                        value: 'new_launch', child: Text('New Launch')),
+                    DropdownMenuItem(
+                        value: 'festival_offer', child: Text('Festival Offer')),
+                  ],
+                  onChanged: saving
+                      ? null
+                      : (value) => setDialogState(
+                          () => placementType = value ?? placementType),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                    controller: titleCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Headline', border: OutlineInputBorder())),
+                const SizedBox(height: 12),
+                TextField(
+                    controller: subtitleCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Supporting Line',
+                        border: OutlineInputBorder())),
+                const SizedBox(height: 12),
+                TextField(
+                    controller: badgeCtrl,
+                    decoration: const InputDecoration(
+                        labelText: 'Badge (e.g. NEW LAUNCH)',
+                        border: OutlineInputBorder())),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<double>(
+                  initialValue: durationHours,
+                  decoration: const InputDecoration(
+                      labelText: 'Display Duration',
+                      border: OutlineInputBorder()),
+                  items: const [
+                    DropdownMenuItem(value: 12, child: Text('12 hours')),
+                    DropdownMenuItem(value: 24, child: Text('24 hours')),
+                    DropdownMenuItem(value: 72, child: Text('3 days')),
+                    DropdownMenuItem(value: 168, child: Text('7 days')),
+                  ],
+                  onChanged: saving
+                      ? null
+                      : (value) => setDialogState(
+                          () => durationHours = value ?? durationHours),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Price and MRP come from the canonical backend product. Update the product first so cards, cart, and this highlight remain consistent.',
+                  style: TextStyle(fontSize: 11, color: storeMuted),
+                ),
               ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: storeGreen),
-            onPressed: () {
-              final dp = double.tryParse(dealPriceCtrl.text) ?? 199.0;
-              final mrp = double.tryParse(mrpCtrl.text) ?? 240.0;
-              final discount = mrp > dp ? ((mrp - dp) / mrp) * 100 : 15.0;
-              final deal = DealPromotion(
-                id: 'deal-${DateTime.now().millisecondsSinceEpoch}',
-                title: titleCtrl.text.trim(),
-                dealType: DealType.lightningDeal,
-                productId: 'mil-buff-500',
-                productTitle: 'Cultured Desi White Butter Makhan',
-                productImage: 'assets/store/minera-360-jar.jpg',
-                mrp: mrp,
-                dealPrice: dp,
-                discountPercent: discount,
-                startTime: DateTime.now(),
-                endTime: DateTime.now().add(const Duration(hours: 12)),
-              );
-              ref.read(adminMarketplaceProvider.notifier).addDeal(deal);
-              Navigator.pop(ctx);
-            },
-            child: const Text('Launch Deal'),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+                onPressed: saving ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: storeGreen),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final headline = titleCtrl.text.trim();
+                      if (headline.length < 3) return;
+                      final messenger = ScaffoldMessenger.of(this.context);
+                      setDialogState(() => saving = true);
+                      try {
+                        final now = DateTime.now();
+                        await ref.read(merchandisingRepositoryProvider).create(
+                              productId: productId,
+                              placementType: placementType,
+                              headline: headline,
+                              subheadline: subtitleCtrl.text.trim(),
+                              badge: badgeCtrl.text.trim(),
+                              startsAt: now,
+                              endsAt: now
+                                  .add(Duration(hours: durationHours.round())),
+                              priority: 200,
+                            );
+                        ref.invalidate(adminStorefrontPlacementsProvider);
+                        ref.invalidate(storefrontPlacementsProvider);
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (mounted) {
+                          messenger.showSnackBar(
+                            const SnackBar(
+                                content:
+                                    Text('Storefront highlight published.')),
+                          );
+                        }
+                      } catch (error) {
+                        setDialogState(() => saving = false);
+                        if (mounted) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                                content: Text('Could not publish: $error')),
+                          );
+                        }
+                      }
+                    },
+              child: saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Publish Highlight'),
+            ),
+          ],
+        );
+      }),
     );
   }
 
-  void _showCreateCouponDialog() {
-    final codeCtrl = TextEditingController(text: 'SUMMER20');
-    final discCtrl = TextEditingController(text: '20');
-    final minCtrl = TextEditingController(text: '599');
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Create New Platform Coupon'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-                controller: codeCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Coupon Code (UPPERCASE)',
-                    border: OutlineInputBorder())),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                    child: TextField(
-                        controller: discCtrl,
-                        decoration: const InputDecoration(
-                            labelText: 'Discount %',
-                            border: OutlineInputBorder()))),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: TextField(
-                        controller: minCtrl,
-                        decoration: const InputDecoration(
-                            labelText: 'Min Order (₹)',
-                            border: OutlineInputBorder()))),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: storeGreen),
-            onPressed: () {
-              final coupon = PlatformCoupon(
-                id: 'cpn-${DateTime.now().millisecondsSinceEpoch}',
-                code: codeCtrl.text.trim().toUpperCase(),
-                description:
-                    '${discCtrl.text}% instant savings on orders above ₹${minCtrl.text}',
-                discountValue: double.tryParse(discCtrl.text) ?? 10.0,
-                minOrderValue: double.tryParse(minCtrl.text) ?? 500.0,
-                validUntil: DateTime.now().add(const Duration(days: 30)),
-              );
-              ref.read(adminMarketplaceProvider.notifier).addCoupon(coupon);
-              Navigator.pop(ctx);
-            },
-            child: const Text('Save Coupon'),
-          ),
-        ],
-      ),
-    );
+  Future<void> _showCreateCouponDialog({PlatformCoupon? existing}) async {
+    final code = TextEditingController(text: existing?.code ?? '');
+    final description =
+        TextEditingController(text: existing?.description ?? '');
+    final discount =
+        TextEditingController(text: existing?.discountValue.toString() ?? '');
+    final minimum =
+        TextEditingController(text: existing?.minOrderValue.toString() ?? '0');
+    final cap =
+        TextEditingController(text: existing?.maxDiscountCap?.toString() ?? '');
+    final expiry = TextEditingController(
+        text: existing?.validUntil?.toUtc().toIso8601String() ?? '');
+    var type = existing?.discountType ?? CouponType.percentage;
+    var active = existing?.isActive ?? true;
+    Widget field(TextEditingController controller, String label) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: TextField(
+            controller: controller,
+            decoration: InputDecoration(labelText: label)));
+    await showDialog<void>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+            builder: (ctx, update) => AlertDialog(
+                  title:
+                      Text(existing == null ? 'Create Coupon' : 'Edit Coupon'),
+                  scrollable: true,
+                  content: SizedBox(
+                      width: 480,
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        field(code, 'Coupon code'),
+                        field(description, 'Offer description'),
+                        DropdownButtonFormField<CouponType>(
+                            initialValue: type,
+                            isExpanded: true,
+                            items: CouponType.values
+                                .map((t) => DropdownMenuItem(
+                                    value: t, child: Text(t.name)))
+                                .toList(),
+                            onChanged: (v) => update(() => type = v!),
+                            decoration: const InputDecoration(
+                                labelText: 'Discount type')),
+                        field(discount, 'Discount value'),
+                        field(minimum, 'Minimum order value (₹)'),
+                        field(cap, 'Maximum discount (₹, optional)'),
+                        field(expiry, 'Expiry UTC (ISO date/time, optional)'),
+                        SwitchListTile(
+                            title: const Text('Active'),
+                            value: active,
+                            onChanged: (v) => update(() => active = v)),
+                      ])),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Cancel')),
+                    FilledButton(
+                        onPressed: () => _saveAdminAction(() async {
+                              final value = double.tryParse(discount.text);
+                              final min = double.tryParse(minimum.text);
+                              final max = cap.text.trim().isEmpty
+                                  ? null
+                                  : double.tryParse(cap.text);
+                              final until = expiry.text.trim().isEmpty
+                                  ? null
+                                  : DateTime.tryParse(expiry.text);
+                              if (value == null ||
+                                  min == null ||
+                                  (cap.text.isNotEmpty && max == null) ||
+                                  (expiry.text.isNotEmpty && until == null)) {
+                                throw StateError(
+                                    'Enter valid numbers and an ISO expiry date.');
+                              }
+                              await ref
+                                  .read(adminMarketplaceProvider.notifier)
+                                  .saveCoupon(PlatformCoupon(
+                                      id: existing?.id ?? '',
+                                      code: code.text.trim().toUpperCase(),
+                                      description: description.text.trim(),
+                                      discountType: type,
+                                      discountValue: value,
+                                      minOrderValue: min,
+                                      maxDiscountCap: max,
+                                      validUntil: until,
+                                      isActive: active));
+                            }, dialog: ctx),
+                        child: const Text('Save Coupon')),
+                  ],
+                )));
+    for (final c in [code, description, discount, minimum, cap, expiry]) {
+      c.dispose();
+    }
   }
 
   // ---------------------------------------------------------------------------
   // TAB 3: Shipments & Logistics
   // ---------------------------------------------------------------------------
   Widget _buildShipmentsTab() {
-    final allOrders = ref.watch(ordersNotifierProvider);
-    final pendingCount = allOrders
-        .where((o) =>
-            !o.status.toUpperCase().contains('DELIVERED') &&
-            !o.status.toUpperCase().contains('CANCEL'))
-        .length;
-    final deliveredCount = allOrders
-        .where((o) => o.status.toUpperCase().contains('DELIVERED'))
-        .length;
+    final interests = ref.watch(adminPurchaseInterestsProvider);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -1516,137 +1815,145 @@ class _EcommerceAdminPanelScreenState
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
+              const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Global Shipments & Logistics Fulfillment',
+                  Text(
+                    'Pre-launch Purchase Interests',
                     style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: storeGreen),
                   ),
                   Text(
-                    'Total Orders: ${allOrders.length} | Active Shipments: $pendingCount | Completed: $deliveredCount',
-                    style: const TextStyle(fontSize: 12, color: storeMuted),
+                    'No payment or shipment is created. Contact interested customers before launch.',
+                    style: TextStyle(fontSize: 12, color: storeMuted),
                   ),
                 ],
               ),
               FilledButton.icon(
                 style: FilledButton.styleFrom(backgroundColor: storeGreen),
                 icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Refresh Tracking Hub'),
-                onPressed: () => setState(() {}),
+                label: const Text('Refresh interests'),
+                onPressed: () => ref.invalidate(adminPurchaseInterestsProvider),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Card(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            child: ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: allOrders.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (context, i) {
-                final order = allOrders[i];
-                final isDelivered =
-                    order.status.toUpperCase().contains('DELIVERED');
-
-                return ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  leading: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: isDelivered
-                          ? const Color(0xffe8f5e9)
-                          : const Color(0xffe0f2fe),
-                      borderRadius: BorderRadius.circular(8),
+          interests.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, _) => Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.red),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text('Could not load interests: $error')),
+                    TextButton(
+                      onPressed: () =>
+                          ref.invalidate(adminPurchaseInterestsProvider),
+                      child: const Text('Try again'),
                     ),
-                    child: Icon(
-                      isDelivered ? Icons.check_circle : Icons.local_shipping,
-                      color: isDelivered ? storeGreen : const Color(0xff0369a1),
-                      size: 24,
+                  ],
+                ),
+              ),
+            ),
+            data: (rows) {
+              if (rows.isEmpty) {
+                return const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(28),
+                    child: Center(
+                      child: Text('No customer purchase interests yet.'),
                     ),
-                  ),
-                  title: Row(
-                    children: [
-                      Text(
-                        '# ${order.id}',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: isDelivered
-                              ? const Color(0xffdcfce7)
-                              : const Color(0xfffef3c7),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          order.status,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: isDelivered
-                                ? const Color(0xff15803d)
-                                : const Color(0xffb45309),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '• ${order.carrier}',
-                        style: const TextStyle(
-                            fontSize: 11,
-                            color: storeMuted,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                  subtitle: Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      'Buyer: ${order.address['recipient_name']} (${order.address['city']}) • Items: ${order.items.length} • Total: ${storeMoney(order.total)} • AWB: ${order.trackingNumber}',
-                      style: const TextStyle(
-                          fontSize: 12, color: Color(0xff475569)),
-                    ),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
-                          side: const BorderSide(color: storeBorder),
-                        ),
-                        onPressed: () {
-                          ref
-                              .read(ordersNotifierProvider.notifier)
-                              .simulateCourierStep(order.id);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: storeGreen,
-                              content: Text(
-                                  'Simulated next fulfillment checkpoint for #${order.id}!'),
-                            ),
-                          );
-                        },
-                        child: const Text('Advance Milestone',
-                            style: TextStyle(
-                                fontSize: 11, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
                   ),
                 );
-              },
-            ),
+              }
+              return Card(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: rows.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final interest = rows[index];
+                    final address = interest['address'] is Map
+                        ? Map<String, dynamic>.from(interest['address'] as Map)
+                        : const <String, dynamic>{};
+                    final items = interest['items'] is List
+                        ? interest['items'] as List
+                        : const [];
+                    final titles = items
+                        .whereType<Map>()
+                        .map((item) =>
+                            '${item['title'] ?? 'Product'} ×${item['quantity'] ?? 1}')
+                        .join(', ');
+                    final total =
+                        double.tryParse(interest['total']?.toString() ?? '') ??
+                            0;
+                    final customerPhone =
+                        interest['customer_phone']?.toString() ?? '';
+                    final recipient =
+                        address['recipient_name']?.toString() ?? 'Customer';
+                    final place = [
+                      address['village_or_city'] ?? address['city'],
+                      address['state'],
+                    ]
+                        .where((value) =>
+                            value != null && value.toString().isNotEmpty)
+                        .join(', ');
+
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      leading: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xfffff7df),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.phone_callback_outlined,
+                            color: Color(0xffa16207)),
+                      ),
+                      title: Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(recipient,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text(customerPhone,
+                              style: const TextStyle(
+                                  color: storeGreen,
+                                  fontWeight: FontWeight.w700)),
+                          Chip(
+                            visualDensity: VisualDensity.compact,
+                            label: Text(
+                                interest['interest_status']?.toString() ??
+                                    'NEW',
+                                style: const TextStyle(fontSize: 10)),
+                          ),
+                        ],
+                      ),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          '${titles.isEmpty ? 'No items' : titles}\n$place • Indicative basket ${storeMoney(total)} • ${interest['created_at'] ?? ''}',
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xff475569)),
+                        ),
+                      ),
+                      isThreeLine: true,
+                      onTap: () => _editInterest(interest),
+                    );
+                  },
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -1802,6 +2109,11 @@ class _EcommerceAdminPanelScreenState
                           child: const Text('View Report',
                               style: TextStyle(fontSize: 11)),
                         ),
+                        IconButton(
+                            tooltip: 'Edit certificate',
+                            icon: const Icon(Icons.edit_outlined),
+                            onPressed: () =>
+                                _showCreateCertificateDialog(existing: cert)),
                       ],
                     ),
                   ],
@@ -1814,102 +2126,163 @@ class _EcommerceAdminPanelScreenState
     );
   }
 
-  void _showCreateCertificateDialog() {
-    final batchCtrl = TextEditingController(text: 'MIL-GH-2026-10A');
-    final productCtrl = TextEditingController(
-        text: 'Milterra Pure A2 Gir Cow Bilona Ghee (1L)');
-    final purityCtrl = TextEditingController(text: '99.6');
-    final labCtrl = TextEditingController(
-        text: 'National Dairy Research & Quality Laboratory, Karnal');
-    final fssaiCtrl = TextEditingController(text: '10722001000456');
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Issue New Batch Quality Certificate'),
-        content: SizedBox(
-          width: 440,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                  controller: batchCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Batch Number', border: OutlineInputBorder())),
-              const SizedBox(height: 10),
-              TextField(
-                  controller: productCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Product Title',
-                      border: OutlineInputBorder())),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                      child: TextField(
-                          controller: purityCtrl,
-                          decoration: const InputDecoration(
-                              labelText: 'Purity %',
-                              border: OutlineInputBorder()))),
-                  const SizedBox(width: 10),
-                  Expanded(
-                      child: TextField(
-                          controller: fssaiCtrl,
-                          decoration: const InputDecoration(
-                              labelText: 'FSSAI License',
-                              border: OutlineInputBorder()))),
-                ],
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                  controller: labCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Testing Laboratory Name',
-                      border: OutlineInputBorder())),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: storeGreen),
-            onPressed: () {
-              final cert = BatchCertificate(
-                id: 'cert-${DateTime.now().millisecondsSinceEpoch}',
-                batchNumber: batchCtrl.text.trim().toUpperCase(),
-                productId: 'custom-prod',
-                productTitle: productCtrl.text.trim(),
-                category: 'Dairy Foods',
-                testDate: DateTime.now(),
-                laboratory: labCtrl.text.trim(),
-                fssaiLicense: fssaiCtrl.text.trim(),
-                purityPercent: double.tryParse(purityCtrl.text) ?? 99.0,
-                testParameters: {
-                  'Purity Assessment': '${purityCtrl.text}% Verified',
-                  'Foreign Fat Adulteration': 'Zero (Negative)',
-                  'Microbiology Test': 'Pass / FSSAI Compliant',
-                },
-                certifiedBy: 'Chief Analytical Quality Officer',
-                remarks: 'Certified for release to customer market.',
-              );
-              ref
-                  .read(adminMarketplaceProvider.notifier)
-                  .addBatchCertificate(cert);
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  backgroundColor: storeGreen,
-                  content:
-                      Text('Batch #${cert.batchNumber} certificate issued!'),
-                ),
-              );
-            },
-            child: const Text('Issue Certificate'),
-          ),
-        ],
-      ),
-    );
+  Future<void> _showCreateCertificateDialog(
+      {BatchCertificate? existing}) async {
+    List<Product> products;
+    try {
+      products = await ref.read(adminCatalogProductsProvider.future);
+    } catch (error) {
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(commerceError(error))));
+      return;
+    }
+    if (!mounted) return;
+    if (products.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content:
+              Text('Create a backend product before adding a certificate.')));
+      return;
+    }
+    var productId = products.any((p) => p.id == existing?.productId)
+        ? existing!.productId
+        : products.first.id;
+    var status = existing?.status ?? 'PENDING_REVIEW';
+    final batch = TextEditingController(text: existing?.batchNumber ?? '');
+    final date = TextEditingController(
+        text: existing?.testDate.toUtc().toIso8601String() ?? '');
+    final lab = TextEditingController(text: existing?.laboratory ?? '');
+    final license = TextEditingController(text: existing?.fssaiLicense ?? '');
+    final purity =
+        TextEditingController(text: existing?.purityPercent?.toString() ?? '');
+    final certifier = TextEditingController(text: existing?.certifiedBy ?? '');
+    final report = TextEditingController(text: existing?.reportUrl ?? '');
+    final remarks = TextEditingController(text: existing?.remarks ?? '');
+    final parameters = TextEditingController(
+        text: existing?.testParameters.entries
+                .map((e) => '${e.key}: ${e.value}')
+                .join('\n') ??
+            '');
+    Widget field(TextEditingController controller, String label,
+            {int lines = 1}) =>
+        Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: TextField(
+                controller: controller,
+                maxLines: lines,
+                decoration: InputDecoration(labelText: label)));
+    await showDialog<void>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+            builder: (ctx, update) => AlertDialog(
+                  title: Text(existing == null
+                      ? 'Add Batch Certificate'
+                      : 'Edit Batch Certificate'),
+                  scrollable: true,
+                  content: SizedBox(
+                      width: 580,
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        DropdownButtonFormField<String>(
+                            initialValue: productId,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                                labelText: 'Backend product / pack'),
+                            items: products
+                                .map((p) => DropdownMenuItem(
+                                    value: p.id,
+                                    child: Text(
+                                        '${p.title} · ${p.packSize ?? p.unit}',
+                                        overflow: TextOverflow.ellipsis)))
+                                .toList(),
+                            onChanged: (v) => update(() => productId = v!)),
+                        field(batch, 'Batch number'),
+                        field(date, 'Test date UTC (ISO date/time)'),
+                        field(lab, 'Testing laboratory'),
+                        field(license, 'License / registration (optional)'),
+                        field(purity, 'Purity % (optional)'),
+                        field(certifier, 'Certified by'),
+                        field(report, 'Report URL (http/https)'),
+                        field(remarks, 'Remarks', lines: 2),
+                        field(parameters,
+                            'Measured parameters (one Name: Result per line)',
+                            lines: 4),
+                        DropdownButtonFormField<String>(
+                            initialValue: status,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                                labelText: 'Review status'),
+                            items: ['PENDING_REVIEW', 'CERTIFIED', 'REJECTED']
+                                .map((s) =>
+                                    DropdownMenuItem(value: s, child: Text(s)))
+                                .toList(),
+                            onChanged: (v) => update(() => status = v!)),
+                        const SizedBox(height: 12),
+                        const Text(
+                            'Only certified records with a report link appear to customers. Enter actual results; blank fields do not imply passed tests.'),
+                      ])),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Cancel')),
+                    FilledButton(
+                        onPressed: () => _saveAdminAction(() async {
+                              final testDate = DateTime.tryParse(date.text);
+                              final percent = purity.text.trim().isEmpty
+                                  ? null
+                                  : double.tryParse(purity.text);
+                              if (testDate == null ||
+                                  (purity.text.isNotEmpty && percent == null))
+                                throw StateError(
+                                    'Enter a valid test date and purity value.');
+                              final values = <String, String>{};
+                              for (final line in parameters.text
+                                  .split('\n')
+                                  .where((v) => v.trim().isNotEmpty)) {
+                                final split = line.indexOf(':');
+                                if (split <= 0 || split == line.length - 1)
+                                  throw StateError(
+                                      'Use Name: Result for each parameter.');
+                                values[line.substring(0, split).trim()] =
+                                    line.substring(split + 1).trim();
+                              }
+                              final product =
+                                  products.firstWhere((p) => p.id == productId);
+                              await ref
+                                  .read(adminMarketplaceProvider.notifier)
+                                  .saveCertificate(BatchCertificate(
+                                      id: existing?.id ?? '',
+                                      batchNumber: batch.text.trim(),
+                                      productId: productId,
+                                      productTitle: product.title,
+                                      category: product.category.name,
+                                      testDate: testDate,
+                                      laboratory: lab.text.trim(),
+                                      fssaiLicense: license.text.trim(),
+                                      purityPercent: percent,
+                                      testParameters: values,
+                                      status: status,
+                                      certifiedBy: certifier.text.trim(),
+                                      remarks: remarks.text.trim(),
+                                      reportUrl: report.text.trim().isEmpty
+                                          ? null
+                                          : report.text.trim()));
+                            }, dialog: ctx),
+                        child: const Text('Save Certificate')),
+                  ],
+                )));
+    for (final c in [
+      batch,
+      date,
+      lab,
+      license,
+      purity,
+      certifier,
+      report,
+      remarks,
+      parameters
+    ]) {
+      c.dispose();
+    }
   }
 
   void _showCertificateDetailsDialog(BatchCertificate cert) {
@@ -2463,8 +2836,14 @@ class _EcommerceAdminPanelScreenState
 
   void _showWhatsAppNudgeDialog(
       AdminCartSummary cart, AdminAnalyticsNotifier notifier) async {
-    final link = await notifier.getNudgeLink(cart.cartId);
+    final nudge = await notifier.getNudgeLink(cart.cartId);
     if (!mounted) return;
+    if (nudge == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not prepare a reminder. Please retry.')));
+      return;
+    }
+    final link = nudge['whatsapp_link'].toString();
 
     showDialog(
       context: context,
@@ -2508,11 +2887,9 @@ class _EcommerceAdminPanelScreenState
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: const Color(0xffe2e8f0)),
                 ),
-                child: const Text(
-                  'Message Preview:\n"Namaste! We noticed you left items in your MILTERRA dairy cart. '
-                  'Complete your order today with special coupon code *RECOVER10* for 10% OFF! '
-                  'Tap to checkout: https://milterra.in/shop/cart"',
-                  style: TextStyle(
+                child: Text(
+                  nudge['sms_message'].toString(),
+                  style: const TextStyle(
                       fontSize: 12.5, height: 1.4, color: Color(0xff334155)),
                 ),
               ),
@@ -2520,7 +2897,7 @@ class _EcommerceAdminPanelScreenState
               const Text('Recovery Link:',
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
               SelectableText(
-                link ?? 'https://wa.me/91${cart.userPhone}',
+                link,
                 style: const TextStyle(fontSize: 11, color: storeGreen),
               ),
             ],
@@ -2533,13 +2910,15 @@ class _EcommerceAdminPanelScreenState
             style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xff25d366)),
             icon: const Icon(Icons.open_in_new, size: 16),
-            label: const Text('Send WhatsApp Message'),
-            onPressed: () {
+            label: const Text('Copy reminder link'),
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: link));
+              if (!ctx.mounted) return;
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                     content: Text(
-                        'Recovery reminder triggered for ${cart.userPhone}')),
+                        'Link copied. No message has been sent to ${cart.userPhone}.')),
               );
             },
           ),
@@ -2690,7 +3069,7 @@ class _EcommerceAdminPanelScreenState
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xff334155))),
                         const SizedBox(height: 12),
-                        ...((traffic?.topStates ?? []).map((s) {
+                        ...(traffic.topStates.map((s) {
                           return Padding(
                             padding: const EdgeInsets.symmetric(vertical: 6),
                             child: Column(
@@ -2737,7 +3116,7 @@ class _EcommerceAdminPanelScreenState
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
-                          children: (traffic?.topCities ?? []).map((c) {
+                          children: traffic.topCities.map((c) {
                             return Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 8),
@@ -2831,7 +3210,7 @@ class _EcommerceAdminPanelScreenState
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xff334155))),
                         const SizedBox(height: 12),
-                        ...((traffic?.topReferrers ?? []).map((r) {
+                        ...(traffic.topReferrers.map((r) {
                           IconData refIcon = Icons.link;
                           Color refColor = const Color(0xff64748b);
                           if (r.type == 'whatsapp') {
@@ -2894,8 +3273,7 @@ class _EcommerceAdminPanelScreenState
                               child: _buildDeviceCard(
                                 icon: Icons.phone_android,
                                 label: 'Mobile App / Web',
-                                count:
-                                    traffic?.deviceBreakdown['mobile'] ?? 334,
+                                count: traffic.deviceBreakdown['mobile'] ?? 334,
                                 percent: '78%',
                               ),
                             ),
@@ -2904,8 +3282,7 @@ class _EcommerceAdminPanelScreenState
                               child: _buildDeviceCard(
                                 icon: Icons.laptop_mac,
                                 label: 'Desktop Browser',
-                                count:
-                                    traffic?.deviceBreakdown['desktop'] ?? 82,
+                                count: traffic.deviceBreakdown['desktop'] ?? 82,
                                 percent: '19%',
                               ),
                             ),
@@ -2914,7 +3291,7 @@ class _EcommerceAdminPanelScreenState
                               child: _buildDeviceCard(
                                 icon: Icons.tablet_mac,
                                 label: 'Tablet / iPad',
-                                count: traffic?.deviceBreakdown['tablet'] ?? 12,
+                                count: traffic.deviceBreakdown['tablet'] ?? 12,
                                 percent: '3%',
                               ),
                             ),

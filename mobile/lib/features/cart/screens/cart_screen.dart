@@ -25,8 +25,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   Future<void> _saveForLater(CartItem item) async {
     setState(() => _busyIds.add(item.id));
     try {
-      await ref.read(cartProvider.notifier).remove(item.id);
-      ref.read(savedForLaterProvider.notifier).save(item);
+      await ref.read(savedForLaterProvider.notifier).save(item);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -52,8 +51,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   Future<void> _moveToCart(CartItem item) async {
     setState(() => _busyIds.add(item.id));
     try {
-      await ref.read(cartProvider.notifier).add(item.productId, item.quantity);
-      ref.read(savedForLaterProvider.notifier).remove(item.productId);
+      await ref.read(savedForLaterProvider.notifier).restore(item);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -73,11 +71,18 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     }
   }
 
-  void _removeSavedItem(CartItem item) {
-    ref.read(savedForLaterProvider.notifier).remove(item.productId);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Removed ${item.title} from saved items.')),
-    );
+  Future<void> _removeSavedItem(CartItem item) async {
+    try {
+      await ref.read(savedForLaterProvider.notifier).remove(item.productId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Removed ${item.title} from saved items.')),
+      );
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not remove saved item.')));
+    }
   }
 
   Future<void> _updateQty(String itemId, int qty) async {
@@ -878,10 +883,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(4)),
                           ),
-                          onPressed: () {
-                            final success = ref
+                          onPressed: () async {
+                            final success = await ref
                                 .read(appliedCouponProvider.notifier)
                                 .applyCoupon(_couponCtrl.text, cart.subtotal);
+                            if (!mounted || !context.mounted) return;
                             if (success) {
                               _couponCtrl.clear();
                               setState(() => _couponError = null);
@@ -910,18 +916,29 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             fontSize: 11, color: Colors.redAccent)),
                   ],
                   const SizedBox(height: 8),
+                  if (ref.watch(availableCouponsProvider).hasError)
+                    TextButton(
+                        onPressed: () =>
+                            ref.invalidate(availableCouponsProvider),
+                        child: const Text('Could not load coupons. Retry')),
+                  if (ref.watch(availableCouponsProvider).isLoading)
+                    const LinearProgressIndicator(),
                   const Text('Available offers (Tap to apply):',
                       style: TextStyle(fontSize: 10, color: storeMuted)),
                   const SizedBox(height: 4),
                   Wrap(
                     spacing: 6,
                     runSpacing: 4,
-                    children: availableStoreCoupons.map((c) {
+                    children:
+                        (ref.watch(availableCouponsProvider).valueOrNull ??
+                                <StoreCoupon>[])
+                            .map((c) {
                       return InkWell(
-                        onTap: () {
-                          final ok = ref
+                        onTap: () async {
+                          final ok = await ref
                               .read(appliedCouponProvider.notifier)
                               .applyCoupon(c.code, cart.subtotal);
+                          if (!mounted || !context.mounted) return;
                           if (ok) {
                             setState(() => _couponError = null);
                             ScaffoldMessenger.of(context).showSnackBar(

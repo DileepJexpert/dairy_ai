@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:dairy_ai/core/api_client.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
+import '../../finance/providers/wallet_provider.dart';
 import '../models/delivery_address.dart';
 import '../providers/cart_provider.dart';
 import '../providers/delivery_address_provider.dart';
@@ -25,42 +26,29 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String? _addressId;
   String _paymentMethod = 'cod';
   bool _submitting = false;
+  String? _checkoutKey;
   bool _summaryItemsExpanded = true;
 
   String _getPaymentButtonLabel(double totalAmount) {
-    if (_submitting) return 'Placing Order…';
+    if (_submitting) return 'Saving your interest…';
     switch (_paymentMethod) {
       case 'wallet':
-        return 'Use wallet & place order (${storeMoney(totalAmount)})';
+        return 'Continue with Wallet preview (${storeMoney(totalAmount)})';
       case 'upi':
-        return 'Pay ${storeMoney(totalAmount)} via UPI (QR / Apps)';
+        return 'Continue with UPI preview (${storeMoney(totalAmount)})';
       case 'card':
-        return 'Pay ${storeMoney(totalAmount)} securely via Card';
+        return 'Continue with Card preview (${storeMoney(totalAmount)})';
       case 'netbanking':
-        return 'Pay ${storeMoney(totalAmount)} via Net Banking';
+        return 'Continue with Net Banking preview (${storeMoney(totalAmount)})';
       case 'cod':
-        return 'Place order with Cash on Delivery (${storeMoney(totalAmount)})';
+        return 'Register COD interest (${storeMoney(totalAmount)})';
       default:
-        return 'Pay ${storeMoney(totalAmount)} securely';
+        return 'Continue (${storeMoney(totalAmount)})';
     }
   }
 
   Future<void> _checkout() async {
     if (_addressId == null) return;
-
-    // Online payment methods stay unavailable until a signed gateway callback
-    // can authoritatively update the backend payment state.
-    if (_paymentMethod != 'cod') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: storeError,
-          content: Text(
-            'Online payments are not enabled yet. Please choose Cash on Delivery.',
-          ),
-        ),
-      );
-      return;
-    }
 
     final cart = ref.read(cartProvider).valueOrNull;
     if (cart == null || cart.items.isEmpty) {
@@ -73,9 +61,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       return;
     }
     final subtotal = cart.subtotal;
-    const discount = 0.0;
-    final totalAmount = subtotal;
-
+    final appliedCoupon = ref.read(appliedCouponProvider);
+    final discount = appliedCoupon?.calculateDiscount(subtotal) ?? 0.0;
+    final totalAmount = (subtotal - discount).clamp(0.0, double.infinity);
     // Extract selected address details
     final addresses = ref.read(deliveryAddressesProvider).valueOrNull ?? [];
     final DeliveryAddress? selectedAddress =
@@ -99,7 +87,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       'phone_number': selectedAddress.phone,
     };
 
-    if (_paymentMethod == 'cod') {
+    if (_paymentMethod == 'wallet') {
+      setState(() => _submitting = true);
+      await _finalizeOrderPlacement(
+        totalAmount: totalAmount,
+        subtotal: subtotal,
+        discount: discount,
+        addressMap: addressMap,
+      );
+    } else if (_paymentMethod == 'cod') {
       setState(() => _submitting = true);
       await _finalizeOrderPlacement(
         totalAmount: totalAmount,
@@ -110,7 +106,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     } else if (_paymentMethod == 'upi') {
       _showUpiPaymentDialog(
         totalAmount: totalAmount,
-        generatedOrderId: '',
         subtotal: subtotal,
         discount: discount,
         addressMap: addressMap,
@@ -118,7 +113,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     } else if (_paymentMethod == 'card') {
       _showCardPaymentDialog(
         totalAmount: totalAmount,
-        generatedOrderId: '',
         subtotal: subtotal,
         discount: discount,
         addressMap: addressMap,
@@ -126,7 +120,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     } else if (_paymentMethod == 'netbanking') {
       _showNetBankingDialog(
         totalAmount: totalAmount,
-        generatedOrderId: '',
         subtotal: subtotal,
         discount: discount,
         addressMap: addressMap,
@@ -141,16 +134,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     required Map<String, dynamic> addressMap,
   }) async {
     setState(() => _submitting = true);
-    final cart = ref.read(cartProvider).valueOrNull;
-
     try {
-      final key =
+      final key = _checkoutKey ??=
           'flutter-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(9999)}';
       final res = await ref
           .read(dioProvider)
           .post('/marketplace/orders/checkout', data: {
         'delivery_address_id': _addressId,
         'payment_method': _paymentMethod,
+        if (ref.read(appliedCouponProvider) != null)
+          'coupon_code': ref.read(appliedCouponProvider)!.code,
         'idempotency_key': key,
       });
 
@@ -158,43 +151,26 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       final data = body?['data'] as Map?;
       if (data == null ||
           data['id'] == null ||
-          data['payment_status'] == null) {
-        throw const FormatException('Checkout response was incomplete');
+          data['is_prelaunch_interest'] != true) {
+        throw const FormatException(
+          'The server did not confirm a pre-launch interest record.',
+        );
       }
       final realOrderId = data['id'].toString();
-      final serverPaymentStatus =
-          data['payment_status'].toString().toUpperCase();
-      final serverOrderStatus =
-          data['status']?.toString().toUpperCase() ?? 'PENDING_PAYMENT';
-      final serverSubtotal =
-          double.tryParse(data['subtotal']?.toString() ?? '') ?? subtotal;
-      final serverTotal =
-          double.tryParse(data['total']?.toString() ?? '') ?? totalAmount;
-
-      // Persist to unified Order Repository now that backend has accepted the order
-      ref.read(ordersNotifierProvider.notifier).placeOrder(
-            orderId: realOrderId,
-            cartItems: cart?.items ?? [],
-            deliveryAddress: addressMap,
-            paymentMethod: _paymentMethod,
-            subtotal: serverSubtotal,
-            discount: 0,
-            total: serverTotal,
-            paymentStatus: serverPaymentStatus,
-            orderStatus: serverOrderStatus,
-          );
+      ref
+          .read(ordersNotifierProvider.notifier)
+          .acceptServerOrder(Map<String, dynamic>.from(data));
+      _checkoutKey = null;
 
       ref.read(appliedCouponProvider.notifier).removeCoupon();
       ref.read(cartProvider.notifier).refresh();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             backgroundColor: storeGreen,
             content: Text(
-              _paymentMethod == 'wallet'
-                  ? 'Order placed successfully using Milterra Wallet!'
-                  : 'Order placed successfully! Total: ${storeMoney(serverTotal)}',
+              'Interest saved. No payment was taken. Milterra can contact you before launch.',
             ),
           ),
         );
@@ -226,7 +202,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   void _showUpiPaymentDialog({
     required double totalAmount,
-    required String generatedOrderId,
     required double subtotal,
     required double discount,
     required Map<String, dynamic> addressMap,
@@ -237,7 +212,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       builder: (dialogCtx) {
         bool verifying = false;
         String selectedVpaApp = 'GPay';
-        final vpaController = TextEditingController();
+        final vpaController = TextEditingController(text: 'farmer@okaxis');
 
         return StatefulBuilder(
           builder: (context, setDialogState) {
@@ -271,7 +246,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Milterra UPI Instant Gateway',
+                                  'Milterra UPI Preference Preview',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w800,
@@ -485,8 +460,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 setDialogState(() => verifying = true);
                                 await Future.delayed(
                                     const Duration(milliseconds: 1400));
-                                if (dialogCtx.mounted)
+                                if (dialogCtx.mounted) {
                                   Navigator.of(dialogCtx).pop();
+                                }
                                 await _finalizeOrderPlacement(
                                   totalAmount: totalAmount,
                                   subtotal: subtotal,
@@ -514,9 +490,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                   ),
                                 ],
                               )
-                            : Text(
-                                'Approve ₹${totalAmount.toStringAsFixed(2)} Payment',
-                                style: const TextStyle(
+                            : const Text(
+                                'Continue with UPI preference',
+                                style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w800,
                                     color: storeGreen),
@@ -535,7 +511,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   void _showCardPaymentDialog({
     required double totalAmount,
-    required String generatedOrderId,
     required double subtotal,
     required double discount,
     required Map<String, dynamic> addressMap,
@@ -546,13 +521,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       builder: (dialogCtx) {
         bool step3ds = false;
         bool processing = false;
-        final cardNumCtrl = TextEditingController();
+        final cardNumCtrl = TextEditingController(text: '4532 8920 1148 7639');
         final currentUser = ref.read(currentUserProvider);
         final nameCtrl = TextEditingController(
             text: currentUser?.name?.toUpperCase() ?? 'MILTERRA MEMBER');
-        final expCtrl = TextEditingController();
-        final cvvCtrl = TextEditingController();
-        final otpCtrl = TextEditingController();
+        final expCtrl = TextEditingController(text: '08/29');
+        final cvvCtrl = TextEditingController(text: '482');
+        final otpCtrl = TextEditingController(text: '774102');
 
         return StatefulBuilder(
           builder: (context, setCardState) {
@@ -587,8 +562,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               children: [
                                 Text(
                                   step3ds
-                                      ? '3D Secure Bank Verification'
-                                      : 'Milterra SafePay Card Gateway',
+                                      ? 'Card Preference Confirmation'
+                                      : 'Milterra Card Preference Preview',
                                   style: const TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,
@@ -596,7 +571,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                   ),
                                 ),
                                 const Text(
-                                  'Visa · MasterCard · RuPay · 256-Bit SSL',
+                                  'Demo only · Do not enter a real card number',
                                   style: TextStyle(
                                       fontSize: 11, color: storeMuted),
                                 ),
@@ -808,9 +783,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                             color: storeGreen)),
                                   ],
                                 )
-                              : Text(
-                                  'Proceed to 3D Secure (${storeMoney(totalAmount)})',
-                                  style: const TextStyle(
+                              : const Text(
+                                  'Continue to preference confirmation',
+                                  style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w800,
                                       color: storeGreen),
@@ -834,7 +809,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                       color: Color(0xff0052cc), size: 20),
                                   SizedBox(width: 8),
                                   Text(
-                                    'Verified by VISA / RuPay Secure',
+                                    'Pre-launch payment preference',
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold,
@@ -845,7 +820,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'A 6-digit one-time authorization passcode was simulated for order payment of ${storeMoney(totalAmount)}.',
+                                'No bank OTP is sent. Enter the demo code shown here to confirm this payment preference for ${storeMoney(totalAmount)}.',
                                 style: const TextStyle(
                                     fontSize: 12, color: Color(0xff333333)),
                               ),
@@ -870,6 +845,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 horizontal: 12, vertical: 10),
                           ),
                         ),
+                        const SizedBox(height: 10),
+                        Center(
+                          child: TextButton.icon(
+                            onPressed: () => otpCtrl.text = '774102',
+                            icon: const Icon(Icons.flash_on,
+                                size: 14, color: storeOrange),
+                            label: const Text('Autofill Test Passcode (774102)',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: storeOrange)),
+                          ),
+                        ),
                         const SizedBox(height: 12),
                         FilledButton(
                           style: FilledButton.styleFrom(
@@ -885,8 +873,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                   setCardState(() => processing = true);
                                   await Future.delayed(
                                       const Duration(milliseconds: 1200));
-                                  if (dialogCtx.mounted)
+                                  if (dialogCtx.mounted) {
                                     Navigator.of(dialogCtx).pop();
+                                  }
                                   await _finalizeOrderPlacement(
                                     totalAmount: totalAmount,
                                     subtotal: subtotal,
@@ -911,7 +900,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                             color: Colors.white)),
                                   ],
                                 )
-                              : const Text('Authorize & Complete Payment',
+                              : const Text('Save Card Payment Preference',
                                   style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold)),
@@ -930,7 +919,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   void _showNetBankingDialog({
     required double totalAmount,
-    required String generatedOrderId,
     required double subtotal,
     required double discount,
     required Map<String, dynamic> addressMap,
@@ -992,7 +980,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                   ),
                                 ),
                                 Text(
-                                  'Fast & Secure Net Banking Portal',
+                                  'Pre-launch bank preference preview',
                                   style: TextStyle(
                                       fontSize: 11, color: storeMuted),
                                 ),
@@ -1076,8 +1064,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 setBankState(() => processing = true);
                                 await Future.delayed(
                                     const Duration(milliseconds: 1300));
-                                if (dialogCtx.mounted)
+                                if (dialogCtx.mounted) {
                                   Navigator.of(dialogCtx).pop();
+                                }
                                 await _finalizeOrderPlacement(
                                   totalAmount: totalAmount,
                                   subtotal: subtotal,
@@ -1105,7 +1094,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 ],
                               )
                             : Text(
-                                'Pay ${storeMoney(totalAmount)} via $selectedBank',
+                                'Save $selectedBank preference',
                                 style: const TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w800,
@@ -1183,7 +1172,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     Icon(Icons.lock_outline, size: 18, color: storeMuted),
                     SizedBox(width: 6),
                     Text(
-                      'Secure checkout',
+                      'Pre-launch checkout',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
@@ -1748,6 +1737,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Widget _buildStepPayment() {
+    final walletBal = ref.watch(milterraWalletProvider).totalBalance;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -1780,18 +1771,65 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ],
           ),
           const Divider(height: 20),
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xfffff8e1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: storeAmber),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline, size: 18, color: storeGreen),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Payment preview only. Choose how you would prefer to pay after launch. No money, wallet balance, or bank details are collected.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                      color: storeGreen,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _paymentOptionTile(
+            value: 'wallet',
+            title:
+                'Milterra Wallet & Milk Earnings (${storeMoney(walletBal)} shown)',
+            subtitle:
+                'Preview this preference; no wallet balance will be deducted',
+            icon: Icons.account_balance_wallet_outlined,
+          ),
           _paymentOptionTile(
             value: 'cod',
-            title: 'Cash on Delivery (Pay upon delivery)',
-            subtitle: 'Pay via cash, UPI, or card at your doorstep',
+            title: 'Cash on Delivery',
+            subtitle: 'Register that you would prefer to pay after delivery',
             icon: Icons.payments_outlined,
           ),
-          const Padding(
-            padding: EdgeInsets.only(top: 10),
-            child: Text(
-              'UPI, card, net banking and wallet payments will be enabled after secure payment-gateway verification is connected.',
-              style: TextStyle(fontSize: 12, color: storeMuted),
-            ),
+          _paymentOptionTile(
+            value: 'upi',
+            title: 'UPI (Google Pay, PhonePe, Paytm, BHIM) — Preview',
+            subtitle: 'No UPI request will be sent during pre-launch',
+            icon: Icons.qr_code_scanner_outlined,
+          ),
+          _paymentOptionTile(
+            value: 'card',
+            title: 'Credit or Debit Card — Preview',
+            subtitle: 'Do not enter a real card; no card data is collected',
+            icon: Icons.credit_card_outlined,
+          ),
+          _paymentOptionTile(
+            value: 'netbanking',
+            title: 'Net Banking — Preview',
+            subtitle: 'Select a preferred bank without leaving Milterra',
+            icon: Icons.account_balance_outlined,
           ),
         ],
       ),
@@ -1956,7 +1994,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Widget _buildOrderSummaryBox(dynamic cart) {
     final subtotal = cart?.subtotal ?? 0.0;
     final count = cart?.itemCount ?? 0;
-    final orderTotal = subtotal;
+    final appliedCoupon = ref.watch(appliedCouponProvider);
+    final discount = appliedCoupon?.calculateDiscount(subtotal) ?? 0.0;
+    final orderTotal = (subtotal - discount).clamp(0.0, double.infinity);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -2130,6 +2170,24 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ),
             ],
           ],
+          if (appliedCoupon != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Promotion (${appliedCoupon.code}):',
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xff067d62))),
+                Text('-${storeMoney(discount)}',
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xff067d62))),
+              ],
+            ),
+          ],
           const SizedBox(height: 6),
           const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2165,6 +2223,29 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ),
             ],
           ),
+          if (discount > 0) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xffe8f5e9),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: const Color(0xffa5d6a7)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline,
+                      size: 14, color: Color(0xff1b5e20)),
+                  const SizedBox(width: 6),
+                  Text('Your Coupon Savings: ${storeMoney(discount)}',
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xff1b5e20))),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(8),
@@ -2179,7 +2260,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Secure checkout',
+                    'Pre-launch interest checkout · No payment collected',
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,

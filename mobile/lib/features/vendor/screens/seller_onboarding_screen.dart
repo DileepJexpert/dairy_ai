@@ -4,17 +4,21 @@ import 'package:go_router/go_router.dart';
 import '../../marketplace/widgets/store_design.dart';
 import '../../marketplace/models/marketplace_models.dart';
 import '../providers/seller_portal_provider.dart';
+import '../../admin/providers/admin_marketplace_provider.dart';
 
 class SellerOnboardingScreen extends ConsumerStatefulWidget {
   const SellerOnboardingScreen({super.key});
 
   @override
-  ConsumerState<SellerOnboardingScreen> createState() => _SellerOnboardingScreenState();
+  ConsumerState<SellerOnboardingScreen> createState() =>
+      _SellerOnboardingScreenState();
 }
 
-class _SellerOnboardingScreenState extends ConsumerState<SellerOnboardingScreen> {
+class _SellerOnboardingScreenState
+    extends ConsumerState<SellerOnboardingScreen> {
   int _currentStep = 0;
-  final _businessNameCtrl = TextEditingController(text: 'Panchamrit Dairy Farmer Producer Co.');
+  final _businessNameCtrl =
+      TextEditingController(text: 'Panchamrit Dairy Farmer Producer Co.');
   final _tradeNameCtrl = TextEditingController(text: 'Panchamrit Organics');
   final _gstinCtrl = TextEditingController(text: '24AAPCD1234E1Z9');
   final _fssaiCtrl = TextEditingController(text: '10725001000987');
@@ -27,7 +31,7 @@ class _SellerOnboardingScreenState extends ConsumerState<SellerOnboardingScreen>
   bool _uploadedGst = true;
   bool _uploadedFssai = true;
 
-  void _submitApplication() {
+  Future<void> _submitApplication() async {
     final newSeller = SellerAccount(
       id: 'seller-${DateTime.now().millisecondsSinceEpoch}',
       businessName: _businessNameCtrl.text.trim(),
@@ -45,7 +49,17 @@ class _SellerOnboardingScreenState extends ConsumerState<SellerOnboardingScreen>
       createdAt: DateTime.now(),
     );
 
-    ref.read(sellerPortalProvider.notifier).registerNewSeller(newSeller);
+    try {
+      await ref
+          .read(sellerPortalProvider.notifier)
+          .registerNewSeller(newSeller);
+    } catch (error) {
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(commerceError(error))));
+      return;
+    }
+    if (!mounted) return;
 
     showDialog(
       context: context,
@@ -56,7 +70,8 @@ class _SellerOnboardingScreenState extends ConsumerState<SellerOnboardingScreen>
           children: [
             Icon(Icons.check_circle, color: storeGreen, size: 28),
             SizedBox(width: 10),
-            Text('Application Submitted!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            Text('Application Submitted!',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
           ],
         ),
         content: Column(
@@ -70,7 +85,10 @@ class _SellerOnboardingScreenState extends ConsumerState<SellerOnboardingScreen>
             const SizedBox(height: 12),
             const Text(
               'Status: PENDING_APPROVAL\nApproval Window: 24 - 48 Hours',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: storeAmberDark),
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: storeAmberDark),
             ),
           ],
         ),
@@ -95,7 +113,8 @@ class _SellerOnboardingScreenState extends ConsumerState<SellerOnboardingScreen>
       appBar: AppBar(
         backgroundColor: storeDarkGreenNav,
         foregroundColor: Colors.white,
-        title: const Text('Milterra Seller Onboarding & KYC', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        title: const Text('Milterra Seller Onboarding & KYC',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -106,7 +125,8 @@ class _SellerOnboardingScreenState extends ConsumerState<SellerOnboardingScreen>
           constraints: const BoxConstraints(maxWidth: 800),
           child: Card(
             margin: const EdgeInsets.all(24),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: Stepper(
               currentStep: _currentStep,
               onStepContinue: () {
@@ -123,55 +143,97 @@ class _SellerOnboardingScreenState extends ConsumerState<SellerOnboardingScreen>
               },
               steps: [
                 Step(
-                  title: const Text('Business Details', style: TextStyle(fontWeight: FontWeight.bold)),
+                  title: const Text('Business Details',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   isActive: _currentStep >= 0,
                   content: Column(
                     children: [
-                      TextField(controller: _businessNameCtrl, decoration: const InputDecoration(labelText: 'Registered Entity Name', border: OutlineInputBorder())),
+                      TextField(
+                          controller: _businessNameCtrl,
+                          decoration: const InputDecoration(
+                              labelText: 'Registered Entity Name',
+                              border: OutlineInputBorder())),
                       const SizedBox(height: 12),
-                      TextField(controller: _tradeNameCtrl, decoration: const InputDecoration(labelText: 'Brand / Trade Name', border: OutlineInputBorder())),
+                      TextField(
+                          controller: _tradeNameCtrl,
+                          decoration: const InputDecoration(
+                              labelText: 'Brand / Trade Name',
+                              border: OutlineInputBorder())),
                       const SizedBox(height: 12),
-                      TextField(controller: _cityCtrl, decoration: const InputDecoration(labelText: 'Primary Warehouse City', border: OutlineInputBorder())),
+                      TextField(
+                          controller: _cityCtrl,
+                          decoration: const InputDecoration(
+                              labelText: 'Primary Warehouse City',
+                              border: OutlineInputBorder())),
                     ],
                   ),
                 ),
                 Step(
-                  title: const Text('Statutory Compliance (GST & FSSAI)', style: TextStyle(fontWeight: FontWeight.bold)),
+                  title: const Text('Statutory Compliance (GST & FSSAI)',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   isActive: _currentStep >= 1,
                   content: Column(
                     children: [
-                      TextField(controller: _gstinCtrl, decoration: const InputDecoration(labelText: 'GSTIN Number (15 Digits)', border: OutlineInputBorder())),
+                      TextField(
+                          controller: _gstinCtrl,
+                          decoration: const InputDecoration(
+                              labelText: 'GSTIN Number (15 Digits)',
+                              border: OutlineInputBorder())),
                       const SizedBox(height: 12),
-                      TextField(controller: _fssaiCtrl, decoration: const InputDecoration(labelText: 'FSSAI License Number (14 Digits)', border: OutlineInputBorder())),
+                      TextField(
+                          controller: _fssaiCtrl,
+                          decoration: const InputDecoration(
+                              labelText: 'FSSAI License Number (14 Digits)',
+                              border: OutlineInputBorder())),
                       const SizedBox(height: 12),
                       CheckboxListTile(
                         value: _uploadedGst,
-                        title: const Text('GST Registration Certificate Attached (PDF/JPG)', style: TextStyle(fontSize: 13)),
-                        onChanged: (v) => setState(() => _uploadedGst = v ?? true),
+                        title: const Text(
+                            'GST Registration Certificate Attached (PDF/JPG)',
+                            style: TextStyle(fontSize: 13)),
+                        onChanged: (v) =>
+                            setState(() => _uploadedGst = v ?? true),
                       ),
                       CheckboxListTile(
                         value: _uploadedFssai,
-                        title: const Text('FSSAI Food/Feed Safety License Attached (PDF/JPG)', style: TextStyle(fontSize: 13)),
-                        onChanged: (v) => setState(() => _uploadedFssai = v ?? true),
+                        title: const Text(
+                            'FSSAI Food/Feed Safety License Attached (PDF/JPG)',
+                            style: TextStyle(fontSize: 13)),
+                        onChanged: (v) =>
+                            setState(() => _uploadedFssai = v ?? true),
                       ),
                     ],
                   ),
                 ),
                 Step(
-                  title: const Text('Settlement Bank & UPI', style: TextStyle(fontWeight: FontWeight.bold)),
+                  title: const Text('Settlement Bank & UPI',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   isActive: _currentStep >= 2,
                   content: Column(
                     children: [
-                      TextField(controller: _bankAccCtrl, decoration: const InputDecoration(labelText: 'Bank Account Number', border: OutlineInputBorder())),
+                      TextField(
+                          controller: _bankAccCtrl,
+                          decoration: const InputDecoration(
+                              labelText: 'Bank Account Number',
+                              border: OutlineInputBorder())),
                       const SizedBox(height: 12),
-                      TextField(controller: _ifscCtrl, decoration: const InputDecoration(labelText: 'IFSC Code', border: OutlineInputBorder())),
+                      TextField(
+                          controller: _ifscCtrl,
+                          decoration: const InputDecoration(
+                              labelText: 'IFSC Code',
+                              border: OutlineInputBorder())),
                       const SizedBox(height: 12),
-                      TextField(controller: _upiCtrl, decoration: const InputDecoration(labelText: 'Settlement UPI VPA ID', border: OutlineInputBorder())),
+                      TextField(
+                          controller: _upiCtrl,
+                          decoration: const InputDecoration(
+                              labelText: 'Settlement UPI VPA ID',
+                              border: OutlineInputBorder())),
                     ],
                   ),
                 ),
                 Step(
-                  title: const Text('Review & Agree to Platform Terms', style: TextStyle(fontWeight: FontWeight.bold)),
+                  title: const Text('Review & Agree to Platform Terms',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   isActive: _currentStep >= 3,
                   content: Container(
                     padding: const EdgeInsets.all(16),
@@ -182,7 +244,11 @@ class _SellerOnboardingScreenState extends ConsumerState<SellerOnboardingScreen>
                     child: const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Milterra Marketplace Service Level Agreement', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: storeGreen)),
+                        Text('Milterra Marketplace Service Level Agreement',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: storeGreen)),
                         SizedBox(height: 6),
                         Text(
                           '• Standard commission: 7.5% - 8.0% on realized sales.\n• 24-hour dispatch commitment for Fulfilled-by-Seller orders.\n• 100% genuine lab-tested quality guarantee with zero tolerance for adulteration.',

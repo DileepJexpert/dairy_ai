@@ -16,6 +16,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _isEditing = false;
+  bool _saving = false;
   bool _notifyHealth = true;
   bool _notifyVaccination = true;
   bool _notifyConsultation = true;
@@ -37,9 +38,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     // Populate from current user data.
     Future.microtask(() {
+      if (!mounted) return;
       final user = ref.read(currentUserProvider);
       if (user != null) {
         _nameController.text = user.name ?? '';
+        _loadProfile();
       }
     });
   }
@@ -70,7 +73,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             )
           else
             TextButton(
-              onPressed: _saveProfile,
+              onPressed: _saving ? null : _saveProfile,
               child: const Text(
                 'Save',
                 style: TextStyle(color: Colors.white),
@@ -157,7 +160,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      user.name ?? 'Customer',
+                      _nameController.text.isEmpty
+                          ? 'Customer'
+                          : _nameController.text,
                       style: theme.textTheme.headlineMedium,
                     ),
                     const SizedBox(height: 4),
@@ -197,9 +202,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             // Personal information section.
             const _SectionHeader(title: 'Personal Information'),
             const SizedBox(height: 12),
-            _isEditing
-                ? _buildEditableFields()
-                : _buildReadOnlyFields(user),
+            _isEditing ? _buildEditableFields() : _buildReadOnlyFields(user),
 
             const SizedBox(height: 24),
 
@@ -300,7 +303,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 title: const Text('Your Orders',
                     style: TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: const Text('Track packages, review past dairy & feed orders'),
+                subtitle: const Text(
+                    'Track packages, review past dairy & feed orders'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.push('/marketplace/orders'),
               ),
@@ -317,7 +321,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 title: const Text('Milterra Wallet & Milk Payouts',
                     style: TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: const Text('₹4,850 Available · Milk earnings & store credit'),
+                subtitle: const Text(
+                    '₹4,850 Available · Milk earnings & store credit'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.push('/balance'),
               ),
@@ -403,7 +408,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           _InfoTile(
             icon: Icons.person_outline,
             label: 'Name',
-            value: user?.name ?? 'Not set',
+            value:
+                _nameController.text.isEmpty ? 'Not set' : _nameController.text,
           ),
           const Divider(height: 1),
           _InfoTile(
@@ -544,8 +550,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           const Divider(height: 1),
           SwitchListTile(
-            secondary: const Icon(Icons.currency_rupee,
-                color: Color(0xFF1565C0)),
+            secondary:
+                const Icon(Icons.currency_rupee, color: Color(0xFF1565C0)),
             title: const Text('Payment Notifications'),
             subtitle: const Text('Transaction and payment alerts'),
             value: _notifyPayment,
@@ -557,15 +563,60 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  void _saveProfile() {
-    // TODO: Call PATCH /farmers/{id} to update profile.
-    setState(() => _isEditing = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Profile updated successfully'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  Future<void> _loadProfile() async {
+    try {
+      final response = await ref.read(dioProvider).get('/marketplace/profile');
+      if (!mounted) return;
+      final data = response.data['data'] as Map;
+      setState(() {
+        _nameController.text = data['name']?.toString() ?? '';
+        _villageController.text = data['village']?.toString() ?? '';
+        _districtController.text = data['district']?.toString() ?? '';
+        _stateController.text = data['state']?.toString() ?? '';
+        _selectedLanguage = data['language']?.toString() ?? 'en';
+        _notifyHealth = data['notify_health'] != false;
+        _notifyVaccination = data['notify_vaccination'] != false;
+        _notifyConsultation = data['notify_consultation'] != false;
+        _notifyPayment = data['notify_payment'] != false;
+      });
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Profile could not be loaded. Please retry.')));
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await ref.read(dioProvider).put('/marketplace/profile', data: {
+        'name': _nameController.text.trim(),
+        'village': _villageController.text.trim(),
+        'district': _districtController.text.trim(),
+        'state': _stateController.text.trim(),
+        'language': _selectedLanguage,
+        'notify_health': _notifyHealth,
+        'notify_vaccination': _notifyVaccination,
+        'notify_consultation': _notifyConsultation,
+        'notify_payment': _notifyPayment,
+      });
+      if (!mounted) return;
+      setState(() => _isEditing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile updated successfully'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content:
+                Text('Profile was not saved. Check the name and try again.')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   void _showLogoutConfirmation(BuildContext context) {

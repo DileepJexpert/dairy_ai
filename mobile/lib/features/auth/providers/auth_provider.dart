@@ -142,6 +142,93 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Sign in with a phone number, username, or email without paid OTP.
+  Future<void> loginWithPassword(String identifier, String password) async {
+    await _passwordAuth(
+      endpoint: '/auth/login-password',
+      payload: {'identifier': identifier, 'password': password},
+    );
+  }
+
+  /// Create a customer profile without an SMS provider.
+  Future<void> registerWithPassword(
+    String phone,
+    String password, {
+    String? username,
+    String? email,
+    String? displayName,
+  }) async {
+    await _passwordAuth(
+      endpoint: '/auth/register-password',
+      payload: {
+        'phone': phone,
+        'password': password,
+        if (username?.trim().isNotEmpty == true) 'username': username!.trim(),
+        if (email?.trim().isNotEmpty == true) 'email': email!.trim(),
+        if (displayName?.trim().isNotEmpty == true)
+          'display_name': displayName!.trim(),
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> requestPasswordReset(String identifier) async {
+    final response = await _dio.post(
+      '/auth/forgot-password',
+      data: {'identifier': identifier.trim()},
+    );
+    final body = response.data;
+    if (body is! Map) {
+      throw const FormatException('Password reset response was invalid');
+    }
+    return Map<String, dynamic>.from(body['data'] as Map? ?? const {});
+  }
+
+  Future<void> resetPassword(String token, String newPassword) async {
+    await _dio.post('/auth/reset-password', data: {
+      'token': token,
+      'new_password': newPassword,
+    });
+  }
+
+  Future<void> _passwordAuth({
+    required String endpoint,
+    required Map<String, dynamic> payload,
+  }) async {
+    state = const AuthState.loading();
+    try {
+      final response = await _dio.post(endpoint, data: payload);
+      final body = response.data as Map<String, dynamic>;
+      final accessToken = body['access_token'] as String?;
+      final refreshToken = body['refresh_token'] as String?;
+      if (accessToken == null || refreshToken == null) {
+        throw const FormatException('Authentication response was incomplete');
+      }
+      final profileResponse = await Dio(
+        BaseOptions(
+          baseUrl: AppConstants.baseUrl,
+          headers: {'Authorization': 'Bearer $accessToken'},
+        ),
+      ).get('/auth/me');
+      final profile = profileResponse.data['data'] as Map<String, dynamic>;
+      final user = UserModel(
+        id: profile['id'] as String,
+        phone: profile['phone'] as String,
+        role: profile['role'] as String,
+        name: profile['name'] as String?,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
+      await _storage.setAccessToken(accessToken);
+      await _storage.setRefreshToken(refreshToken);
+      await _storage.setUserData(user.toJson());
+      state = AuthState.authenticated(user: user);
+    } on DioException catch (e) {
+      state = AuthState.error(message: dioErrorMessage(e));
+    } catch (e) {
+      state = AuthState.error(message: e.toString());
+    }
+  }
+
   /// Refresh the access token.
   Future<bool> refreshToken() async {
     final refreshToken = await _storage.getRefreshToken();

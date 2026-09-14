@@ -289,12 +289,21 @@ async def generate_cart_recovery_nudge(
     if len(item_names) > 2:
         items_str += f" and {len(item_names) - 2} more"
 
-    coupon_code = "RECOVER10"
-    message = (
-        f"Namaste! We noticed you left {items_str} in your MILTERRA dairy cart. "
-        f"Complete your order today with special coupon code *{coupon_code}* for 10% OFF! "
-        f"Tap here to checkout: https://milterra.in/shop/cart"
-    )
+    from app.models.commerce_admin import CommerceCoupon
+    from app.services.commerce_admin_service import coupon_discount
+    from fastapi import HTTPException
+    subtotal = sum((p.base_price * item.quantity for item, p in items if p), Decimal('0'))
+    coupon_code, offer = '', ''
+    for coupon in (await db.execute(select(CommerceCoupon).where(CommerceCoupon.is_active.is_(True)).order_by(CommerceCoupon.code))).scalars():
+        try:
+            savings = coupon_discount(coupon, subtotal)
+        except HTTPException:
+            continue
+        if savings > 0:
+            coupon_code = coupon.code
+            offer = f' Available basket discount: Rs {savings} with code {coupon.code}, subject to current eligibility.'
+            break
+    message = f'Namaste! You saved {items_str} in your MILTERRA cart.{offer} Milterra is preparing for launch. You can register purchase interest; no payment is collected.'
 
     clean_phone = user.phone.replace("+", "").replace("-", "").replace(" ", "")
     if not clean_phone.startswith("91") and len(clean_phone) == 10:

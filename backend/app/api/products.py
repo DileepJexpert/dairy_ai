@@ -1,16 +1,19 @@
 import uuid
+from datetime import datetime
 from decimal import Decimal
-from fastapi import APIRouter,Depends,HTTPException,Query
+from fastapi import APIRouter,Depends,HTTPException,Query,status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user,require_role
 from app.models.user import User,UserRole
-from app.models.product import ProductCategory
+from app.models.product import Product,ProductCategory,ProductReview,MerchandisingPlacement,ConceptFeedback
 from app.repositories import product_repo,vendor_repo
-from app.schemas.product import ProductCreate,ProductUpdate,InventoryUpdate,ProductMediaCreate,ProductFamilyCreate,ProductFamilyUpdate,FamilyVariantCreate
+from app.schemas.product import ProductCreate,ProductUpdate,InventoryUpdate,ProductMediaCreate,ProductFamilyCreate,ProductFamilyUpdate,FamilyVariantCreate,ProductReviewCreate,MerchandisingPlacementCreate,MerchandisingPlacementUpdate,ConceptFeedbackCreate
 from app.services import product_service
 from app.config import settings
 from app.services import commerce_taxonomy_service as taxonomy
+from app.services.product_policy import is_concept
 router=APIRouter(tags=["products"])
 def uid(value:str,label:str):
  try:return uuid.UUID(value)
@@ -22,9 +25,113 @@ async def vendor(db,user):
  return v
 async def enrich(db,p):
  result = product_service.serialize(p,await product_repo.inventory(db,p.id),await product_repo.media(db,p.id),await vendor_repo.get_by_id(db,p.vendor_id))
+ if p.family_id:
+  family = await product_repo.get_family(db, p.family_id)
+  if family and family.is_concept:
+   result['specifications'] = {**result['specifications'], 'concept': True, 'listing_status': 'concept'}
+   result['in_stock'] = False
  if settings.COMMERCE_TAXONOMY_ENABLED:
   result['taxonomy'] = (await taxonomy.product_metadata(db,[p.id])).get(str(p.id))
  return result
+
+
+async def serialize_placement(db:AsyncSession,row:MerchandisingPlacement) -> dict:
+ product=await product_repo.get(db,row.product_id)
+ return {
+  "id":str(row.id),
+  "product_id":str(row.product_id),
+  "placement_type":row.placement_type,
+  "headline":row.headline,
+  "subheadline":row.subheadline,
+  "badge":row.badge,
+  "starts_at":row.starts_at.isoformat() + "Z" if row.starts_at else None,
+  "ends_at":row.ends_at.isoformat() + "Z" if row.ends_at else None,
+  "priority":row.priority,
+  "is_active":row.is_active,
+  "product":await enrich(db,product) if product else None,
+ }
+
+
+@router.get("/marketplace/merchandising/placements")
+async def storefront_placements(db:AsyncSession=Depends(get_db)):
+ now=datetime.utcnow()
+ rows=list((await db.execute(
+  select(MerchandisingPlacement)
+  .where(MerchandisingPlacement.is_active.is_(True))
+  .order_by(MerchandisingPlacement.priority.desc(),MerchandisingPlacement.created_at.desc())
+ )).scalars())
+ visible=[]
+ for row in rows:
+  if row.starts_at and row.starts_at > now: continue
+  if row.ends_at and row.ends_at <= now: continue
+  product=await product_repo.get(db,row.product_id)
+  if not product or not product.is_active or product.publication_status == "draft": continue
+  visible.append(await serialize_placement(db,row))
+ return {"success":True,"data":visible,"total":len(visible),"message":"Storefront placements"}
+
+
+@router.get("/admin/marketplace/merchandising/placements")
+async def admin_storefront_placements(current_user:User=Depends(require_role(UserRole.admin,UserRole.super_admin)),db:AsyncSession=Depends(get_db)):
+ rows=list((await db.execute(
+  select(MerchandisingPlacement)
+  .order_by(MerchandisingPlacement.created_at.desc())
+ )).scalars())
+ return {"success":True,"data":[await serialize_placement(db,row) for row in rows],"total":len(rows),"message":"Admin storefront placements"}
+
+
+@router.post("/admin/marketplace/merchandising/placements",status_code=status.HTTP_201_CREATED)
+async def create_storefront_placement(data:MerchandisingPlacementCreate,current_user:User=Depends(require_role(UserRole.admin,UserRole.super_admin)),db:AsyncSession=Depends(get_db)):
+ product=await product_repo.get(db,data.product_id)
+ if not product: raise HTTPException(404,"Product not found")
+ row=MerchandisingPlacement(**data.model_dump(),created_by_user_id=current_user.id)
+ db.add(row)
+ await db.flush()
+ return {"success":True,"data":await serialize_placement(db,row),"message":"Storefront placement created"}
+
+
+@router.put("/admin/marketplace/merchandising/placements/{placement_id}")
+async def update_storefront_placement(placement_id:str,data:MerchandisingPlacementUpdate,current_user:User=Depends(require_role(UserRole.admin,UserRole.super_admin)),db:AsyncSession=Depends(get_db)):
+ row=(await db.execute(select(MerchandisingPlacement).where(MerchandisingPlacement.id==uid(placement_id,"placement")))).scalar_one_or_none()
+ if not row: raise HTTPException(404,"Storefront placement not found")
+ changes=data.model_dump(exclude_unset=True)
+ starts_at=changes.get("starts_at",row.starts_at)
+ ends_at=changes.get("ends_at",row.ends_at)
+ if starts_at and ends_at and ends_at <= starts_at: raise HTTPException(422,"ends_at must be after starts_at")
+ for key,value in changes.items(): setattr(row,key,value)
+ await db.flush()
+ return {"success":True,"data":await serialize_placement(db,row),"message":"Storefront placement updated"}
+
+
+@router.post("/marketplace/concepts/{concept_key}/feedback",status_code=status.HTTP_201_CREATED)
+async def create_concept_feedback(concept_key:str,data:ConceptFeedbackCreate,db:AsyncSession=Depends(get_db)):
+ key=concept_key.strip().lower()
+ if len(key)<3 or len(key)>120 or any(char not in "abcdefghijklmnopqrstuvwxyz0123456789-_" for char in key):
+  raise HTTPException(422,"Invalid concept key")
+ row=ConceptFeedback(
+  concept_key=key,
+  concept_title=data.concept_title.strip(),
+  visitor_name=data.visitor_name.strip(),
+  email=data.email.strip().lower() if data.email else None,
+  phone=data.phone.strip() if data.phone else None,
+  message=data.message.strip() if data.message else None,
+  wants_updates=data.wants_updates,
+ )
+ db.add(row)
+ await db.flush()
+ return {"success":True,"data":{"id":str(row.id)},"message":"Concept feedback saved"}
+
+
+@router.get("/admin/marketplace/concept-feedback")
+async def admin_concept_feedback(current_user:User=Depends(require_role(UserRole.admin,UserRole.super_admin)),db:AsyncSession=Depends(get_db)):
+ rows=list((await db.execute(
+  select(ConceptFeedback).order_by(ConceptFeedback.created_at.desc()).limit(500)
+ )).scalars())
+ return {"success":True,"data":[{
+  "id":str(row.id),"concept_key":row.concept_key,"concept_title":row.concept_title,
+  "visitor_name":row.visitor_name,"email":row.email,"phone":row.phone,
+  "message":row.message,"wants_updates":row.wants_updates,
+  "created_at":row.created_at.isoformat(),
+ } for row in rows],"total":len(rows),"message":"Concept feedback"}
 @router.get("/marketplace/products")
 async def products(category:str|None=None,subcategory:str|None=None,brand:str|None=None,sku:str|None=None,query:str|None=None,family_id:str|None=None,min_price:Decimal|None=Query(None,ge=0),max_price:Decimal|None=Query(None,ge=0),vendor_id:str|None=None,in_stock:bool|None=None,is_rentable:bool|None=None,sort_by:str="newest",page:int=Query(1,ge=1),per_page:int=Query(20,ge=1,le=100),taxonomy_id:uuid.UUID|None=None,db:AsyncSession=Depends(get_db)):
  product_category = None
@@ -72,10 +179,64 @@ async def marketplace_family_detail(family_id_or_slug:str, db:AsyncSession=Depen
 async def product_detail(product_id:str,db:AsyncSession=Depends(get_db)):
  p=await product_repo.get(db,uid(product_id,"product"))
  if not p or not p.is_active or p.publication_status == "draft":raise HTTPException(404,"Product not found")
+ seller = await vendor_repo.get_by_id(db, p.vendor_id)
+ if not seller or not seller.is_active: raise HTTPException(404,"Product not found")
  if p.family_id:
   family = await product_repo.get_family(db, p.family_id)
   if not family or not family.is_published: raise HTTPException(404,"Product not found")
  return {"success":True,"data":await enrich(db,p),"message":"Product details"}
+
+
+def serialize_review(review: ProductReview) -> dict:
+ return {
+  "id": str(review.id),
+  "product_id": str(review.product_id),
+  "author_name": review.author_name,
+  "rating": review.rating,
+  "headline": review.headline,
+  "content": review.content,
+  "source_label": review.source_label,
+  "is_seeded": review.is_seeded,
+  "created_at": review.created_at.isoformat(),
+ }
+
+
+@router.get("/marketplace/products/{product_id}/reviews")
+async def product_reviews(product_id:str,db:AsyncSession=Depends(get_db)):
+ product_uuid=uid(product_id,"product")
+ product=await product_repo.get(db,product_uuid)
+ if not product or not product.is_active or product.publication_status == "draft":
+  raise HTTPException(404,"Product not found")
+ rows=list((await db.execute(
+  select(ProductReview)
+  .where(ProductReview.product_id == product_uuid, ProductReview.is_approved.is_(True))
+  .order_by(ProductReview.created_at.desc())
+  .limit(100)
+ )).scalars())
+ return {"success":True,"data":[serialize_review(row) for row in rows],"total":len(rows),"message":"Product feedback"}
+
+
+@router.post("/marketplace/products/{product_id}/reviews",status_code=status.HTTP_201_CREATED)
+async def create_product_review(product_id:str,data:ProductReviewCreate,db:AsyncSession=Depends(get_db)):
+ product_uuid=uid(product_id,"product")
+ product=(await db.execute(select(Product).where(Product.id == product_uuid,Product.is_active.is_(True)))).scalar_one_or_none()
+ if not product or product.publication_status == "draft":
+  raise HTTPException(404,"Product not found")
+ if is_concept(product):
+  raise HTTPException(422,"Use concept feedback instead of a product review")
+ review=ProductReview(
+  product_id=product_uuid,
+  author_name=data.author_name.strip(),
+  rating=data.rating,
+  headline=data.headline.strip(),
+  content=data.content.strip(),
+  source_label="Visitor feedback",
+  is_seeded=False,
+  is_approved=True,
+ )
+ db.add(review)
+ await db.flush()
+ return {"success":True,"data":serialize_review(review),"message":"Feedback saved"}
 @router.get("/admin/marketplace/vendors")
 async def marketplace_vendors(current_user:User=Depends(require_role(UserRole.admin, UserRole.super_admin)), db:AsyncSession=Depends(get_db)):
  vendors, total = await vendor_repo.list_all(db, limit=100)
@@ -137,7 +298,7 @@ async def create_product(data:ProductCreate,current_user:User=Depends(require_ro
 async def vendor_products(current_user:User=Depends(require_role(UserRole.vendor, UserRole.admin, UserRole.super_admin)),db:AsyncSession=Depends(get_db)):
  is_admin = current_user.role in (UserRole.admin, UserRole.super_admin)
  if is_admin:
-  items, _ = await product_repo.search(db, {"include_drafts": True}, 1, 100)
+  items = (await db.execute(select(Product).order_by(Product.title, Product.id))).scalars().all()
   return {"success":True,"data":[await enrich(db,p) for p in items],"message":"Vendor products"}
  v=await vendor(db,current_user);return {"success":True,"data":[await enrich(db,p) for p in await product_repo.list_vendor(db,v.id)],"message":"Vendor products"}
 @router.get("/vendor/products/{product_id}")

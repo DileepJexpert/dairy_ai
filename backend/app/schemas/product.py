@@ -1,8 +1,8 @@
 import uuid
 from typing import Literal
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
 from app.models.product import ProductCategory, MediaType
 class ProductFamilyCreate(BaseModel):
     title: str = Field(min_length=2, max_length=200)
@@ -11,7 +11,7 @@ class ProductFamilyCreate(BaseModel):
     department: str = "Dairy Foods"
     collection: str | None = "Ghee"
     milk_source: str | None = None
-    production_method: str | None = None
+    production_method: str | None = Field(default=None, max_length=100)
     ingredients: str | None = None
     description: str | None = None
     is_published: bool = True
@@ -27,7 +27,7 @@ class ProductFamilyUpdate(BaseModel):
     department: str | None = None
     collection: str | None = None
     milk_source: str | None = None
-    production_method: str | None = None
+    production_method: str | None = Field(default=None, max_length=100)
     ingredients: str | None = None
     description: str | None = None
     is_published: bool | None = None
@@ -67,3 +67,73 @@ class ProductUpdate(BaseModel):
 
 class InventoryUpdate(BaseModel): available_quantity:int=Field(ge=0); reserved_quantity:int=Field(default=0,ge=0); reorder_level:int=Field(default=0,ge=0); warehouse_location:str|None=None; batch_number:str|None=None; manufacture_date:date|None=None; expiry_date:date|None=None
 class ProductMediaCreate(BaseModel): url:str=Field(min_length=1,max_length=500); media_type:MediaType=MediaType.image; sort_order:int=Field(default=0,ge=0); is_primary:bool=False
+
+
+class ProductReviewCreate(BaseModel):
+    author_name: str = Field(min_length=2, max_length=120)
+    rating: int = Field(ge=1, le=5)
+    headline: str = Field(min_length=3, max_length=160)
+    content: str = Field(min_length=10, max_length=2000)
+
+
+class PlacementWindow(BaseModel):
+    @field_validator('starts_at', 'ends_at', check_fields=False)
+    @classmethod
+    def utc_dates(cls, value):
+        return value.astimezone(timezone.utc).replace(tzinfo=None) if value and value.tzinfo else value
+
+
+class MerchandisingPlacementCreate(PlacementWindow):
+    product_id: uuid.UUID
+    placement_type: Literal[
+        "highlight", "deal", "new_launch", "festival_offer"
+    ] = "highlight"
+    headline: str = Field(min_length=3, max_length=180)
+    subheadline: str | None = Field(default=None, max_length=300)
+    badge: str | None = Field(default=None, max_length=60)
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    priority: int = Field(default=100, ge=0, le=1000)
+    is_active: bool = True
+
+    @model_validator(mode="after")
+    def valid_window(self):
+        if self.starts_at and self.ends_at and self.ends_at <= self.starts_at:
+            raise ValueError("ends_at must be after starts_at")
+        return self
+
+
+class MerchandisingPlacementUpdate(PlacementWindow):
+    placement_type: Literal[
+        "highlight", "deal", "new_launch", "festival_offer"
+    ] | None = None
+    headline: str | None = Field(default=None, min_length=3, max_length=180)
+    subheadline: str | None = Field(default=None, max_length=300)
+    badge: str | None = Field(default=None, max_length=60)
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    priority: int | None = Field(default=None, ge=0, le=1000)
+    is_active: bool | None = None
+
+    @model_validator(mode="after")
+    def valid_window(self):
+        if self.starts_at and self.ends_at and self.ends_at <= self.starts_at:
+            raise ValueError("ends_at must be after starts_at")
+        return self
+
+
+class ConceptFeedbackCreate(BaseModel):
+    concept_title: str = Field(min_length=2, max_length=200)
+    visitor_name: str = Field(min_length=2, max_length=120)
+    email: str | None = Field(default=None, max_length=254)
+    phone: str | None = Field(default=None, max_length=15)
+    message: str | None = Field(default=None, max_length=2000)
+    wants_updates: bool = False
+
+    @model_validator(mode="after")
+    def has_contact_and_content(self):
+        if not (self.email and self.email.strip()) and not (self.phone and self.phone.strip()):
+            raise ValueError("Provide an email or phone number")
+        if not self.wants_updates and not (self.message and len(self.message.strip()) >= 5):
+            raise ValueError("Feedback must contain at least 5 characters")
+        return self

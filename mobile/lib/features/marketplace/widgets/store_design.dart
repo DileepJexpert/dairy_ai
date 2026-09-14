@@ -10,6 +10,7 @@ import '../../cart/providers/wishlist_provider.dart';
 import '../../../app/store_theme.dart';
 import '../../commerce/providers/commerce_provider.dart';
 import 'product_information.dart';
+import '../../admin/providers/admin_marketplace_provider.dart';
 export '../../../app/store_theme.dart';
 
 // Natural Earth Palette for MILTERRA Earth
@@ -1088,8 +1089,7 @@ class StoreCategoryNavigation extends ConsumerWidget {
       final nodes = taxonomy!.nodes.where((n) => n.isActive).toList();
       final dairyDept = nodes
           .where((n) =>
-              n.slug == 'dairy-foods' ||
-              n.name.toLowerCase() == 'dairy foods')
+              n.slug == 'dairy-foods' || n.name.toLowerCase() == 'dairy foods')
           .firstOrNull;
       final farmDept = nodes
           .where((n) =>
@@ -1279,8 +1279,13 @@ class StoreCategoryNavigation extends ConsumerWidget {
               if (MediaQuery.sizeOf(context).width >= 960)
                 Padding(
                   padding: const EdgeInsets.only(right: 16),
-                  child: Builder(builder: (context) {
-                    final label = qualityProduct?.labReports.isNotEmpty == true
+                  child: Consumer(builder: (context, ref, _) {
+                    final label = ref
+                                .watch(publicCertificatesProvider(
+                                    qualityProduct?.id))
+                                .valueOrNull
+                                ?.isNotEmpty ==
+                            true
                         ? 'Lab Test Reports'
                         : 'Quality & Research';
                     return InkWell(
@@ -1468,7 +1473,9 @@ abstract final class StoreImages {
   static String? category(String kind) => switch (kind.toLowerCase()) {
         'cow ghee' || 'cow-ghee' => 'assets/store/cow-ghee.png',
         'buffalo ghee' || 'buffalo-ghee' => 'assets/store/buffalo-ghee.png',
-        'herbal ghee' || 'herbal-ghee' => 'assets/store/milterra-tulsi-ghee.webp',
+        'herbal ghee' ||
+        'herbal-ghee' =>
+          'assets/store/milterra-tulsi-ghee.webp',
         'paneer' => 'assets/store/paneer.png',
         'white butter' ||
         'other products' =>
@@ -1590,7 +1597,9 @@ abstract final class StoreImages {
       return 'assets/store/nutrition-lineup.jpg';
     }
     if (title.contains('tulsi')) return 'assets/store/milterra-tulsi-ghee.webp';
-    if (title.contains('brahmi')) return 'assets/store/milterra-brahmi-ghee.webp';
+    if (title.contains('brahmi')) {
+      return 'assets/store/milterra-brahmi-ghee.webp';
+    }
     if (title.contains('ashwagandha')) {
       return 'assets/store/milterra-ashwagandha-ghee.webp';
     }
@@ -1598,6 +1607,51 @@ abstract final class StoreImages {
     if (title.contains('buffalo ghee')) return 'assets/store/buffalo-ghee.png';
     if (title.contains('paneer')) return 'assets/store/paneer.png';
     return null;
+  }
+}
+
+/// Renders either a bundled storefront asset or a remotely hosted merchant image.
+/// Keeping this decision here prevents individual cards and galleries from
+/// accidentally treating asset paths as network URLs.
+class StoreMediaImage extends StatelessWidget {
+  const StoreMediaImage({
+    super.key,
+    required this.source,
+    this.fit = BoxFit.contain,
+    this.fallbackIconSize = 42,
+    this.fallbackColor = storeMuted,
+  });
+
+  final String? source;
+  final BoxFit fit;
+  final double fallbackIconSize;
+  final Color fallbackColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final src = source?.trim();
+    Widget fallback() => Center(
+          child: Icon(
+            Icons.inventory_2_outlined,
+            size: fallbackIconSize,
+            color: fallbackColor,
+          ),
+        );
+
+    if (src == null || src.isEmpty) return fallback();
+
+    final isRemote = src.startsWith('https://') || src.startsWith('http://');
+    return isRemote
+        ? Image.network(
+            src,
+            fit: fit,
+            errorBuilder: (_, __, ___) => fallback(),
+          )
+        : Image.asset(
+            src,
+            fit: fit,
+            errorBuilder: (_, __, ___) => fallback(),
+          );
   }
 }
 
@@ -1623,15 +1677,7 @@ class ProductArtwork extends StatelessWidget {
             StoreImages.category(p != null ? storeCategory(p) : kind);
     final remote = src != null &&
         (src.startsWith('https://') || src.startsWith('http://'));
-    Widget fallback() => const Center(
-        child: Icon(Icons.inventory_2_outlined, size: 42, color: storeMuted));
-    final image = src == null
-        ? fallback()
-        : remote
-            ? Image.network(src,
-                fit: BoxFit.contain, errorBuilder: (_, __, ___) => fallback())
-            : Image.asset(src,
-                fit: BoxFit.contain, errorBuilder: (_, __, ___) => fallback());
+    final image = StoreMediaImage(source: src);
     return Column(children: [
       Expanded(child: SizedBox(width: double.infinity, child: image)),
       if (showCaption && src != null && !remote)

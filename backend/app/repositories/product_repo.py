@@ -3,6 +3,7 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.product import Product, ProductFamily, ProductInventory, ProductMedia
 from app.models.commerce_taxonomy import ProductClassification
+from app.models.vendor import Vendor
 async def get(db:AsyncSession,id:uuid.UUID): return (await db.execute(select(Product).where(Product.id==id))).scalar_one_or_none()
 async def sku_exists(db:AsyncSession,sku:str,exclude:uuid.UUID|None=None):
  q=select(Product.id).where(Product.sku==sku)
@@ -24,6 +25,8 @@ async def list_families(db:AsyncSession, vendor_id:uuid.UUID|None=None, is_publi
         q = q.where(ProductFamily.vendor_id == vendor_id)
     if is_published is not None:
         q = q.where(ProductFamily.is_published == is_published)
+        if is_published:
+            q = q.join(Vendor, Vendor.id == ProductFamily.vendor_id).where(Vendor.is_active.is_(True))
     if collection:
         q = q.where(ProductFamily.collection.ilike(f"%{collection}%"))
     if department:
@@ -43,6 +46,7 @@ async def search(db:AsyncSession,filters:dict,page:int,per_page:int):
  )
  if not filters.get('include_drafts'):
      q=q.where(Product.publication_status != 'draft')
+     q=q.where(Product.vendor_id.in_(select(Vendor.id).where(Vendor.is_active.is_(True))))
  if filters.get('family_id'):q=q.where(Product.family_id==filters['family_id'])
  if filters.get('category'):q=q.where(Product.category==filters['category'])
  if filters.get('brand'):q=q.where(Product.brand.ilike(f"%{filters['brand']}%"))

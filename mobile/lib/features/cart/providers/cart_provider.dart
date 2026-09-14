@@ -5,38 +5,67 @@ import 'package:dairy_ai/features/marketplace/models/product_models.dart';
 import 'package:dairy_ai/core/analytics_service.dart';
 import '../models/cart_models.dart';
 
-final cartProvider = StateNotifierProvider<CartNotifier, AsyncValue<Cart>>(
-    (ref) => CartNotifier(ref.read(dioProvider), ref.read(analyticsServiceProvider)));
+final cartProvider =
+    StateNotifierProvider<CartNotifier, AsyncValue<Cart>>((ref) {
+  final user = ref.watch(currentUserProvider);
+  return CartNotifier(
+      ref.read(dioProvider), ref.read(analyticsServiceProvider), user != null);
+});
 
 final cartItemCountProvider =
     Provider<int>((ref) => ref.watch(cartProvider).valueOrNull?.itemCount ?? 0);
 
-/// Dedicated provider for persistent "Saved for Later" items.
+final savedItemsErrorProvider = StateProvider<String?>((ref) => null);
 final savedForLaterProvider =
-    StateNotifierProvider<SavedForLaterNotifier, List<CartItem>>(
-        (ref) => SavedForLaterNotifier());
+    StateNotifierProvider<SavedForLaterNotifier, List<CartItem>>((ref) {
+  final user = ref.watch(currentUserProvider);
+  return SavedForLaterNotifier(ref, enabled: user != null);
+});
 
 class SavedForLaterNotifier extends StateNotifier<List<CartItem>> {
-  SavedForLaterNotifier() : super([]);
-
-  void save(CartItem item) {
-    if (!state.any((s) => s.productId == item.productId)) {
-      state = [...state, item];
+  SavedForLaterNotifier(this.ref, {bool enabled = true}) : super([]) {
+    if (enabled) Future.microtask(refresh);
+  }
+  final Ref ref;
+  Dio get dio => ref.read(dioProvider);
+  Future<void> refresh() async {
+    if (!mounted) return;
+    try {
+      final res = await dio.get('/marketplace/saved-items');
+      if (!mounted) return;
+      state = (res.data['data'] as List)
+          .map((j) => CartItem.fromJson(Map<String, dynamic>.from(j)))
+          .toList();
+      ref.read(savedItemsErrorProvider.notifier).state = null;
+    } catch (_) {
+      if (mounted)
+        ref.read(savedItemsErrorProvider.notifier).state =
+            'Saved items could not be loaded.';
     }
   }
 
-  void remove(String productId) {
-    state = state.where((s) => s.productId != productId).toList();
+  Future<void> save(CartItem item) async {
+    await dio.post('/marketplace/cart/items/${item.id}/save');
+    await refresh();
+    if (mounted) await ref.read(cartProvider.notifier).refresh();
   }
 
-  void clear() {
-    state = [];
+  Future<void> restore(CartItem item) async {
+    await dio.post('/marketplace/saved-items/${item.productId}/restore');
+    await refresh();
+    if (mounted) await ref.read(cartProvider.notifier).refresh();
+  }
+
+  Future<void> remove(String id) async {
+    await dio.delete('/marketplace/saved-items/$id');
+    if (mounted) state = state.where((p) => p.productId != id).toList();
   }
 }
 
 class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
-  CartNotifier(this._dio, [this._analytics]) : super(AsyncValue.data(_createEmptyCart())) {
-    refresh();
+  CartNotifier(this._dio, [this._analytics, bool enabled = true])
+      : super(AsyncValue.data(_createEmptyCart())) {
+    if (enabled) refresh();
   }
 
   final Dio _dio;
@@ -58,11 +87,12 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
       if (body['data'] is! Map) {
         throw const FormatException('Cart response did not contain data');
       }
+      if (!mounted) return;
       state = AsyncValue.data(
         Cart.fromJson(Map<String, dynamic>.from(body['data'] as Map)),
       );
     } catch (error, stackTrace) {
-      if (state.valueOrNull == null) {
+      if (mounted) {
         state = AsyncValue.error(error, stackTrace);
       }
       if (throwOnError) {
@@ -108,7 +138,7 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
 
   Future<void> clear() async {
     await _dio.delete('/marketplace/cart');
-    state = AsyncValue.data(_createEmptyCart());
+    if (mounted) state = AsyncValue.data(_createEmptyCart());
   }
 
   Future<Map<String, dynamic>> validate() async {

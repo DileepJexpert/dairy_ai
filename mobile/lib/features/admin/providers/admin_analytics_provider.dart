@@ -223,11 +223,11 @@ class AdminAnalyticsNotifier extends StateNotifier<AdminAnalyticsState> {
     }
   }
 
-  Future<String?> getNudgeLink(String cartId) async {
+  Future<Map<String, dynamic>?> getNudgeLink(String cartId) async {
     try {
       final response = await _dio.post('/admin/ecommerce/carts/$cartId/nudge');
       final data = response.data['data'] as Map<String, dynamic>;
-      return data['whatsapp_link']?.toString();
+      return data;
     } catch (error) {
       debugPrint('[AdminAnalytics] Nudge error: $error');
       return null;

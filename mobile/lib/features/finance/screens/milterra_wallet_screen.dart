@@ -38,6 +38,12 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
           // Amazon-grade Store Header & Navigation
           const StoreHeader(currentCategory: 'All'),
           const StoreCategoryNavigation(selected: 'Wallet & Balance'),
+          ListTile(
+              title: Text(ref.watch(milterraWalletProvider).message),
+              trailing: IconButton(
+                  onPressed: () =>
+                      ref.read(milterraWalletProvider.notifier).refresh(),
+                  icon: const Icon(Icons.refresh))),
 
           // Main Scrollable Area
           Expanded(
@@ -92,7 +98,8 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
                                 const SizedBox(height: 6),
                                 const Text(
                                   'Combine cooperative milk supply earnings with store cashback credits for frictionless 1-click purchases and bank payouts.',
-                                  style: TextStyle(fontSize: 13, color: storeMuted),
+                                  style: TextStyle(
+                                      fontSize: 13, color: storeMuted),
                                 ),
                                 const SizedBox(height: 20),
 
@@ -173,7 +180,8 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
@@ -308,7 +316,8 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
       children: [
         _actionCard(
           title: 'Shop with Balance',
-          subtitle: 'Use your milk earnings directly for fresh A2 Ghee & cattle feed.',
+          subtitle:
+              'Use your milk earnings directly for fresh A2 Ghee & cattle feed.',
           icon: Icons.shopping_bag_outlined,
           buttonText: 'Shop the Marketplace →',
           onTap: () => context.go('/shop'),
@@ -316,8 +325,9 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
           width: isMobile ? double.infinity : 320,
         ),
         _actionCard(
-          title: 'Instant Bank Payout',
-          subtitle: 'Withdraw earnings to your linked cooperative or national bank.',
+          title: 'Bank Payout — Not Enabled',
+          subtitle:
+              'Withdraw earnings to your linked cooperative or national bank.',
           icon: Icons.account_balance_outlined,
           buttonText: 'Withdraw to Bank',
           onTap: _openWithdrawDialog,
@@ -325,7 +335,7 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
           width: isMobile ? double.infinity : 320,
         ),
         _actionCard(
-          title: 'Add Store Credit',
+          title: 'Add Store Credit — Not Enabled',
           subtitle: 'Top-up wallet balance via UPI, RuPay, or Net Banking.',
           icon: Icons.add_circle_outline,
           buttonText: 'Add Funds',
@@ -374,7 +384,8 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: const TextStyle(fontSize: 12, color: storeMuted, height: 1.4),
+            style:
+                const TextStyle(fontSize: 12, color: storeMuted, height: 1.4),
           ),
           const SizedBox(height: 16),
           FilledButton(
@@ -487,16 +498,14 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
         itemBuilder: (context, index) {
           final txn = items[index];
           final isCredit = txn['isCredit'] as bool;
-          final amountColor =
-              isCredit ? const Color(0xff2e7d32) : storeOrange;
+          final amountColor = isCredit ? const Color(0xff2e7d32) : storeOrange;
 
           return ListTile(
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             leading: CircleAvatar(
-              backgroundColor: isCredit
-                  ? const Color(0xffe8f5e9)
-                  : const Color(0xfffff3e0),
+              backgroundColor:
+                  isCredit ? const Color(0xffe8f5e9) : const Color(0xfffff3e0),
               child: Icon(
                 isCredit
                     ? Icons.arrow_downward_rounded
@@ -627,129 +636,19 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
   // --------------------------------------------------------------------------
   // Dialog: Withdraw to Bank
   // --------------------------------------------------------------------------
-  void _openWithdrawDialog() {
-    final amountCtrl = TextEditingController(text: '3600');
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Withdraw Milk Earnings to Bank'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Your verified bank account: State Bank of India (***4812)\nIFSC: SBIN0004921',
-              style: TextStyle(fontSize: 13, color: storeMuted),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: amountCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Withdrawal Amount (₹)',
-                prefixText: '₹ ',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: storeAmber,
-              foregroundColor: storeGreen,
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              final amt = double.tryParse(amountCtrl.text.trim()) ?? 0;
-              if (amt > 0 && amt <= _walletBalance) {
-                ref.read(milterraWalletProvider.notifier).withdraw(amt);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: storeGreen,
-                    content: Text(
-                      'Withdrawal of ${storeMoney(amt)} initiated to SBI account. Will reflect within 2 hours.',
-                    ),
-                  ),
-                );
-              }
-            },
-            child: const Text('Confirm Withdrawal'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // Dialog: Add Money to Wallet
-  // --------------------------------------------------------------------------
-  void _openAddMoneyDialog() {
-    final amountCtrl = TextEditingController(text: '1000');
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Money to Milterra Wallet'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Add pre-paid funds for faster 1-click checkout on cattle feed, minerals, and dairy products.',
-              style: TextStyle(fontSize: 13, color: storeMuted),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: amountCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Amount to Add (₹)',
-                prefixText: '₹ ',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: storeAmber,
-              foregroundColor: storeGreen,
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              final amt = double.tryParse(amountCtrl.text.trim()) ?? 0;
-              if (amt > 0) {
-                ref.read(milterraWalletProvider.notifier).creditMilkIntake(
-                      amount: amt,
-                      litres: 0,
-                      fatPct: 0,
-                      snfPct: 0,
-                      farmerName: 'Self UPI Deposit',
-                      centerName: 'Online Top-up',
-                    );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: storeGreen,
-                    content: Text(
-                      'Successfully added ${storeMoney(amt)} to your Milterra Wallet via UPI.',
-                    ),
-                  ),
-                );
-              }
-            },
-            child: const Text('Pay with UPI'),
-          ),
-        ],
-      ),
-    );
+  void _openWithdrawDialog() => _showUnavailable();
+  void _openAddMoneyDialog() => _showUnavailable();
+  void _showUnavailable() {
+    showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+              title: const Text('Wallet is not enabled'),
+              content: Text(ref.read(milterraWalletProvider).message),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Close'))
+              ],
+            ));
   }
 }

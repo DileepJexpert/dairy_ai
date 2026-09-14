@@ -1,5 +1,3 @@
-import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -107,34 +105,22 @@ class OrderTrackingScreen extends ConsumerStatefulWidget {
 }
 
 class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
-  Timer? _autoSimulatorTimer;
-  bool _autoCourierActive = false;
-
-  @override
-  void dispose() {
-    _autoSimulatorTimer?.cancel();
-    super.dispose();
-  }
-
-  void _toggleAutoCourier() {
-    setState(() {
-      _autoCourierActive = !_autoCourierActive;
-      if (_autoCourierActive) {
-        _autoSimulatorTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-          if (mounted) {
-            ref
-                .read(ordersNotifierProvider.notifier)
-                .simulateCourierStep(widget.orderId);
-          }
-        });
-      } else {
-        _autoSimulatorTimer?.cancel();
-        _autoSimulatorTimer = null;
-      }
-    });
-  }
-
   void _showGstInvoiceDialog(BuildContext context, StoreOrder order) {
+    if (order.isPrelaunchInterest) {
+      showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+                title: const Text('Purchase interest summary'),
+                content: Text(
+                    'Reference: ${order.id}\nIndicative total: ${storeMoney(order.total)}\nNo payment collected. This is not a tax invoice.'),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Close'))
+                ],
+              ));
+      return;
+    }
     showDialog(
       context: context,
       builder: (dialogCtx) {
@@ -799,20 +785,30 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                     backgroundColor: const Color(0xffd32f2f),
                     foregroundColor: Colors.white,
                   ),
-                  onPressed: () {
-                    Navigator.of(dialogCtx).pop();
-                    ref.read(ordersNotifierProvider.notifier).cancelOrder(
-                          order.id,
-                          reason: selectedReason,
-                        );
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        backgroundColor: storeGreen,
-                        content: Text(
-                          'Order #${order.id} cancelled. ${storeMoney(order.total)} refunded to your Milterra Wallet!',
+                  onPressed: () async {
+                    try {
+                      await ref
+                          .read(ordersNotifierProvider.notifier)
+                          .cancelOrder(
+                            order.id,
+                            reason: selectedReason,
+                          );
+                      if (!context.mounted) return;
+                      if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          backgroundColor: storeGreen,
+                          content: Text(
+                            'Order #${order.id} cancelled. No automatic refund or payment was made.',
+                          ),
                         ),
-                      ),
-                    );
+                      );
+                    } catch (_) {
+                      if (context.mounted)
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                            content: Text(
+                                'Cancellation could not be saved. Please retry or contact support.')));
+                    }
                   },
                   child: const Text('Confirm Cancellation'),
                 ),
@@ -834,6 +830,15 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         children: [
           const StoreHeader(currentCategory: 'All'),
           const StoreCategoryNavigation(selected: 'Your Orders'),
+          if (ref.watch(orderLoadStateProvider).isLoading)
+            const LinearProgressIndicator(),
+          if (ref.watch(orderLoadStateProvider).hasError)
+            ListTile(
+                title: const Text('Order could not be loaded.'),
+                trailing: TextButton(
+                    onPressed: () =>
+                        ref.read(ordersNotifierProvider.notifier).refresh(),
+                    child: const Text('Retry'))),
           Expanded(
             child: order == null
                 ? Center(
@@ -853,241 +858,6 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                     ),
                   )
                 : _buildOrderContent(context, ref, order),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAdminSimulationBar(
-      BuildContext context, WidgetRef ref, StoreOrder order) {
-    final currentStatus = order.status;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xfffff8e1),
-        borderRadius: BorderRadius.circular(StoreLayout.radius),
-        border: Border.all(color: const Color(0xffffd54f)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: storeOrange,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child:
-                    const Icon(Icons.flash_on, color: Colors.white, size: 16),
-              ),
-              const SizedBox(width: 10),
-              const Text(
-                'Interactive Order & Courier Lifecycle Controller',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xffe65100),
-                ),
-              ),
-              const Spacer(),
-              // Auto-Courier Simulator Toggle
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Auto Courier Dispatch (15s):',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xff5d4037))),
-                  const SizedBox(width: 6),
-                  Switch(
-                    value: _autoCourierActive,
-                    activeThumbColor: storeGreen,
-                    onChanged: (_) => _toggleAutoCourier(),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xffffb300)),
-                ),
-                child: Text(
-                  'LIVE STATUS: $currentStatus',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xffe65100),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Simulate the real-time fulfillment and DTDC courier dispatch webhook flow. Click any milestone to advance the order and watch the tracking stepper update live:',
-            style: TextStyle(fontSize: 12, color: Color(0xff5d4037)),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  backgroundColor:
-                      currentStatus == 'CONFIRMED' ? Colors.white : null,
-                  side: BorderSide(
-                      color: currentStatus == 'CONFIRMED'
-                          ? storeGreen
-                          : const Color(0xffffb300)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                onPressed: () {
-                  ref.read(ordersNotifierProvider.notifier).updateOrderStatus(
-                        order.id,
-                        'CONFIRMED',
-                        remarks: 'Order verified and payment confirmed.',
-                      );
-                },
-                icon: const Icon(Icons.check_circle_outline, size: 16),
-                label: const Text('1. Confirmed',
-                    style:
-                        TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  backgroundColor:
-                      currentStatus == 'PACKED' ? Colors.white : null,
-                  side: BorderSide(
-                      color: currentStatus == 'PACKED'
-                          ? storeGreen
-                          : const Color(0xffffb300)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                onPressed: () {
-                  ref.read(ordersNotifierProvider.notifier).updateOrderStatus(
-                        order.id,
-                        'PACKED',
-                        location: 'Milterra Pure Hub, Karnal',
-                        remarks: 'Sealed with tamper-proof pure barcode tag.',
-                      );
-                },
-                icon: const Icon(Icons.inventory_2_outlined, size: 16),
-                label: const Text('2. Pack Order',
-                    style:
-                        TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  backgroundColor:
-                      currentStatus == 'DISPATCHED' ? Colors.white : null,
-                  side: BorderSide(
-                      color: currentStatus == 'DISPATCHED'
-                          ? storeGreen
-                          : const Color(0xffffb300)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                onPressed: () {
-                  final awb = 'DTDC-${Random().nextInt(899999) + 100000}';
-                  ref.read(ordersNotifierProvider.notifier).updateOrderStatus(
-                        order.id,
-                        'DISPATCHED',
-                        carrier: 'DTDC Express Surface',
-                        trackingNumber: awb,
-                        location: 'DTDC Central Hub, Jaipur',
-                        remarks:
-                            'Courier consignment picked up. AWB $awb issued.',
-                      );
-                },
-                icon: const Icon(Icons.local_shipping_outlined, size: 16),
-                label: const Text('3. DTDC Dispatch (AWB)',
-                    style:
-                        TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  backgroundColor:
-                      currentStatus == 'OUT_FOR_DELIVERY' ? Colors.white : null,
-                  side: BorderSide(
-                      color: currentStatus == 'OUT_FOR_DELIVERY'
-                          ? storeGreen
-                          : const Color(0xffffb300)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                onPressed: () {
-                  ref.read(ordersNotifierProvider.notifier).updateOrderStatus(
-                        order.id,
-                        'OUT_FOR_DELIVERY',
-                        location: 'Local Delivery Van #8',
-                        remarks:
-                            'Out for delivery with courier agent Rajesh (Contact: +91 98210 55432).',
-                      );
-                },
-                icon: const Icon(Icons.delivery_dining_outlined, size: 16),
-                label: const Text('4. Out for Delivery',
-                    style:
-                        TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  backgroundColor:
-                      currentStatus == 'DELIVERED' ? Colors.white : null,
-                  side: BorderSide(
-                      color: currentStatus == 'DELIVERED'
-                          ? storeGreen
-                          : const Color(0xffffb300)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                onPressed: () {
-                  ref.read(ordersNotifierProvider.notifier).updateOrderStatus(
-                        order.id,
-                        'DELIVERED',
-                        location: order.address['city']?.toString() ??
-                            'Customer Doorstep',
-                        remarks:
-                            'Delivered directly to ${order.address['recipient_name'] ?? 'customer'}.',
-                      );
-                },
-                icon: const Icon(Icons.task_alt, size: 16),
-                label: const Text('5. Delivered',
-                    style:
-                        TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: storeGreen,
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                onPressed: () => context.go('/admin/commerce/orders'),
-                icon: const Icon(Icons.admin_panel_settings_outlined, size: 16),
-                label: const Text('Admin Orders Desk',
-                    style:
-                        TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-            ],
           ),
         ],
       ),
@@ -1304,7 +1074,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        'Full prepaid refund of ${storeMoney(order.total)} has been credited to your Milterra Wallet balance.',
+                                        'Cancellation is saved. No automatic refund or payment was made.',
                                         style: const TextStyle(
                                             fontSize: 12,
                                             color: Color(0xff5f2120)),
@@ -1326,7 +1096,6 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                         ],
 
                         // 0. ADMIN SIMULATION CONTROLLER BAR
-                        _buildAdminSimulationBar(context, ref, order),
 
                         // 1. AMAZON PACKAGE TRACKING PROGRESS CARD
                         _buildTrackingProgressCard(
@@ -1393,6 +1162,26 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     required String carrier,
     required StoreOrder order,
   }) {
+    if (order.isPrelaunchInterest) {
+      return Card(
+          child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        order.status == 'CANCELLED'
+                            ? 'Interest withdrawn'
+                            : 'Purchase interest received',
+                        style: StoreType.heading),
+                    const Text(
+                        'Pre-launch only. No payment was taken and no shipment is scheduled.'),
+                    for (final event in order.timeline)
+                      ListTile(
+                          title: Text(event.title),
+                          subtitle: Text('${event.time}\n${event.remarks}')),
+                  ])));
+    }
     final stages = [
       {
         'title': 'Ordered',

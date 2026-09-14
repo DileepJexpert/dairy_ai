@@ -6,6 +6,7 @@ import '../../cart/providers/cart_provider.dart';
 import '../models/product_models.dart';
 import '../providers/product_provider.dart';
 import '../widgets/store_design.dart';
+import '../widgets/storefront_highlight_strip.dart';
 import '../widgets/store_product_card.dart';
 import '../widgets/hero_split_showcase.dart';
 import '../models/hero_showcase_config.dart';
@@ -216,6 +217,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
               onSelected: _browse,
               legacyEquipment: widget.category == ProductCategory.equipment,
             ),
+            const StorefrontHighlightStrip(),
 
             // Main Scrollable Content Area
             Expanded(
@@ -497,7 +499,6 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       }).toList(),
     );
   }
-
 
   Widget _buildDepartmentLandingBanner(bool isMobile) => StorePanel(
         title: _label(_category),
@@ -891,7 +892,11 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             storeCategory(p) == 'Buffalo ghee' ||
             storeCategory(p) == 'Herbal Ghee' ||
             p.title.toLowerCase().contains('ghee') ||
-            p.taxonomy?['category_name']?.toString().toLowerCase().contains('ghee') == true ||
+            p.taxonomy?['category_name']
+                    ?.toString()
+                    .toLowerCase()
+                    .contains('ghee') ==
+                true ||
             p.taxonomy?['collection']?.toString().toLowerCase() == 'ghee';
       } else if (isDairyFoodsCategory) {
         matchesCategory = storeCategory(p) == 'Cow ghee' ||
@@ -908,12 +913,14 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             p.title.toLowerCase().contains('buffalo ghee');
       } else if (isHerbalGheeCategory) {
         matchesCategory = storeCategory(p) == 'Herbal Ghee' ||
-            p.taxonomy?['category_name']?.toString().toLowerCase() == 'herbal ghee' ||
+            p.taxonomy?['category_name']?.toString().toLowerCase() ==
+                'herbal ghee' ||
             p.taxonomy?['category_id'] == 'herbal-ghee' ||
             p.title.toLowerCase().contains('tulsi') ||
             p.title.toLowerCase().contains('brahmi') ||
             p.title.toLowerCase().contains('ashwagandha') ||
-            (p.title.toLowerCase().contains('ghee') && p.title.toLowerCase().contains('herbal'));
+            (p.title.toLowerCase().contains('ghee') &&
+                p.title.toLowerCase().contains('herbal'));
       } else if (isPaneerCategory) {
         matchesCategory = storeCategory(p) == 'Paneer' ||
             p.title.toLowerCase().contains('paneer');

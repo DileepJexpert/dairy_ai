@@ -35,14 +35,14 @@ class ProductVariant {
         compareAtPrice: json['compare_at_price'] != null
             ? double.tryParse(json['compare_at_price'].toString())
             : null,
-        stockQuantity: (json['available_quantity'] ?? json['stock_quantity'])
-                    is int
-            ? (json['available_quantity'] ?? json['stock_quantity']) as int
-            : int.tryParse(
-                    (json['available_quantity'] ?? json['stock_quantity'])
-                            ?.toString() ??
-                        '0') ??
-                0,
+        stockQuantity:
+            (json['available_quantity'] ?? json['stock_quantity']) is int
+                ? (json['available_quantity'] ?? json['stock_quantity']) as int
+                : int.tryParse(
+                        (json['available_quantity'] ?? json['stock_quantity'])
+                                ?.toString() ??
+                            '0') ??
+                    0,
         inStock: json['in_stock'] ?? true,
         weightGrams: json['weight_grams'] != null
             ? int.tryParse(json['weight_grams'].toString())
@@ -422,14 +422,14 @@ const defaultMilterraProducts = <Product>[
     familyId: 'a1111111-1111-1111-1111-111111111111',
     publicationStatus: 'draft',
     vendorId: 'vendor-milterra-dairy',
-    title: 'MILTERRA A2 Desi Cow Ghee (Trial Jar)',
+    title: 'MILTERRA A2 Sahiwal Cow Ghee (Trial Jar)',
     category: ProductCategory.feedNutrition,
     price: 425,
     unit: 'jar',
     brand: 'MILTERRA',
     packSize: '250 ml',
     description:
-        'Vedic A2 Bilona cultured Gir cow ghee in an accessible trial glass jar. Perfect for testing purity, aroma, and golden granulate texture.',
+        'Planned cultured-butter bilona ghee made from Sahiwal cow milk in an accessible trial glass jar.',
     taxonomy: {
       'department_name': 'Dairy Foods',
       'category_name': 'Cow ghee',
@@ -440,8 +440,11 @@ const defaultMilterraProducts = <Product>[
     availableQuantity: 50,
     minOrderQuantity: 1,
     specifications: {
-      'Source': 'A2 Gir Cow Milk',
-      'Process': 'Traditional Bilona',
+      'Product Status': 'Pre-launch specification; validation pending',
+      'Milk Source': 'Planned: A2 milk from Sahiwal cows',
+      'Ingredients': 'Planned: cultured butter from Sahiwal cow milk',
+      'How It Is Made':
+          'Milk is filtered and cultured into curd; the curd is churned to separate butter; the butter is slowly clarified, filtered, cooled, and packed.',
       'Format': 'Trial Size Glass Jar',
       'Shelf Life': '12 Months',
       'Diet Type': 'Vegetarian'
@@ -452,14 +455,14 @@ const defaultMilterraProducts = <Product>[
     familyId: 'a1111111-1111-1111-1111-111111111111',
     publicationStatus: 'published',
     vendorId: 'vendor-milterra-dairy',
-    title: 'MILTERRA A2 Desi Cow Ghee (Family Jar)',
+    title: 'MILTERRA A2 Sahiwal Cow Ghee (Family Jar)',
     category: ProductCategory.feedNutrition,
     price: 799,
     unit: 'jar',
     brand: 'MILTERRA',
     packSize: '500 ml',
     description:
-        'Traditional A2 Bilona cultured cow ghee from grass-fed Gir and Sahiwal cows. Lab-certified 100% pure.',
+        'Planned A2 Sahiwal cow ghee prepared from cultured curd and slowly clarified for aroma and texture.',
     taxonomy: {
       'department_name': 'Dairy Foods',
       'category_name': 'Cow ghee',
@@ -470,9 +473,12 @@ const defaultMilterraProducts = <Product>[
     availableQuantity: 45,
     minOrderQuantity: 1,
     specifications: {
-      'Source': 'A2 Gir Cow Milk',
-      'Process': 'Traditional Bilona',
-      'Shelf Life': '12 Months',
+      'Product Status': 'Pre-launch specification; validation pending',
+      'Milk Source': 'Planned: A2 milk from Sahiwal cows',
+      'Ingredients': 'Planned: cultured butter from Sahiwal cow milk',
+      'How It Is Made':
+          'Milk is filtered and cultured into curd; the curd is churned to separate butter; the butter is slowly clarified, filtered, cooled, and packed.',
+      'Shelf Life': 'To be confirmed by stability testing',
       'Diet Type': 'Vegetarian'
     },
   ),
@@ -481,7 +487,7 @@ const defaultMilterraProducts = <Product>[
     familyId: 'a1111111-1111-1111-1111-111111111111',
     publicationStatus: 'published',
     vendorId: 'vendor-milterra-dairy',
-    title: 'MILTERRA A2 Desi Cow Ghee (Kitchen Jar)',
+    title: 'MILTERRA A2 Sahiwal Cow Ghee (Kitchen Jar)',
     category: ProductCategory.feedNutrition,
     price: 1499,
     unit: 'jar',
@@ -499,9 +505,12 @@ const defaultMilterraProducts = <Product>[
     availableQuantity: 30,
     minOrderQuantity: 1,
     specifications: {
-      'Source': 'A2 Gir Cow Milk',
-      'Process': 'Traditional Bilona',
-      'Shelf Life': '12 Months',
+      'Product Status': 'Pre-launch specification; validation pending',
+      'Milk Source': 'Planned: A2 milk from Sahiwal cows',
+      'Ingredients': 'Planned: cultured butter from Sahiwal cow milk',
+      'How It Is Made':
+          'Milk is filtered and cultured into curd; the curd is churned to separate butter; the butter is slowly clarified, filtered, cooled, and packed.',
+      'Shelf Life': 'To be confirmed by stability testing',
       'Diet Type': 'Vegetarian'
     },
   ),
@@ -510,14 +519,14 @@ const defaultMilterraProducts = <Product>[
     familyId: 'a1111111-1111-1111-1111-111111111111',
     publicationStatus: 'published',
     vendorId: 'vendor-milterra-dairy',
-    title: 'MILTERRA A2 Desi Cow Ghee (Heritage Tin)',
+    title: 'MILTERRA A2 Sahiwal Cow Ghee (Heritage Tin)',
     category: ProductCategory.feedNutrition,
     price: 6999,
     unit: 'tin',
     brand: 'MILTERRA',
     packSize: '5 litre',
     description:
-        'Bulk family pack of pure A2 Gir cow bilona ghee packed in food-grade heritage tin. Maximum value for large households and festive cooking.',
+        'Planned family pack of A2 Sahiwal cow cultured-butter ghee in a food-grade heritage tin.',
     taxonomy: {
       'department_name': 'Dairy Foods',
       'category_name': 'Cow ghee',
@@ -528,9 +537,12 @@ const defaultMilterraProducts = <Product>[
     availableQuantity: 15,
     minOrderQuantity: 1,
     specifications: {
-      'Source': 'A2 Gir Cow Milk',
-      'Process': 'Traditional Bilona',
-      'Shelf Life': '12 Months',
+      'Product Status': 'Pre-launch specification; validation pending',
+      'Milk Source': 'Planned: A2 milk from Sahiwal cows',
+      'Ingredients': 'Planned: cultured butter from Sahiwal cow milk',
+      'How It Is Made':
+          'Milk is filtered and cultured into curd; the curd is churned to separate butter; the butter is slowly clarified, filtered, cooled, and packed.',
+      'Shelf Life': 'To be confirmed by stability testing',
       'Diet Type': 'Vegetarian'
     },
   ),
@@ -557,9 +569,13 @@ const defaultMilterraProducts = <Product>[
     availableQuantity: 28,
     minOrderQuantity: 1,
     specifications: {
-      'Source': 'Murrah Buffalo Milk',
+      'Product Status': 'Pre-launch specification; validation pending',
+      'Milk Source': 'Planned: Murrah buffalo milk',
+      'Ingredients': 'Planned: cultured butter from Murrah buffalo milk',
+      'How It Is Made':
+          'Milk is filtered and cultured into curd; the curd is churned for butter; the butter is slowly clarified, filtered, cooled, and packed.',
       'Texture': 'Danedaar / Granular',
-      'Shelf Life': '12 Months'
+      'Shelf Life': 'To be confirmed by stability testing'
     },
   ),
   Product(
@@ -585,23 +601,27 @@ const defaultMilterraProducts = <Product>[
     availableQuantity: 24,
     minOrderQuantity: 1,
     specifications: {
-      'Source': 'Murrah Buffalo Milk',
+      'Product Status': 'Pre-launch specification; validation pending',
+      'Milk Source': 'Planned: Murrah buffalo milk',
+      'Ingredients': 'Planned: cultured butter from Murrah buffalo milk',
+      'How It Is Made':
+          'Milk is filtered and cultured into curd; the curd is churned for butter; the butter is slowly clarified, filtered, cooled, and packed.',
       'Texture': 'Danedaar / White Granular',
-      'Shelf Life': '12 Months'
+      'Shelf Life': 'To be confirmed by stability testing'
     },
   ),
   Product(
     id: 'mil-ghee-single-farm',
     publicationStatus: 'draft',
     vendorId: 'vendor-milterra-dairy',
-    title: 'MILTERRA Single-Farm A2 Cultured Ghee',
+    title: 'MILTERRA Single-Farm A2 Sahiwal Cow Ghee',
     category: ProductCategory.feedNutrition,
     price: 899,
     unit: 'jar',
     brand: 'MILTERRA Signature',
     packSize: '500 ml',
     description:
-        '100% Single-Origin Traceable to our own Lucknow heritage pasture farm. Churned from single-herd free-grazing desi cows with QR-code batch certificate.',
+        'A planned single-farm Sahiwal milk product with proposed batch-level traceability. Farm and batch documentation will be published when verified.',
     taxonomy: {
       'department_name': 'Dairy Foods',
       'category_name': 'Single-farm ghee',
@@ -612,25 +632,26 @@ const defaultMilterraProducts = <Product>[
     availableQuantity: 25,
     minOrderQuantity: 1,
     specifications: {
-      'Origin': 'Lucknow Heritage Farm Pasture',
-      'Traceability': '100% Single Herd',
-      'Process': 'Vedic Bilona Churned',
-      'Batch Size': 'Limited to 60 Jars/Week',
-      'Shelf Life': '12 Months'
+      'Product Status': 'Pre-launch sourcing plan; validation pending',
+      'Milk Source': 'Planned: single-farm A2 Sahiwal cow milk',
+      'Traceability': 'Proposed batch-level farm traceability',
+      'How It Is Made':
+          'Milk is cultured into curd, churned for butter, slowly clarified, filtered, cooled, and packed.',
+      'Shelf Life': 'To be confirmed by stability testing'
     },
   ),
   Product(
     id: 'mil-ghee-full-moon',
     publicationStatus: 'draft',
     vendorId: 'vendor-milterra-dairy',
-    title: 'MILTERRA Full Moon (Purnima Batch) Ghee',
+    title: 'MILTERRA Full Moon (Purnima Batch) Sahiwal Ghee',
     category: ProductCategory.feedNutrition,
     price: 999,
     unit: 'jar',
     brand: 'MILTERRA Reserve',
     packSize: '500 ml',
     description:
-        'Crafted exclusively on the auspicious night of Purnima (full moon). Churned before sunrise and clarified on wood fire for heightened Ayurvedic prana.',
+        'A proposed Purnima-themed limited batch using the planned cultured-butter Sahiwal milk process. Timing and production claims remain to be finalized.',
     taxonomy: {
       'department_name': 'Dairy Foods',
       'category_name': 'Full moon ghee',
@@ -641,11 +662,12 @@ const defaultMilterraProducts = <Product>[
     availableQuantity: 18,
     minOrderQuantity: 1,
     specifications: {
-      'Batch Edition': 'Sharad Purnima Lunar Churn',
-      'Lunar Phase': 'Waxing Full Moon',
-      'Packaging': 'Collector Gold Foil Glass Jar',
-      'Prana Rating': 'High Ayurvedic Vitality',
-      'Shelf Life': '12 Months'
+      'Product Status': 'Pre-launch concept; production plan pending',
+      'Milk Source': 'Planned: A2 Sahiwal cow milk',
+      'Proposed Edition': 'Purnima-themed limited batch',
+      'How It Is Made':
+          'The proposed process cultures milk into curd, churns butter, slowly clarifies it, then filters, cools, and packs the ghee.',
+      'Shelf Life': 'To be confirmed by stability testing'
     },
   ),
   Product(
@@ -758,14 +780,14 @@ const defaultMilterraProducts = <Product>[
     familyId: 'c3333333-3333-3333-3333-333333333333',
     publicationStatus: 'published',
     vendorId: 'vendor-milterra-dairy',
-    title: 'MILTERRA Fresh Malai Paneer',
+    title: 'MILTERRA Fresh Sahiwal Milk Paneer',
     category: ProductCategory.feedNutrition,
     price: 160,
     unit: 'block',
     brand: 'MILTERRA',
     packSize: '200 g',
     description:
-        'Vacuum-sealed fresh malai paneer crafted from whole farm milk. Soft, non-rubbery texture packed with 18g protein.',
+        'Planned fresh paneer made from Sahiwal cow milk and packed for refrigerated distribution.',
     taxonomy: {
       'department_name': 'Dairy Foods',
       'category_name': 'Paneer',
@@ -776,9 +798,14 @@ const defaultMilterraProducts = <Product>[
     availableQuantity: 50,
     minOrderQuantity: 1,
     specifications: {
-      'Protein': '18g per 100g',
-      'Fat': '22%',
-      'Shelf Life': '15 Days refrigerated'
+      'Product Status': 'Pre-launch specification; validation pending',
+      'Milk Source': 'Planned: fresh Sahiwal cow milk',
+      'Ingredients':
+          'Sahiwal cow milk and a food-grade acidulant; exact formulation pending',
+      'How It Is Made':
+          'Milk is filtered and heat-treated, gently coagulated, drained, pressed, rapidly chilled, and packed.',
+      'Storage': 'Keep refrigerated at 0–4°C',
+      'Shelf Life': 'To be confirmed by refrigerated testing'
     },
   ),
   Product(
@@ -786,14 +813,14 @@ const defaultMilterraProducts = <Product>[
     familyId: 'c3333333-3333-3333-3333-333333333333',
     publicationStatus: 'published',
     vendorId: 'vendor-milterra-dairy',
-    title: 'MILTERRA Fresh Malai Paneer',
+    title: 'MILTERRA Fresh Sahiwal Milk Paneer',
     category: ProductCategory.feedNutrition,
     price: 380,
     unit: 'block',
     brand: 'MILTERRA',
     packSize: '500 g',
     description:
-        'Family block of creamy fresh malai paneer. 100% natural without artificial coagulants or starch.',
+        'A proposed family block of fresh Sahiwal milk paneer for refrigerated distribution.',
     taxonomy: {
       'department_name': 'Dairy Foods',
       'category_name': 'Paneer',
@@ -804,9 +831,14 @@ const defaultMilterraProducts = <Product>[
     availableQuantity: 35,
     minOrderQuantity: 1,
     specifications: {
-      'Protein': '18g per 100g',
-      'Fat': '22%',
-      'Shelf Life': '15 Days refrigerated'
+      'Product Status': 'Pre-launch specification; validation pending',
+      'Milk Source': 'Planned: fresh Sahiwal cow milk',
+      'Ingredients':
+          'Sahiwal cow milk and a food-grade acidulant; exact formulation pending',
+      'How It Is Made':
+          'Milk is filtered and heat-treated, gently coagulated, drained, pressed, rapidly chilled, and packed.',
+      'Storage': 'Keep refrigerated at 0–4°C',
+      'Shelf Life': 'To be confirmed by refrigerated testing'
     },
   ),
   Product(

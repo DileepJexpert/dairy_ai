@@ -1,56 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/store_design.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../widgets/support_panel.dart';
 
-class HelpSupportScreen extends StatefulWidget {
+class HelpSupportScreen extends ConsumerStatefulWidget {
   const HelpSupportScreen({super.key});
 
   @override
-  State<HelpSupportScreen> createState() => _HelpSupportScreenState();
+  ConsumerState<HelpSupportScreen> createState() => _HelpSupportScreenState();
 }
 
-class _HelpSupportScreenState extends State<HelpSupportScreen> {
+class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _filterQuery = '';
-
-  final List<Map<String, String>> _faqs = [
-    {
-      'category': 'Shipping & Cold Chain',
-      'question': 'How is Milterra dairy shipped to maintain fresh farm quality?',
-      'answer':
-          'All gourmet dairy products are packed in thermal-insulated, eco-friendly cartons with gel chill packs. Ghee is bottled in heavy food-grade amber glass jars to protect against light oxidation. Perishables like fresh paneer and makhan are shipped via express cold-chain vehicles.',
-    },
-    {
-      'category': 'Shipping & Cold Chain',
-      'question': 'What are the delivery timelines and charges?',
-      'answer':
-          'Metro deliveries are dispatched same-day and delivered within 24–48 hours. Standard delivery is FREE on all orders above ₹499. For smaller orders, a flat delivery fee of ₹40 applies.',
-    },
-    {
-      'category': 'Purity & Certification',
-      'question': 'How can I verify the purity of my specific Ghee jar?',
-      'answer':
-          'Every Milterra product package features a unique Batch QR code. Scanning it in the app takes you directly to the NABL-accredited ISO/IEC 17025 laboratory certificate displaying exact Fat %, FFA, RM value, and 100% A2 allele genetic confirmation.',
-    },
-    {
-      'category': 'Storage & Shelf Life',
-      'question': 'How should I store Milterra A2 Desi Cow Bilona Ghee?',
-      'answer':
-          'Keep your ghee jar in a cool, dry place away from direct sunlight. Do not refrigerate, as cold temperatures disrupt its natural granular crystal structure. Always use a dry, clean spoon. Shelf life is 12 months from packing.',
-    },
-    {
-      'category': 'Returns & Refunds',
-      'question': 'What is Milterra’s 100% Quality Replacement Guarantee?',
-      'answer':
-          'If your package arrives damaged, with a broken jar seal, or if you are not completely satisfied with the aroma and taste, we will replace the item or issue a 100% instant refund to your Milterra Wallet or original payment method without hassle.',
-    },
-    {
-      'category': 'Farmer Earnings & Wallet',
-      'question': 'How does the Milterra Wallet work for farmers and customers?',
-      'answer':
-          'Dairy farmers receive instant automated credits for milk poured at cooperative collection kiosks based on digital Fat and SNF testing. Customers receive cashbacks and refund credits. Wallet balances can be withdrawn directly to bank accounts or used at checkout to buy cattle feed, minerals, and farm equipment.',
-    },
-  ];
 
   @override
   void dispose() {
@@ -60,6 +23,10 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final help = ref.watch(storeHelpProvider);
+    final _faqs = (help.valueOrNull?['faqs'] as List? ?? [])
+        .map((e) => Map<String, String>.from(e))
+        .toList();
     final filteredFaqs = _filterQuery.isEmpty
         ? _faqs
         : _faqs.where((f) {
@@ -83,7 +50,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 1080),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 28),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -93,10 +61,12 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                                 InkWell(
                                   onTap: () => context.go('/shop'),
                                   child: const Text('Home',
-                                      style: TextStyle(fontSize: 12, color: storeMuted)),
+                                      style: TextStyle(
+                                          fontSize: 12, color: storeMuted)),
                                 ),
                                 const Text(' › ',
-                                    style: TextStyle(fontSize: 12, color: storeMuted)),
+                                    style: TextStyle(
+                                        fontSize: 12, color: storeMuted)),
                                 const Text('Customer Care & Help',
                                     style: TextStyle(
                                         fontSize: 12,
@@ -168,7 +138,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             decoration: InputDecoration(
               filled: true,
               fillColor: Colors.white,
-              hintText: 'Search help topics (e.g. delivery time, returns, ghee storage, purity)...',
+              hintText:
+                  'Search help topics (e.g. delivery time, returns, ghee storage, purity)...',
               hintStyle: const TextStyle(fontSize: 13, color: storeMuted),
               prefixIcon: const Icon(Icons.search, color: storeGreen),
               suffixIcon: _filterQuery.isNotEmpty
@@ -184,7 +155,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             ),
           ),
         ],
@@ -252,7 +224,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                       color: storeSage,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(a['icon'] as IconData, color: storeGreen, size: 22),
+                    child: Icon(a['icon'] as IconData,
+                        color: storeGreen, size: 22),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -266,7 +239,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                   const SizedBox(height: 4),
                   Text(
                     a['desc'] as String,
-                    style: const TextStyle(fontSize: 11, color: storeMuted, height: 1.3),
+                    style: const TextStyle(
+                        fontSize: 11, color: storeMuted, height: 1.3),
                   ),
                 ],
               ),
@@ -307,7 +281,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(
-                child: Text('No matching questions found. Try a different search term.',
+                child: Text(
+                    'No matching questions found. Try a different search term.',
                     style: TextStyle(color: storeMuted)),
               ),
             )
@@ -331,7 +306,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     child: Text(
                       f['answer']!,
-                      style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.4),
+                      style: const TextStyle(
+                          fontSize: 13, color: Colors.black87, height: 1.4),
                     ),
                   ),
                 ],
@@ -342,89 +318,19 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     );
   }
 
-  Widget _buildContactChannelsCard() {
-    return Container(
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: storeSage,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: storeBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Need Direct Assistance? Our Team is Here.',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: storeGreen,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Reach our dedicated customer care and rural cooperative support team anytime.',
-            style: TextStyle(fontSize: 12, color: storeMuted),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: _contactTile(
-                  Icons.phone_in_talk_outlined,
-                  'Toll-Free Helpline',
-                  '1800-MIL-TERRA (1800-645-8377)',
-                  'Mon – Sat, 8:00 AM – 8:00 PM IST',
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _contactTile(
-                  Icons.email_outlined,
-                  'Email Support',
-                  'care@milterra.in',
-                  'Response within 2 business hours',
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _contactTile(
-                  Icons.chat_bubble_outline,
-                  'WhatsApp Helpline',
-                  '+91 98765 43210',
-                  'Instant receipt slips & order help',
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _contactTile(IconData icon, String title, String value, String note) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: storeBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: storeGreen, size: 24),
-          const SizedBox(height: 10),
-          Text(title,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: storeMuted)),
-          const SizedBox(height: 3),
-          Text(value,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: storeGreen)),
-          const SizedBox(height: 2),
-          Text(note,
-              style: const TextStyle(fontSize: 10, color: storeMuted)),
-        ],
-      ),
-    );
-  }
+  Widget _buildContactChannelsCard() => Card(
+      child: Padding(
+          padding: const EdgeInsets.all(24),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            ref.watch(storeHelpProvider).when(
+                loading: () => const LinearProgressIndicator(),
+                error: (e, _) => TextButton(
+                    onPressed: () => ref.invalidate(storeHelpProvider),
+                    child: const Text('Help content unavailable. Retry')),
+                data: (data) =>
+                    Text(data['contact_message']?.toString() ?? '')),
+            const SizedBox(height: 16),
+            const SupportPanel(),
+          ])));
 }

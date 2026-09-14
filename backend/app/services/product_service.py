@@ -131,6 +131,8 @@ def serialize_family(fam: ProductFamily, variants: list | None = None) -> dict:
         "is_published": fam.is_published,
         "is_concept": fam.is_concept,
         "supporting_documents": fam.supporting_documents or {},
+        "primary_image": (fam.supporting_documents or {}).get("primary_image"),
+        "media": (fam.supporting_documents or {}).get("media", []),
         "created_at": fam.created_at.isoformat() if fam.created_at else None,
         "updated_at": fam.updated_at.isoformat() if fam.updated_at else None,
         "variants": variants or [],

@@ -6,6 +6,9 @@ import 'package:dairy_ai/features/marketplace/models/concept_catalogue.dart';
 import 'package:dairy_ai/features/marketplace/widgets/store_product_card.dart';
 import 'package:dairy_ai/features/cart/providers/wishlist_provider.dart';
 import 'storefront_test.dart' as harness;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
+import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 
 void main() {
   setUpAll(() async {
@@ -43,17 +46,25 @@ void main() {
     }
   });
 
-  test('Wishlist starts empty and saves/removes the actual selected variant',
-      () {
-    final wishlist = WishlistNotifier();
-    addTearDown(wishlist.dispose);
-    expect(wishlist.state, isEmpty);
-    wishlist.toggle(harness.products[1]);
-    expect(wishlist.state.single.id, 'cow1000');
-    wishlist.toggle(harness.products[1]);
-    expect(wishlist.state, isEmpty);
-    wishlist.toggle(conceptCatalogue.first);
-    expect(wishlist.state.single.isConcept, isTrue);
+  test('Wishlist waits for server save of actual variant', () async {
+    final dio = Dio();
+    dio.interceptors.add(InterceptorsWrapper(
+        onRequest: (r, h) =>
+            h.resolve(Response(requestOptions: r, data: {'data': {}}))));
+    final container = ProviderContainer(overrides: [
+      dioProvider.overrideWithValue(dio),
+      wishlistProvider
+          .overrideWith((ref) => WishlistNotifier(ref, enabled: false)),
+    ]);
+    addTearDown(container.dispose);
+    final wishlist = container.read(wishlistProvider.notifier);
+    expect(container.read(wishlistProvider), isEmpty);
+    await wishlist.toggle(harness.products[1]);
+    expect(container.read(wishlistProvider).single.id, 'cow1000');
+    await wishlist.toggle(harness.products[1]);
+    expect(container.read(wishlistProvider), isEmpty);
+    await wishlist.toggle(conceptCatalogue.first);
+    expect(container.read(wishlistProvider).single.isConcept, isTrue);
   });
 
   for (final width in [360.0, 390.0, 768.0, 1024.0, 1440.0]) {
@@ -76,10 +87,10 @@ void main() {
       await tester.ensureVisible(find.text('Register for Updates'));
       await tester.tap(find.text('Register for Updates'));
       await tester.pumpAndSettle();
-      expect(
-          find.textContaining('registration is not open yet'), findsOneWidget);
+      expect(find.byType(TextField), findsWidgets);
+      expect(find.text('Register for Updates'), findsWidgets);
       expect(tester.takeException(), isNull);
-      await tester.tap(find.text('Close'));
+      await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
     });
   }

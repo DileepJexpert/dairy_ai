@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
+import '../../auth/providers/auth_provider.dart';
 
 class StoreCoupon {
   const StoreCoupon({
@@ -8,79 +10,69 @@ class StoreCoupon {
     required this.discountPercent,
     required this.discountAmount,
     this.minOrderAmount = 0,
+    this.maxDiscountCap,
   });
-
-  final String code;
-  final String title;
-  final String description;
-  final double discountPercent; // e.g. 10.0 for 10%
-  final double discountAmount; // e.g. 100.0 for ₹100
-  final double minOrderAmount;
-
+  final String code, title, description;
+  final double discountPercent, discountAmount, minOrderAmount;
+  final double? maxDiscountCap;
+  factory StoreCoupon.fromJson(Map j) {
+    double number(dynamic v) => double.parse(v.toString());
+    return StoreCoupon(
+        code: j['code'],
+        title: j['code'],
+        description: j['description'],
+        discountPercent: j['discount_type'] == 'percentage'
+            ? number(j['discount_value'])
+            : 0,
+        discountAmount:
+            j['discount_type'] == 'flat' ? number(j['discount_value']) : 0,
+        minOrderAmount: number(j['min_order_value']),
+        maxDiscountCap: j['max_discount_cap'] == null
+            ? null
+            : number(j['max_discount_cap']));
+  }
   double calculateDiscount(double subtotal) {
-    if (subtotal < minOrderAmount) return 0.0;
-    if (discountPercent > 0) {
-      return (subtotal * discountPercent) / 100.0;
-    }
-    return discountAmount.clamp(0.0, subtotal);
+    if (subtotal < minOrderAmount) return 0;
+    var discount =
+        discountPercent > 0 ? subtotal * discountPercent / 100 : discountAmount;
+    if (maxDiscountCap != null) discount = discount.clamp(0, maxDiscountCap!);
+    return double.parse(discount.clamp(0, subtotal).toStringAsFixed(2));
   }
 }
 
-const availableStoreCoupons = <StoreCoupon>[
-  StoreCoupon(
-    code: 'MILTERRA10',
-    title: '10% OFF PURE DAIRY & ANIMAL CARE',
-    description: 'Save 10% on pure A2 Desi Cow Ghee, Makhan, cattle feed, and supplements.',
-    discountPercent: 10.0,
-    discountAmount: 0,
-    minOrderAmount: 0,
-  ),
-  StoreCoupon(
-    code: 'FARM50',
-    title: '₹50 OFF FARM ESSENTIALS',
-    description: 'Flat ₹50 discount on cattle feed, mineral supplements, and equipment.',
-    discountPercent: 0,
-    discountAmount: 50.0,
-    minOrderAmount: 0,
-  ),
-  StoreCoupon(
-    code: 'BILONA15',
-    title: '15% OFF BILONA GHEE',
-    description: 'Save 15% on authentic wooden churned Vedic A2 Bilona Ghee 1L & 5L packs.',
-    discountPercent: 15.0,
-    discountAmount: 0,
-    minOrderAmount: 0,
-  ),
-];
+final availableCouponsProvider =
+    FutureProvider.autoDispose<List<StoreCoupon>>((ref) async {
+  final response = await ref.watch(dioProvider).get('/marketplace/coupons');
+  return (response.data['data'] as List)
+      .map((j) => StoreCoupon.fromJson(j as Map))
+      .toList();
+});
 
 class AppliedCouponNotifier extends StateNotifier<StoreCoupon?> {
-  AppliedCouponNotifier() : super(null);
-
-  bool applyCoupon(String code, [double subtotal = double.infinity]) {
-    final clean = code.trim().toUpperCase();
-    final match = availableStoreCoupons.firstWhere(
-      (c) => c.code == clean,
-      orElse: () => const StoreCoupon(code: '', title: '', description: '', discountPercent: 0, discountAmount: 0),
-    );
-
-    if (match.code.isEmpty) return false;
-    if (subtotal != double.infinity && subtotal < match.minOrderAmount) return false;
-
-    state = match;
-    return true;
+  AppliedCouponNotifier(this.dio) : super(null);
+  final Dio dio;
+  Future<bool> applyCoupon(String code, [double? subtotal]) async {
+    try {
+      final response = await dio.post('/marketplace/coupons/quote',
+          data: {'code': code.trim().toUpperCase()});
+      if (!mounted) return false;
+      state = StoreCoupon.fromJson(response.data['data']['coupon'] as Map);
+      return true;
+    } on DioException {
+      if (mounted) state = null;
+      return false;
+    }
   }
 
-  void removeCoupon() {
-    state = null;
-  }
+  void removeCoupon() => state = null;
 }
 
-final appliedCouponProvider = StateNotifierProvider<AppliedCouponNotifier, StoreCoupon?>((ref) {
-  return AppliedCouponNotifier();
+final appliedCouponProvider =
+    StateNotifierProvider<AppliedCouponNotifier, StoreCoupon?>((ref) {
+  ref.watch(currentUserProvider);
+  return AppliedCouponNotifier(ref.read(dioProvider));
 });
 
-final couponDiscountProvider = Provider.family<double, double>((ref, subtotal) {
-  final coupon = ref.watch(appliedCouponProvider);
-  if (coupon == null) return 0.0;
-  return coupon.calculateDiscount(subtotal);
-});
+final couponDiscountProvider = Provider.family<double, double>(
+    (ref, subtotal) =>
+        ref.watch(appliedCouponProvider)?.calculateDiscount(subtotal) ?? 0);

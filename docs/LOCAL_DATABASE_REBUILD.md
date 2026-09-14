@@ -28,6 +28,7 @@ python -m scripts.rebuild_local_database
 python -m scripts.rebuild_local_database --execute --confirm-database dairy_ai --seed-demo
 
 $env:COMMERCE_TAXONOMY_ENABLED = 'true'
+$env:PRELAUNCH_MODE = 'true'
 $env:INIT_DB_ON_STARTUP = 'false'
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
@@ -44,7 +45,7 @@ flutter run -d web-server --web-hostname 127.0.0.1 --web-port 5051 --dart-define
 
 Open `http://127.0.0.1:5051/#/shop` in Chrome. Stop any old process already listening on 5051 first; do not kill unrelated processes. If 8000 is blocked, use 8001 in **both** backend and Flutter commands.
 
-Demo admin: `9999900000`; demo vendor: `9999900090`. Request an OTP through the login page. Existing local development/test OTP behavior uses `123456` for these demo phone numbers; that shortcut is disabled outside development/test. Do not deploy demo accounts. Logged-in admin can open `/#/admin/commerce`. Everyone can browse `/#/shop`; cart actions require login.
+Demo admin: `9999900000`; demo vendor: `9999900090`. Request an OTP through the staff login page. Existing local development/test OTP behavior uses `123456` for these demo phone numbers; that shortcut is disabled outside development/test. Customers register with phone and password, so customer login needs no SMS provider. Do not deploy demo staff accounts. Logged-in admin can open `/#/admin/commerce`. Everyone can browse `/#/shop`; cart actions require login.
 
 ## Development rules
 

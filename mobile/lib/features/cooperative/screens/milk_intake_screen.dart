@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../marketplace/widgets/store_design.dart';
-import '../../finance/providers/wallet_provider.dart';
 
 class MilkIntakeScreen extends ConsumerStatefulWidget {
   const MilkIntakeScreen({super.key});
@@ -79,14 +78,7 @@ class _MilkIntakeScreenState extends ConsumerState<MilkIntakeScreen> {
     final shift = _shift;
     final slipId = 'SLIP-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
 
-    // Credit to farmer wallet
-    ref.read(milterraWalletProvider.notifier).creditMilkIntake(
-          amount: payout,
-          litres: litres,
-          fatPct: fat,
-          snfPct: snf,
-          farmerName: farmer,
-        );
+    // This intake calculator is a preview, not a persisted settlement or wallet credit.
 
     // Show printable digital receipt
     showDialog<void>(
@@ -174,7 +166,7 @@ class _MilkIntakeScreenState extends ConsumerState<MilkIntakeScreen> {
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Successfully Credited to Farmer\'s Milterra Wallet & Available Immediately.',
+                      'Calculation preview only. No milk collection, settlement or wallet credit has been saved.',
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: storeGreen),
                     ),
                   ),
@@ -263,7 +255,7 @@ class _MilkIntakeScreenState extends ConsumerState<MilkIntakeScreen> {
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        'Record daily morning & evening milk pours. Fat & SNF rate formula calculates instant settlement credited straight to the farmer\'s Milterra Wallet.',
+                        'Preview milk pricing from fat and SNF. This calculator does not save a collection record or credit a wallet.',
                         style: TextStyle(fontSize: 13, color: storeMuted),
                       ),
                       const SizedBox(height: 20),

@@ -4,8 +4,16 @@ import 'package:go_router/go_router.dart';
 import '../providers/order_repository.dart';
 import '../../marketplace/widgets/store_design.dart';
 
+final orderSearchProvider = StateProvider.autoDispose<String>((ref) => '');
 final ordersProvider = Provider.autoDispose<List<StoreOrder>>((ref) {
-  return ref.watch(ordersNotifierProvider);
+  final query = ref.watch(orderSearchProvider).trim().toLowerCase();
+  return ref
+      .watch(ordersNotifierProvider)
+      .where((o) =>
+          query.isEmpty ||
+          o.id.toLowerCase().contains(query) ||
+          o.items.any((i) => i.title.toLowerCase().contains(query)))
+      .toList();
 });
 
 class OrdersScreen extends ConsumerWidget {
@@ -22,6 +30,15 @@ class OrdersScreen extends ConsumerWidget {
           // Amazon Top Navigation
           const StoreHeader(currentCategory: 'All'),
           const StoreCategoryNavigation(selected: 'Your Orders'),
+          if (ref.watch(orderLoadStateProvider).isLoading)
+            const LinearProgressIndicator(),
+          if (ref.watch(orderLoadStateProvider).hasError)
+            ListTile(
+                title: const Text('Orders could not be loaded.'),
+                trailing: TextButton(
+                    onPressed: () =>
+                        ref.read(ordersNotifierProvider.notifier).refresh(),
+                    child: const Text('Retry'))),
 
           // Main Orders List
           Expanded(
@@ -86,19 +103,29 @@ class OrdersScreen extends ConsumerWidget {
                                           color: storeWhite,
                                           borderRadius:
                                               BorderRadius.circular(6),
-                                          border: Border.all(color: storeBorder),
+                                          border:
+                                              Border.all(color: storeBorder),
                                         ),
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 10),
-                                        child: const Row(
+                                        child: Row(
                                           children: [
-                                            Icon(Icons.search,
+                                            const Icon(Icons.search,
                                                 size: 18, color: storeMuted),
-                                            SizedBox(width: 8),
+                                            const SizedBox(width: 8),
                                             Expanded(
-                                              child: Text(
-                                                'Search all orders',
-                                                style: TextStyle(
+                                              child: TextField(
+                                                onChanged: (value) => ref
+                                                    .read(orderSearchProvider
+                                                        .notifier)
+                                                    .state = value,
+                                                decoration:
+                                                    const InputDecoration(
+                                                        hintText:
+                                                            'Search all orders',
+                                                        border:
+                                                            InputBorder.none),
+                                                style: const TextStyle(
                                                     fontSize: 13,
                                                     color: storeMuted),
                                               ),
@@ -223,7 +250,10 @@ class OrdersScreen extends ConsumerWidget {
                   children: [
                     _orderHeaderItem('ORDER PLACED', createdAt),
                     _orderHeaderItem('TOTAL', storeMoney(total)),
-                    _orderHeaderItem('SHIP TO', order.address['recipient_name']?.toString() ?? 'Direct Delivery'),
+                    _orderHeaderItem(
+                        'SHIP TO',
+                        order.address['recipient_name']?.toString() ??
+                            'Direct Delivery'),
                   ],
                 ),
                 InkWell(
@@ -240,7 +270,8 @@ class OrdersScreen extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      const Icon(Icons.chevron_right, size: 16, color: Color(0xff007185)),
+                      const Icon(Icons.chevron_right,
+                          size: 16, color: Color(0xff007185)),
                     ],
                   ),
                 ),
@@ -269,7 +300,8 @@ class OrdersScreen extends ConsumerWidget {
                     ),
                     const SizedBox(width: 12),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: const Color(0xffe8f5e9),
                         borderRadius: BorderRadius.circular(4),
@@ -277,7 +309,10 @@ class OrdersScreen extends ConsumerWidget {
                       ),
                       child: Text(
                         order.carrier,
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xff1b5e20)),
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xff1b5e20)),
                       ),
                     ),
                   ],
@@ -291,7 +326,8 @@ class OrdersScreen extends ConsumerWidget {
                     },
                     borderRadius: BorderRadius.circular(8),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 4, horizontal: 4),
                       child: Row(
                         children: [
                           Container(
@@ -339,7 +375,8 @@ class OrdersScreen extends ConsumerWidget {
                               ],
                             ),
                           ),
-                          const Icon(Icons.chevron_right, size: 18, color: storeMuted),
+                          const Icon(Icons.chevron_right,
+                              size: 18, color: storeMuted),
                         ],
                       ),
                     ),
@@ -382,12 +419,16 @@ class OrdersScreen extends ConsumerWidget {
                         context.go('/marketplace/orders/$id');
                       },
                       child: const Text('Track package',
-                          style: TextStyle(fontSize: 12, color: storeGreen, fontWeight: FontWeight.bold)),
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: storeGreen,
+                              fontWeight: FontWeight.bold)),
                     ),
                     TextButton(
                       onPressed: () => context.go('/marketplace/orders/$id'),
                       child: const Text('View order details',
-                          style: TextStyle(fontSize: 12, color: Color(0xff007185))),
+                          style: TextStyle(
+                              fontSize: 12, color: Color(0xff007185))),
                     ),
                   ],
                 ),
@@ -433,11 +474,12 @@ class OrdersScreen extends ConsumerWidget {
     }
     final title = item.title.toLowerCase();
     if (title.contains('ghee')) return 'mil-ghee-500';
-    if (title.contains('makhan') || title.contains('butter')) return 'mil-butter-250';
+    if (title.contains('makhan') || title.contains('butter'))
+      return 'mil-butter-250';
     if (title.contains('paneer')) return 'mil-paneer-500';
     if (title.contains('janam')) return 'feed-janam-42';
-    if (title.contains('minera') || title.contains('mineral')) return 'milterra-min-supp-1';
+    if (title.contains('minera') || title.contains('mineral'))
+      return 'milterra-min-supp-1';
     return 'mil-ghee-500';
   }
 }
-

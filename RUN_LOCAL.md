@@ -18,14 +18,75 @@ Both services should show as running. This starts existing containers without re
 
 ## 2. Start the backend — terminal 1
 
+### One-time setup for backend-managed admin controls
+
+With PostgreSQL running, stop the backend and run this **once** for an existing database:
+
+```powershell
+Set-Location C:\dileepkm\Learning\dairy_ai\backend
+python -m scripts.initialize_commerce_admin
+python -m scripts.initialize_customer_commerce
+```
+
+This creates only the four new commerce tables (coupons, coupon redemptions,
+batch certificates and audit history). It does not reset products, users, carts,
+or orders. Optional test coupons can be inserted with
+`python -m scripts.initialize_commerce_admin --seed-demo`; existing coupon edits
+are never overwritten. A fresh `rebuild_local_database --seed-demo` also includes
+these tables and coupons. Do not run a rebuild merely to add these tables.
+
+Restart the backend and Flutter after setup. Admin **Seller Offers**, **Inventory**,
+**Coupons**, **Batch Certificates**, **Sellers & KYC**, and **Audit Trail** now use
+database records. Coupons can be edited or paused; checkout revalidates their
+expiry, minimum and cap. Certificates remain private until marked `CERTIFIED`
+with a report URL and certifier. The storefront's Quality & Research links load
+the published reports from the backend. No paid storage service is required.
+
+The live shop no longer falls back to Flutter demo products when the API fails.
+Only persisted products and published concept families appear. Add missing
+catalogue content in admin or seed it explicitly; API errors now show a retry state.
+
+The second initializer adds seven customer-commerce tables without deleting or
+altering existing records: wishlist, saved cart items, order contact notes,
+order events, help content, support enquiries, and customer preferences. It seeds
+initial pre-launch FAQs only if help content is absent. It is safe to rerun.
+
+After restarting both servers, test:
+
+1. Sign in, save a wishlist item, refresh Chrome, and confirm it remains saved.
+2. Move a cart item to Saved for later and back. These are atomic server actions.
+3. Complete pre-launch checkout. Your Orders reloads its history from the server;
+   cancelling an interest persists and does not create a payment or refund.
+4. In admin ecommerce, open Purchase Interests and click a customer row to save
+   contact status and internal notes. Notes are never returned to customers.
+5. Use the admin header's support-agent icon to edit FAQs/contact content and
+   reply to enquiries. Customers can read saved replies on the Help page and in
+   notifications; there is no paid messaging service.
+6. Seller/admin fulfillment lists only paid commercial orders. Pre-launch
+   interests cannot be shipped. Courier references must be entered manually.
+7. Profile name/location/language and notification visibility preferences save
+   to the backend. Wallet funding and payouts are explicitly unavailable.
+
+See [Backend integration coverage](docs/ECOMMERCE_BACKEND_COVERAGE.md) for scope,
+remaining preview features, and manual acceptance checks.
+
 If you have already initialized the database, run:
 
 ```powershell
 Set-Location C:\dileepkm\Learning\dairy_ai\backend
 $env:APP_ENV = 'development'
 $env:COMMERCE_TAXONOMY_ENABLED = 'true'
+$env:PRELAUNCH_MODE = 'true'
 $env:INIT_DB_ON_STARTUP = 'false'
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
+
+# Optional Gmail SMTP for password reset email (use a Gmail App Password,
+# never your normal Gmail password). Leave blank to receive a local reset link.
+# $env:SMTP_HOST = 'smtp.gmail.com'
+# $env:SMTP_PORT = '587'
+# $env:SMTP_USERNAME = 'your-account@gmail.com'
+# $env:SMTP_PASSWORD = 'your-app-password'
+# $env:SMTP_FROM_EMAIL = 'your-account@gmail.com'
 ```
 
 Wait for `Application startup complete`. Open [Backend API docs](http://127.0.0.1:8001/docs). This page is the Python API, **not the shopping UI**.
@@ -57,18 +118,20 @@ Optional: to let Flutter launch its own debugging Chrome window instead, stop th
 flutter run -d chrome --web-port 5051 --dart-define=API_BASE_URL=http://127.0.0.1:8001
 ```
 
-## 4. Demo login
+## 4. Login
 
-These accounts are created only when the rebuild is run with `--seed-demo`:
+Customers create an account with a 10-digit mobile number and a password of at least 8 characters. Customer sign-in does not send an SMS and does not require a paid OTP provider.
+
+These staff accounts are created only when the rebuild is run with `--seed-demo`:
 
 | Account | Phone | Local development OTP |
 |---|---|---|
 | Commerce admin | `9999900000` | `123456` |
 | Vendor | `9999900090` | `123456` |
 
-Request an OTP using the login page before entering it. The fixed demo OTP works only in development/test. Do not use these accounts in production.
+Request an OTP using the staff login page before entering it. The fixed demo OTP works only in development/test. Do not use these staff accounts in production.
 
-Everyone can browse the shop without login. Cart actions require login. The commerce admin currently manages departments/categories; the complete product/offer administration is still being developed.
+Everyone can browse the shop without login. Cart and interest registration require login. In pre-launch mode, checkout stores the requested items and callback details in PostgreSQL; it does not collect payment, reduce inventory or create a shipment. Admin product publishing uses the backend catalogue screen at `/#/admin/commerce/products`.
 
 ## 5. Optional: initialize or completely reset the local database
 

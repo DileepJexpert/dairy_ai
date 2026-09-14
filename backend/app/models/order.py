@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, Integer, JSON, Numeric, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, Integer, JSON, Numeric, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -40,6 +40,7 @@ class Order(Base):
     idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
     status: Mapped[OrderStatus] = mapped_column(SAEnum(OrderStatus), default=OrderStatus.pending_payment, nullable=False)
     payment_status: Mapped[PaymentStatus] = mapped_column(SAEnum(PaymentStatus, name="commerce_payment_status"), default=PaymentStatus.pending, nullable=False)
+    is_prelaunch_interest: Mapped[bool] = mapped_column(Boolean, default=False, index=True, nullable=False)
     address_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
     subtotal: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     delivery_fee: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0, nullable=False)

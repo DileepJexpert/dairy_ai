@@ -9,6 +9,10 @@ import 'package:dairy_ai/features/commerce/models/taxonomy.dart';
 import 'package:dairy_ai/features/commerce/providers/commerce_provider.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import 'package:dairy_ai/features/auth/models/user_model.dart';
+import 'package:dairy_ai/features/admin/providers/admin_marketplace_provider.dart';
+import 'package:dairy_ai/core/analytics_service.dart';
+import 'package:dairy_ai/features/marketplace/providers/product_review_provider.dart';
+import 'package:dairy_ai/features/marketplace/providers/merchandising_provider.dart';
 import 'package:dairy_ai/features/marketplace/models/product_models.dart';
 import 'package:dairy_ai/features/marketplace/providers/product_provider.dart';
 import 'package:dairy_ai/features/marketplace/screens/product_list_screen.dart';
@@ -57,6 +61,17 @@ const products = [
       packSize: '500 ml'),
 ];
 
+// Store layout tests do not start background analytics or external network I/O.
+class _LayoutAnalytics extends AnalyticsService {
+  _LayoutAnalytics() : super(Dio()) {
+    super.dispose();
+  }
+  @override
+  Future<void> flush() async {}
+  @override
+  Future<void> initSession({String landingPage = '/shop'}) async {}
+}
+
 Finder storeSearchField() => find.byKey(const ValueKey('store-search-field'));
 
 Future<GoRouter> openStore(WidgetTester tester,
@@ -91,12 +106,19 @@ Future<GoRouter> openStore(WidgetTester tester,
   ]);
   addTearDown(router.dispose);
   await tester.pumpWidget(ProviderScope(overrides: [
+    analyticsServiceProvider.overrideWith((ref) => _LayoutAnalytics()),
+    storefrontPlacementsProvider.overrideWith((ref) async => []),
+    for (final p in catalogue)
+      productReviewsProvider(p.id).overrideWith((ref) async => []),
     currentUserProvider.overrideWith((ref) => client == null
         ? null
         : const UserModel(id: 'shopper', phone: '9999900001', role: 'farmer')),
     commerceAccessProvider
         .overrideWith((ref) async => {'can_manage_taxonomy': false}),
     if (client != null) dioProvider.overrideWithValue(client),
+    publicCertificatesProvider(null).overrideWith((ref) async => []),
+    for (final p in catalogue)
+      publicCertificatesProvider(p.id).overrideWith((ref) async => []),
     taxonomyProvider.overrideWith(
         (ref) async => const TaxonomyCatalogue(enabled: false, nodes: [])),
     productsProvider(ProductCategory.feedNutrition).overrideWith((ref) async {

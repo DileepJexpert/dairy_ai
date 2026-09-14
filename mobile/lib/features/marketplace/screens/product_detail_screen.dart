@@ -3,14 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../cart/providers/cart_provider.dart';
-import '../../cart/providers/coupon_provider.dart';
 import '../../cart/providers/wishlist_provider.dart';
 import '../../cart/widgets/store_cart_drawer.dart';
 import '../models/product_models.dart';
 import '../providers/product_provider.dart';
+import '../providers/product_review_provider.dart';
 import '../widgets/store_design.dart';
 import '../widgets/store_product_card.dart';
 import '../widgets/product_information.dart';
+import '../widgets/storefront_highlight_strip.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   const ProductDetailScreen({super.key, required this.productId});
@@ -25,16 +26,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   bool _busy = false;
   bool _bundleItem1Selected = true;
   bool _bundleItem2Selected = true;
-  bool _couponApplied = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final currentCoupon = ref.read(appliedCouponProvider);
-    if (currentCoupon != null && currentCoupon.code == 'MILTERRA10') {
-      _couponApplied = true;
-    }
-  }
 
   bool _isConceptProduct(Product p) => p.isConcept;
 
@@ -74,12 +65,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
     setState(() => _busy = true);
     try {
-      if (_couponApplied) {
-        ref.read(appliedCouponProvider.notifier).applyCoupon(
-              'MILTERRA10',
-              p.price * (quantity ?? _quantity),
-            );
-      }
       await ref.read(cartProvider.notifier).add(p.id, quantity ?? _quantity, p);
       if (!mounted) return;
       if (checkout) {
@@ -123,6 +108,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               selected: product?.taxonomy?['category_id']?.toString() ??
                   (product == null ? 'All products' : storeCategory(product)),
             ),
+            StorefrontHighlightStrip(currentProductId: product?.id),
 
             // Content Area
             Expanded(
@@ -463,11 +449,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                         width: _image == i ? 2 : 1,
                       ),
                     ),
-                    child: Image.network(
-                      p.media[i],
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) =>
-                          const Icon(Icons.broken_image_outlined),
+                    child: StoreMediaImage(
+                      source: p.media[i],
+                      fallbackIconSize: 24,
                     ),
                   ),
                 ),
@@ -746,26 +730,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                           isWishlisted ? const Color(0xffd9383a) : storeBorder,
                     ),
                   ),
-                  onPressed: () {
-                    final added = ref.read(wishlistProvider.notifier).toggle(p);
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        duration: const Duration(seconds: 2),
-                        backgroundColor: storeGreen,
-                        content: Text(
-                          added
-                              ? 'Saved ${p.title} to your Wishlist.'
-                              : 'Removed from your Wishlist.',
-                        ),
-                        action: SnackBarAction(
-                          label: 'View',
-                          textColor: storeGold,
-                          onPressed: () => context.go('/wishlist'),
-                        ),
-                      ),
-                    );
-                  },
+                  onPressed: () => toggleWishlist(context, ref, p),
                   icon: Icon(
                     isWishlisted ? Icons.favorite : Icons.favorite_border,
                     size: 16,
@@ -1635,9 +1600,263 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   Widget _buildCustomerQnA(Product p, bool isMobile) => const StorePanel(
       title: 'Customer questions',
       child: Text('No verified answers are published for this product yet.'));
-  Widget _buildCustomerReviews(Product p, bool isMobile) => const StorePanel(
-      title: 'Customer reviews',
-      child: Text('No verified product reviews are published yet.'));
+
+  Widget _buildCustomerReviews(Product p, bool isMobile) {
+    final reviews = ref.watch(productReviewsProvider(p.id));
+    return StorePanel(
+      title: 'Product feedback',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 12,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Text(
+                'This pre-launch feedback is separate from verified-purchase reviews.',
+                style: TextStyle(color: storeMuted, height: 1.4),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _showProductFeedbackDialog(p),
+                icon: const Icon(Icons.rate_review_outlined, size: 18),
+                label: const Text('Write feedback'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          reviews.when(
+            loading: () => const LinearProgressIndicator(minHeight: 2),
+            error: (_, __) => const Text(
+              'Feedback could not be loaded. Please try again later.',
+              style: TextStyle(color: storeMuted),
+            ),
+            data: (items) {
+              if (items.isEmpty) {
+                return const Text(
+                  'No visitor feedback has been saved for this product yet.',
+                  style: TextStyle(color: storeMuted),
+                );
+              }
+              return Column(
+                children: [
+                  for (var index = 0; index < items.length; index++) ...[
+                    _productFeedbackCard(items[index]),
+                    if (index != items.length - 1) const Divider(height: 28),
+                  ],
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _productFeedbackCard(ProductReviewEntry review) {
+    final date = review.createdAt == null
+        ? ''
+        : '${review.createdAt!.day.toString().padLeft(2, '0')}/'
+            '${review.createdAt!.month.toString().padLeft(2, '0')}/'
+            '${review.createdAt!.year}';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(review.authorName,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: review.isSeeded
+                    ? storeAmber.withValues(alpha: 0.18)
+                    : storeGreen.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                review.sourceLabel,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: review.isSeeded ? storeAmberDark : storeGreen,
+                ),
+              ),
+            ),
+            if (date.isNotEmpty)
+              Text(date,
+                  style: const TextStyle(fontSize: 12, color: storeMuted)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            for (var star = 1; star <= 5; star++)
+              Icon(
+                star <= review.rating ? Icons.star : Icons.star_border,
+                size: 17,
+                color: storeStarGold,
+              ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(review.headline,
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(review.content, style: const TextStyle(height: 1.45)),
+      ],
+    );
+  }
+
+  Future<void> _showProductFeedbackDialog(Product product) async {
+    final authorController = TextEditingController();
+    final headlineController = TextEditingController();
+    final contentController = TextEditingController();
+    var rating = 5;
+    var saving = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Share product feedback'),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'No purchase is required. Your response helps us measure interest before launch.',
+                    style: TextStyle(color: storeMuted, height: 1.4),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: authorController,
+                    decoration: const InputDecoration(
+                      labelText: 'Your name',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: headlineController,
+                    decoration: const InputDecoration(
+                      labelText: 'Feedback headline',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: contentController,
+                    minLines: 3,
+                    maxLines: 5,
+                    decoration: const InputDecoration(
+                      labelText: 'What interests you or what should improve?',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      const Text('Interest rating: '),
+                      for (var star = 1; star <= 5; star++)
+                        IconButton(
+                          tooltip: '$star stars',
+                          onPressed: saving
+                              ? null
+                              : () => setDialogState(() => rating = star),
+                          icon: Icon(
+                            star <= rating ? Icons.star : Icons.star_border,
+                            color: storeStarGold,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final author = authorController.text.trim();
+                      final headline = headlineController.text.trim();
+                      final content = contentController.text.trim();
+                      if (author.length < 2 ||
+                          headline.length < 3 ||
+                          content.length < 10) {
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Please enter your name, a headline and useful feedback.',
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+                      setDialogState(() => saving = true);
+                      try {
+                        await ref.read(productReviewRepositoryProvider).create(
+                              productId: product.id,
+                              authorName: author,
+                              rating: rating,
+                              headline: headline,
+                              content: content,
+                            );
+                        ref.invalidate(productReviewsProvider(product.id));
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext);
+                        }
+                        if (mounted) {
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            const SnackBar(
+                              backgroundColor: storeGreen,
+                              content: Text(
+                                'Thank you. Your pre-launch feedback was saved.',
+                              ),
+                            ),
+                          );
+                        }
+                      } catch (_) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Feedback was not saved. Please try again.',
+                              ),
+                            ),
+                          );
+                        }
+                        if (dialogContext.mounted) {
+                          setDialogState(() => saving = false);
+                        }
+                      }
+                    },
+              child: Text(saving ? 'Saving…' : 'Save feedback'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    authorController.dispose();
+    headlineController.dispose();
+    contentController.dispose();
+  }
 }
 
 class _ProductImageLightboxDialog extends StatefulWidget {

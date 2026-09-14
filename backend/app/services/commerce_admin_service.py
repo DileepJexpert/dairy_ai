@@ -1,0 +1,44 @@
+from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
+
+from fastapi import HTTPException
+from sqlalchemy import select, func
+
+from app.models.commerce_admin import CommerceAudit, CommerceCoupon, OrderCoupon
+
+
+def audit(db, actor, action, entity_type, entity_id, details):
+    db.add(CommerceAudit(actor_id=actor.id, user_role=actor.role.value,
+                         action=action, entity_type=entity_type,
+                         entity_id=str(entity_id), details=details))
+
+
+def coupon_discount(coupon, subtotal):
+    if not coupon.is_active or (coupon.valid_until and coupon.valid_until <= datetime.utcnow()):
+        raise HTTPException(422, "Coupon is inactive or expired")
+    if subtotal < coupon.min_order_value:
+        raise HTTPException(422, f"Minimum order value is {coupon.min_order_value}")
+    value = subtotal * coupon.discount_value / 100 if coupon.discount_type == "percentage" else coupon.discount_value
+    if coupon.max_discount_cap is not None:
+        value = min(value, coupon.max_discount_cap)
+    return max(Decimal("0"), min(subtotal, value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+async def validate_coupon(db, code, subtotal, lock=False):
+    query = select(CommerceCoupon).where(CommerceCoupon.code == code.strip().upper())
+    if lock:
+        query = query.with_for_update()
+    coupon = (await db.execute(query)).scalar_one_or_none()
+    if coupon is None:
+        raise HTTPException(422, "Coupon not found")
+    return coupon, coupon_discount(coupon, subtotal)
+
+
+async def serialize_coupon(db, coupon):
+    uses = (await db.execute(select(func.count()).select_from(OrderCoupon).where(OrderCoupon.coupon_id == coupon.id))).scalar_one()
+    return {"id": str(coupon.id), "code": coupon.code, "description": coupon.description,
+            "discount_type": coupon.discount_type, "discount_value": str(coupon.discount_value),
+            "min_order_value": str(coupon.min_order_value),
+            "max_discount_cap": str(coupon.max_discount_cap) if coupon.max_discount_cap is not None else None,
+            "valid_until": coupon.valid_until.isoformat() + "Z" if coupon.valid_until else None,
+            "is_active": coupon.is_active, "usage_count": uses}

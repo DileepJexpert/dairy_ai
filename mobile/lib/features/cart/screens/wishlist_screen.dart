@@ -25,7 +25,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
       await ref
           .read(cartProvider.notifier)
           .add(product.id, product.minOrderQuantity, product);
-      ref.read(wishlistProvider.notifier).remove(product.id);
+      await ref.read(wishlistProvider.notifier).remove(product.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -80,6 +80,15 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
           // Store Header & Category Bar
           const StoreHeader(currentCategory: 'All'),
           const StoreCategoryNavigation(selected: 'Wishlist'),
+          if (ref.watch(wishlistLoadingProvider))
+            const LinearProgressIndicator(),
+          if (ref.watch(wishlistErrorProvider) != null)
+            ListTile(
+                title: Text(ref.watch(wishlistErrorProvider)!),
+                trailing: TextButton(
+                    onPressed: () =>
+                        ref.read(wishlistProvider.notifier).refresh(),
+                    child: const Text('Retry'))),
 
           // Main Wishlist Body
           Expanded(

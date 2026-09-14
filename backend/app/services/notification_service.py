@@ -102,6 +102,12 @@ async def get_notifications(
     logger.debug(f"get_notifications called | user_id={user_id}, unread_only={unread_only}, limit={limit}")
 
     query = select(Notification).where(Notification.user_id == user_id)
+    from app.models.customer_commerce import CustomerPreferences
+    preferences = await db.get(CustomerPreferences, user_id)
+    if preferences:
+        for kind, key in [(NotificationType.health_alert, 'notify_health'), (NotificationType.vaccination_due, 'notify_vaccination'), (NotificationType.consultation_request, 'notify_consultation'), (NotificationType.payment, 'notify_payment')]:
+            if preferences.content.get(key) is False:
+                query = query.where(Notification.type != kind)
     if unread_only:
         query = query.where(Notification.is_read == False)
         logger.debug(f"Filtering for unread notifications only | user_id={user_id}")

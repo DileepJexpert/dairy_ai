@@ -42,9 +42,11 @@ from app.models.milk_purity import (
     PurityWaitlist, BrandRequest, PurityScoreAlert,
     ScoreBand, MilkVariant, ViolationSeverity, LabReportStatus, BrandRequestStatus,
 )
-from app.models.product import Product, ProductFamily, ProductInventory, ProductMedia, ProductCategory, MediaType
+from app.models.product import Product, ProductFamily, ProductInventory, ProductMedia, ProductReview, MerchandisingPlacement, ConceptFeedback, ProductCategory, MediaType
 from app.models.commerce_taxonomy import TaxonomyNode, TaxonomyLock, ProductClassification, CommerceAudit
 from app.models.cart import Cart, CartItem, CartStatus
 from app.models.delivery_address import DeliveryAddress
 from app.models.order import Order, OrderItem, OrderStatus, PaymentStatus, FulfillmentStatus
 from app.models.analytics import VisitorSession, ClickstreamEvent, ClickstreamEventType
+from app.models.commerce_admin import CommerceCoupon, OrderCoupon, CommerceCertificate, CommerceAudit
+from app.models.customer_commerce import WishlistEntry, SavedCartItem, OrderContact, OrderEvent

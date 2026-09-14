@@ -5,15 +5,18 @@ import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../../marketplace/models/product_models.dart';
 import '../../marketplace/providers/product_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
+import '../../admin/providers/admin_marketplace_provider.dart';
 
 class CommerceProductsScreen extends ConsumerStatefulWidget {
   const CommerceProductsScreen({super.key});
 
   @override
-  ConsumerState<CommerceProductsScreen> createState() => _CommerceProductsScreenState();
+  ConsumerState<CommerceProductsScreen> createState() =>
+      _CommerceProductsScreenState();
 }
 
-class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen> {
+class _CommerceProductsScreenState
+    extends ConsumerState<CommerceProductsScreen> {
   String _selectedDepartment = 'All';
   String _searchQuery = '';
   final _searchCtrl = TextEditingController();
@@ -77,7 +80,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
             .toList();
         setState(() {
           _vendorOptions = options;
-          _selectedVendorId ??= options.length == 1 ? options.single['id'] : null;
+          _selectedVendorId ??=
+              options.length == 1 ? options.single['id'] : null;
           _loadError = null;
         });
       }
@@ -95,9 +99,12 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
   // Variant Mutations
   // ---------------------------------------------------------------------------
 
-  Future<void> _toggleVariantStock(ProductFamily family, ProductVariant variant) async {
+  Future<void> _toggleVariantStock(
+      ProductFamily family, ProductVariant variant) async {
     final newInStock = !variant.inStock;
-    final newStock = newInStock ? (variant.stockQuantity > 0 ? variant.stockQuantity : 50) : 0;
+    final newStock = newInStock
+        ? (variant.stockQuantity > 0 ? variant.stockQuantity : 50)
+        : 0;
 
     setState(() {
       final famIdx = _families.indexWhere((f) => f.id == family.id);
@@ -144,7 +151,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
       await _fetchBackendData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Stock was not saved. Please try again.')),
+          const SnackBar(
+              content: Text('Stock was not saved. Please try again.')),
         );
       }
       return;
@@ -153,7 +161,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${variant.packSize} (${variant.sku}) stock toggled to ${newInStock ? "In Stock ($newStock)" : "Out of Stock"}'),
+          content: Text(
+              '${variant.packSize} (${variant.sku}) stock toggled to ${newInStock ? "In Stock ($newStock)" : "Out of Stock"}'),
           backgroundColor: storeGreen,
           duration: const Duration(seconds: 2),
         ),
@@ -162,9 +171,12 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
   }
 
   void _editVariantPriceAndStock(ProductFamily family, ProductVariant variant) {
-    final priceCtrl = TextEditingController(text: variant.price.toStringAsFixed(0));
-    final compareCtrl = TextEditingController(text: variant.compareAtPrice?.toStringAsFixed(0) ?? '');
-    final stockCtrl = TextEditingController(text: variant.stockQuantity.toString());
+    final priceCtrl =
+        TextEditingController(text: variant.price.toStringAsFixed(0));
+    final compareCtrl = TextEditingController(
+        text: variant.compareAtPrice?.toStringAsFixed(0) ?? '');
+    final stockCtrl =
+        TextEditingController(text: variant.stockQuantity.toString());
 
     showDialog<void>(
       context: context,
@@ -205,72 +217,49 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: storeAmber, foregroundColor: storeGreen),
-            onPressed: () {
-              final newPrice = double.tryParse(priceCtrl.text.trim());
-              final newCompare = double.tryParse(compareCtrl.text.trim());
-              final newStock = int.tryParse(stockCtrl.text.trim()) ?? 0;
-
-              if (newPrice != null && newPrice > 0) {
-                setState(() {
-                  final famIdx = _families.indexWhere((f) => f.id == family.id);
-                  if (famIdx != -1) {
-                    final currentFam = _families[famIdx];
-                    final updatedVariants = currentFam.variants.map((v) {
-                      if (v.id == variant.id) {
-                        return ProductVariant(
-                          id: v.id,
-                          sku: v.sku,
-                          packSize: v.packSize,
-                          price: newPrice,
-                          compareAtPrice: newCompare,
-                          stockQuantity: newStock,
-                          inStock: newStock > 0,
-                          weightGrams: v.weightGrams,
-                          publicationStatus: v.publicationStatus,
-                        );
-                      }
-                      return v;
-                    }).toList();
-                    _families[famIdx] = currentFam.copyWith(variants: updatedVariants);
-                  }
-
-                  final prodIdx = _products.indexWhere((p) => p.id == variant.id);
-                  if (prodIdx != -1) {
-                    _products[prodIdx] = _products[prodIdx].copyWith(
-                      price: newPrice,
-                      compareAtPrice: newCompare,
-                      inStock: newStock > 0,
-                      availableQuantity: newStock,
-                    );
-                  }
+            style: FilledButton.styleFrom(
+                backgroundColor: storeAmber, foregroundColor: storeGreen),
+            onPressed: () async {
+              final price = double.tryParse(priceCtrl.text.trim());
+              final mrp = compareCtrl.text.trim().isEmpty
+                  ? price
+                  : double.tryParse(compareCtrl.text.trim());
+              final stock = int.tryParse(stockCtrl.text.trim());
+              if (price == null || mrp == null || stock == null) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Enter valid price, MRP and stock values.')));
+                return;
+              }
+              try {
+                final role = ref.read(currentUserProvider)?.role;
+                final base = role == 'admin' || role == 'super_admin'
+                    ? '/admin/commerce'
+                    : '/vendor/commerce';
+                await ref
+                    .read(dioProvider)
+                    .patch('$base/offers/${variant.id}', data: {
+                  'selling_price': price,
+                  'mrp': mrp,
+                  'available_stock': stock,
                 });
-
-                // Persist changes to backend API asynchronously
-                ref.read(dioProvider).put(
-                  '/vendor/products/${variant.id}',
-                  data: {
-                    'base_price': newPrice,
-                    if (newCompare != null) 'compare_at_price': newCompare,
-                  },
-                ).then((_) {
-                  ref.read(dioProvider).put(
-                    '/vendor/products/${variant.id}/inventory',
-                    data: {'available_quantity': newStock},
-                  ).then((_) {
-                    ref.invalidate(productsProvider);
-                  }).catchError((_) {});
-                }).catchError((_) {});
-
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Updated ${variant.packSize} to ${storeMoney(newPrice)}')),
-                );
+                ref.invalidate(productsProvider);
+                ref.invalidate(productDetailProvider);
+                await _fetchBackendData();
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted)
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Price and stock saved to backend.')));
+              } catch (error) {
+                if (mounted)
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(commerceError(error))));
               }
             },
-            child: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('Save Changes',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -342,9 +331,11 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: storeAmber, foregroundColor: storeGreen),
+            style: FilledButton.styleFrom(
+                backgroundColor: storeAmber, foregroundColor: storeGreen),
             onPressed: () async {
               final pack = packCtrl.text.trim();
               final sku = skuCtrl.text.trim().isNotEmpty
@@ -356,7 +347,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
 
               if (pack.isEmpty || price <= 0) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter valid pack size and price.')),
+                  const SnackBar(
+                      content: Text('Please enter valid pack size and price.')),
                 );
                 return;
               }
@@ -374,7 +366,9 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                     'publication_status': 'published',
                   },
                 );
-                if (vRes.data is Map && vRes.data['data'] is Map && vRes.data['data']['id'] != null) {
+                if (vRes.data is Map &&
+                    vRes.data['data'] is Map &&
+                    vRes.data['data']['id'] != null) {
                   variantId = vRes.data['data']['id'].toString();
                 }
                 ref.invalidate(productsProvider);
@@ -382,7 +376,9 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Variant was not created. No local change was saved.')),
+                    const SnackBar(
+                        content: Text(
+                            'Variant was not created. No local change was saved.')),
                   );
                 }
                 return;
@@ -442,13 +438,15 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Added $pack variant ($sku) to "${family.title}"'),
+                    content:
+                        Text('Added $pack variant ($sku) to "${family.title}"'),
                     backgroundColor: storeGreen,
                   ),
                 );
               }
             },
-            child: const Text('Add Variant', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('Add Variant',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -463,15 +461,28 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
     final titleCtrl = TextEditingController();
     final brandCtrl = TextEditingController(text: 'Milterra Pure');
     final descCtrl = TextEditingController();
-    final purityCtrl = TextEditingController(text: 'Grade A+ (99.4% Purity Verified)');
+    final purityCtrl =
+        TextEditingController(text: 'Grade A+ (99.4% Purity Verified)');
     final fssaiCtrl = TextEditingController(text: '10019021004312');
     String department = 'Dairy Foods';
     bool isOrganic = true;
 
     // Temporary variants builder
     final variants = <Map<String, dynamic>>[
-      {'pack': '500 ml', 'sku': 'MIL-NEW-500', 'price': '650', 'compare': '790', 'stock': '100'},
-      {'pack': '1 L', 'sku': 'MIL-NEW-1000', 'price': '1250', 'compare': '1450', 'stock': '50'},
+      {
+        'pack': '500 ml',
+        'sku': 'MIL-NEW-500',
+        'price': '650',
+        'compare': '790',
+        'stock': '100'
+      },
+      {
+        'pack': '1 L',
+        'sku': 'MIL-NEW-1000',
+        'price': '1250',
+        'compare': '1450',
+        'stock': '50'
+      },
     ];
 
     showDialog<void>(
@@ -479,7 +490,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) {
           return Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 620),
               child: SingleChildScrollView(
@@ -493,29 +505,38 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                       children: [
                         const Text(
                           'Add Product Family & Pack Variants',
-                          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: storeGreen),
+                          style: TextStyle(
+                              fontSize: 19,
+                              fontWeight: FontWeight.w800,
+                              color: storeGreen),
                         ),
-                        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                        IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(ctx)),
                       ],
                     ),
-                     const Divider(height: 20),
+                    const Divider(height: 20),
 
                     if (_vendorOptions.isEmpty)
                       const Padding(
                         padding: EdgeInsets.only(bottom: 14),
                         child: Text(
                           'No active vendor is available. Create or activate a vendor before adding a product family.',
-                          style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                          style:
+                              TextStyle(color: Colors.redAccent, fontSize: 12),
                         ),
                       )
                     else ...[
-                      const Text('Listing vendor', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      const Text('Listing vendor',
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
-                        value: _selectedVendorId,
+                        initialValue: _selectedVendorId,
                         decoration: const InputDecoration(
                           border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
                         ),
                         items: _vendorOptions
                             .map((vendor) => DropdownMenuItem(
@@ -537,21 +558,32 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Department', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              const Text('Department',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold)),
                               const SizedBox(height: 6),
                               DropdownButtonFormField<String>(
                                 initialValue: department,
                                 decoration: const InputDecoration(
                                   border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
                                 ),
                                 items: const [
-                                  DropdownMenuItem(value: 'Dairy Foods', child: Text('🥛 Dairy Foods')),
-                                  DropdownMenuItem(value: 'Animal Nutrition', child: Text('🌾 Animal Nutrition')),
-                                  DropdownMenuItem(value: 'Farm Machinery', child: Text('⚙️ Farm Machinery')),
+                                  DropdownMenuItem(
+                                      value: 'Dairy Foods',
+                                      child: Text('🥛 Dairy Foods')),
+                                  DropdownMenuItem(
+                                      value: 'Animal Nutrition',
+                                      child: Text('🌾 Animal Nutrition')),
+                                  DropdownMenuItem(
+                                      value: 'Farm Machinery',
+                                      child: Text('⚙️ Farm Machinery')),
                                 ],
                                 onChanged: (val) {
-                                  if (val != null) setModalState(() => department = val);
+                                  if (val != null)
+                                    setModalState(() => department = val);
                                 },
                               ),
                             ],
@@ -562,13 +594,17 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Brand Name', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              const Text('Brand Name',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold)),
                               const SizedBox(height: 6),
                               TextField(
                                 controller: brandCtrl,
                                 decoration: const InputDecoration(
                                   border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
                                 ),
                               ),
                             ],
@@ -579,28 +615,35 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                     const SizedBox(height: 14),
 
                     // Family Title
-                    const Text('Product Family Title', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    const Text('Product Family Title',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
                     TextField(
                       controller: titleCtrl,
                       decoration: const InputDecoration(
                         hintText: 'e.g. Milterra Cultured Sahiwal Bilona Ghee',
                         border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       ),
                     ),
                     const SizedBox(height: 14),
 
                     // Description
-                    const Text('Description', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    const Text('Description',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
                     TextField(
                       controller: descCtrl,
                       maxLines: 2,
                       decoration: const InputDecoration(
-                        hintText: 'Heritage craft process, grass-fed origin, health benefits…',
+                        hintText:
+                            'Heritage craft process, grass-fed origin, health benefits…',
                         border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -612,13 +655,17 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Purity / Quality Grade', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              const Text('Purity / Quality Grade',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold)),
                               const SizedBox(height: 6),
                               TextField(
                                 controller: purityCtrl,
                                 decoration: const InputDecoration(
                                   border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
                                 ),
                               ),
                             ],
@@ -629,13 +676,17 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('FSSAI License #', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              const Text('FSSAI License #',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold)),
                               const SizedBox(height: 6),
                               TextField(
                                 controller: fssaiCtrl,
                                 decoration: const InputDecoration(
                                   border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
                                 ),
                               ),
                             ],
@@ -651,9 +702,12 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                         Checkbox(
                           value: isOrganic,
                           activeColor: storeGreen,
-                          onChanged: (val) => setModalState(() => isOrganic = val ?? true),
+                          onChanged: (val) =>
+                              setModalState(() => isOrganic = val ?? true),
                         ),
-                        const Text('Certified 100% Organic Farm Product', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        const Text('Certified 100% Organic Farm Product',
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600)),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -664,7 +718,10 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                       children: [
                         const Text(
                           'Pack Variants (SKUs)',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: storeGreen),
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: storeGreen),
                         ),
                         TextButton.icon(
                           onPressed: () {
@@ -679,7 +736,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                             });
                           },
                           icon: const Icon(Icons.add, size: 16),
-                          label: const Text('Add Pack Size', style: TextStyle(fontWeight: FontWeight.bold)),
+                          label: const Text('Add Pack Size',
+                              style: TextStyle(fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
@@ -701,7 +759,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                               flex: 2,
                               child: TextFormField(
                                 initialValue: variants[i]['pack'],
-                                decoration: const InputDecoration(labelText: 'Pack Size', isDense: true),
+                                decoration: const InputDecoration(
+                                    labelText: 'Pack Size', isDense: true),
                                 onChanged: (v) => variants[i]['pack'] = v,
                               ),
                             ),
@@ -710,7 +769,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                               flex: 3,
                               child: TextFormField(
                                 initialValue: variants[i]['sku'],
-                                decoration: const InputDecoration(labelText: 'SKU Code', isDense: true),
+                                decoration: const InputDecoration(
+                                    labelText: 'SKU Code', isDense: true),
                                 onChanged: (v) => variants[i]['sku'] = v,
                               ),
                             ),
@@ -720,7 +780,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                               child: TextFormField(
                                 initialValue: variants[i]['price'],
                                 keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(labelText: 'Price (₹)', isDense: true),
+                                decoration: const InputDecoration(
+                                    labelText: 'Price (₹)', isDense: true),
                                 onChanged: (v) => variants[i]['price'] = v,
                               ),
                             ),
@@ -730,7 +791,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                               child: TextFormField(
                                 initialValue: variants[i]['compare'],
                                 keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(labelText: 'MRP (₹)', isDense: true),
+                                decoration: const InputDecoration(
+                                    labelText: 'MRP (₹)', isDense: true),
                                 onChanged: (v) => variants[i]['compare'] = v,
                               ),
                             ),
@@ -740,13 +802,15 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                               child: TextFormField(
                                 initialValue: variants[i]['stock'],
                                 keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(labelText: 'Stock', isDense: true),
+                                decoration: const InputDecoration(
+                                    labelText: 'Stock', isDense: true),
                                 onChanged: (v) => variants[i]['stock'] = v,
                               ),
                             ),
                             if (variants.length > 1)
                               IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                                icon: const Icon(Icons.delete_outline,
+                                    color: Colors.redAccent, size: 20),
                                 onPressed: () {
                                   setModalState(() => variants.removeAt(i));
                                 },
@@ -765,7 +829,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                         style: FilledButton.styleFrom(
                           backgroundColor: storeAmber,
                           foregroundColor: storeGreen,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(22)),
                         ),
                         onPressed: () async {
                           final messenger = ScaffoldMessenger.of(context);
@@ -773,14 +838,18 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                           final title = titleCtrl.text.trim();
                           if (title.isEmpty || variants.isEmpty) {
                             messenger.showSnackBar(
-                              const SnackBar(content: Text('Please enter a product title and at least one variant.')),
+                              const SnackBar(
+                                  content: Text(
+                                      'Please enter a product title and at least one variant.')),
                             );
                             return;
                           }
 
                           if (_selectedVendorId == null) {
                             messenger.showSnackBar(
-                              const SnackBar(content: Text('Select an active vendor before creating a product family.')),
+                              const SnackBar(
+                                  content: Text(
+                                      'Select an active vendor before creating a product family.')),
                             );
                             return;
                           }
@@ -792,7 +861,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                                 'title': title,
                                 'brand': brandCtrl.text.trim(),
                                 'department': department,
-                                'collection': department == 'Dairy Foods' ? 'Ghee' : null,
+                                'collection':
+                                    department == 'Dairy Foods' ? 'Ghee' : null,
                                 'description': descCtrl.text.trim(),
                                 'is_published': true,
                                 'vendor_id': _selectedVendorId,
@@ -805,13 +875,17 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                             }
                             if (familyId.isEmpty) {
                               messenger.showSnackBar(
-                                const SnackBar(content: Text('The API did not return a product-family ID.')),
+                                const SnackBar(
+                                    content: Text(
+                                        'The API did not return a product-family ID.')),
                               );
                               return;
                             }
                           } catch (_) {
                             messenger.showSnackBar(
-                              const SnackBar(content: Text('Product family was not created. No local change was saved.')),
+                              const SnackBar(
+                                  content: Text(
+                                      'Product family was not created. No local change was saved.')),
                             );
                             return;
                           }
@@ -821,10 +895,16 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
 
                           for (final v in variants) {
                             final pack = v['pack']?.toString() ?? 'Pack';
-                            final sku = v['sku']?.toString() ?? 'SKU-${DateTime.now().millisecondsSinceEpoch}';
-                            final price = double.tryParse(v['price']?.toString() ?? '0') ?? 0.0;
-                            final compare = double.tryParse(v['compare']?.toString() ?? '');
-                            final stock = int.tryParse(v['stock']?.toString() ?? '50') ?? 50;
+                            final sku = v['sku']?.toString() ??
+                                'SKU-${DateTime.now().millisecondsSinceEpoch}';
+                            final price = double.tryParse(
+                                    v['price']?.toString() ?? '0') ??
+                                0.0;
+                            final compare =
+                                double.tryParse(v['compare']?.toString() ?? '');
+                            final stock =
+                                int.tryParse(v['stock']?.toString() ?? '50') ??
+                                    50;
 
                             String varId = 'var-${sku.hashCode.abs()}';
                             try {
@@ -834,7 +914,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                                   'sku': sku,
                                   'pack_size': pack,
                                   'base_price': price,
-                                  if (compare != null) 'compare_at_price': compare,
+                                  if (compare != null)
+                                    'compare_at_price': compare,
                                   'initial_stock': stock,
                                   'publication_status': 'published',
                                 },
@@ -847,7 +928,9 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                             } catch (_) {
                               await _fetchBackendData();
                               messenger.showSnackBar(
-                                const SnackBar(content: Text('A pack variant was not saved. The catalogue was refreshed.')),
+                                const SnackBar(
+                                    content: Text(
+                                        'A pack variant was not saved. The catalogue was refreshed.')),
                               );
                               return;
                             }
@@ -898,8 +981,10 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                             title: title,
                             brand: brandCtrl.text.trim(),
                             department: department,
-                            collection: department == 'Dairy Foods' ? 'Ghee' : null,
-                            taxonomyPath: '$department / ${title.split(' ').last}',
+                            collection:
+                                department == 'Dairy Foods' ? 'Ghee' : null,
+                            taxonomyPath:
+                                '$department / ${title.split(' ').last}',
                             description: descCtrl.text.trim().isNotEmpty
                                 ? descCtrl.text.trim()
                                 : 'Authentic Milterra farm-fresh quality.',
@@ -921,13 +1006,15 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                           }
                           messenger.showSnackBar(
                             SnackBar(
-                              content: Text('Created Product Family "$title" with ${builtVariants.length} variants!'),
+                              content: Text(
+                                  'Created Product Family "$title" with ${builtVariants.length} variants!'),
                               backgroundColor: storeGreen,
                             ),
                           );
                         },
                         child: const Text('Save & Publish Product Family',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14)),
                       ),
                     ),
                   ],
@@ -950,17 +1037,25 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
     var filteredFamilies = _families;
     if (_selectedDepartment != 'All') {
       filteredFamilies = filteredFamilies.where((f) {
-        if (_selectedDepartment == 'Dairy Foods') return f.department.contains('Dairy');
-        if (_selectedDepartment == 'Cattle Feed') return f.department.contains('Nutrition') || f.department.contains('Feed');
-        if (_selectedDepartment == 'Machinery') return f.department.contains('Machinery') || f.department.contains('Equipment');
+        if (_selectedDepartment == 'Dairy Foods')
+          return f.department.contains('Dairy');
+        if (_selectedDepartment == 'Cattle Feed')
+          return f.department.contains('Nutrition') ||
+              f.department.contains('Feed');
+        if (_selectedDepartment == 'Machinery')
+          return f.department.contains('Machinery') ||
+              f.department.contains('Equipment');
         return true;
       }).toList();
     }
 
     if (_searchQuery.isNotEmpty) {
-      filteredFamilies = filteredFamilies.where((f) =>
-          f.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          f.variants.any((v) => v.sku.toLowerCase().contains(_searchQuery.toLowerCase()))).toList();
+      filteredFamilies = filteredFamilies
+          .where((f) =>
+              f.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              f.variants.any((v) =>
+                  v.sku.toLowerCase().contains(_searchQuery.toLowerCase())))
+          .toList();
     }
 
     // Filter flat products
@@ -968,21 +1063,29 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
     if (_selectedDepartment == 'Dairy Foods') {
       filteredProducts = filteredProducts.where((p) {
         final dept = p.taxonomy?['department_name']?.toString() ?? '';
-        return dept.contains('Dairy') || p.category == ProductCategory.feedNutrition && p.price < 1000;
+        return dept.contains('Dairy') ||
+            p.category == ProductCategory.feedNutrition && p.price < 1000;
       }).toList();
     } else if (_selectedDepartment == 'Cattle Feed') {
       filteredProducts = filteredProducts.where((p) {
         final dept = p.taxonomy?['department_name']?.toString() ?? '';
-        return dept.contains('Cattle') || dept.contains('Feed') || p.title.contains('Feed') || p.title.contains('Mineral');
+        return dept.contains('Cattle') ||
+            dept.contains('Feed') ||
+            p.title.contains('Feed') ||
+            p.title.contains('Mineral');
       }).toList();
     } else if (_selectedDepartment == 'Machinery') {
-      filteredProducts = filteredProducts.where((p) => p.category == ProductCategory.equipment).toList();
+      filteredProducts = filteredProducts
+          .where((p) => p.category == ProductCategory.equipment)
+          .toList();
     }
 
     if (_searchQuery.isNotEmpty) {
-      filteredProducts = filteredProducts.where((p) =>
-          p.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          p.id.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+      filteredProducts = filteredProducts
+          .where((p) =>
+              p.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              p.id.toLowerCase().contains(_searchQuery.toLowerCase()))
+          .toList();
     }
 
     return Scaffold(
@@ -999,20 +1102,26 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
         actions: [
           TextButton.icon(
             onPressed: () => context.go('/admin/commerce'),
-            icon: const Icon(Icons.category_outlined, color: storeAmber, size: 18),
-            label: const Text('Categories & Depts', style: TextStyle(color: storeWhite)),
+            icon: const Icon(Icons.category_outlined,
+                color: storeAmber, size: 18),
+            label: const Text('Categories & Depts',
+                style: TextStyle(color: storeWhite)),
           ),
           TextButton.icon(
             onPressed: () => context.go('/admin/commerce/orders'),
-            icon: const Icon(Icons.local_shipping_outlined, color: storeAmber, size: 18),
-            label: const Text('Orders & Shipments', style: TextStyle(color: storeWhite)),
+            icon: const Icon(Icons.local_shipping_outlined,
+                color: storeAmber, size: 18),
+            label: const Text('Orders & Shipments',
+                style: TextStyle(color: storeWhite)),
           ),
           const SizedBox(width: 8),
           FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: storeAmber, foregroundColor: storeGreen),
+            style: FilledButton.styleFrom(
+                backgroundColor: storeAmber, foregroundColor: storeGreen),
             onPressed: _showAddProductFamilyDialog,
             icon: const Icon(Icons.add, size: 16),
-            label: const Text('Add Product Family', style: TextStyle(fontWeight: FontWeight.bold)),
+            label: const Text('Add Product Family',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
           const SizedBox(width: 16),
         ],
@@ -1033,147 +1142,182 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                 return SingleChildScrollView(
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: StoreLayout.maxWidth),
+                      constraints:
+                          const BoxConstraints(maxWidth: StoreLayout.maxWidth),
                       child: Padding(
                         padding: EdgeInsets.all(isMobile ? 12 : 24),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                      // Breadcrumb
-                      Row(
-                        children: [
-                          InkWell(
-                            onTap: () => context.go('/shop'),
-                            child: const Text('Milterra Storefront', style: TextStyle(fontSize: 12, color: storeMuted)),
-                          ),
-                          const Text(' › ', style: TextStyle(fontSize: 12, color: storeMuted)),
-                          const Text('Commerce Admin › Product & SKU Manager',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: storeGreen)),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Header & Action Bar
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            // Breadcrumb
+                            Row(
                               children: [
-                                const Text(
-                                  'Product Families & SKU Management',
-                                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: storeGreen),
+                                InkWell(
+                                  onTap: () => context.go('/shop'),
+                                  child: const Text('Milterra Storefront',
+                                      style: TextStyle(
+                                          fontSize: 12, color: storeMuted)),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${_families.length} product families · ${_products.length} sellable SKUs · Authoritative catalog contracts',
-                                  style: const TextStyle(fontSize: 13, color: storeMuted),
+                                const Text(' › ',
+                                    style: TextStyle(
+                                        fontSize: 12, color: storeMuted)),
+                                const Text(
+                                    'Commerce Admin › Product & SKU Manager',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: storeGreen)),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Header & Action Bar
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Product Families & SKU Management',
+                                        style: TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.w800,
+                                            color: storeGreen),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${_families.length} product families · ${_products.length} sellable SKUs · Authoritative catalog contracts',
+                                        style: const TextStyle(
+                                            fontSize: 13, color: storeMuted),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                FilledButton.icon(
+                                  style: FilledButton.styleFrom(
+                                      backgroundColor: storeAmber,
+                                      foregroundColor: storeGreen),
+                                  onPressed: _showAddProductFamilyDialog,
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('Add Product Family',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold)),
                                 ),
                               ],
                             ),
-                          ),
-                          FilledButton.icon(
-                            style: FilledButton.styleFrom(backgroundColor: storeAmber, foregroundColor: storeGreen),
-                            onPressed: _showAddProductFamilyDialog,
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add Product Family', style: TextStyle(fontWeight: FontWeight.bold)),
-                          ),
-                        ],
-                      ),
-                       const SizedBox(height: 18),
+                            const SizedBox(height: 18),
 
-                      if (_loadError != null) ...[
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xfffff4f2),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xffd84a3a)),
-                          ),
-                          child: Text(_loadError!, style: const TextStyle(color: Color(0xff8f1d12))),
-                        ),
-                        const SizedBox(height: 18),
-                      ],
+                            if (_loadError != null) ...[
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xfffff4f2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                      color: const Color(0xffd84a3a)),
+                                ),
+                                child: Text(_loadError!,
+                                    style: const TextStyle(
+                                        color: Color(0xff8f1d12))),
+                              ),
+                              const SizedBox(height: 18),
+                            ],
 
-                      // View Mode Segmented Control
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: storeWhite,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: storeBorder),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildViewSegmentButton(
-                              index: 0,
-                              icon: Icons.layers_outlined,
-                              label: 'Product Families & Variants (${_families.length})',
+                            // View Mode Segmented Control
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: storeWhite,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: storeBorder),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _buildViewSegmentButton(
+                                    index: 0,
+                                    icon: Icons.layers_outlined,
+                                    label:
+                                        'Product Families & Variants (${_families.length})',
+                                  ),
+                                  _buildViewSegmentButton(
+                                    index: 1,
+                                    icon: Icons.table_chart_outlined,
+                                    label:
+                                        'All SKU Inventory Table (${_products.length})',
+                                  ),
+                                ],
+                              ),
                             ),
-                            _buildViewSegmentButton(
-                              index: 1,
-                              icon: Icons.table_chart_outlined,
-                              label: 'All SKU Inventory Table (${_products.length})',
+                            const SizedBox(height: 16),
+
+                            // Filter Chips & Search
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                for (final d in [
+                                  'All',
+                                  'Dairy Foods',
+                                  'Cattle Feed',
+                                  'Machinery'
+                                ])
+                                  ChoiceChip(
+                                    label: Text(d),
+                                    selected: _selectedDepartment == d,
+                                    selectedColor: storeGreen,
+                                    labelStyle: TextStyle(
+                                      color: _selectedDepartment == d
+                                          ? storeWhite
+                                          : storeGreen,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                    onSelected: (_) =>
+                                        setState(() => _selectedDepartment = d),
+                                  ),
+                                Container(
+                                  width: 250,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: storeWhite,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: storeBorder),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10),
+                                  child: TextField(
+                                    controller: _searchCtrl,
+                                    onChanged: (v) =>
+                                        setState(() => _searchQuery = v),
+                                    decoration: const InputDecoration(
+                                      hintText: 'Search SKU, pack, or title…',
+                                      hintStyle: TextStyle(
+                                          fontSize: 12, color: storeMuted),
+                                      border: InputBorder.none,
+                                      icon: Icon(Icons.search,
+                                          size: 18, color: storeMuted),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
+                            const SizedBox(height: 20),
+
+                            // Active View Mode Rendering
+                            if (_viewMode == 0)
+                              _buildProductFamiliesList(filteredFamilies)
+                            else
+                              _buildProductsFlatTable(filteredProducts),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-
-                      // Filter Chips & Search
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          for (final d in ['All', 'Dairy Foods', 'Cattle Feed', 'Machinery'])
-                            ChoiceChip(
-                              label: Text(d),
-                              selected: _selectedDepartment == d,
-                              selectedColor: storeGreen,
-                              labelStyle: TextStyle(
-                                color: _selectedDepartment == d ? storeWhite : storeGreen,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                              onSelected: (_) => setState(() => _selectedDepartment = d),
-                            ),
-                          Container(
-                            width: 250,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: storeWhite,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: storeBorder),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            child: TextField(
-                              controller: _searchCtrl,
-                              onChanged: (v) => setState(() => _searchQuery = v),
-                              decoration: const InputDecoration(
-                                hintText: 'Search SKU, pack, or title…',
-                                hintStyle: TextStyle(fontSize: 12, color: storeMuted),
-                                border: InputBorder.none,
-                                icon: Icon(Icons.search, size: 18, color: storeMuted),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Active View Mode Rendering
-                      if (_viewMode == 0)
-                        _buildProductFamiliesList(filteredFamilies)
-                      else
-                        _buildProductsFlatTable(filteredProducts),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            ),
                 );
               },
             ),
@@ -1183,7 +1327,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
     );
   }
 
-  Widget _buildViewSegmentButton({required int index, required IconData icon, required String label}) {
+  Widget _buildViewSegmentButton(
+      {required int index, required IconData icon, required String label}) {
     final isSelected = _viewMode == index;
     return InkWell(
       onTap: () => setState(() => _viewMode = index),
@@ -1231,7 +1376,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
             children: [
               Icon(Icons.inventory_2_outlined, size: 48, color: storeMuted),
               SizedBox(height: 12),
-              Text('No product families match your filter.', style: TextStyle(color: storeMuted, fontSize: 14)),
+              Text('No product families match your filter.',
+                  style: TextStyle(color: storeMuted, fontSize: 14)),
             ],
           ),
         ),
@@ -1257,7 +1403,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
         borderRadius: BorderRadius.circular(StoreLayout.radius),
         border: Border.all(color: storeBorder),
         boxShadow: const [
-          BoxShadow(color: Color(0x06000000), blurRadius: 8, offset: Offset(0, 2)),
+          BoxShadow(
+              color: Color(0x06000000), blurRadius: 8, offset: Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -1268,7 +1415,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
             padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
               color: Color(0xfffafaf8),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(StoreLayout.radius)),
+              borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(StoreLayout.radius)),
               border: Border(bottom: BorderSide(color: storeBorder)),
             ),
             child: Row(
@@ -1287,9 +1435,13 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                       ? Image.asset(
                           family.primaryImage!,
                           fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => const Icon(Icons.egg_outlined, color: storeGreen, size: 24),
+                          errorBuilder: (_, __, ___) => const Icon(
+                              Icons.egg_outlined,
+                              color: storeGreen,
+                              size: 24),
                         )
-                      : const Icon(Icons.auto_awesome, color: storeOrange, size: 24),
+                      : const Icon(Icons.auto_awesome,
+                          color: storeOrange, size: 24),
                 ),
                 const SizedBox(width: 14),
 
@@ -1303,12 +1455,16 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                           Expanded(
                             child: Text(
                               family.title,
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: storeGreen),
+                              style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: storeGreen),
                             ),
                           ),
                           if (family.isOrganic) ...[
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
                                 color: const Color(0xffe6f4ea),
                                 borderRadius: BorderRadius.circular(4),
@@ -1316,9 +1472,14 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                               child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.eco, size: 12, color: Color(0xff1e8e3e)),
+                                  Icon(Icons.eco,
+                                      size: 12, color: Color(0xff1e8e3e)),
                                   SizedBox(width: 4),
-                                  Text('100% Organic', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xff1e8e3e))),
+                                  Text('100% Organic',
+                                      style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xff1e8e3e))),
                                 ],
                               ),
                             ),
@@ -1326,7 +1487,10 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                           ],
                           Text(
                             '${family.variants.length} Pack Sizes',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: storeMuted),
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: storeMuted),
                           ),
                         ],
                       ),
@@ -1334,16 +1498,34 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                       Wrap(
                         spacing: 8,
                         children: [
-                          Text('Brand: ${family.brand}', style: const TextStyle(fontSize: 11.5, color: storeMuted)),
-                          const Text('•', style: TextStyle(fontSize: 11.5, color: storeMuted)),
-                          Text('Dept: ${family.department}', style: const TextStyle(fontSize: 11.5, color: storeMuted)),
+                          Text('Brand: ${family.brand}',
+                              style: const TextStyle(
+                                  fontSize: 11.5, color: storeMuted)),
+                          const Text('•',
+                              style:
+                                  TextStyle(fontSize: 11.5, color: storeMuted)),
+                          Text('Dept: ${family.department}',
+                              style: const TextStyle(
+                                  fontSize: 11.5, color: storeMuted)),
                           if (family.taxonomyPath != null) ...[
-                            const Text('•', style: TextStyle(fontSize: 11.5, color: storeMuted)),
-                            Text('Taxonomy: ${family.taxonomyPath}', style: const TextStyle(fontSize: 11.5, color: Color(0xff1a73e8), fontWeight: FontWeight.w600)),
+                            const Text('•',
+                                style: TextStyle(
+                                    fontSize: 11.5, color: storeMuted)),
+                            Text('Taxonomy: ${family.taxonomyPath}',
+                                style: const TextStyle(
+                                    fontSize: 11.5,
+                                    color: Color(0xff1a73e8),
+                                    fontWeight: FontWeight.w600)),
                           ],
                           if (family.purityGrade != null) ...[
-                            const Text('•', style: TextStyle(fontSize: 11.5, color: storeMuted)),
-                            Text(family.purityGrade!, style: const TextStyle(fontSize: 11.5, color: Color(0xffb7791f), fontWeight: FontWeight.bold)),
+                            const Text('•',
+                                style: TextStyle(
+                                    fontSize: 11.5, color: storeMuted)),
+                            Text(family.purityGrade!,
+                                style: const TextStyle(
+                                    fontSize: 11.5,
+                                    color: Color(0xffb7791f),
+                                    fontWeight: FontWeight.bold)),
                           ],
                         ],
                       ),
@@ -1367,19 +1549,28 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                       family.isConcept
                           ? 'CONCEPT FAMILY · NOT FOR SALE'
                           : 'PACK VARIANTS · STARTING FROM ${storeMoney(family.startingPrice)} (TOTAL INVENTORY: ${family.totalStock} UNITS)',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: storeMuted, letterSpacing: 0.5),
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: storeMuted,
+                          letterSpacing: 0.5),
                     ),
                     if (!family.isConcept)
                       TextButton.icon(
-                      style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-                      onPressed: () => _showAddVariantToFamilyDialog(family),
-                      icon: const Icon(Icons.add, size: 14, color: storeGreen),
-                      label: const Text('Add Variant Pack', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: storeGreen)),
-                    ),
+                        style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact),
+                        onPressed: () => _showAddVariantToFamilyDialog(family),
+                        icon:
+                            const Icon(Icons.add, size: 14, color: storeGreen),
+                        label: const Text('Add Variant Pack',
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: storeGreen)),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 10),
-
                 if (family.isConcept)
                   const Padding(
                     padding: EdgeInsets.only(top: 4),
@@ -1391,99 +1582,119 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                 else
                   // Variants list
                   for (final variant in family.variants)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xfffbfaf7),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: storeBorder),
-                    ),
-                    child: Row(
-                      children: [
-                        // Pack size badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: storeWhite,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: storeBorder),
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xfffbfaf7),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: storeBorder),
+                      ),
+                      child: Row(
+                        children: [
+                          // Pack size badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: storeWhite,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: storeBorder),
+                            ),
+                            child: Text(
+                              variant.packSize,
+                              style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: storeGreen),
+                            ),
                           ),
-                          child: Text(
-                            variant.packSize,
-                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: storeGreen),
-                          ),
-                        ),
-                        const SizedBox(width: 14),
+                          const SizedBox(width: 14),
 
-                        // SKU code
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          // SKU code
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  variant.sku,
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xff0f1111)),
+                                ),
+                                if (variant.weightGrams != null)
+                                  Text(
+                                    'Weight: ${variant.weightGrams}g',
+                                    style: const TextStyle(
+                                        fontSize: 10.5, color: storeMuted),
+                                  ),
+                              ],
+                            ),
+                          ),
+
+                          // Price & Compare Price
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                variant.sku,
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xff0f1111)),
+                                storeMoney(variant.price),
+                                style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: storeOrange),
                               ),
-                              if (variant.weightGrams != null)
+                              if (variant.compareAtPrice != null &&
+                                  variant.compareAtPrice! > variant.price)
                                 Text(
-                                  'Weight: ${variant.weightGrams}g',
-                                  style: const TextStyle(fontSize: 10.5, color: storeMuted),
+                                  storeMoney(variant.compareAtPrice!),
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    color: storeMuted,
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
                                 ),
                             ],
                           ),
-                        ),
+                          const SizedBox(width: 16),
 
-                        // Price & Compare Price
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              storeMoney(variant.price),
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: storeOrange),
-                            ),
-                            if (variant.compareAtPrice != null && variant.compareAtPrice! > variant.price)
+                          // In Stock Toggle
+                          Column(
+                            children: [
+                              Switch(
+                                value: variant.inStock,
+                                activeThumbColor: storeGreen,
+                                onChanged: (_) =>
+                                    _toggleVariantStock(family, variant),
+                              ),
                               Text(
-                                storeMoney(variant.compareAtPrice!),
-                                style: const TextStyle(
-                                  fontSize: 10.5,
-                                  color: storeMuted,
-                                  decoration: TextDecoration.lineThrough,
+                                variant.inStock
+                                    ? 'Stock: ${variant.stockQuantity}'
+                                    : 'Out of Stock',
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: variant.inStock
+                                      ? const Color(0xff067d62)
+                                      : Colors.redAccent,
                                 ),
                               ),
-                          ],
-                        ),
-                        const SizedBox(width: 16),
+                            ],
+                          ),
+                          const SizedBox(width: 8),
 
-                        // In Stock Toggle
-                        Column(
-                          children: [
-                            Switch(
-                              value: variant.inStock,
-                              activeThumbColor: storeGreen,
-                              onChanged: (_) => _toggleVariantStock(family, variant),
-                            ),
-                            Text(
-                              variant.inStock ? 'Stock: ${variant.stockQuantity}' : 'Out of Stock',
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.bold,
-                                color: variant.inStock ? const Color(0xff067d62) : Colors.redAccent,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 8),
-
-                        // Edit Variant
-                        IconButton(
-                          tooltip: 'Edit Price & Stock',
-                          icon: const Icon(Icons.edit_outlined, size: 18, color: storeMuted),
-                          onPressed: () => _editVariantPriceAndStock(family, variant),
-                        ),
-                      ],
+                          // Edit Variant
+                          IconButton(
+                            tooltip: 'Edit Price & Stock',
+                            icon: const Icon(Icons.edit_outlined,
+                                size: 18, color: storeMuted),
+                            onPressed: () =>
+                                _editVariantPriceAndStock(family, variant),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
               ],
             ),
           ),
@@ -1507,11 +1718,14 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: filtered.length,
-        separatorBuilder: (_, __) => const Divider(height: 1, color: storeBorder),
+        separatorBuilder: (_, __) =>
+            const Divider(height: 1, color: storeBorder),
         itemBuilder: (context, index) {
           final p = filtered[index];
           final dept = p.taxonomy?['department_name']?.toString() ??
-              (p.category == ProductCategory.equipment ? 'Machinery' : 'Dairy / Feed');
+              (p.category == ProductCategory.equipment
+                  ? 'Machinery'
+                  : 'Dairy / Feed');
 
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1526,7 +1740,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(color: storeBorder),
                   ),
-                  child: const Icon(Icons.inventory_2_outlined, color: storeGreen, size: 24),
+                  child: const Icon(Icons.inventory_2_outlined,
+                      color: storeGreen, size: 24),
                 ),
                 const SizedBox(width: 14),
 
@@ -1560,7 +1775,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                   onTap: () => _editFlatProductPrice(p),
                   borderRadius: BorderRadius.circular(4),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: const Color(0xfff8faf9),
                       borderRadius: BorderRadius.circular(4),
@@ -1578,7 +1794,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(Icons.edit_outlined, size: 14, color: storeMuted),
+                        const Icon(Icons.edit_outlined,
+                            size: 14, color: storeMuted),
                       ],
                     ),
                   ),
@@ -1597,18 +1814,23 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                           if (idx != -1) {
                             _products[idx] = _products[idx].copyWith(
                               inStock: !_products[idx].inStock,
-                              availableQuantity: _products[idx].inStock ? 0 : 50,
+                              availableQuantity:
+                                  _products[idx].inStock ? 0 : 50,
                             );
                           }
                         });
                       },
                     ),
                     Text(
-                      p.inStock ? 'In Stock (${p.availableQuantity})' : 'Out of Stock',
+                      p.inStock
+                          ? 'In Stock (${p.availableQuantity})'
+                          : 'Out of Stock',
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: p.inStock ? const Color(0xff067d62) : Colors.redAccent,
+                        color: p.inStock
+                            ? const Color(0xff067d62)
+                            : Colors.redAccent,
                       ),
                     ),
                   ],
@@ -1618,7 +1840,8 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
                 // View on Storefront button
                 IconButton(
                   tooltip: 'View on storefront',
-                  icon: const Icon(Icons.open_in_new, size: 18, color: Color(0xff007185)),
+                  icon: const Icon(Icons.open_in_new,
+                      size: 18, color: Color(0xff007185)),
                   onPressed: () => context.go('/shop/product/${p.id}'),
                 ),
               ],
@@ -1645,25 +1868,31 @@ class _CommerceProductsScreenState extends ConsumerState<CommerceProductsScreen>
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: storeAmber, foregroundColor: storeGreen),
+            style: FilledButton.styleFrom(
+                backgroundColor: storeAmber, foregroundColor: storeGreen),
             onPressed: () {
               final newPrice = double.tryParse(priceCtrl.text.trim());
               if (newPrice != null && newPrice > 0) {
                 setState(() {
                   final index = _products.indexWhere((x) => x.id == p.id);
                   if (index != -1) {
-                    _products[index] = _products[index].copyWith(price: newPrice);
+                    _products[index] =
+                        _products[index].copyWith(price: newPrice);
                   }
                 });
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Updated price to ${storeMoney(newPrice)}')),
+                  SnackBar(
+                      content:
+                          Text('Updated price to ${storeMoney(newPrice)}')),
                 );
               }
             },
-            child: const Text('Save Price', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('Save Price',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),

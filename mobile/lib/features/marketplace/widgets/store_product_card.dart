@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../cart/providers/wishlist_provider.dart';
 import '../models/product_models.dart';
 import 'store_design.dart';
@@ -176,26 +175,7 @@ class WishlistHeartButton extends ConsumerWidget {
         message: wishlisted ? 'Remove from Wishlist' : 'Add to Wishlist',
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () {
-            final added = ref.read(wishlistProvider.notifier).toggle(product);
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                duration: const Duration(seconds: 2),
-                backgroundColor: storeGreen,
-                content: Text(
-                  added
-                      ? 'Added ${product.title} to your Wishlist.'
-                      : 'Removed from your Wishlist.',
-                ),
-                action: SnackBarAction(
-                  label: 'View',
-                  textColor: storeGold,
-                  onPressed: () => context.go('/wishlist'),
-                ),
-              ),
-            );
-          },
+          onTap: () => toggleWishlist(context, ref, product),
           child: Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(

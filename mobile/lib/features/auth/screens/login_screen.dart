@@ -10,8 +10,8 @@ import '../../marketplace/widgets/store_design.dart';
 import '../models/auth_state.dart';
 import '../providers/auth_provider.dart';
 
-/// The backend uses phone/OTP authentication for every role. New phone
-/// numbers are registered by the same verified OTP flow.
+/// Customers use phone and password so pre-launch demand capture has no SMS
+/// cost. Development admin/vendor accounts retain their role-checked OTP flow.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({
     super.key,
@@ -19,12 +19,11 @@ class LoginScreen extends ConsumerStatefulWidget {
     this.nextPath,
     this.heading = 'Sign in or create an account',
     this.description =
-        'Use your registered mobile number. We will send a secure one-time password.',
+        'Use your mobile number and password. No SMS or paid OTP is required.',
     this.initialPhone,
   });
 
-  // Retained for route compatibility with /register. OTP is both sign-in and
-  // first-time registration, so there is intentionally no separate tab.
+  // `/register` starts in customer account-creation mode.
   final int initialTab;
   final String? nextPath;
   final String heading;
@@ -38,24 +37,119 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _phoneController;
+  final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
   bool _submitted = false;
+  bool _showPassword = false;
+  late bool _createAccount;
+
+  bool get _usesOtp {
+    final heading = widget.heading.toLowerCase();
+    final next = (widget.nextPath ?? '').toLowerCase();
+    return heading.contains('admin') ||
+        heading.contains('seller') ||
+        heading.contains('vendor') ||
+        next.contains('admin') ||
+        next.contains('seller') ||
+        next.contains('vendor');
+  }
 
   @override
   void initState() {
     super.initState();
     _phoneController = TextEditingController(text: widget.initialPhone ?? '');
+    _createAccount = widget.initialTab == 1;
   }
 
   @override
   void dispose() {
     _phoneController.dispose();
+    _passwordController.dispose();
+    _nameController.dispose();
+    _usernameController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
-  Future<void> _sendOtp() async {
+  Future<void> _submit() async {
     setState(() => _submitted = true);
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    await ref.read(authProvider.notifier).sendOtp(_phoneController.text.trim());
+    final phone = _phoneController.text.trim();
+    if (_usesOtp) {
+      await ref.read(authProvider.notifier).sendOtp(phone);
+    } else if (_createAccount) {
+      await ref.read(authProvider.notifier).registerWithPassword(
+            phone,
+            _passwordController.text,
+            username: _usernameController.text,
+            email: _emailController.text,
+            displayName: _nameController.text,
+          );
+    } else {
+      await ref
+          .read(authProvider.notifier)
+          .loginWithPassword(phone, _passwordController.text);
+    }
+  }
+
+  Future<void> _forgotPassword() async {
+    final identifier = _phoneController.text.trim();
+    if (identifier.isEmpty) {
+      showErrorDialog(context,
+          message: 'Enter your phone, username, or email first.');
+      return;
+    }
+    try {
+      final data = await ref
+          .read(authProvider.notifier)
+          .requestPasswordReset(identifier);
+      if (!mounted) return;
+      final resetUrl = data['reset_url']?.toString();
+      final emailSent = data['email_sent'] == true;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Password reset requested'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(emailSent
+                  ? 'A reset link was sent to the email saved on this account.'
+                  : resetUrl != null
+                      ? 'Local development mode generated this reset link. No email service is configured.'
+                      : 'If the account exists, reset instructions will be sent to its saved email.'),
+              if (resetUrl != null) ...[
+                const SizedBox(height: 12),
+                SelectableText(resetUrl,
+                    style: const TextStyle(fontSize: 11, color: storeGreen)),
+              ],
+            ],
+          ),
+          actions: [
+            if (resetUrl != null)
+              TextButton.icon(
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: resetUrl));
+                  if (dialogContext.mounted) Navigator.pop(dialogContext);
+                },
+                icon: const Icon(Icons.copy, size: 16),
+                label: const Text('Copy local reset link'),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        showErrorDialog(context, message: 'Could not request reset: $error');
+      }
+    }
   }
 
   @override
@@ -75,6 +169,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           context.go(
             Uri(path: '/otp-verify', queryParameters: query).toString(),
           );
+        },
+        authenticated: (_) {
+          final routeNext = widget.nextPath ??
+              GoRouterState.of(context).uri.queryParameters['next'];
+          context.go(routeNext?.isNotEmpty == true ? routeNext! : '/shop');
         },
         error: (message) => showErrorDialog(context, message: message),
         orElse: () {},
@@ -122,14 +221,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             const SizedBox(height: 16),
                             if ((widget.nextPath?.contains('admin') ?? false) ||
-                                widget.heading.toLowerCase().contains('admin')) ...[
+                                widget.heading
+                                    .toLowerCase()
+                                    .contains('admin')) ...[
                               Container(
                                 margin: const EdgeInsets.only(bottom: 20),
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   color: const Color(0xfff0fdf4),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xff86efac)),
+                                  border: Border.all(
+                                      color: const Color(0xff86efac)),
                                 ),
                                 child: Row(
                                   children: [
@@ -138,7 +240,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     const SizedBox(width: 10),
                                     const Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             'Dev Admin Credential',
@@ -170,7 +273,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         _phoneController.text = '9999900000';
                                         Clipboard.setData(const ClipboardData(
                                             text: '9999900000'));
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
                                           const SnackBar(
                                             content: Text(
                                                 'Copied & autofilled Admin phone: 9999900000 (OTP: 123456)'),
@@ -193,17 +297,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   ],
                                 ),
                               ),
-                            ] else if ((widget.nextPath?.contains('seller') ?? false) ||
-                                (widget.nextPath?.contains('vendor') ?? false) ||
-                                widget.heading.toLowerCase().contains('seller') ||
-                                widget.heading.toLowerCase().contains('vendor')) ...[
+                            ] else if ((widget.nextPath?.contains('seller') ??
+                                    false) ||
+                                (widget.nextPath?.contains('vendor') ??
+                                    false) ||
+                                widget.heading
+                                    .toLowerCase()
+                                    .contains('seller') ||
+                                widget.heading
+                                    .toLowerCase()
+                                    .contains('vendor')) ...[
                               Container(
                                 margin: const EdgeInsets.only(bottom: 20),
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   color: const Color(0xfffffbeb),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xfffde68a)),
+                                  border: Border.all(
+                                      color: const Color(0xfffde68a)),
                                 ),
                                 child: Row(
                                   children: [
@@ -212,7 +323,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     const SizedBox(width: 10),
                                     const Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             'Dev Seller Credential',
@@ -244,7 +356,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         _phoneController.text = '9999900090';
                                         Clipboard.setData(const ClipboardData(
                                             text: '9999900090'));
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
                                           const SnackBar(
                                             content: Text(
                                                 'Copied & autofilled Seller phone: 9999900090 (OTP: 123456)'),
@@ -268,46 +381,187 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ),
                               ),
                             ],
+                            if (!_usesOtp && _createAccount) ...[
+                              TextFormField(
+                                controller: _nameController,
+                                textCapitalization: TextCapitalization.words,
+                                decoration: const InputDecoration(
+                                  labelText: 'Your name',
+                                  hintText: 'Dileep Kumar',
+                                  prefixIcon: Icon(Icons.person_outline),
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (value) {
+                                  if (value == null ||
+                                      value.trim().length < 2) {
+                                    return 'Enter your name';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 14),
+                              TextFormField(
+                                controller: _usernameController,
+                                textCapitalization: TextCapitalization.none,
+                                decoration: const InputDecoration(
+                                  labelText: 'Username',
+                                  hintText: 'dileep.customer',
+                                  prefixIcon:
+                                      Icon(Icons.alternate_email_outlined),
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (value) {
+                                  final username = value?.trim() ?? '';
+                                  if (!RegExp(r'^[A-Za-z0-9._]{3,30}$')
+                                      .hasMatch(username)) {
+                                    return 'Use 3–30 letters, numbers, dots, or underscores';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 14),
+                              TextFormField(
+                                controller: _emailController,
+                                keyboardType: TextInputType.emailAddress,
+                                autofillHints: const [AutofillHints.email],
+                                decoration: const InputDecoration(
+                                  labelText: 'Email for password recovery',
+                                  hintText: 'you@gmail.com',
+                                  prefixIcon: Icon(Icons.email_outlined),
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (value) {
+                                  final email = value?.trim() ?? '';
+                                  if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+                                      .hasMatch(email)) {
+                                    return 'Enter a valid email address';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 14),
+                            ],
                             TextFormField(
                               controller: _phoneController,
-                              keyboardType: TextInputType.phone,
-                              maxLength: AppConstants.phoneLength,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
+                              keyboardType: _usesOtp || _createAccount
+                                  ? TextInputType.phone
+                                  : TextInputType.text,
+                              maxLength: _usesOtp || _createAccount
+                                  ? AppConstants.phoneLength
+                                  : null,
+                              inputFormatters: _usesOtp || _createAccount
+                                  ? [FilteringTextInputFormatter.digitsOnly]
+                                  : null,
                               autovalidateMode: _submitted
                                   ? AutovalidateMode.onUserInteraction
                                   : AutovalidateMode.disabled,
-                              decoration: const InputDecoration(
-                                labelText: 'Mobile number',
-                                hintText: '9876543210',
-                                prefixText: '+91 ',
+                              decoration: InputDecoration(
+                                labelText: _usesOtp || _createAccount
+                                    ? 'Mobile number'
+                                    : 'Phone, username, or email',
+                                hintText: _usesOtp || _createAccount
+                                    ? '9876543210'
+                                    : '9876543210 or dileep.customer',
+                                prefixText:
+                                    _usesOtp || _createAccount ? '+91 ' : null,
                                 counterText: '',
-                                border: OutlineInputBorder(),
+                                border: const OutlineInputBorder(),
                               ),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return 'Please enter your mobile number';
+                                  return _usesOtp || _createAccount
+                                      ? 'Please enter your mobile number'
+                                      : 'Enter your phone, username, or email';
                                 }
-                                if (!value.trim().isValidIndianPhone) {
+                                if ((_usesOtp || _createAccount) &&
+                                    !value.trim().isValidIndianPhone) {
                                   return 'Enter a valid 10-digit mobile number';
                                 }
                                 return null;
                               },
                             ),
+                            if (!_usesOtp) ...[
+                              const SizedBox(height: 14),
+                              TextFormField(
+                                controller: _passwordController,
+                                obscureText: !_showPassword,
+                                autofillHints: _createAccount
+                                    ? const [AutofillHints.newPassword]
+                                    : const [AutofillHints.password],
+                                decoration: InputDecoration(
+                                  labelText: _createAccount
+                                      ? 'Create password'
+                                      : 'Password',
+                                  helperText: _createAccount
+                                      ? 'Use at least 8 characters.'
+                                      : null,
+                                  border: const OutlineInputBorder(),
+                                  suffixIcon: IconButton(
+                                    onPressed: () => setState(
+                                        () => _showPassword = !_showPassword),
+                                    icon: Icon(_showPassword
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined),
+                                  ),
+                                ),
+                                validator: (value) {
+                                  if (_usesOtp) return null;
+                                  if (value == null || value.length < 8) {
+                                    return 'Password must have at least 8 characters';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              if (!_createAccount)
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    onPressed: loading ? null : _forgotPassword,
+                                    child: const Text('Forgot password?'),
+                                  ),
+                                ),
+                            ],
                             const SizedBox(height: 20),
                             FilledButton(
-                              onPressed: loading ? null : _sendOtp,
+                              onPressed: loading ? null : _submit,
                               child: Text(
-                                loading ? 'Sending OTP…' : 'Continue with OTP',
+                                loading
+                                    ? 'Please wait…'
+                                    : _usesOtp
+                                        ? 'Continue with OTP'
+                                        : _createAccount
+                                            ? 'Create account'
+                                            : 'Sign in',
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'Your role and access are verified by the server after OTP confirmation.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 12, color: storeMuted),
-                            ),
+                            if (!_usesOtp) ...[
+                              const SizedBox(height: 10),
+                              TextButton(
+                                onPressed: loading
+                                    ? null
+                                    : () => setState(() {
+                                          _createAccount = !_createAccount;
+                                          _submitted = false;
+                                        }),
+                                child: Text(_createAccount
+                                    ? 'Already have an account? Sign in'
+                                    : 'New to Milterra? Create an account'),
+                              ),
+                              const Text(
+                                'Your phone identifies the account; email is used only for recovery and launch follow-up. No SMS is sent.',
+                                textAlign: TextAlign.center,
+                                style:
+                                    TextStyle(fontSize: 12, color: storeMuted),
+                              ),
+                            ] else ...[
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Your role and access are verified by the server after OTP confirmation.',
+                                textAlign: TextAlign.center,
+                                style:
+                                    TextStyle(fontSize: 12, color: storeMuted),
+                              ),
+                            ],
                           ],
                         ),
                       ),

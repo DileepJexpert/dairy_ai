@@ -1,11 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../models/product_models.dart';
-import '../models/concept_catalogue.dart';
 
-// The first Milterra hero was created before products received database UUIDs.
-// Keep those shared links working by resolving their stable SKU server-side;
-// the returned product still supplies the real UUID for cart and checkout.
 const _legacyStorefrontSkuAliases = <String, String>{
   'mil-ghee-500': 'MIL-GHEE-500',
   'mil-ghee-1000': 'MIL-GHEE-1000',
@@ -13,123 +9,118 @@ const _legacyStorefrontSkuAliases = <String, String>{
   'mil-paneer-200': 'MIL-PANEER-200',
 };
 
+// URL aliases only; content still comes from persisted product families.
+const _legacyConceptSlugs = <String, String>{
+  'feed-janam-42': 'janam-42-transition-nutrition-concept',
+  'mil-mineral-supp': 'milterra-minera-360-concept',
+  'feed-minera-360-1kg': 'milterra-minera-360-concept',
+  'feed-rumen-pro-500g': 'milterra-rumen-pro-concept',
+};
+
+Product conceptFamilyProduct(ProductFamily family) => Product(
+      id: 'family-${family.id}',
+      vendorId: family.vendorId ?? '',
+      familyId: family.id,
+      title: family.title,
+      brand: family.brand,
+      category: family.department.toLowerCase().contains('equipment')
+          ? ProductCategory.equipment
+          : ProductCategory.feedNutrition,
+      price: 0,
+      unit: 'proposed pack',
+      description: family.description,
+      publicationStatus: family.isPublished ? 'published' : 'draft',
+      media: family.media.isNotEmpty
+          ? family.media
+          : [if (family.primaryImage != null) family.primaryImage!],
+      taxonomy: {
+        'concept': true,
+        'status': 'Concept Preview',
+        'department': family.department,
+        'collection': family.collection
+      },
+      specifications: {
+        'concept': true,
+        'listing_status': 'concept',
+        'family_id': family.id,
+        'department': family.department,
+        'collection': family.collection
+      },
+    );
+
 final productsProvider = FutureProvider.family<List<Product>, ProductCategory?>(
     (ref, category) async {
-  // Load all pages so category, search and price controls cover the collection,
-  // not just the API's default first 20 records. Keep backend order for Featured.
   final items = <Product>[];
   var page = 1;
-  try {
-    while (true) {
-      final response = await ref
-          .read(dioProvider)
-          .get('/marketplace/products', queryParameters: {
-        if (category != null)
-          'category': category == ProductCategory.equipment
-              ? 'EQUIPMENT'
-              : 'FEED_NUTRITION',
-        'sort_by': 'featured',
-        'page': page,
-        'per_page': 100,
-      });
-      final body = response.data;
-      if (body is! Map || body['data'] is! List) {
-        throw const FormatException('Product response did not contain a list');
-      }
-      final rawData = body['data'] as List;
-      final batch = rawData
-          .whereType<Map>()
-          .map((x) => Product.fromJson(Map<String, dynamic>.from(x)))
-          .where((p) => !p.isDraft)
-          .toList();
-      items.addAll(batch);
-      final total = body['total'];
-      final totalCount = total is int ? total : items.length;
-      if (batch.isEmpty || items.length >= totalCount) {
-        break;
-      }
-      page++;
-    }
-  } catch (_) {
-    if (items.isEmpty) {
-      items.addAll(defaultMilterraProducts.where((p) =>
-          !p.isDraft &&
-          (category == null || p.category == category)));
-    }
+  while (true) {
+    final response = await ref
+        .read(dioProvider)
+        .get('/marketplace/products', queryParameters: {
+      if (category != null)
+        'category': category == ProductCategory.equipment
+            ? 'EQUIPMENT'
+            : 'FEED_NUTRITION',
+      'sort_by': 'featured',
+      'page': page,
+      'per_page': 100,
+    });
+    final body = response.data as Map;
+    final raw = body['data'] as List;
+    items.addAll(raw
+        .map((j) => Product.fromJson(Map<String, dynamic>.from(j as Map)))
+        .where((p) => !p.isDraft));
+    if (raw.isEmpty || page * 100 >= (body['total'] as int)) break;
+    page++;
   }
-  return [
-    ...items,
-    ...conceptCatalogue.where((preview) =>
-        (category == null || preview.category == category) &&
-        !items
-            .any((p) => p.id == preview.id || p.familyKey == preview.familyKey))
-  ];
+  final families = await ref.watch(familiesProvider.future);
+  final existingFamilies = items.map((p) => p.familyId).toSet();
+  items.addAll(families
+      .where((f) =>
+          f.isConcept && f.isPublished && !existingFamilies.contains(f.id))
+      .map(conceptFamilyProduct)
+      .where((p) => category == null || p.category == category));
+  return items;
 });
 
 final productDetailProvider =
     FutureProvider.family<Product, String>((ref, id) async {
-  for (final preview in conceptCatalogue) {
-    if (preview.id == id) return preview;
+  if (_legacyConceptSlugs.containsKey(id)) {
+    final response = await ref
+        .read(dioProvider)
+        .get('/marketplace/families/${_legacyConceptSlugs[id]}');
+    return conceptFamilyProduct(ProductFamily.fromJson(
+        Map<String, dynamic>.from(response.data['data'])));
   }
-  // Reuse a product only when it came from the backend-backed provider.
-  final inMemoryProducts = ref.read(productsProvider(null)).valueOrNull;
-  if (inMemoryProducts != null) {
-    for (final p in inMemoryProducts) {
-      if (p.id == id) return p;
-    }
+  if (id.startsWith('family-')) {
+    final response = await ref
+        .read(dioProvider)
+        .get('/marketplace/families/${id.substring(7)}');
+    final family = ProductFamily.fromJson(
+        Map<String, dynamic>.from(response.data['data']));
+    return conceptFamilyProduct(family);
   }
-
-  final legacySku = _legacyStorefrontSkuAliases[id];
-  if (legacySku != null) {
-    final response = await ref.read(dioProvider).get(
-      '/marketplace/products',
-      queryParameters: {'sku': legacySku, 'page': 1, 'per_page': 1},
-    );
-    final body = response.data;
-    if (body is Map &&
-        body['data'] is List &&
-        (body['data'] as List).isNotEmpty) {
-      final product = (body['data'] as List).first;
-      if (product is Map) {
-        return Product.fromJson(Map<String, dynamic>.from(product));
-      }
-    }
-    throw StateError('The live product for $legacySku was not found');
+  final sku = _legacyStorefrontSkuAliases[id];
+  if (sku != null) {
+    final response = await ref.read(dioProvider).get('/marketplace/products',
+        queryParameters: {'sku': sku, 'page': 1, 'per_page': 1});
+    final data = response.data['data'] as List;
+    if (data.isEmpty) throw StateError('Product is no longer available.');
+    return Product.fromJson(Map<String, dynamic>.from(data.first));
   }
-
   final response = await ref.read(dioProvider).get('/marketplace/products/$id');
-  final body = response.data;
-  if (body is Map && body['data'] is Map) {
-    return Product.fromJson(Map<String, dynamic>.from(body['data'] as Map));
-  }
-  throw const FormatException('Product response did not contain details');
+  return Product.fromJson(Map<String, dynamic>.from(response.data['data']));
 });
 
 final familiesProvider = FutureProvider<List<ProductFamily>>((ref) async {
-  try {
-    final response = await ref.read(dioProvider).get('/marketplace/families');
-    final body = response.data;
-    if (body is Map && body['data'] is List) {
-      return (body['data'] as List)
-          .whereType<Map>()
-          .map((m) => ProductFamily.fromJson(Map<String, dynamic>.from(m)))
-          .toList();
-    }
-  } catch (_) {}
-  return defaultMilterraProductFamilies;
+  final response = await ref.watch(dioProvider).get('/marketplace/families');
+  return (response.data['data'] as List)
+      .map((j) => ProductFamily.fromJson(Map<String, dynamic>.from(j)))
+      .toList();
 });
-
-final vendorFamiliesProvider =
-    FutureProvider<List<ProductFamily>>((ref) async {
-  try {
-    final response = await ref.read(dioProvider).get('/vendor/families');
-    final body = response.data;
-    if (body is Map && body['data'] is List) {
-      return (body['data'] as List)
-          .whereType<Map>()
-          .map((m) => ProductFamily.fromJson(Map<String, dynamic>.from(m)))
-          .toList();
-    }
-  } catch (_) {}
-  return defaultMilterraProductFamilies;
+final vendorFamiliesProvider = FutureProvider<List<ProductFamily>>((ref) async {
+  ref.watch(currentUserProvider);
+  final response = await ref.watch(dioProvider).get('/vendor/families');
+  return (response.data['data'] as List)
+      .map((j) => ProductFamily.fromJson(Map<String, dynamic>.from(j)))
+      .toList();
 });

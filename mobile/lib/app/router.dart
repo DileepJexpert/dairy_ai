@@ -11,6 +11,7 @@ import '../core/analytics_service.dart';
 // Auth
 import 'package:dairy_ai/features/auth/screens/login_screen.dart';
 import 'package:dairy_ai/features/auth/screens/otp_screen.dart';
+import 'package:dairy_ai/features/auth/screens/reset_password_screen.dart';
 
 // Shells
 import 'package:dairy_ai/features/home/screens/farmer_shell.dart';
@@ -423,6 +424,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) => ResetPasswordScreen(
+          token: state.uri.queryParameters['token'] ?? '',
+        ),
       ),
       GoRoute(
         path: '/otp-verify',

@@ -13,23 +13,92 @@ from sqlalchemy import select
 from app.database import async_session_factory, init_db
 from app.models.analytics import ClickstreamEvent, VisitorSession
 from app.models.cart import Cart, CartItem, CartStatus
-from app.models.product import Product, ProductCategory, ProductInventory
+from app.models.product import Product, ProductCategory, ProductFamily, ProductInventory
 from app.models.user import User, UserRole
 from app.models.vendor import Vendor, VendorType
 from app.services.auth_service import hash_otp
 
 
 PRODUCTS = [
-    ("MIL-GHEE-250", "Milterra A2 Desi Cow Ghee (Trial Jar)", "250 ml", "Vedic A2 Bilona cultured Gir cow ghee in an accessible trial glass jar.", "425", 50),
-    ("MIL-GHEE-500", "Milterra A2 Desi Cow Ghee (Family Jar)", "500 ml", "Pure A2 ghee, slowly cultured for a rich aroma.", "799", 35),
-    ("MIL-GHEE-1000", "Milterra A2 Desi Cow Ghee (Kitchen Jar)", "1 litre", "Everyday traditional ghee for cooking, sweets, and wellness.", "1499", 25),
-    ("MIL-GHEE-5000", "Milterra A2 Desi Cow Ghee (Heritage Tin)", "5 litre", "Bulk family pack of pure A2 Gir cow bilona ghee in food-grade tin.", "6999", 10),
+    ("MIL-GHEE-250", "Milterra A2 Sahiwal Cow Ghee (Trial Jar)", "250 ml", "Planned cultured-butter bilona ghee made from Sahiwal cow milk in an accessible trial glass jar.", "425", 50),
+    ("MIL-GHEE-500", "Milterra A2 Sahiwal Cow Ghee (Family Jar)", "500 ml", "Planned A2 Sahiwal cow ghee prepared from cultured curd and slowly clarified for aroma and texture.", "799", 35),
+    ("MIL-GHEE-1000", "Milterra A2 Sahiwal Cow Ghee (Kitchen Jar)", "1 litre", "Planned everyday cultured-butter Sahiwal cow ghee for cooking and Indian sweets.", "1499", 25),
+    ("MIL-GHEE-5000", "Milterra A2 Sahiwal Cow Ghee (Heritage Tin)", "5 litre", "Planned family pack of A2 Sahiwal cow cultured-butter ghee in a food-grade tin.", "6999", 10),
     ("MIL-BUFF-500", "Milterra Traditional Cultured Buffalo Ghee", "500 ml", "Full-bodied, high-fat buffalo ghee with a naturally rich texture.", "699", 30),
     ("MIL-BUFF-1000", "Milterra Traditional Cultured Buffalo Ghee", "1 litre", "Artisanal Murrah buffalo cultured ghee for sweets and rotis.", "1299", 20),
-    ("MIL-GHEE-SINGLE-FARM", "Milterra Single-Farm A2 Cultured Cow Ghee", "500 ml", "100% Single-Origin Traceable to our own Lucknow heritage pasture farm.", "899", 25),
-    ("MIL-GHEE-FULL-MOON", "Milterra Full Moon (Purnima Batch) Bilona Ghee", "500 ml", "Limited batch churned and slow-cooked on the auspicious night of Purnima.", "999", 15),
-    ("MIL-PANEER-200", "Milterra Fresh Paneer", "200 g", "Fresh, high-protein paneer made from quality milk.", "160", 40),
+    ("MIL-GHEE-SINGLE-FARM", "Milterra Single-Farm A2 Sahiwal Cow Ghee", "500 ml", "Planned single-farm Sahiwal milk sourcing with batch-level traceability.", "899", 25),
+    ("MIL-GHEE-FULL-MOON", "Milterra Full Moon (Purnima Batch) Sahiwal Ghee", "500 ml", "A proposed limited Purnima-themed batch using the same planned cultured-butter Sahiwal milk process.", "999", 15),
+    ("MIL-PANEER-200", "Milterra Fresh Sahiwal Milk Paneer", "200 g", "Planned fresh paneer made from Sahiwal cow milk and packed under refrigeration.", "160", 40),
 ]
+
+CONCEPT_FAMILIES = [
+    (
+        "MILTERRA MINERA-360 Mineral Supplement Concept",
+        "milterra-minera-360-concept",
+        "Mineral supplements",
+    ),
+    (
+        "JANAM·42 Calving & Transition Nutrition Concept",
+        "janam-42-transition-nutrition-concept",
+        "Stage-based nutrition",
+    ),
+    (
+        "MILTERRA RUMEN-PRO Rumen Support Concept",
+        "milterra-rumen-pro-concept",
+        "Rumen support",
+    ),
+]
+
+CONCEPT_EXPLANATION = (
+    "This product concept is in development. Share your feedback and register "
+    "for future updates."
+)
+
+
+def product_specifications(sku: str) -> dict[str, str]:
+    """Truthful pre-launch specifications shared by both local seed workflows."""
+    common = {
+        "Product Status": "Pre-launch specification; final production and lab validation pending",
+        "Country of Origin": "India",
+    }
+    if sku.startswith("MIL-GHEE-"):
+        return {
+            **common,
+            "Milk Source": "Planned: A2 milk from Sahiwal cows",
+            "Ingredients": "Planned: cultured butter prepared from Sahiwal cow milk",
+            "How It Is Made": (
+                "Milk is filtered and cultured into curd; the curd is churned to separate butter; "
+                "the butter is slowly clarified, filtered, cooled, and packed. Exact time and "
+                "temperature controls will be finalized before commercial launch."
+            ),
+            "Proposed Additives": "No added colour, flavour, or preservative",
+            "Storage": "Store sealed in a cool, dry place; use a clean, dry spoon",
+            "Shelf Life": "To be confirmed by production stability testing",
+        }
+    if sku.startswith("MIL-BUFF-"):
+        return {
+            **common,
+            "Milk Source": "Planned: Murrah buffalo milk",
+            "Ingredients": "Planned: cultured butter prepared from buffalo milk",
+            "How It Is Made": (
+                "Buffalo milk is filtered and cultured into curd; the curd is churned for butter; "
+                "the butter is slowly clarified, filtered, cooled, and packed."
+            ),
+            "Proposed Texture": "Rich and naturally granular",
+            "Storage": "Store sealed in a cool, dry place; use a clean, dry spoon",
+            "Shelf Life": "To be confirmed by production stability testing",
+        }
+    return {
+        **common,
+        "Milk Source": "Planned: fresh Sahiwal cow milk",
+        "Ingredients": "Sahiwal cow milk and a food-grade acidulant; exact formulation pending",
+        "How It Is Made": (
+            "Milk is filtered and heat-treated, gently coagulated, drained, pressed into blocks, "
+            "rapidly chilled, and packed for refrigerated distribution."
+        ),
+        "Storage": "Keep refrigerated at 0–4°C",
+        "Shelf Life": "To be confirmed by refrigerated shelf-life testing",
+    }
 
 DEMO_CUSTOMERS = [
     ("9820112345", UserRole.farmer, "Mumbai", "Maharashtra"),
@@ -74,6 +143,32 @@ async def seed() -> None:
             db.add(vendor)
             await db.flush()
 
+        for title, slug, subcategory in CONCEPT_FAMILIES:
+            concept = (
+                await db.execute(select(ProductFamily).where(ProductFamily.slug == slug))
+            ).scalar_one_or_none()
+            if not concept:
+                db.add(ProductFamily(
+                    id=uuid.uuid4(),
+                    vendor_id=vendor.id,
+                    slug=slug,
+                    title=title,
+                    brand="MILTERRA",
+                    department="Farm Essentials",
+                    collection="Animal Nutrition",
+                    description=CONCEPT_EXPLANATION,
+                    production_method=(
+                        "Proposed formulation; composition and claims require validation before launch."
+                    ),
+                    is_published=True,
+                    is_concept=True,
+                    supporting_documents={
+                        "subcategory": subcategory,
+                        "status": "concept_preview",
+                    },
+                ))
+        await db.flush()
+
         product_map: dict[str, Product] = {}
         for sku, title, pack_size, description, price, stock in PRODUCTS:
             product = (await db.execute(select(Product).where(Product.sku == sku))).scalar_one_or_none()
@@ -90,7 +185,7 @@ async def seed() -> None:
                     base_price=price,
                     unit="pack",
                     pack_size=pack_size,
-                    specifications={"storage": "Store in a cool, dry place", "origin": "India"},
+                    specifications=product_specifications(sku),
                     is_active=True,
                     is_featured=True,
                     min_order_quantity=1,
@@ -281,8 +376,10 @@ async def seed() -> None:
                     created_at=datetime.utcnow() - timedelta(minutes=10),
                 ))
 
+        from scripts.initialize_commerce_admin import seed_coupons
+        await seed_coupons(db)
         await db.commit()
-        print("Milterra demo catalogue, demo carts, visitor traffic, and clickstreams seeded successfully!")
+        print("Milterra demo catalogue, coupons, demo carts, visitor traffic, and clickstreams seeded successfully!")
 
 
 if __name__ == "__main__":

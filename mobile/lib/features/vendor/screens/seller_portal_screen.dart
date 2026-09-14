@@ -18,12 +18,27 @@ class SellerPortalScreen extends ConsumerStatefulWidget {
 class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
   @override
   Widget build(BuildContext context) {
-    final session = ref.watch(sellerPortalProvider);
     final adminState = ref.watch(adminMarketplaceProvider);
 
     // Fallback if not logged in
-    final currentSeller = session.sellerAccount ?? adminState.sellers.first;
-    final myOffers = adminState.offers.where((o) => o.sellerId == currentSeller.id).toList();
+    if (adminState.loading ||
+        adminState.sellers.isEmpty ||
+        adminState.error != null) {
+      return Scaffold(
+          appBar: AppBar(title: const Text('Seller Central')),
+          body: Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+            if (adminState.loading) const CircularProgressIndicator(),
+            Text(adminState.error ?? 'No seller profile found.'),
+            TextButton(
+                onPressed: () =>
+                    ref.read(adminMarketplaceProvider.notifier).refresh(),
+                child: const Text('Retry')),
+          ])));
+    }
+    final currentSeller = adminState.sellers.first;
+    final myOffers =
+        adminState.offers.where((o) => o.sellerId == currentSeller.id).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xfff8fafc),
@@ -34,7 +49,9 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
           children: [
             const Icon(Icons.storefront, color: storeAmber, size: 22),
             const SizedBox(width: 8),
-            Text('${currentSeller.businessName} · Seller Central', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            Text('${currentSeller.businessName} · Seller Central',
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
           ],
         ),
         actions: [
@@ -71,7 +88,11 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: storeGreen,
-                    child: Text(currentSeller.businessName.substring(0, 1), style: const TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: Text(currentSeller.businessName.substring(0, 1),
+                        style: const TextStyle(
+                            fontSize: 22,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -80,12 +101,20 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
                       children: [
                         Row(
                           children: [
-                            Text(currentSeller.businessName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: storeGreen)),
+                            Text(currentSeller.businessName,
+                                style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: storeGreen)),
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: currentSeller.status == SellerStatus.approved ? const Color(0xffe8f5e9) : const Color(0xfffff8e1),
+                                color: currentSeller.status ==
+                                        SellerStatus.approved
+                                    ? const Color(0xffe8f5e9)
+                                    : const Color(0xfffff8e1),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -93,7 +122,10 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
-                                  color: currentSeller.status == SellerStatus.approved ? storeGreen : storeAmberDark,
+                                  color: currentSeller.status ==
+                                          SellerStatus.approved
+                                      ? storeGreen
+                                      : storeAmberDark,
                                 ),
                               ),
                             ),
@@ -102,7 +134,8 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
                         const SizedBox(height: 4),
                         Text(
                           'GSTIN: ${currentSeller.gstin ?? "Verified"} · Warehouse: ${currentSeller.warehouseCity ?? "Anand"} · Rating: ${currentSeller.ratingScore} ★ (${currentSeller.totalRatingsCount} ratings)',
-                          style: const TextStyle(fontSize: 12, color: storeMuted),
+                          style:
+                              const TextStyle(fontSize: 12, color: storeMuted),
                         ),
                       ],
                     ),
@@ -121,35 +154,63 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
             // Performance Metric KPI Cards
             Row(
               children: [
-                _kpiCard('Active Offers', myOffers.length.toString(), Icons.sell_outlined, storeGreen),
+                _kpiCard('Active Offers', myOffers.length.toString(),
+                    Icons.sell_outlined, storeGreen),
                 const SizedBox(width: 16),
-                _kpiCard('Total Stock', myOffers.fold<int>(0, (sum, o) => sum + o.availableStock).toString(), Icons.inventory_2_outlined, storeAmberDark),
+                _kpiCard(
+                    'Total Stock',
+                    myOffers
+                        .fold<int>(0, (sum, o) => sum + o.availableStock)
+                        .toString(),
+                    Icons.inventory_2_outlined,
+                    storeAmberDark),
                 const SizedBox(width: 16),
-                _kpiCard('Commission Tier', '${currentSeller.commissionRatePercent}%', Icons.percent, const Color(0xff0284c7)),
+                _kpiCard(
+                    'Commission Tier',
+                    '${currentSeller.commissionRatePercent}%',
+                    Icons.percent,
+                    const Color(0xff0284c7)),
                 const SizedBox(width: 16),
-                _kpiCard('Payout Method', currentSeller.upiId ?? 'Bank Direct', Icons.account_balance_wallet_outlined, const Color(0xff7c3aed)),
+                _kpiCard(
+                    'Payout Method',
+                    currentSeller.upiId ?? 'Bank Direct',
+                    Icons.account_balance_wallet_outlined,
+                    const Color(0xff7c3aed)),
               ],
             ),
             const SizedBox(height: 28),
 
             // Active Offers Table
-            const Text('Your Active Product Offers', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: storeGreen)),
+            const Text('Your Active Product Offers',
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: storeGreen)),
             const SizedBox(height: 12),
             if (myOffers.isEmpty) ...[
               Container(
                 padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(color: storeWhite, borderRadius: BorderRadius.circular(12), border: Border.all(color: storeBorder)),
+                decoration: BoxDecoration(
+                    color: storeWhite,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: storeBorder)),
                 child: Center(
                   child: Column(
                     children: [
-                      const Icon(Icons.inventory_2_outlined, size: 48, color: storeMuted),
+                      const Icon(Icons.inventory_2_outlined,
+                          size: 48, color: storeMuted),
                       const SizedBox(height: 12),
-                      const Text('You have no active SKU offers listed yet.', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      const Text('You have no active SKU offers listed yet.',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14)),
                       const SizedBox(height: 6),
-                      const Text('Map your stock to any canonical Milterra catalog product to start selling.', style: TextStyle(fontSize: 12, color: storeMuted)),
+                      const Text(
+                          'Map your stock to any canonical Milterra catalog product to start selling.',
+                          style: TextStyle(fontSize: 12, color: storeMuted)),
                       const SizedBox(height: 16),
                       FilledButton(
-                        style: FilledButton.styleFrom(backgroundColor: storeGreen),
+                        style:
+                            FilledButton.styleFrom(backgroundColor: storeGreen),
                         onPressed: () => _showAddOfferModal(currentSeller),
                         child: const Text('Add Your First Offer'),
                       ),
@@ -159,7 +220,8 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
               ),
             ] else ...[
               Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
                 child: ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -169,18 +231,29 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
                     final o = myOffers[i];
                     return ListTile(
                       leading: Icon(
-                        o.isBuyBoxWinner ? Icons.emoji_events : Icons.local_offer_outlined,
+                        o.isBuyBoxWinner
+                            ? Icons.emoji_events
+                            : Icons.local_offer_outlined,
                         color: o.isBuyBoxWinner ? storeGold : storeGreen,
                       ),
                       title: Row(
                         children: [
-                          Text('SKU: ${o.sellerSku}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          Text('SKU: ${o.sellerSku}',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 13)),
                           if (o.isBuyBoxWinner) ...[
                             const SizedBox(width: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(color: const Color(0xff232f3e), borderRadius: BorderRadius.circular(4)),
-                              child: const Text('WINNING BUY BOX', style: TextStyle(fontSize: 9, color: Color(0xffff9900), fontWeight: FontWeight.bold)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                  color: const Color(0xff232f3e),
+                                  borderRadius: BorderRadius.circular(4)),
+                              child: const Text('WINNING BUY BOX',
+                                  style: TextStyle(
+                                      fontSize: 9,
+                                      color: Color(0xffff9900),
+                                      fontWeight: FontWeight.bold)),
                             ),
                           ],
                         ],
@@ -193,11 +266,14 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.edit, size: 18, color: storeGreen),
+                            icon: const Icon(Icons.edit,
+                                size: 18, color: storeGreen),
                             tooltip: 'Edit Offer Price',
                             onPressed: () {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Offer ${o.sellerSku} price editing modal opened.')),
+                                SnackBar(
+                                    content: Text(
+                                        'Offer ${o.sellerSku} price editing modal opened.')),
                               );
                             },
                           ),
@@ -214,7 +290,8 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
     );
   }
 
-  Widget _kpiCard(String label, String value, IconData icon, Color color) => Expanded(
+  Widget _kpiCard(String label, String value, IconData icon, Color color) =>
+      Expanded(
         child: Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
@@ -226,7 +303,9 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8)),
                 child: Icon(icon, color: color, size: 22),
               ),
               const SizedBox(width: 14),
@@ -234,9 +313,16 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(label, style: const TextStyle(fontSize: 12, color: storeMuted)),
+                    Text(label,
+                        style:
+                            const TextStyle(fontSize: 12, color: storeMuted)),
                     const SizedBox(height: 2),
-                    Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: color), overflow: TextOverflow.ellipsis),
+                    Text(value,
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: color),
+                        overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
@@ -246,9 +332,19 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
       );
 
   void _showAddOfferModal(SellerAccount seller) {
-    final catalog = ref.read(productsProvider(null)).valueOrNull ?? defaultMilterraProducts;
+    final catalog =
+        (ref.read(productsProvider(null)).valueOrNull ?? <Product>[])
+            .where((p) => !p.isConcept)
+            .toList();
+    if (catalog.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Load the backend catalogue before adding an offer.')));
+      return;
+    }
     String selectedProductId = catalog.first.id;
-    final skuCtrl = TextEditingController(text: 'SELLER-${seller.businessName.substring(0, 3).toUpperCase()}-500');
+    final skuCtrl = TextEditingController(
+        text:
+            'SELLER-${seller.businessName.substring(0, 3).toUpperCase()}-500');
     final priceCtrl = TextEditingController(text: '685');
     final mrpCtrl = TextEditingController(text: '750');
     final stockCtrl = TextEditingController(text: '30');
@@ -258,7 +354,8 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (dialogCtx, setModalState) {
           return AlertDialog(
-            title: const Text('Add Seller Offer to Milterra Catalog', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            title: const Text('Add Seller Offer to Milterra Catalog',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             content: SizedBox(
               width: 460,
               child: SingleChildScrollView(
@@ -267,35 +364,61 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
                   children: [
                     DropdownButtonFormField<String>(
                       value: selectedProductId,
-                      decoration: const InputDecoration(labelText: 'Select Canonical Product', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(
+                          labelText: 'Select Canonical Product',
+                          border: OutlineInputBorder()),
                       items: catalog.map((p) {
                         return DropdownMenuItem(
                           value: p.id,
-                          child: Text(p.title, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis),
+                          child: Text(p.title,
+                              style: const TextStyle(fontSize: 13),
+                              overflow: TextOverflow.ellipsis),
                         );
                       }).toList(),
                       onChanged: (v) {
-                        if (v != null) setModalState(() => selectedProductId = v);
+                        if (v != null)
+                          setModalState(() => selectedProductId = v);
                       },
                     ),
                     const SizedBox(height: 12),
-                    TextField(controller: skuCtrl, decoration: const InputDecoration(labelText: 'Your Seller SKU Identifier', border: OutlineInputBorder())),
+                    TextField(
+                        controller: skuCtrl,
+                        decoration: const InputDecoration(
+                            labelText: 'Your Seller SKU Identifier',
+                            border: OutlineInputBorder())),
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Expanded(child: TextField(controller: priceCtrl, decoration: const InputDecoration(labelText: 'Your Price (₹)', border: OutlineInputBorder()))),
+                        Expanded(
+                            child: TextField(
+                                controller: priceCtrl,
+                                decoration: const InputDecoration(
+                                    labelText: 'Your Price (₹)',
+                                    border: OutlineInputBorder()))),
                         const SizedBox(width: 12),
-                        Expanded(child: TextField(controller: mrpCtrl, decoration: const InputDecoration(labelText: 'MRP (₹)', border: OutlineInputBorder()))),
+                        Expanded(
+                            child: TextField(
+                                controller: mrpCtrl,
+                                decoration: const InputDecoration(
+                                    labelText: 'MRP (₹)',
+                                    border: OutlineInputBorder()))),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    TextField(controller: stockCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Available Units for Dispatch', border: OutlineInputBorder())),
+                    TextField(
+                        controller: stockCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                            labelText: 'Available Units for Dispatch',
+                            border: OutlineInputBorder())),
                   ],
                 ),
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel')),
               FilledButton(
                 style: FilledButton.styleFrom(backgroundColor: storeGreen),
                 onPressed: () {
@@ -303,18 +426,27 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
                   final mrp = double.tryParse(mrpCtrl.text) ?? 750.0;
                   final stock = int.tryParse(stockCtrl.text) ?? 30;
 
-                  ref.read(sellerPortalProvider.notifier).createOfferForSeller(
-                    productId: selectedProductId,
-                    sellerSku: skuCtrl.text.trim(),
-                    mrp: mrp,
-                    sellingPrice: sp,
-                    availableStock: stock,
-                    fulfillmentType: FulfillmentType.sellerDirect,
-                  );
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Your offer has been submitted and is active!'), backgroundColor: storeGreen),
-                  );
+                  ref
+                      .read(sellerPortalProvider.notifier)
+                      .createOfferForSeller(
+                        productId: selectedProductId,
+                        sellerSku: skuCtrl.text.trim(),
+                        mrp: mrp,
+                        sellingPrice: sp,
+                        availableStock: stock,
+                        fulfillmentType: FulfillmentType.sellerDirect,
+                      )
+                      .then((_) {
+                    if (!ctx.mounted) return;
+                    Navigator.pop(ctx);
+                    if (mounted)
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Seller offer saved to backend.')));
+                  }).catchError((Object error) {
+                    if (mounted)
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(commerceError(error))));
+                  });
                 },
                 child: const Text('Publish Offer'),
               ),

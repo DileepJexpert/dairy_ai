@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, JSON, Numeric, String, Text, UniqueConstraint, Enum as SAEnum
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, JSON, Numeric, String, Text, UniqueConstraint, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
@@ -68,3 +68,101 @@ class ProductMedia(Base):
     __tablename__ = "product_media"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4); product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), index=True, nullable=False)
     media_type: Mapped[MediaType] = mapped_column(SAEnum(MediaType), default=MediaType.image); url: Mapped[str] = mapped_column(String(500), nullable=False); sort_order: Mapped[int] = mapped_column(Integer, default=0); is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class ProductReview(Base):
+    """Pre-launch product feedback stored independently from Flutter fixtures."""
+
+    __tablename__ = "product_reviews"
+    __table_args__ = (
+        CheckConstraint("rating BETWEEN 1 AND 5", name="ck_product_reviews_rating"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("products.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    author_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    headline: Mapped[str] = mapped_column(String(160), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    source_label: Mapped[str] = mapped_column(
+        String(80), default="Visitor feedback", nullable=False
+    )
+    is_seeded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_approved: Mapped[bool] = mapped_column(Boolean, default=True, index=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, index=True, nullable=False
+    )
+
+
+class MerchandisingPlacement(Base):
+    """Admin-controlled storefront promotion linked to a canonical product."""
+
+    __tablename__ = "merchandising_placements"
+    __table_args__ = (
+        CheckConstraint(
+            "placement_type IN ('highlight', 'deal', 'new_launch', 'festival_offer')",
+            name="ck_merchandising_placement_type",
+        ),
+        CheckConstraint(
+            "priority BETWEEN 0 AND 1000",
+            name="ck_merchandising_priority",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("products.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    placement_type: Mapped[str] = mapped_column(
+        String(30), default="highlight", index=True, nullable=False
+    )
+    headline: Mapped[str] = mapped_column(String(180), nullable=False)
+    subheadline: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    badge: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    starts_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    priority: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, default=True, index=True, nullable=False
+    )
+    created_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, index=True, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+
+class ConceptFeedback(Base):
+    """Interest and feedback for concepts that do not yet have product rows."""
+
+    __tablename__ = "concept_feedback"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    concept_key: Mapped[str] = mapped_column(String(120), index=True, nullable=False)
+    concept_title: Mapped[str] = mapped_column(String(200), nullable=False)
+    visitor_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(15), nullable=True)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    wants_updates: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, index=True, nullable=False
+    )

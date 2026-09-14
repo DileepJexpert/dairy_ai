@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.cart import Cart, CartItem
 from app.models.product import Product, ProductInventory
 from app.repositories import cart_repo, product_repo, vendor_repo
-from app.services.product_policy import is_concept
+from app.services.product_policy import is_concept, purchase_enabled
 
 
 def _available(inventory: ProductInventory | None) -> int:
@@ -18,6 +18,8 @@ async def _product_or_error(db: AsyncSession, product_id: uuid.UUID) -> tuple[Pr
     product = await product_repo.get(db, product_id)
     if product is None or not product.is_active:
         raise HTTPException(404, "Product unavailable")
+    if not is_concept(product) and not await purchase_enabled(db, product):
+        raise HTTPException(422, "Product is not currently available for purchase")
     return product, await product_repo.inventory(db, product_id)
 
 
@@ -116,6 +118,8 @@ async def validate(db: AsyncSession, user_id: uuid.UUID) -> dict:
             issues.append(base | {"type": "PRODUCT_INACTIVE", "message": "Product is inactive"})
         elif is_concept(product):
             issues.append(base | {"type": "CONCEPT_PRODUCT", "message": "Concept products are not for sale"})
+        elif not await purchase_enabled(db, product):
+            issues.append(base | {"type": "PRODUCT_UNAVAILABLE", "message": "Product or seller is unavailable"})
         elif inventory is None:
             issues.append(base | {"type": "INVENTORY_MISSING", "message": "Product inventory is unavailable"})
         elif _available(inventory) == 0:

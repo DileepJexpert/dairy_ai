@@ -1,13 +1,15 @@
 import logging
 import random
+import secrets
 import uuid
+import base64
 from datetime import datetime, timedelta, timezone
 
 import hashlib
 import hmac
 import jwt as pyjwt
 from jwt.exceptions import PyJWTError as JWTError
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -42,6 +44,32 @@ def verify_otp(plain_otp: str, hashed_otp: str) -> bool:
     logger.debug(f"OTP verification result: {'match' if match else 'mismatch'}")
     return match
 
+
+def hash_password(password: str) -> str:
+    """Hash a customer password with salted PBKDF2 using only the stdlib."""
+    iterations = 600_000
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, iterations)
+    return "pbkdf2_sha256${}${}${}".format(
+        iterations,
+        base64.urlsafe_b64encode(salt).decode(),
+        base64.urlsafe_b64encode(digest).decode(),
+    )
+
+
+def verify_password(password: str, encoded: str) -> bool:
+    try:
+        algorithm, iteration_text, salt_text, digest_text = encoded.split("$", 3)
+        if algorithm != "pbkdf2_sha256":
+            return False
+        iterations = int(iteration_text)
+        salt = base64.urlsafe_b64decode(salt_text.encode())
+        expected = base64.urlsafe_b64decode(digest_text.encode())
+        actual = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, iterations)
+        return hmac.compare_digest(actual, expected)
+    except (ValueError, TypeError):
+        return False
+
 def create_access_token(user_id: str, role: str) -> str:
     settings = get_settings()
     expire = datetime.now(timezone.utc) + timedelta(minutes=15)
@@ -66,6 +94,126 @@ def create_refresh_token(user_id: str) -> str:
     token = pyjwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
     logger.info(f"Refresh token created | user_id={user_id}, expires_in=30days")
     return token
+
+
+def token_response(user: User) -> dict:
+    role_dashboard_map = {
+        UserRole.farmer: "/api/v1/farmers/me/dashboard",
+        UserRole.vet: "/api/v1/vets/me/dashboard",
+        UserRole.vendor: "/api/v1/vendor/dashboard",
+        UserRole.cooperative: "/api/v1/cooperative/dashboard",
+        UserRole.admin: "/api/v1/admin/dashboard",
+        UserRole.super_admin: "/api/v1/super-admin/dashboard",
+    }
+    return {
+        "access_token": create_access_token(str(user.id), user.role.value),
+        "refresh_token": create_refresh_token(str(user.id)),
+        "token_type": "bearer",
+        "role": user.role.value,
+        "dashboard_url": role_dashboard_map.get(
+            user.role, "/api/v1/farmers/me/dashboard"
+        ),
+    }
+
+
+async def register_with_password(
+    db: AsyncSession,
+    phone: str,
+    password: str,
+    username: str | None = None,
+    email: str | None = None,
+    display_name: str | None = None,
+) -> dict | None:
+    phone = normalize_phone(phone)
+    username = username.strip().lower() if username else None
+    email = email.strip().lower() if email else None
+    duplicate = await db.execute(
+        select(User).where(
+            or_(
+                User.phone == phone,
+                User.username == username if username else False,
+                User.email == email if email else False,
+            )
+        )
+    )
+    if duplicate.scalars().first():
+        return None
+    user = User(
+        phone=phone,
+        username=username,
+        email=email,
+        display_name=display_name.strip() if display_name else None,
+        password_hash=hash_password(password),
+        role=UserRole.farmer,
+        is_active=True,
+    )
+    db.add(user)
+    await db.flush()
+    return token_response(user)
+
+
+async def get_user_by_identifier(db: AsyncSession, identifier: str) -> User | None:
+    value = identifier.strip().lower()
+    phone = normalize_phone(value)
+    result = await db.execute(
+        select(User).where(
+            or_(User.phone == phone, User.username == value, User.email == value)
+        )
+    )
+    return result.scalars().first()
+
+
+async def login_with_password(
+    db: AsyncSession, identifier: str, password: str
+) -> dict | None:
+    user = await get_user_by_identifier(db, identifier)
+    if (
+        user is None
+        or not user.is_active
+        or user.password_hash is None
+        or not verify_password(password, user.password_hash)
+    ):
+        return None
+    return token_response(user)
+
+
+async def begin_password_reset(
+    db: AsyncSession, identifier: str
+) -> tuple[User | None, str | None]:
+    user = await get_user_by_identifier(db, identifier)
+    if user is None or not user.is_active:
+        return None, None
+    token = secrets.token_urlsafe(32)
+    user.password_reset_token_hash = hashlib.sha256(token.encode()).hexdigest()
+    user.password_reset_expires_at = (
+        datetime.now(timezone.utc) + timedelta(minutes=30)
+    ).replace(tzinfo=None)
+    await db.flush()
+    return user, token
+
+
+async def reset_password(db: AsyncSession, token: str, new_password: str) -> bool:
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    user = (
+        await db.execute(
+            select(User).where(User.password_reset_token_hash == token_hash)
+        )
+    ).scalar_one_or_none()
+    if user is None or user.password_reset_expires_at is None:
+        return False
+    expires = user.password_reset_expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) >= expires:
+        user.password_reset_token_hash = None
+        user.password_reset_expires_at = None
+        await db.flush()
+        return False
+    user.password_hash = hash_password(new_password)
+    user.password_reset_token_hash = None
+    user.password_reset_expires_at = None
+    await db.flush()
+    return True
 
 def decode_token(token: str) -> dict:
     settings = get_settings()
@@ -174,30 +322,8 @@ async def verify_otp_and_login(db: AsyncSession, phone: str, otp: str) -> dict |
     user.otp_expires_at = None
     await db.flush()
 
-    access_token = create_access_token(str(user.id), user.role.value)
-    refresh_token = create_refresh_token(str(user.id))
-
-    # Build role-specific dashboard routing info
-    role_dashboard_map = {
-        UserRole.farmer: "/api/v1/farmers/me/dashboard",
-        UserRole.vet: "/api/v1/vets/me/dashboard",
-        UserRole.vendor: "/api/v1/vendor/dashboard",
-        UserRole.cooperative: "/api/v1/cooperative/dashboard",
-        UserRole.admin: "/api/v1/admin/dashboard",
-        UserRole.super_admin: "/api/v1/super-admin/dashboard",
-    }
-    dashboard_url = role_dashboard_map.get(user.role, "/api/v1/farmers/me/dashboard")
-    logger.debug(f"Role-based dashboard URL resolved | role={user.role.value} | dashboard_url={dashboard_url}")
-
     logger.info(f"Login successful | user_id={user.id}, role={user.role.value}, phone={masked_phone}")
-
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "role": user.role.value,
-        "dashboard_url": dashboard_url,
-    }
+    return token_response(user)
 
 async def refresh_access_token(db: AsyncSession, refresh_token: str) -> dict | None:
     """Validate refresh token and return new access token."""

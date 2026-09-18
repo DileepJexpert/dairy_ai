@@ -23,6 +23,21 @@ Dio createDioClient(SecureStorageService storage) {
   dio.interceptors.add(
     InterceptorsWrapper(
       onRequest: (options, handler) async {
+        if (options.path.startsWith('/') && !options.path.startsWith('http')) {
+          final baseUri = Uri.tryParse(options.baseUrl);
+          if (baseUri != null) {
+            final basePath = baseUri.path.endsWith('/')
+                ? baseUri.path.substring(0, baseUri.path.length - 1)
+                : baseUri.path;
+            if (basePath.isNotEmpty) {
+              if (!options.path.startsWith(basePath)) {
+                options.path = '$basePath${options.path}';
+              }
+              options.baseUrl =
+                  '${baseUri.scheme}://${baseUri.host}${baseUri.hasPort ? ':${baseUri.port}' : ''}';
+            }
+          }
+        }
         final token = await storage.getAccessToken();
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';

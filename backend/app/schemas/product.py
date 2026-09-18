@@ -20,12 +20,14 @@ class ProductFamilyCreate(BaseModel):
     # Only admins may set this. Vendor requests are always scoped to their own
     # profile by the endpoint.
     vendor_id: uuid.UUID | None = None
+    category_id: uuid.UUID | None = None
 
 class ProductFamilyUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=2, max_length=200)
     brand: str | None = None
     department: str | None = None
     collection: str | None = None
+    category_id: uuid.UUID | None = None
     milk_source: str | None = None
     production_method: str | None = Field(default=None, max_length=100)
     ingredients: str | None = None
@@ -42,15 +44,17 @@ class FamilyVariantCreate(BaseModel):
     unit: str = "pack"
     weight_grams: int | None = Field(default=None, gt=0)
     initial_stock: int = Field(default=0, ge=0)
-    publication_status: Literal["draft", "published"] = "published"
+    publication_status: Literal["draft", "pending_review", "published", "rejected"] = "published"
 
 class ProductCreate(BaseModel):
-    sku: str = Field(min_length=1, max_length=100); title: str = Field(min_length=2, max_length=200); category: ProductCategory; base_price: Decimal = Field(gt=0); unit: str = Field(min_length=1, max_length=30)
+    sku: str = Field(min_length=1, max_length=100); title: str = Field(min_length=2, max_length=200); category: ProductCategory | str = ProductCategory.feed_nutrition; base_price: Decimal = Field(gt=0); unit: str = Field(min_length=1, max_length=30)
+    category_id: uuid.UUID | None = None
     family_id: uuid.UUID | None = None
     vendor_id: uuid.UUID | None = None
     compare_at_price: Decimal | None = Field(default=None, gt=0)
     weight_grams: int | None = Field(default=None, gt=0)
-    publication_status: Literal["draft", "published"] = "published"
+    initial_stock: int = Field(default=0, ge=0)
+    publication_status: Literal["draft", "pending_review", "published", "rejected"] = "published"
     subcategory: str|None=None; brand:str|None=None; description:str|None=None; short_description:str|None=None; gst_rate:Decimal|None=Field(default=None,ge=0,le=100); pack_size:str|None=None; specifications:dict=Field(default_factory=dict); is_featured:bool=False; is_rentable:bool=False; rental_rate_per_hour:Decimal|None=Field(default=None,gt=0); rental_rate_per_acre:Decimal|None=Field(default=None,gt=0); min_order_quantity:int=Field(default=1,ge=1)
     @model_validator(mode="after")
     def rent_rules(self):
@@ -60,10 +64,12 @@ class ProductCreate(BaseModel):
 
 class ProductUpdate(BaseModel):
     title:str|None=Field(default=None,min_length=2,max_length=200); subcategory:str|None=None; brand:str|None=None; description:str|None=None; short_description:str|None=None; base_price:Decimal|None=Field(default=None,gt=0); gst_rate:Decimal|None=Field(default=None,ge=0,le=100); unit:str|None=None; pack_size:str|None=None; specifications:dict|None=None; is_active:bool|None=None; is_featured:bool|None=None; is_rentable:bool|None=None; rental_rate_per_hour:Decimal|None=Field(default=None,gt=0); rental_rate_per_acre:Decimal|None=Field(default=None,gt=0); min_order_quantity:int|None=Field(default=None,ge=1)
+    category_id: uuid.UUID | None = None
+    category: ProductCategory | str | None = None
     family_id: uuid.UUID | None = None
     compare_at_price: Decimal | None = Field(default=None, gt=0)
     weight_grams: int | None = Field(default=None, gt=0)
-    publication_status: Literal["draft", "published"] | None = None
+    publication_status: Literal["draft", "pending_review", "published", "rejected"] | None = None
 
 class InventoryUpdate(BaseModel): available_quantity:int=Field(ge=0); reserved_quantity:int=Field(default=0,ge=0); reorder_level:int=Field(default=0,ge=0); warehouse_location:str|None=None; batch_number:str|None=None; manufacture_date:date|None=None; expiry_date:date|None=None
 class ProductMediaCreate(BaseModel):
@@ -148,3 +154,11 @@ class ConceptFeedbackCreate(BaseModel):
         if not self.wants_updates and not (self.message and len(self.message.strip()) >= 5):
             raise ValueError("Feedback must contain at least 5 characters")
         return self
+
+
+class ProductModerationUpdate(BaseModel):
+    publication_status: Literal["draft", "pending_review", "published", "rejected"]
+    is_active: bool | None = None
+    is_featured: bool | None = None
+    rejection_reason: str | None = None
+    category_id: uuid.UUID | None = None

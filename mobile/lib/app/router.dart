@@ -364,9 +364,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/shop',
           builder: (_, state) => ProductListScreen(
+              key: ValueKey(state.uri.toString()),
               initialQuery: state.uri.queryParameters['query'] ?? '',
               initialCategory:
-                  state.uri.queryParameters['category'] ?? 'All products')),
+                  state.uri.queryParameters['category'] ?? 'All products',
+              initialSort: state.uri.queryParameters['sort'] ?? 'Featured')),
       GoRoute(
           path: '/admin/commerce',
           builder: (_, __) => const CommerceCategoriesScreen()),

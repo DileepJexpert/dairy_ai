@@ -303,6 +303,16 @@ class Product {
       (publicationStatus ?? 'published').toLowerCase() == 'published';
 
   bool get canPurchase => !isConcept && !isDraft;
+  bool get isFeatured =>
+      specifications['is_featured'] == true ||
+      specifications['featured'] == true;
+  double get rating =>
+      double.tryParse(specifications['rating']?.toString() ?? '4.5') ?? 4.5;
+  int get reviewCount =>
+      int.tryParse(specifications['review_count']?.toString() ?? '12') ?? 12;
+  DateTime get createdAt =>
+      DateTime.tryParse(specifications['created_at']?.toString() ?? '') ??
+      DateTime(2025);
   static const conceptExplanation = 'This product concept is in development. '
       'Share your feedback and register for future updates.';
 
@@ -1133,6 +1143,213 @@ const defaultMilterraProducts = <Product>[
       'Aeration & Drainage': 'High Porosity (Prevents Root Rot)',
       'Form': 'Pre-conditioned loose airy matrix',
       'Traceability': 'Dairy AI Partner Farm Compounded',
+    },
+  ),
+
+  // ---- 2B. Puja & Hawan Samagri: Cow By-Products & Sacred Essentials ----
+  Product(
+    id: 'mil-hawan-ghee-1l',
+    vendorId: 'vendor-milterra-dairy',
+    title: 'Milterra Pure Desi Cow Hawan Ghee (Yajna Special)',
+    category: ProductCategory.feedNutrition,
+    price: 649,
+    compareAtPrice: 799,
+    unit: 'litre',
+    brand: 'MILTERRA',
+    packSize: '1 litre',
+    description:
+        'Specially clarified pure Desi Cow Hawan Ghee formulated for holy yajnas, homams, and akhand jyot with clean, smoke-free flame and natural satvik aroma.',
+    taxonomy: {
+      'department_name': 'Puja & Hawan Samagri',
+      'category_name': 'Hawan & Yajna Ghee',
+      'department_id': 'puja-hawan-samagri',
+      'category_id': 'hawan-yajna-ghee',
+      'is_sacred': true,
+      'status': 'In Stock',
+    },
+    media: [
+      'assets/store/cow-ghee.png',
+    ],
+    inStock: true,
+    availableQuantity: 40,
+    minOrderQuantity: 1,
+    specifications: {
+      'Source': '100% Pure Desi Cow Milk Fat',
+      'Intended Rituals': 'Yajna, Havan, Homam, Agnihotra, Akhand Jyot, and Aarti',
+      'Characteristics': 'Clean golden flame, minimal soot, natural auspicious satvik aroma',
+      'Storage': 'Store sealed in a cool, dry place away from direct sunlight',
+      'Shelf Life': '12 months from packing date',
+      'Country of Origin': 'India',
+    },
+  ),
+  Product(
+    id: 'mil-gobar-uple-12',
+    vendorId: 'vendor-milterra-dairy',
+    title: 'Milterra Vedic Desi Cow Dung Cakes (Hawan Kanda)',
+    category: ProductCategory.feedNutrition,
+    price: 149,
+    compareAtPrice: 199,
+    unit: 'pack',
+    brand: 'MILTERRA',
+    packSize: 'Pack of 12',
+    description:
+        'Traditional sun-dried Gir cow dung cakes infused with neem leaves. Specially prepared for sacred hawan fires, agnihotra, and home environment purification.',
+    taxonomy: {
+      'department_name': 'Puja & Hawan Samagri',
+      'category_name': 'Cow Dung Sacred Products',
+      'department_id': 'puja-hawan-samagri',
+      'category_id': 'cow-dung-products',
+      'is_sacred': true,
+      'status': 'In Stock',
+    },
+    media: [
+      'assets/store/earth-cakes.jpg',
+    ],
+    inStock: true,
+    availableQuantity: 100,
+    minOrderQuantity: 1,
+    specifications: {
+      'Raw Material': '100% Indigenous Desi Cow Dung & Organic Neem Leaves',
+      'Processing': 'Naturally sun-dried and sanitized, zero chemical additives or coal',
+      'Intended Rituals': 'Vedic Yajna, Homa, Agnihotra, Dhoop base, Environment purification',
+      'Packaging': '12 pieces cushioned box packing to prevent breakage',
+      'Country of Origin': 'India',
+    },
+  ),
+  Product(
+    id: 'mil-dhoop-batti-100',
+    vendorId: 'vendor-milterra-dairy',
+    title: 'Milterra Panchagavya Cow Dung Dhoop Sticks (Guggal & Loban)',
+    category: ProductCategory.feedNutrition,
+    price: 199,
+    compareAtPrice: 250,
+    unit: 'box',
+    brand: 'MILTERRA',
+    packSize: '100 g',
+    description:
+        '100% organic, charcoal-free dhoop batti crafted from pure desi cow dung, natural herbs, guggul, and loban with a handmade ceramic holder included.',
+    taxonomy: {
+      'department_name': 'Puja & Hawan Samagri',
+      'category_name': 'Natural Dhoop & Agarbatti',
+      'department_id': 'puja-hawan-samagri',
+      'category_id': 'dhoop-agarbatti',
+      'is_sacred': true,
+      'status': 'In Stock',
+    },
+    media: [
+      'assets/store/milterra-tulsi-ghee.webp',
+    ],
+    inStock: true,
+    availableQuantity: 75,
+    minOrderQuantity: 1,
+    specifications: {
+      'Composition': 'Gir Cow Dung, Pure Guggul, Natural Loban, Bhimseni Camphor, Ayurvedic Herbs',
+      'Features': '100% Charcoal-Free, Bamboo-Less, Chemical-Free, Low Smoke',
+      'Burning Time': 'Approx 45 minutes per stick',
+      'Package Contents': '30 Dhoop Sticks with 1 handmade ceramic holder',
+      'Country of Origin': 'India',
+    },
+  ),
+  Product(
+    id: 'mil-bhimseni-kapoor-100',
+    vendorId: 'vendor-milterra-dairy',
+    title: 'Milterra Shuddha Bhimseni Pure Camphor (Original Flakes)',
+    category: ProductCategory.feedNutrition,
+    price: 249,
+    compareAtPrice: 320,
+    unit: 'jar',
+    brand: 'MILTERRA',
+    packSize: '100 g',
+    description:
+        'Pure crystalline Bhimseni Kapoor flakes for daily aarti and hawan. Burns completely without leaving any toxic residue or black smoke.',
+    taxonomy: {
+      'department_name': 'Puja & Hawan Samagri',
+      'category_name': 'Bhimseni Kapoor & Samagri',
+      'department_id': 'puja-hawan-samagri',
+      'category_id': 'kapoor-samagri',
+      'is_sacred': true,
+      'status': 'In Stock',
+    },
+    media: [
+      'assets/store/farm-bilona.jpg',
+    ],
+    inStock: true,
+    availableQuantity: 60,
+    minOrderQuantity: 1,
+    specifications: {
+      'Purity': '100% Pure Bhimseni Camphor (Cinnamomum camphora extract flakes)',
+      'Residue Standard': 'Leaves zero soot, ash, or toxic chemical residue upon combustion',
+      'Usage': 'Daily Aarti, Hawan Ahuti, Diffusers, and Natural Aromatherapy',
+      'Storage': 'Keep tightly closed in an airtight jar to prevent evaporation',
+      'Country of Origin': 'India',
+    },
+  ),
+  Product(
+    id: 'mil-hawan-samagri-500',
+    vendorId: 'vendor-milterra-dairy',
+    title: 'Milterra Vedic Navgraha Hawan Samagri (51 Herbs & Guggul)',
+    category: ProductCategory.feedNutrition,
+    price: 220,
+    compareAtPrice: 280,
+    unit: 'pack',
+    brand: 'MILTERRA',
+    packSize: '500 g',
+    description:
+        'Sacred blend of 51 Ayurvedic herbs, dried flowers, navgraha samidha woods, jatamansi, nagarmotha, and pure guggul resin for havans.',
+    taxonomy: {
+      'department_name': 'Puja & Hawan Samagri',
+      'category_name': 'Bhimseni Kapoor & Samagri',
+      'department_id': 'puja-hawan-samagri',
+      'category_id': 'kapoor-samagri',
+      'is_sacred': true,
+      'status': 'In Stock',
+    },
+    media: [
+      'assets/store/nutrition-lineup.jpg',
+    ],
+    inStock: true,
+    availableQuantity: 50,
+    minOrderQuantity: 1,
+    specifications: {
+      'Herbal Composition': '51 Sacred Herbs: Jatamansi, Nagarmotha, Chandan, Guggul, Loban, Navgraha Woods',
+      'Purity Standard': '100% Natural botanicals, no added artificial colour or synthetic perfume',
+      'Usage': 'Sacred Ahuti in Navchandi, Griha Pravesh, Gayatri Hawan, and Daily Homa',
+      'Net Quantity': '500 grams',
+      'Country of Origin': 'India',
+    },
+  ),
+  Product(
+    id: 'mil-gomaye-diya-24',
+    vendorId: 'vendor-milterra-dairy',
+    title: 'Milterra Handcrafted Cow Dung Diyas (Gomaye Deepam)',
+    category: ProductCategory.feedNutrition,
+    price: 179,
+    compareAtPrice: 240,
+    unit: 'box',
+    brand: 'MILTERRA',
+    packSize: 'Pack of 24',
+    description:
+        'Eco-friendly, biodegradable sacred diyas hand-moulded from indigenous cow dung and natural plant binders. Ash serves as organic soil fertilizer.',
+    taxonomy: {
+      'department_name': 'Puja & Hawan Samagri',
+      'category_name': 'Cow Dung Sacred Products',
+      'department_id': 'puja-hawan-samagri',
+      'category_id': 'cow-dung-products',
+      'is_sacred': true,
+      'status': 'In Stock',
+    },
+    media: [
+      'assets/store/earth-cakes.jpg',
+    ],
+    inStock: true,
+    availableQuantity: 80,
+    minOrderQuantity: 1,
+    specifications: {
+      'Raw Material': 'Pure Indigenous Cow Dung, Organic Clay, and Natural Plant Binders',
+      'Eco Property': '100% Biodegradable; burns completely with ghee leaving sacred holy ash',
+      'Use': 'Diwali, Navratri, Daily Mandir Puja, and Floating Deepdan',
+      'Package Contents': '24 pieces per pack',
+      'Country of Origin': 'India',
     },
   ),
 

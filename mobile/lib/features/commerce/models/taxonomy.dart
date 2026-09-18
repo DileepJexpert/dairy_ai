@@ -41,6 +41,32 @@ class TaxonomyCatalogue {
   const TaxonomyCatalogue({required this.enabled, required this.nodes});
   final bool enabled;
   final List<TaxonomyNode> nodes;
+
+  List<TaxonomyNode> get departments =>
+      nodes.where((n) => n.kind == 'department' && n.isActive).toList();
+
+  List<TaxonomyNode> categoriesFor(String? departmentId) {
+    if (departmentId == null) return const [];
+    return nodes
+        .where((n) => n.kind == 'category' && n.parentId == departmentId && n.isActive)
+        .toList();
+  }
+
+  List<TaxonomyNode> subcategoriesFor(String? categoryId) {
+    if (categoryId == null) return const [];
+    return nodes
+        .where((n) => n.kind == 'subcategory' && n.parentId == categoryId && n.isActive)
+        .toList();
+  }
+
+  TaxonomyNode? findNode(String? idOrSlug) {
+    if (idOrSlug == null || idOrSlug.isEmpty) return null;
+    final lower = idOrSlug.toLowerCase();
+    return nodes
+        .where((n) => n.id == idOrSlug || n.slug.toLowerCase() == lower)
+        .firstOrNull;
+  }
+
   Set<String> descendants(String id) {
     final ids = <String>{id};
     for (var i = 0; i < nodes.length; i++) {

@@ -80,43 +80,74 @@ async def create_family_variant(db:AsyncSession, fam:ProductFamily, vendor_id:uu
     return p
 
 async def create(db:AsyncSession,vendor_id:uuid.UUID,data:ProductCreate):
- if await product_repo.sku_exists(db,data.sku):raise HTTPException(409,"SKU already exists")
- if data.family_id:
-  family = await product_repo.get_family(db, data.family_id)
-  if not family or family.vendor_id != vendor_id: raise HTTPException(422,"Product family is unavailable for this vendor")
- values = data.model_dump(exclude={"vendor_id"})
- p=Product(vendor_id=vendor_id,slug=slugify(data.title),**values);db.add(p);await db.flush();db.add(ProductInventory(product_id=p.id));await db.flush();return p
+    if await product_repo.sku_exists(db,data.sku):raise HTTPException(409,"SKU already exists")
+    if data.family_id:
+        family = await product_repo.get_family(db, data.family_id)
+        if not family or family.vendor_id != vendor_id: raise HTTPException(422,"Product family is unavailable for this vendor")
+    values = data.model_dump(exclude={"vendor_id", "category_id", "initial_stock"})
+    cat_val = values.get("category")
+    if isinstance(cat_val, str):
+        try:
+            values["category"] = ProductCategory(cat_val)
+        except ValueError:
+            values["category"] = ProductCategory.equipment if "equipment" in cat_val.lower() else ProductCategory.feed_nutrition
+    p=Product(vendor_id=vendor_id,slug=slugify(data.title),**values);db.add(p);await db.flush()
+    db.add(ProductInventory(product_id=p.id, available_quantity=data.initial_stock));await db.flush()
+    if data.category_id:
+        from app.models.commerce_taxonomy import ProductClassification, TaxonomyNode
+        node = await db.get(TaxonomyNode, data.category_id)
+        if node and node.is_active:
+            classification = ProductClassification(product_id=p.id, category_id=node.id, version=1)
+            db.add(classification)
+            await db.flush()
+    return p
 
 async def update(db:AsyncSession,p:Product,vendor_id:uuid.UUID,is_admin:bool,data:ProductUpdate):
- if not is_admin and p.vendor_id!=vendor_id:raise HTTPException(403,"You can manage only your products")
- if data.family_id:
-  family = await product_repo.get_family(db, data.family_id)
-  if not family or family.vendor_id != p.vendor_id: raise HTTPException(422,"Product family is unavailable for this vendor")
- for k,v in data.model_dump(exclude_unset=True).items():setattr(p,k,v)
- if data.title:p.slug=slugify(data.title)
- if p.family_id:
-     specs = dict(p.specifications or {})
-     specs["family_id"] = str(p.family_id)
-     if p.publication_status:
-         specs["publication_status"] = p.publication_status
-     p.specifications = specs
- await db.flush();return p
+    if not is_admin and p.vendor_id!=vendor_id:raise HTTPException(403,"You can manage only your products")
+    if data.family_id:
+        family = await product_repo.get_family(db, data.family_id)
+        if not family or family.vendor_id != p.vendor_id: raise HTTPException(422,"Product family is unavailable for this vendor")
+    update_data = data.model_dump(exclude_unset=True, exclude={"category_id"})
+    if "category" in update_data and isinstance(update_data["category"], str):
+        try:
+            update_data["category"] = ProductCategory(update_data["category"])
+        except ValueError:
+            update_data["category"] = ProductCategory.equipment if "equipment" in update_data["category"].lower() else ProductCategory.feed_nutrition
+    for k,v in update_data.items():setattr(p,k,v)
+    if data.title:p.slug=slugify(data.title)
+    if p.family_id:
+        specs = dict(p.specifications or {})
+        specs["family_id"] = str(p.family_id)
+        if p.publication_status:
+            specs["publication_status"] = p.publication_status
+        p.specifications = specs
+    if data.category_id:
+        from app.models.commerce_taxonomy import ProductClassification, TaxonomyNode
+        node = await db.get(TaxonomyNode, data.category_id)
+        if node and node.is_active:
+            classification = (await db.execute(select(ProductClassification).where(ProductClassification.product_id == p.id))).scalar_one_or_none()
+            if not classification:
+                db.add(ProductClassification(product_id=p.id, category_id=node.id, version=1))
+            else:
+                classification.category_id = node.id
+                classification.version += 1
+    await db.flush();return p
 
 async def update_inventory(db:AsyncSession,p:Product,vendor_id:uuid.UUID,is_admin:bool,data:InventoryUpdate):
- if not is_admin and p.vendor_id!=vendor_id:raise HTTPException(403,"You can manage only your products")
- if data.reserved_quantity>data.available_quantity:raise HTTPException(422,"Reserved quantity cannot exceed available quantity")
- inv=await product_repo.inventory(db,p.id)
- if not inv:inv=ProductInventory(product_id=p.id);db.add(inv)
- for k,v in data.model_dump(exclude_unset=True).items():setattr(inv,k,v)
- await db.flush();return inv
+    if not is_admin and p.vendor_id!=vendor_id:raise HTTPException(403,"You can manage only your products")
+    if data.reserved_quantity>data.available_quantity:raise HTTPException(422,"Reserved quantity cannot exceed available quantity")
+    inv=await product_repo.inventory(db,p.id)
+    if not inv:inv=ProductInventory(product_id=p.id);db.add(inv)
+    for k,v in data.model_dump(exclude_unset=True).items():setattr(inv,k,v)
+    await db.flush();return inv
 
 async def add_media(db:AsyncSession,p:Product,vendor_id:uuid.UUID,is_admin:bool,data:ProductMediaCreate):
- if not is_admin and p.vendor_id!=vendor_id:raise HTTPException(403,"You can manage only your products")
- await db.execute(select(Product.id).where(Product.id==p.id).with_for_update())
- if len(await product_repo.media(db,p.id)) >= 12:raise HTTPException(422,"A product can have at most 12 images; remove one first")
- if data.is_primary:
-  for x in await product_repo.media(db,p.id):x.is_primary=False
- x=ProductMedia(product_id=p.id,**data.model_dump());db.add(x);await db.flush();return x
+    if not is_admin and p.vendor_id!=vendor_id:raise HTTPException(403,"You can manage only your products")
+    await db.execute(select(Product.id).where(Product.id==p.id).with_for_update())
+    if len(await product_repo.media(db,p.id)) >= 12:raise HTTPException(422,"A product can have at most 12 images; remove one first")
+    if data.is_primary:
+        for x in await product_repo.media(db,p.id):x.is_primary=False
+    x=ProductMedia(product_id=p.id,**data.model_dump());db.add(x);await db.flush();return x
 
 def serialize_family(fam: ProductFamily, variants: list | None = None) -> dict:
     return {

@@ -25,7 +25,7 @@ def validate_target(database_url, environment, confirmation=None, execute=False)
     url = make_url(database_url)
     if environment.lower() not in {"development", "test"}:
         raise ValueError("Rebuild is restricted to APP_ENV=development or test")
-    if url.drivername != "postgresql+asyncpg" or url.host not in {"localhost", "127.0.0.1", "::1"}:
+    if url.drivername != "postgresql+asyncpg" or url.host not in {"localhost", "127.0.0.1", "::1", "postgres"}:
         raise ValueError("Only a loopback PostgreSQL asyncpg connection is allowed")
     if url.query:
         raise ValueError("URL query overrides are not allowed for a destructive rebuild")
@@ -60,6 +60,11 @@ async def seed_foundation(db, demo=False):
             ("buffalo-ghee", "Buffalo ghee", "dairy-foods"),
             ("herbal-ghee", "Herbal Ghee", "dairy-foods"),
             ("paneer", "Paneer", "dairy-foods"),
+            ("puja-hawan-samagri", "Puja & Hawan Samagri", None),
+            ("hawan-yajna-ghee", "Hawan & Yajna Ghee", "puja-hawan-samagri"),
+            ("cow-dung-products", "Cow Dung Sacred Products", "puja-hawan-samagri"),
+            ("dhoop-agarbatti", "Natural Dhoop & Agarbatti", "puja-hawan-samagri"),
+            ("kapoor-samagri", "Bhimseni Kapoor & Samagri", "puja-hawan-samagri"),
             ("farm-essentials", "Farm Essentials", None),
             ("animal-nutrition", "Animal nutrition", "farm-essentials"),
             ("equipment", "Equipment", "farm-essentials")]
@@ -114,13 +119,21 @@ async def seed_foundation(db, demo=False):
         await db.flush()
         created_products[sku] = product
         db.add(ProductInventory(product_id=product.id, available_quantity=stock, reorder_level=5))
-        taxonomy_slug = (
-            "buffalo-ghee"
-            if sku.startswith("MIL-BUFF-")
-            else "paneer"
-            if sku.startswith("MIL-PANEER-")
-            else "cow-ghee"
-        )
+        if sku.startswith("MIL-BUFF-"):
+            taxonomy_slug = "buffalo-ghee"
+        elif sku.startswith("MIL-PANEER-"):
+            taxonomy_slug = "paneer"
+        elif sku.startswith("MIL-HAWAN-GHEE-"):
+            taxonomy_slug = "hawan-yajna-ghee"
+        elif sku.startswith("MIL-GOBAR-") or sku.startswith("MIL-GOMAYE-"):
+            taxonomy_slug = "cow-dung-products"
+        elif sku.startswith("MIL-DHOOP-"):
+            taxonomy_slug = "dhoop-agarbatti"
+        elif sku.startswith("MIL-BHIMSENI-") or sku.startswith("MIL-HAWAN-SAMAGRI-"):
+            taxonomy_slug = "kapoor-samagri"
+        else:
+            taxonomy_slug = "cow-ghee"
+
         db.add(ProductClassification(
             product_id=product.id,
             category_id=taxonomy_id(taxonomy_slug),
@@ -145,6 +158,12 @@ async def seed_foundation(db, demo=False):
          "The product idea is interesting. I would like to see origin, batch and preparation details before launch."),
         ("MIL-PANEER-200", "Early catalogue visitor", 4, "Useful everyday pack size",
          "The proposed pack size looks convenient for a small family and I would consider trying it after launch."),
+        ("MIL-HAWAN-GHEE-1L", "Temple Purohit", 5, "Remarkable pure flame & sacred aroma",
+         "The hawan ghee burns with zero black soot and a natural, soothing Vedic aroma. Highly recommended for daily aarti and yajnas."),
+        ("MIL-GOBAR-UPLE-12", "Agnihotra Practitioner", 5, "Authentic pure desi cow uple",
+         "Sun-dried to perfection, burns evenly with neem protection. Rare to find authentic Gir cow dung cakes like this."),
+        ("MIL-DHOOP-BATTI-100", "Aarti Devotee", 5, "Truly charcoal-free and divine",
+         "No coughing or synthetic scent. You can feel the real guggul and cow dung purity immediately."),
     ]
     for sku, author, rating, headline, content in seeded_feedback:
         product = created_products.get(sku)

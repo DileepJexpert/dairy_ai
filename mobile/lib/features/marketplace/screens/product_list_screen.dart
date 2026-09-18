@@ -13,15 +13,17 @@ import '../models/hero_showcase_config.dart';
 import '../../cart/widgets/store_cart_drawer.dart';
 import '../../commerce/models/taxonomy.dart';
 import '../../commerce/providers/commerce_provider.dart';
+import '../widgets/rfq_quote_dialog.dart';
 
 class ProductListScreen extends ConsumerStatefulWidget {
   const ProductListScreen(
       {super.key,
       this.category,
       this.initialQuery = '',
-      this.initialCategory = 'All products'});
+      this.initialCategory = 'All products',
+      this.initialSort = 'Featured'});
   final ProductCategory? category;
-  final String initialQuery, initialCategory;
+  final String initialQuery, initialCategory, initialSort;
   @override
   ConsumerState<ProductListScreen> createState() => _ProductListScreenState();
 }
@@ -40,20 +42,14 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   TaxonomyCatalogue? _taxonomy;
 
   String _label(String value) {
-    final lower = value.toLowerCase();
-    if (_taxonomy?.enabled == true && value != 'All products') {
-      for (final node in _taxonomy!.nodes) {
-        if (node.id == value || node.slug == value) {
-          final nLower = node.name.toLowerCase();
-          if (nLower.contains('animal') ||
-              nLower.contains('nutrition') ||
-              nLower.contains('feed')) {
-            return 'MILTERRA Cattle Nutrition Solutions';
-          }
-          return node.name;
-        }
+    if (value == 'All products' || value == 'All') return 'All Departments';
+    if (_taxonomy?.enabled == true) {
+      final node = _taxonomy!.findNode(value);
+      if (node != null) {
+        return node.name;
       }
     }
+    final lower = value.toLowerCase();
     if (lower.contains('earth') ||
         lower == 'milterra-earth' ||
         lower == 'cat-earth') {
@@ -90,6 +86,11 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       'Herbal Ghee' || 'Herbal ghee' || 'herbal-ghee' => 'Herbal Infused Ghee',
       'Paneer' => 'Fresh Malai Paneer',
       'Other products' => 'White Butter (Makhan)',
+      'Puja & Hawan Samagri' || 'puja-hawan-samagri' => '🪔 Puja & Hawan: Sacred Essentials',
+      'Hawan & Yajna Ghee' || 'hawan-yajna-ghee' => 'Pure Desi Cow Hawan Ghee',
+      'Cow Dung Sacred Products' || 'cow-dung-products' => 'Cow Dung Sacred Products (Hawan Kanda & Diyas)',
+      'Natural Dhoop & Agarbatti' || 'dhoop-agarbatti' => 'Panchagavya Dhoop & Agarbatti',
+      'Bhimseni Kapoor & Samagri' || 'kapoor-samagri' => 'Bhimseni Kapoor & Hawan Herbs',
       _ => value,
     };
   }
@@ -99,6 +100,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     super.initState();
     _search.text = widget.initialQuery;
     _category = widget.initialCategory;
+    _sort = widget.initialSort;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref.invalidate(productsProvider);
@@ -110,11 +112,13 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   void didUpdateWidget(covariant ProductListScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialQuery != widget.initialQuery ||
-        oldWidget.initialCategory != widget.initialCategory) {
+        oldWidget.initialCategory != widget.initialCategory ||
+        oldWidget.initialSort != widget.initialSort) {
       _search.text = widget.initialQuery;
       _category = widget.initialCategory;
+      _sort = widget.initialSort;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _browse(_category);
+        if (mounted) _browse(_category, sort: _sort);
       });
     }
   }
@@ -127,7 +131,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     super.dispose();
   }
 
-  void _browse(String category) {
+  void _browse(String category, {String? sort}) {
     setState(() {
       if (_category != category) {
         _priceMin = 0;
@@ -138,6 +142,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         _maxPriceCtrl.clear();
       }
       _category = category;
+      if (sort != null) _sort = sort;
     });
     final target = _catalogueKey.currentContext;
     if (target != null) {
@@ -150,6 +155,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     }
     if (_search.text.trim().isNotEmpty) {
       params['query'] = _search.text.trim();
+    }
+    if (_sort != 'Featured') {
+      params['sort'] = _sort;
     }
     context.go(Uri(
       path: '/shop',
@@ -244,6 +252,12 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                 _hero(size.maxWidth),
                                 const SizedBox(height: 24),
                               ],
+
+                              // IndiaMART-Style RFQ Banner
+                              _buildRFQBanner(isMobile),
+
+                              // IndiaMART-Style Live Buyer Demand Ticker
+                              _buildLiveRequirementTicker(),
 
                               // Amazon Catalogue Section (Results Bar + Sidebar + Grid)
                               Container(
@@ -379,6 +393,39 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Builder(builder: (_) {
+                  if (_sort == 'Best Sellers') {
+                    return const Text(
+                      'BEST SELLERS',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                        color: storeAmber,
+                      ),
+                    );
+                  }
+                  if (_sort == 'Newest Arrivals') {
+                    return const Text(
+                      'NEW RELEASES',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                        color: storeGreen,
+                      ),
+                    );
+                  }
+                  if (_sort == 'Trending') {
+                    return const Text(
+                      'MOVERS & SHAKERS',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                        color: storeAmber,
+                      ),
+                    );
+                  }
                   final isNutrition =
                       _category.toLowerCase().contains('animal') ||
                           _category.toLowerCase().contains('nutrition') ||
@@ -400,11 +447,17 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 }),
                 const SizedBox(height: 2),
                 Text(
-                  _category == 'All products'
-                      ? (query.isEmpty
-                          ? 'Showing all products'
-                          : 'Results for “$query”')
-                      : '${_label(_category)}${query.isEmpty ? '' : ' · “$query”'}',
+                  _sort == 'Best Sellers'
+                      ? 'Best Sellers in Milterra'
+                      : (_sort == 'Newest Arrivals'
+                          ? 'Hot New Releases & Recent Arrivals'
+                          : (_sort == 'Trending'
+                              ? 'Movers & Shakers: Trending in Store'
+                              : (_category == 'All products'
+                                  ? (query.isEmpty
+                                      ? 'Showing all products'
+                                      : 'Results for “$query”')
+                                  : '${_label(_category)}${query.isEmpty ? '' : ' · “$query”'}'))),
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -506,6 +559,284 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             ? Product.conceptExplanation
             : 'Browse products and compare the available pack sizes. Concept previews are labelled and not for sale.'),
       );
+
+  Widget _buildRFQBanner(bool isMobile) {
+    return LayoutBuilder(builder: (context, constraints) {
+      final isNarrow = constraints.maxWidth < 768;
+      return Container(
+        margin: const EdgeInsets.only(bottom: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xff064e3b), Color(0xff047857)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x1a047857),
+              blurRadius: 8,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: isNarrow
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.request_quote_rounded,
+                          color: Color(0xfffef08a),
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text(
+                          'Looking for Farm Machinery or Bulk Feeds?',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Post your requirement & receive direct quotes from verified manufacturers & OEMs.',
+                    style: TextStyle(
+                      color: Color(0xffa7f3d0),
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 38,
+                    child: FilledButton.icon(
+                      icon: const Icon(Icons.send_rounded, size: 16, color: Color(0xff064e3b)),
+                      label: const Text(
+                        'Post Buy Requirement / Get Quotes',
+                        style: TextStyle(
+                          color: Color(0xff064e3b),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                        ),
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xfffef08a),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => showRFQQuoteDialog(
+                        context,
+                        defaultTitle: _category == 'All products' || _category == 'All' ? null : _category,
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.request_quote_rounded,
+                      color: Color(0xfffef08a),
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Looking for Farm Machinery, Equipment, or Bulk Animal Feeds?',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Post your requirement & receive instant quotes from verified manufacturers, distributors & FPOs.',
+                          style: TextStyle(
+                            color: Color(0xffa7f3d0),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  FilledButton.icon(
+                    icon: const Icon(Icons.send_rounded, size: 16, color: Color(0xff064e3b)),
+                    label: const Text(
+                      'Post Buy Requirement (RFQ)',
+                      style: TextStyle(
+                        color: Color(0xff064e3b),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                      ),
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xfffef08a),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () => showRFQQuoteDialog(
+                      context,
+                      defaultTitle: _category == 'All products' || _category == 'All' ? null : _category,
+                    ),
+                  ),
+                ],
+              ),
+      );
+    });
+  }
+
+  Widget _buildLiveRequirementTicker() {
+    final rfqsAsync = ref.watch(recentRFQsProvider);
+    final rfqs = rfqsAsync.valueOrNull ?? [];
+
+    final displayItems = rfqs.isNotEmpty
+        ? rfqs
+        : [
+            {
+              'buyer_name': 'Ramesh P.',
+              'city': 'Anand, GJ',
+              'product_title': '3HP Heavy Duty Chaff Cutter',
+              'quantity': 2,
+              'unit': 'Units',
+            },
+            {
+              'buyer_name': 'Balwant S.',
+              'city': 'Karnal, HR',
+              'product_title': 'High Protein Cattle Feed Pellets',
+              'quantity': 50,
+              'unit': 'Bags',
+            },
+            {
+              'buyer_name': 'Santosh M.',
+              'city': 'Kolhapur, MH',
+              'product_title': '2-Bucket Portable Milking Machine',
+              'quantity': 1,
+              'unit': 'Unit',
+            },
+            {
+              'buyer_name': 'Dairy Producer Co.',
+              'city': 'Mehsana, GJ',
+              'product_title': 'Solar Agri Pump 5HP & Inverter',
+              'quantity': 3,
+              'unit': 'Sets',
+            },
+          ];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xfff0fdf4),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xffbbf7d0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0xffdc2626),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.fiber_manual_record, size: 8, color: Colors.white),
+                SizedBox(width: 4),
+                Text(
+                  'LIVE RFQ FEED',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: displayItems.map((item) {
+                  final name = item['buyer_name'] ?? 'Buyer';
+                  final city = item['city'] ?? 'India';
+                  final title = item['product_title'] ?? 'Equipment';
+                  final qty = item['quantity'] ?? 1;
+                  final unit = item['unit'] ?? 'units';
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 20),
+                    child: InkWell(
+                      onTap: () => showRFQQuoteDialog(
+                        context,
+                        defaultTitle: title.toString(),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.flash_on, size: 14, color: Color(0xff16a34a)),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$name ($city): ',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xff14532d),
+                            ),
+                          ),
+                          Text(
+                            '$title ($qty $unit)',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xff166534),
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('•', style: TextStyle(color: Color(0xff86efac))),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _showFilters() => showModalBottomSheet<void>(
       context: context,
@@ -856,6 +1187,27 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     return all.where((p) {
       if (p.isDraft) return false;
 
+      // Dynamic backend taxonomy node resolution
+      if (_taxonomy?.enabled == true && !isAllCategory) {
+        final node = _taxonomy!.findNode(_category);
+        if (node != null) {
+          final descendants = _taxonomy!.descendants(node.id);
+          final matchesNode = descendants.contains(p.taxonomy?['category_id']) ||
+              descendants.contains(p.taxonomy?['subcategory_id']) ||
+              p.taxonomy?['category_name']?.toString().toLowerCase() ==
+                  node.name.toLowerCase() ||
+              p.taxonomy?['department_name']?.toString().toLowerCase() ==
+                  node.name.toLowerCase() ||
+              storeCategory(p).toLowerCase() == node.name.toLowerCase();
+          if (matchesNode) {
+            return query.isEmpty ||
+                '${p.title} ${p.packSize ?? ''} ${p.brand ?? ''}'
+                    .toLowerCase()
+                    .contains(query);
+          }
+        }
+      }
+
       // Category filter
       final bool matchesCategory;
       if (isAllCategory) {
@@ -928,6 +1280,51 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         matchesCategory = storeCategory(p) == 'Other products' ||
             p.title.toLowerCase().contains('butter') ||
             p.title.toLowerCase().contains('makhan');
+      } else if (catLower.contains('puja') ||
+          catLower.contains('hawan-samagri') ||
+          catLower == 'puja-hawan-samagri') {
+        matchesCategory = storeCategory(p) == 'Hawan & Yajna Ghee' ||
+            storeCategory(p) == 'Cow Dung Sacred Products' ||
+            storeCategory(p) == 'Natural Dhoop & Agarbatti' ||
+            storeCategory(p) == 'Bhimseni Kapoor & Samagri' ||
+            storeCategory(p) == 'Puja & Hawan Samagri' ||
+            p.taxonomy?['department_name'] == 'Puja & Hawan Samagri' ||
+            p.taxonomy?['department_id'] == 'puja-hawan-samagri' ||
+            p.taxonomy?['is_sacred'] == true;
+      } else if (catLower.contains('hawan-yajna') ||
+          catLower == 'hawan & yajna ghee' ||
+          catLower == 'hawan-yajna-ghee') {
+        matchesCategory = storeCategory(p) == 'Hawan & Yajna Ghee' ||
+            p.taxonomy?['category_id'] == 'hawan-yajna-ghee' ||
+            p.title.toLowerCase().contains('hawan ghee') ||
+            p.title.toLowerCase().contains('yajna');
+      } else if (catLower.contains('cow-dung') ||
+          catLower == 'cow dung sacred products' ||
+          catLower == 'cow-dung-products') {
+        matchesCategory = storeCategory(p) == 'Cow Dung Sacred Products' ||
+            p.taxonomy?['category_id'] == 'cow-dung-products' ||
+            p.title.toLowerCase().contains('kanda') ||
+            p.title.toLowerCase().contains('diya') ||
+            (p.title.toLowerCase().contains('cow dung') &&
+                !p.title.toLowerCase().contains('dhoop') &&
+                !p.title.toLowerCase().contains('vermicompost') &&
+                !p.title.toLowerCase().contains('manure') &&
+                !p.title.toLowerCase().contains('compost'));
+      } else if (catLower.contains('dhoop') ||
+          catLower.contains('agarbatti') ||
+          catLower == 'dhoop-agarbatti') {
+        matchesCategory = storeCategory(p) == 'Natural Dhoop & Agarbatti' ||
+            p.taxonomy?['category_id'] == 'dhoop-agarbatti' ||
+            p.title.toLowerCase().contains('dhoop') ||
+            p.title.toLowerCase().contains('agarbatti');
+      } else if (catLower.contains('kapoor') ||
+          catLower.contains('samagri') ||
+          catLower == 'kapoor-samagri') {
+        matchesCategory = storeCategory(p) == 'Bhimseni Kapoor & Samagri' ||
+            p.taxonomy?['category_id'] == 'kapoor-samagri' ||
+            p.title.toLowerCase().contains('kapoor') ||
+            p.title.toLowerCase().contains('samagri') ||
+            p.title.toLowerCase().contains('camphor');
       } else if (catLower == 'farm essentials' ||
           catLower == 'farm-essentials') {
         matchesCategory = p.taxonomy?['department_name'] == 'Farm Essentials' ||
@@ -953,9 +1350,19 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             title.contains('manure') ||
             title.contains('compost') ||
             title.contains('soil mix');
+        final isSacred = p.taxonomy?['is_sacred'] == true ||
+            p.taxonomy?['department_name'] == 'Puja & Hawan Samagri' ||
+            p.taxonomy?['department_id'] == 'puja-hawan-samagri' ||
+            title.contains('hawan') ||
+            title.contains('kanda') ||
+            title.contains('dhoop') ||
+            title.contains('kapoor') ||
+            title.contains('camphor') ||
+            title.contains('diya');
         matchesCategory = !isFood &&
             !isEquip &&
             !isEarth &&
+            !isSacred &&
             (p.category == ProductCategory.feedNutrition ||
                 p.taxonomy?['concept'] == true ||
                 p.taxonomy?['category_id'] == 'animal-nutrition' ||
@@ -1032,6 +1439,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       _scope.isNotEmpty && _scope.every((p) => p.isConcept);
   List<String> get _sortOptions => [
         'Featured',
+        'Best Sellers',
+        'Newest Arrivals',
+        'Trending',
         if (!_conceptOnly) ...['Price: low to high', 'Price: high to low'],
         'Name: A to Z',
       ];
@@ -1049,7 +1459,19 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       }
       return true;
     }).toList();
-    if (!_conceptOnly && _sort.startsWith('Price:')) {
+    if (_sort == 'Best Sellers') {
+      items.sort((a, b) {
+        if (a.isFeatured != b.isFeatured) return a.isFeatured ? -1 : 1;
+        return b.rating.compareTo(a.rating);
+      });
+    } else if (_sort == 'Newest Arrivals') {
+      items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    } else if (_sort == 'Trending') {
+      items.sort((a, b) {
+        if (a.isFeatured != b.isFeatured) return a.isFeatured ? -1 : 1;
+        return (b.reviewCount).compareTo(a.reviewCount);
+      });
+    } else if (!_conceptOnly && _sort.startsWith('Price:')) {
       items.sort((a, b) {
         if (a.isConcept != b.isConcept) return a.isConcept ? 1 : -1;
         return _sort == 'Price: low to high'

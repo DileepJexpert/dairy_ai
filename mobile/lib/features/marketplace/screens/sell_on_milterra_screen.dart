@@ -206,15 +206,17 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
       await ref.read(dioProvider).put('/vendor/products/$id',
           data: {'publication_status': 'published'});
       ref.invalidate(productsProvider);
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text(
                 'Product saved and published. Manage photos from Seller Products.')));
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(
                 'Could not publish: ${commerceError(e)}. Check Seller Products for any saved draft before retrying.')));
+      }
     } finally {
       if (mounted) setState(() => _publishingProduct = false);
     }
@@ -243,9 +245,10 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                 'Business profile saved. Approval and seller access are managed by admin. Bank payout setup is not active during pre-launch.')));
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Could not register: ${commerceError(e)}')));
+      }
     } finally {
       if (mounted) setState(() => _submittingVendor = false);
     }
@@ -1024,11 +1027,20 @@ class _SellOnMilterraScreenState extends ConsumerState<SellOnMilterraScreen>
                   value: 'Farmer Producer Company (FPC)',
                   child: Text('Farmer Producer Company (FPC / FPO)')),
               DropdownMenuItem(
+                  value: 'Machinery & Equipment OEM',
+                  child: Text('Agri Machinery & Milking Equipment OEM (Toolsvilla)')),
+              DropdownMenuItem(
+                  value: 'Feed & Nutrition Manufacturer',
+                  child: Text('Cattle Feed Mill & Nutritional Supplement Manufacturer')),
+              DropdownMenuItem(
+                  value: 'Authorised Dealer / Distributor',
+                  child: Text('Authorised Dealer / Wholesale Distributor (IndiaMART)')),
+              DropdownMenuItem(
                   value: 'Private Limited / LLP',
                   child: Text('Private Limited / LLP Dairy Processor')),
               DropdownMenuItem(
                   value: 'Proprietorship Farm',
-                  child: Text('Sole Proprietorship Vedic Farm')),
+                  child: Text('Sole Proprietorship Vedic Farm / Cattle Breeder')),
             ],
             onChanged: (val) {
               if (val != null) setState(() => _vendorOrgType = val);

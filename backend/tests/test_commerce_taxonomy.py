@@ -126,3 +126,61 @@ async def test_public_catalogue_can_resolve_a_product_by_sku(client, vendor_user
     assert response.status_code == 200
     assert response.json()['total'] == 1
     assert response.json()['data'][0]['id'] == str(product.id)
+
+
+@pytest.mark.asyncio
+async def test_vendor_creates_product_with_category_and_admin_moderates(client, admin_headers, vendor_headers, vendor_user, db_session):
+    # 1. Admin creates Department, Category, Subcategory
+    dept = (await client.post('/api/v1/admin/commerce/taxonomy', headers=admin_headers, json={
+        'kind': 'department', 'name': 'Farm Earth', 'slug': 'farm-earth'
+    })).json()['data']
+    cat = (await client.post('/api/v1/admin/commerce/taxonomy', headers=admin_headers, json={
+        'kind': 'category', 'name': 'Compost', 'slug': 'compost', 'parent_id': dept['id']
+    })).json()['data']
+    subcat = (await client.post('/api/v1/admin/commerce/taxonomy', headers=admin_headers, json={
+        'kind': 'subcategory', 'name': 'Vermicompost', 'slug': 'vermicompost', 'parent_id': cat['id']
+    })).json()['data']
+
+    # 2. Public taxonomy includes hierarchical tree
+    tax_resp = await client.get('/api/v1/marketplace/taxonomy')
+    assert tax_resp.status_code == 200
+    tree = tax_resp.json()['tree']
+    assert any(d['name'] == 'Farm Earth' for d in tree)
+
+    # 3. Setup vendor profile
+    v_prof = Vendor(user_id=vendor_user.id, business_name='Earth Labs', vendor_type=VendorType.feed_supplier, is_active=True, is_verified=True)
+    db_session.add(v_prof)
+    await db_session.flush()
+
+    # 4. Vendor creates product directly under subcategory
+    prod_resp = await client.post('/api/v1/vendor/products', headers=vendor_headers, json={
+        'sku': 'VERMI-50KG',
+        'title': 'Premium Vermicompost 50kg',
+        'base_price': 650.0,
+        'unit': 'bag',
+        'category_id': subcat['id'],
+        'initial_stock': 40,
+        'publication_status': 'pending_review',
+    })
+    assert prod_resp.status_code == 201, prod_resp.text
+    prod_data = prod_resp.json()['data']
+    assert prod_data['category_id'] == subcat['id']
+    assert prod_data['category_name'] == 'Vermicompost'
+    assert prod_data['department_name'] == 'Farm Earth'
+    assert prod_data['available_quantity'] == 40
+    assert prod_data['publication_status'] == 'pending_review'
+
+    # 5. Admin moderates and publishes product
+    mod_resp = await client.put(f"/api/v1/admin/products/{prod_data['id']}/moderation", headers=admin_headers, json={
+        'publication_status': 'published',
+        'is_active': True,
+        'is_featured': True,
+    })
+    assert mod_resp.status_code == 200
+    assert mod_resp.json()['data']['publication_status'] == 'published'
+    assert mod_resp.json()['data']['is_featured'] is True
+
+    # 6. Public search by taxonomy ID resolves product
+    store_resp = await client.get('/api/v1/marketplace/products', params={'taxonomy_id': subcat['id']})
+    assert store_resp.status_code == 200
+    assert any(p['id'] == prod_data['id'] for p in store_resp.json()['data'])

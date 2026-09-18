@@ -50,3 +50,4 @@ from app.models.order import Order, OrderItem, OrderStatus, PaymentStatus, Fulfi
 from app.models.analytics import VisitorSession, ClickstreamEvent, ClickstreamEventType
 from app.models.commerce_admin import CommerceCoupon, OrderCoupon, CommerceCertificate, CommerceAudit
 from app.models.customer_commerce import WishlistEntry, SavedCartItem, OrderContact, OrderEvent
+from app.models.rfq import RFQInquiry, RFQStatus

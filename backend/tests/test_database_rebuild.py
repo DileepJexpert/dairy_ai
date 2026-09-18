@@ -54,8 +54,8 @@ async def test_postgres_repeat_rebuild_and_transaction_rollback(monkeypatch):
     engine = create_async_engine(url, poolclass=NullPool)
     try:
         async with engine.begin() as conn:
-            assert await conn.scalar(text('SELECT count(*) FROM products')) == 4
-            assert await conn.scalar(text('SELECT count(*) FROM commerce_product_classifications')) == 4
+            assert await conn.scalar(text('SELECT count(*) FROM products')) == len(rebuild_module.PRODUCTS)
+            assert await conn.scalar(text('SELECT count(*) FROM commerce_product_classifications')) == len(rebuild_module.PRODUCTS)
             await conn.execute(text('CREATE TABLE rebuild_sentinel(id integer)'))
         original = rebuild_module.seed_foundation
         async def fail_seed(*args):
@@ -65,13 +65,13 @@ async def test_postgres_repeat_rebuild_and_transaction_rollback(monkeypatch):
             await rebuild_module.rebuild(url, 'test', target.database, demo=True)
         async with engine.connect() as conn:
             assert await conn.scalar(text("SELECT to_regclass('public.rebuild_sentinel') IS NOT NULL"))
-            assert await conn.scalar(text('SELECT count(*) FROM products')) == 4
+            assert await conn.scalar(text('SELECT count(*) FROM products')) == len(rebuild_module.PRODUCTS)
         monkeypatch.setattr(rebuild_module, 'seed_foundation', original)
         await rebuild_module.rebuild(url, 'test', target.database, demo=True)
         async with engine.connect() as conn:
             assert await conn.scalar(text("SELECT to_regclass('public.rebuild_sentinel') IS NULL"))
-            assert await conn.scalar(text('SELECT count(*) FROM commerce_taxonomy_nodes')) == 7
-            assert await conn.scalar(text('SELECT count(*) FROM products')) == 4
+            assert await conn.scalar(text('SELECT count(*) FROM commerce_taxonomy_nodes')) == 14
+            assert await conn.scalar(text('SELECT count(*) FROM products')) == len(rebuild_module.PRODUCTS)
             # Shopping and farmer payment enums must coexist in PostgreSQL.
             assert await conn.scalar(text("SELECT 'paid'::commerce_payment_status::text")) == 'paid'
             assert await conn.scalar(text("SELECT 'processing'::paymentstatus::text")) == 'processing'

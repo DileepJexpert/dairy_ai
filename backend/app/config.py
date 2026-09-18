@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     # Keep this directory on persistent disk and back it up with the database.
     PRODUCT_MEDIA_DIR: str = "storage/product-media"
     # Enable after an explicit local full rebuild (see scripts/rebuild_local_database.py).
-    COMMERCE_TAXONOMY_ENABLED: bool = False
+    COMMERCE_TAXONOMY_ENABLED: bool = True
 
     # Optional zero-software-cost email delivery. Gmail SMTP can be used with
     # an account-specific App Password; leave blank for local reset-link testing.

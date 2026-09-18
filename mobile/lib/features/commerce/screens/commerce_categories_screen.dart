@@ -89,7 +89,7 @@ class CommerceCategoriesScreen extends ConsumerWidget {
                                                   const Text('Add department')),
                                           OutlinedButton.icon(
                                               onPressed:
-                                                  nodes.any((n) => n.isActive)
+                                                  nodes.any((n) => n.isActive && n.kind == 'department')
                                                       ? () => _edit(
                                                           context, ref, nodes,
                                                           kind: 'category')
@@ -97,6 +97,16 @@ class CommerceCategoriesScreen extends ConsumerWidget {
                                               icon: const Icon(Icons.add),
                                               label:
                                                   const Text('Add category')),
+                                          OutlinedButton.icon(
+                                              onPressed:
+                                                  nodes.any((n) => n.isActive && n.kind == 'category')
+                                                      ? () => _edit(
+                                                          context, ref, nodes,
+                                                          kind: 'subcategory')
+                                                      : null,
+                                              icon: const Icon(Icons.add),
+                                              label:
+                                                  const Text('Add subcategory')),
                                           TextButton.icon(
                                               onPressed: () {
                                                 ref.invalidate(
@@ -122,7 +132,9 @@ class CommerceCategoriesScreen extends ConsumerWidget {
                                             Icon(
                                                 node.kind == 'department'
                                                     ? Icons.storefront_outlined
-                                                    : Icons.category_outlined,
+                                                    : (node.kind == 'category'
+                                                        ? Icons.category_outlined
+                                                        : Icons.subdirectory_arrow_right_outlined),
                                                 color: node.isActive
                                                     ? storeGreen
                                                     : storeMuted),
@@ -223,6 +235,19 @@ class _CategoryEditorState extends ConsumerState<_CategoryEditor> {
     _description = TextEditingController(text: widget.node?.description ?? '');
     _order = TextEditingController(text: '${widget.node?.sortOrder ?? 0}');
     _parent = widget.node?.parentId;
+    if (_parent == null) {
+      if (widget.kind == 'subcategory') {
+        _parent = widget.nodes
+            .where((n) => n.kind == 'category' && n.isActive)
+            .firstOrNull
+            ?.id;
+      } else if (widget.kind == 'category') {
+        _parent = widget.nodes
+            .where((n) => n.kind == 'department' && n.isActive)
+            .firstOrNull
+            ?.id;
+      }
+    }
     _active = widget.node?.isActive ?? true;
   }
 
@@ -279,6 +304,13 @@ class _CategoryEditorState extends ConsumerState<_CategoryEditor> {
             .descendants(widget.node!.id);
     final parents =
         widget.nodes.where((n) => !excluded.contains(n.id)).toList();
+    final filteredParents = widget.kind == 'subcategory'
+        ? parents.where((n) => n.kind == 'category').toList()
+        : (widget.kind == 'category'
+            ? parents.where((n) => n.kind == 'department').toList()
+            : parents);
+    final eligibleParents =
+        filteredParents.isNotEmpty ? filteredParents : parents;
     return PopScope(
         canPop: !_busy,
         child: AlertDialog(
@@ -313,13 +345,16 @@ class _CategoryEditorState extends ConsumerState<_CategoryEditor> {
                                     ? 'Use lowercase words separated by hyphens'
                                     : null),
                         const SizedBox(height: StoreLayout.sm),
-                        if (widget.kind == 'category')
+                        if (widget.kind == 'category' ||
+                            widget.kind == 'subcategory')
                           DropdownButtonFormField<String>(
                               initialValue: _parent,
                               isExpanded: true,
-                              decoration:
-                                  const InputDecoration(labelText: 'Parent'),
-                              items: parents
+                              decoration: InputDecoration(
+                                  labelText: widget.kind == 'subcategory'
+                                      ? 'Parent Category (Level 2)'
+                                      : 'Parent Department (Level 1)'),
+                              items: eligibleParents
                                   .map((n) => DropdownMenuItem(
                                       value: n.id,
                                       child: Text('${n.name} (${n.kind})',

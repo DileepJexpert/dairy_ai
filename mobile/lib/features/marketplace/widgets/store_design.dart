@@ -59,6 +59,27 @@ String storeCategory(Product p) {
       name.contains('soil mix')) {
     return 'MILTERRA Earth';
   }
+  if (name.contains('hawan ghee') || name.contains('yajna')) {
+    return 'Hawan & Yajna Ghee';
+  }
+  if (name.contains('kanda') ||
+      name.contains('uple') ||
+      name.contains('diya') ||
+      (name.contains('cow dung') && !name.contains('dhoop') && !name.contains('vermicompost') && !name.contains('manure') && !name.contains('compost'))) {
+    return 'Cow Dung Sacred Products';
+  }
+  if (name.contains('dhoop') || name.contains('agarbatti')) {
+    return 'Natural Dhoop & Agarbatti';
+  }
+  if (name.contains('kapoor') ||
+      name.contains('camphor') ||
+      name.contains('samagri')) {
+    return 'Bhimseni Kapoor & Samagri';
+  }
+  if (p.taxonomy?['department_name'] == 'Puja & Hawan Samagri' ||
+      p.taxonomy?['is_sacred'] == true) {
+    return 'Puja & Hawan Samagri';
+  }
   if (p.category == ProductCategory.equipment) return 'Equipment';
   if (name.contains('paneer')) return 'Paneer';
   if (name.contains('tulsi') ||
@@ -110,11 +131,13 @@ void storeBackToShop(BuildContext context) {
   }
 }
 
-void storeBrowse(BuildContext context, {String? category, String? query}) =>
+void storeBrowse(BuildContext context,
+        {String? category, String? query, String? sort}) =>
     context.go(Uri(path: '/shop', queryParameters: {
       if (category != null && category != 'All products' && category != 'All')
         'category': category,
       if (query != null && query.isNotEmpty) 'query': query,
+      if (sort != null && sort.isNotEmpty) 'sort': sort,
     }).toString());
 
 /// Rating stars component mimicking Amazon's 5-star customer rating presentation.
@@ -148,24 +171,27 @@ class AmazonRatingStars extends StatelessWidget {
       children: [
         Row(
           mainAxisSize: MainAxisSize.min,
-          children: List.generate(5, (index) {
-            if (index < fullStars) {
-              return Icon(Icons.star, size: size, color: storeStarGold);
-            } else if (index == fullStars && hasHalf) {
-              return Icon(Icons.star_half, size: size, color: storeStarGold);
-            } else {
-              return Icon(Icons.star_border, size: size, color: storeStarGold);
-            }
-          }),
+          children: List.generate(
+            5,
+            (i) => Icon(
+              i < fullStars
+                  ? Icons.star_rate_rounded
+                  : (i == fullStars && hasHalf
+                      ? Icons.star_half_rounded
+                      : Icons.star_border_rounded),
+              color: storeAmber,
+              size: size,
+            ),
+          ),
         ),
         if (showCount) ...[
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           Text(
-            '$reviewCount',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: Color(0xff007185),
+            NumberFormat.compact().format(reviewCount),
+            style: TextStyle(
+              fontSize: size * 0.85,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xff007185),
             ),
           ),
         ],
@@ -173,7 +199,14 @@ class AmazonRatingStars extends StatelessWidget {
     );
 
     if (interactive && onTap != null) {
-      return InkWell(onTap: onTap, child: content);
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+          child: content,
+        ),
+      );
     }
     return content;
   }
@@ -202,6 +235,7 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
+    final taxonomy = ref.watch(taxonomyProvider).valueOrNull;
 
     return Align(
       alignment: Alignment.centerLeft,
@@ -222,23 +256,48 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                   bottom: false,
                   child: Row(
                     children: [
-                      const CircleAvatar(
-                        radius: 16,
-                        backgroundColor: storeSubNav,
-                        child: Icon(Icons.person, color: storeWhite, size: 20),
+                      InkWell(
+                        onTap: () {
+                          Navigator.pop(context);
+                          if (user != null) {
+                            context.push('/profile');
+                          } else {
+                            context.go('/login?next=/shop');
+                          }
+                        },
+                        child: const CircleAvatar(
+                          radius: 16,
+                          backgroundColor: storeSubNav,
+                          child:
+                              Icon(Icons.person, color: storeWhite, size: 20),
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          user != null
-                              ? 'Hello, ${user.name ?? 'Customer'}'
-                              : 'Hello, Sign in',
-                          style: const TextStyle(
-                              color: storeWhite,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.pop(context);
+                            if (user != null) {
+                              context.push('/profile');
+                            } else {
+                              context.go('/login?next=/shop');
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(4),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Text(
+                              user != null
+                                  ? 'Hello, ${user.name ?? 'Customer'}'
+                                  : 'Hello, Sign in',
+                              style: const TextStyle(
+                                  color: storeWhite,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ),
                       ),
                       IconButton(
@@ -258,109 +317,139 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                   children: [
                     _sectionHeader('Trending'),
                     _drawerTile(context, 'Best Sellers',
-                        () => storeBrowse(context, category: 'All products')),
+                        () => storeBrowse(context, sort: 'Best Sellers')),
                     _drawerTile(context, 'New Releases',
-                        () => storeBrowse(context, category: 'All products')),
+                        () => storeBrowse(context, sort: 'Newest Arrivals')),
                     _drawerTile(context, 'Movers & Shakers',
-                        () => storeBrowse(context, category: 'All products')),
-                    const Divider(height: 16),
-                    _sectionHeader('🥛 Household Dairy Collection'),
-                    _drawerTile(context, 'All Dairy Foods',
-                        () => storeBrowse(context, category: 'Dairy Foods')),
-                    _drawerTile(context, 'All Ghee',
-                        () => storeBrowse(context, category: 'All Ghee')),
-                    _drawerTile(context, 'A2 Desi Cow Ghee (Bilona)',
-                        () => storeBrowse(context, category: 'Cow ghee')),
-                    _drawerTile(context, 'Rich Granular Buffalo Ghee',
-                        () => storeBrowse(context, category: 'Buffalo ghee')),
-                    _drawerTile(context, 'Herbal Infused Ghee',
-                        () => storeBrowse(context, category: 'Herbal Ghee')),
-                    _drawerTile(context, 'Fresh Malai Paneer',
-                        () => storeBrowse(context, category: 'Paneer')),
-                    _drawerTile(context, 'Cultured White Butter (Makhan)',
-                        () => storeBrowse(context, category: 'Other products')),
-                    const Divider(height: 16),
-                    _sectionHeader('🌱 MILTERRA Earth: Living Soil & Compost'),
-                    _drawerTile(
-                        context, 'From Farm Waste to Living Soil (Overview)',
-                        () {
-                      Navigator.pop(context);
-                      context.push('/earth');
-                    }),
-                    _drawerTile(context, 'All MILTERRA Earth Products',
-                        () => storeBrowse(context, category: 'MILTERRA Earth')),
-                    _drawerTile(
-                        context,
-                        'Premium Vermicompost',
-                        () => storeBrowse(context,
-                            category: 'MILTERRA Earth', query: 'vermicompost')),
-                    _drawerTile(
-                        context,
-                        'Cow-Dung Farm Manure',
-                        () => storeBrowse(context,
-                            category: 'MILTERRA Earth', query: 'manure')),
-                    _drawerTile(
-                        context,
-                        'Enriched Organic Compost',
-                        () => storeBrowse(context,
-                            category: 'MILTERRA Earth', query: 'compost')),
-                    _drawerTile(
-                        context,
-                        'Sun-Dried Compost Cakes',
-                        () => storeBrowse(context,
-                            category: 'MILTERRA Earth', query: 'cakes')),
-                    _drawerTile(
-                        context,
-                        'Compost Starter & Inoculants',
-                        () => storeBrowse(context,
-                            category: 'MILTERRA Earth', query: 'starter')),
-                    _drawerTile(
-                        context,
-                        'Garden Soil Mix',
-                        () => storeBrowse(context,
-                            category: 'MILTERRA Earth', query: 'soil mix')),
-                    const Divider(height: 16),
-                    _sectionHeader("🌾 Farmer's Hub: Feed & Nutrition"),
-                    _drawerTile(
-                        context,
-                        'All Cattle Nutrition & Feed',
-                        () =>
-                            storeBrowse(context, category: 'Animal nutrition')),
-                    _drawerTile(
-                        context,
-                        '20% Protein Compound Pellets',
-                        () =>
-                            storeBrowse(context, category: 'Animal nutrition')),
-                    _drawerTile(
-                        context,
-                        'Chelated Minerals & Yeast',
-                        () =>
-                            storeBrowse(context, category: 'Animal nutrition')),
-                    _drawerTile(
-                        context,
-                        'Calci-Boost High-Potency Drench',
-                        () =>
-                            storeBrowse(context, category: 'Animal nutrition')),
-                    _drawerTile(
-                        context,
-                        '99% Pure Bypass Fat',
-                        () =>
-                            storeBrowse(context, category: 'Animal nutrition')),
-                    const Divider(height: 16),
-                    _sectionHeader('⚙️ Modern Farm & Dairy Machinery'),
-                    _drawerTile(context, 'All Dairy & Farm Machinery',
-                        () => storeBrowse(context, category: 'Equipment')),
-                    _drawerTile(context, 'Single-Bucket Milking Machines',
-                        () => storeBrowse(context, category: 'Equipment')),
-                    _drawerTile(context, 'Digital Ultrasonic Milk Analyzers',
-                        () => storeBrowse(context, category: 'Equipment')),
-                    _drawerTile(context, 'High-Speed Motor Chaff Cutters',
-                        () => storeBrowse(context, category: 'Equipment')),
-                    _drawerTile(context, 'SS 304 Heavy-Duty Milk Cans',
-                        () => storeBrowse(context, category: 'Equipment')),
-                    _drawerTile(context, 'Interlocking Cow Comfort Mats',
-                        () => storeBrowse(context, category: 'Equipment')),
-                    const Divider(height: 16),
+                        () => storeBrowse(context, sort: 'Trending')),
+                    if (taxonomy?.enabled == true &&
+                        taxonomy!.departments.isNotEmpty) ...[
+                      for (final dept in taxonomy.departments) ...[
+                        const Divider(height: 16),
+                        _sectionHeader(dept.name),
+                        _drawerTile(context, 'All ${dept.name}',
+                            () => storeBrowse(context, category: dept.id)),
+                        for (final cat in taxonomy.categoriesFor(dept.id)) ...[
+                          _drawerTile(context, cat.name,
+                              () => storeBrowse(context, category: cat.id)),
+                          for (final sub in taxonomy.subcategoriesFor(cat.id))
+                            _drawerTile(context, '   ↳ ${sub.name}',
+                                () => storeBrowse(context, category: sub.id)),
+                        ],
+                      ],
+                    ] else ...[
+                      const Divider(height: 16),
+                      _sectionHeader('🥛 Household Dairy Collection'),
+                      _drawerTile(context, 'All Dairy Foods',
+                          () => storeBrowse(context, category: 'Dairy Foods')),
+                      _drawerTile(context, 'All Ghee',
+                          () => storeBrowse(context, category: 'All Ghee')),
+                      _drawerTile(context, 'A2 Desi Cow Ghee (Bilona)',
+                          () => storeBrowse(context, category: 'Cow ghee')),
+                      _drawerTile(context, 'Rich Granular Buffalo Ghee',
+                          () => storeBrowse(context, category: 'Buffalo ghee')),
+                      _drawerTile(context, 'Herbal Infused Ghee',
+                          () => storeBrowse(context, category: 'Herbal Ghee')),
+                      _drawerTile(context, 'Fresh Malai Paneer',
+                          () => storeBrowse(context, category: 'Paneer')),
+                      _drawerTile(context, 'Cultured White Butter (Makhan)',
+                          () => storeBrowse(context, category: 'Other products')),
+                      const Divider(height: 16),
+                      _sectionHeader('🌱 MILTERRA Earth: Living Soil & Compost'),
+                      _drawerTile(
+                          context, 'From Farm Waste to Living Soil (Overview)',
+                          () {
+                        Navigator.pop(context);
+                        context.push('/earth');
+                      }),
+                      _drawerTile(context, 'All MILTERRA Earth Products',
+                          () => storeBrowse(context, category: 'MILTERRA Earth')),
+                      _drawerTile(
+                          context,
+                          'Premium Vermicompost',
+                          () => storeBrowse(context,
+                              category: 'MILTERRA Earth', query: 'vermicompost')),
+                      _drawerTile(
+                          context,
+                          'Cow-Dung Farm Manure',
+                          () => storeBrowse(context,
+                              category: 'MILTERRA Earth', query: 'manure')),
+                      _drawerTile(
+                          context,
+                          'Enriched Organic Compost',
+                          () => storeBrowse(context,
+                              category: 'MILTERRA Earth', query: 'compost')),
+                      _drawerTile(
+                          context,
+                          'Sun-Dried Compost Cakes',
+                          () => storeBrowse(context,
+                              category: 'MILTERRA Earth', query: 'cakes')),
+                      _drawerTile(
+                          context,
+                          'Compost Starter & Inoculants',
+                          () => storeBrowse(context,
+                              category: 'MILTERRA Earth', query: 'starter')),
+                      _drawerTile(
+                          context,
+                          'Garden Soil Mix',
+                          () => storeBrowse(context,
+                              category: 'MILTERRA Earth', query: 'soil mix')),
+                      const Divider(height: 16),
+                      _sectionHeader('🪔 Puja & Hawan: Cow By-Products & Sacred Essentials'),
+                      _drawerTile(context, 'All Puja & Hawan Samagri',
+                          () => storeBrowse(context, category: 'Puja & Hawan Samagri')),
+                      _drawerTile(context, 'Pure Desi Cow Hawan Ghee',
+                          () => storeBrowse(context, category: 'Hawan & Yajna Ghee')),
+                      _drawerTile(context, 'Vedic Cow Dung Cakes (Hawan Kanda)',
+                          () => storeBrowse(context, category: 'Cow Dung Sacred Products', query: 'kanda')),
+                      _drawerTile(context, 'Handcrafted Cow Dung Diyas',
+                          () => storeBrowse(context, category: 'Cow Dung Sacred Products', query: 'diya')),
+                      _drawerTile(context, 'Panchagavya Dhoop & Agarbatti',
+                          () => storeBrowse(context, category: 'Natural Dhoop & Agarbatti')),
+                      _drawerTile(context, 'Shuddha Bhimseni Kapoor & Hawan Herbs',
+                          () => storeBrowse(context, category: 'Bhimseni Kapoor & Samagri')),
+                      const Divider(height: 16),
+                      _sectionHeader("🌾 Farmer's Hub: Feed & Nutrition"),
+                      _drawerTile(
+                          context,
+                          'All Cattle Nutrition & Feed',
+                          () =>
+                              storeBrowse(context, category: 'Animal nutrition')),
+                      _drawerTile(
+                          context,
+                          '20% Protein Compound Pellets',
+                          () =>
+                              storeBrowse(context, category: 'Animal nutrition')),
+                      _drawerTile(
+                          context,
+                          'Chelated Minerals & Yeast',
+                          () =>
+                              storeBrowse(context, category: 'Animal nutrition')),
+                      _drawerTile(
+                          context,
+                          'Calci-Boost High-Potency Drench',
+                          () =>
+                              storeBrowse(context, category: 'Animal nutrition')),
+                      _drawerTile(
+                          context,
+                          '99% Pure Bypass Fat',
+                          () =>
+                              storeBrowse(context, category: 'Animal nutrition')),
+                      const Divider(height: 16),
+                      _sectionHeader('⚙️ Modern Farm & Dairy Machinery'),
+                      _drawerTile(context, 'All Dairy & Farm Machinery',
+                          () => storeBrowse(context, category: 'Equipment')),
+                      _drawerTile(context, 'Single-Bucket Milking Machines',
+                          () => storeBrowse(context, category: 'Equipment')),
+                      _drawerTile(context, 'Digital Ultrasonic Milk Analyzers',
+                          () => storeBrowse(context, category: 'Equipment')),
+                      _drawerTile(context, 'High-Speed Motor Chaff Cutters',
+                          () => storeBrowse(context, category: 'Equipment')),
+                      _drawerTile(context, 'SS 304 Heavy-Duty Milk Cans',
+                          () => storeBrowse(context, category: 'Equipment')),
+                      _drawerTile(context, 'Interlocking Cow Comfort Mats',
+                          () => storeBrowse(context, category: 'Equipment')),
+                    ],
                     _sectionHeader('Programs & Features'),
                     _drawerTile(context, 'Quality & Research', () {
                       Navigator.pop(context);
@@ -853,6 +942,52 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                 ],
               ),
             ),
+            const SizedBox(height: 14),
+            const Text(
+              'Filter Classifieds & Deliveries by Location / Radius:',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: storeGreen,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ActionChip(
+                  avatar: const Icon(Icons.my_location, size: 14, color: Color(0xff064e3b)),
+                  label: const Text('Near Me (Within 25 km)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  backgroundColor: const Color(0xffdcfce7),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.location_city, size: 14, color: Color(0xff064e3b)),
+                  label: const Text('Anand & Kheda (GJ)', style: TextStyle(fontSize: 12)),
+                  backgroundColor: const Color(0xfff1f5f9),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.location_city, size: 14, color: Color(0xff064e3b)),
+                  label: const Text('Kolhapur & Sangli (MH)', style: TextStyle(fontSize: 12)),
+                  backgroundColor: const Color(0xfff1f5f9),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.location_city, size: 14, color: Color(0xff064e3b)),
+                  label: const Text('Karnal & Rohtak (HR)', style: TextStyle(fontSize: 12)),
+                  backgroundColor: const Color(0xfff1f5f9),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.public, size: 14, color: Color(0xff064e3b)),
+                  label: const Text('All India (Nationwide)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  backgroundColor: const Color(0xfffef08a),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
             const SizedBox(height: 18),
             Row(
               children: [
@@ -1085,62 +1220,11 @@ class StoreCategoryNavigation extends ConsumerWidget {
       'All products': 'All Products',
     };
 
-    if (taxonomy?.enabled == true) {
-      final nodes = taxonomy!.nodes.where((n) => n.isActive).toList();
-      final dairyDept = nodes
-          .where((n) =>
-              n.slug == 'dairy-foods' || n.name.toLowerCase() == 'dairy foods')
-          .firstOrNull;
-      final farmDept = nodes
-          .where((n) =>
-              n.slug == 'farm-essentials' ||
-              n.name.toLowerCase() == 'farm essentials')
-          .firstOrNull;
-
-      if (dairyDept != null) {
-        entries[dairyDept.id] = dairyDept.name;
-        final allGheeNode = nodes
-            .where((n) =>
-                n.slug == 'all-ghee' || n.name.toLowerCase() == 'all ghee')
-            .firstOrNull;
-        if (allGheeNode != null) {
-          entries[allGheeNode.id] = allGheeNode.name;
-        } else {
-          entries['All Ghee'] = 'All Ghee';
-        }
-        for (final child in nodes.where((n) =>
-            n.parentId == dairyDept.id &&
-            n.slug != 'all-ghee' &&
-            n.name.toLowerCase() != 'all ghee')) {
+    if (taxonomy?.enabled == true && taxonomy!.departments.isNotEmpty) {
+      for (final dept in taxonomy.departments) {
+        entries[dept.id] = dept.name;
+        for (final child in taxonomy.categoriesFor(dept.id)) {
           entries[child.id] = child.name;
-        }
-      } else {
-        entries['Dairy Foods'] = 'Dairy Foods';
-        entries['All Ghee'] = 'All Ghee';
-        entries['Cow ghee'] = 'Cow ghee';
-        entries['Buffalo ghee'] = 'Buffalo ghee';
-        entries['Herbal Ghee'] = 'Herbal Ghee';
-        entries['Paneer'] = 'Paneer';
-      }
-
-      if (farmDept != null) {
-        entries[farmDept.id] = farmDept.name;
-        for (final child in nodes.where((n) => n.parentId == farmDept.id)) {
-          entries[child.id] = child.name;
-        }
-      } else {
-        entries['Farm Essentials'] = 'Farm Essentials';
-        entries['Animal nutrition'] = 'Animal nutrition';
-        entries['Equipment'] = 'Equipment';
-      }
-
-      for (final n in nodes) {
-        if (!entries.containsKey(n.id) &&
-            n.id != dairyDept?.id &&
-            n.id != farmDept?.id &&
-            n.parentId != dairyDept?.id &&
-            n.parentId != farmDept?.id) {
-          entries[n.id] = n.name;
         }
       }
     } else if (legacyEquipment) {
@@ -1275,8 +1359,41 @@ class StoreCategoryNavigation extends ConsumerWidget {
                 ),
               ),
 
-              // Right side direct tag (Desktop): Direct link to authentic laboratory test reports
-              if (MediaQuery.sizeOf(context).width >= 960)
+              // Right side direct tags (Desktop)
+              if (MediaQuery.sizeOf(context).width >= 960) ...[
+                // OLX-Style "+ Post Free Ad"
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InkWell(
+                    key: const ValueKey('subnav-post-ad-btn'),
+                    onTap: () => context.push('/marketplace/sell'),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xfffef08a),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add_circle, color: Color(0xff064e3b), size: 14),
+                          SizedBox(width: 4),
+                          Text(
+                            '+ Post Free Ad',
+                            style: TextStyle(
+                              color: Color(0xff064e3b),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Lab Test Reports
                 Padding(
                   padding: const EdgeInsets.only(right: 16),
                   child: Consumer(builder: (context, ref, _) {
@@ -1318,6 +1435,7 @@ class StoreCategoryNavigation extends ConsumerWidget {
                     );
                   }),
                 ),
+              ],
             ],
           ),
         ),
@@ -1502,6 +1620,11 @@ abstract final class StoreImages {
         'manure' || 'farm manure' => 'assets/store/earth-manure.jpg',
         'soil mix' || 'garden soil' => 'assets/store/earth-soil-mix.jpg',
         'compost cakes' || 'cakes' => 'assets/store/earth-cakes.jpg',
+        'hawan & yajna ghee' || 'hawan ghee' || 'yajna ghee' => 'assets/store/cow-ghee.png',
+        'cow dung sacred products' || 'cow dung cakes' || 'hawan kanda' || 'diya' || 'diyas' => 'assets/store/earth-cakes.jpg',
+        'natural dhoop & agarbatti' || 'dhoop' || 'agarbatti' => 'assets/store/milterra-tulsi-ghee.webp',
+        'bhimseni kapoor & samagri' || 'bhimseni kapoor' || 'kapoor' || 'camphor' || 'hawan samagri' => 'assets/store/farm-bilona.jpg',
+        'puja & hawan samagri' || 'puja samagri' || 'puja' || 'hawan' => 'assets/store/earth-cakes.jpg',
         'equipment' ||
         'farm equipment' ||
         'farm machinery' ||
@@ -1548,6 +1671,33 @@ abstract final class StoreImages {
         return 'assets/store/earth-vermicompost.jpg';
       }
       return 'assets/store/earth-vermicompost.jpg';
+    }
+
+    final isSacred = p.taxonomy?['is_sacred'] == true ||
+        p.taxonomy?['department_name'] == 'Puja & Hawan Samagri' ||
+        title.contains('hawan') ||
+        title.contains('kanda') ||
+        title.contains('dhoop') ||
+        title.contains('kapoor') ||
+        title.contains('camphor') ||
+        title.contains('diya');
+    if (isSacred) {
+      if (title.contains('ghee')) return 'assets/store/cow-ghee.png';
+      if (title.contains('kanda') ||
+          title.contains('uple') ||
+          title.contains('diya')) {
+        return 'assets/store/earth-cakes.jpg';
+      }
+      if (title.contains('dhoop') || title.contains('agarbatti')) {
+        return 'assets/store/milterra-tulsi-ghee.webp';
+      }
+      if (title.contains('kapoor') || title.contains('camphor')) {
+        return 'assets/store/farm-bilona.jpg';
+      }
+      if (title.contains('samagri')) {
+        return 'assets/store/nutrition-lineup.jpg';
+      }
+      return 'assets/store/earth-cakes.jpg';
     }
 
     if (title.contains('milking') || title.contains('milker')) {

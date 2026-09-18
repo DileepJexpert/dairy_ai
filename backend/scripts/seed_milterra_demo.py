@@ -29,6 +29,12 @@ PRODUCTS = [
     ("MIL-GHEE-SINGLE-FARM", "Milterra Single-Farm A2 Sahiwal Cow Ghee", "500 ml", "Planned single-farm Sahiwal milk sourcing with batch-level traceability.", "899", 25),
     ("MIL-GHEE-FULL-MOON", "Milterra Full Moon (Purnima Batch) Sahiwal Ghee", "500 ml", "A proposed limited Purnima-themed batch using the same planned cultured-butter Sahiwal milk process.", "999", 15),
     ("MIL-PANEER-200", "Milterra Fresh Sahiwal Milk Paneer", "200 g", "Planned fresh paneer made from Sahiwal cow milk and packed under refrigeration.", "160", 40),
+    ("MIL-HAWAN-GHEE-1L", "Milterra Pure Desi Cow Hawan Ghee (Yajna Special)", "1 litre", "Specially clarified pure Desi Cow Hawan Ghee formulated for holy yajnas, homams, and akhand jyot with clean, smoke-free flame.", "649", 40),
+    ("MIL-GOBAR-UPLE-12", "Milterra Vedic Desi Cow Dung Cakes (Hawan Kanda)", "Pack of 12", "Traditional sun-dried Gir cow dung cakes infused with neem leaves. Specially prepared for sacred hawan fires and home purification.", "149", 100),
+    ("MIL-DHOOP-BATTI-100", "Milterra Panchagavya Cow Dung Dhoop Sticks (Guggal & Loban)", "100 g", "100% organic, charcoal-free dhoop batti crafted from pure desi cow dung, natural herbs, guggul, and loban with ceramic holder.", "199", 75),
+    ("MIL-BHIMSENI-KAPOOR-100", "Milterra Shuddha Bhimseni Pure Camphor (Original Flakes)", "100 g", "Pure crystalline Bhimseni Kapoor flakes for daily aarti and hawan. Burns completely without leaving any toxic residue or black smoke.", "249", 60),
+    ("MIL-HAWAN-SAMAGRI-500", "Milterra Vedic Navgraha Hawan Samagri (51 Herbs & Guggul)", "500 g", "Sacred blend of 51 Ayurvedic herbs, dried flowers, navgraha samidha woods, jatamansi, nagarmotha, and pure guggul resin for havans.", "220", 50),
+    ("MIL-GOMAYE-DIYA-24", "Milterra Handcrafted Cow Dung Diyas (Gomaye Deepam)", "Pack of 24", "Eco-friendly, biodegradable sacred diyas hand-moulded from indigenous cow dung and natural plant binders. Ash serves as organic soil fertilizer.", "179", 80),
 ]
 
 CONCEPT_FAMILIES = [
@@ -61,6 +67,55 @@ def product_specifications(sku: str) -> dict[str, str]:
         "Product Status": "Pre-launch specification; final production and lab validation pending",
         "Country of Origin": "India",
     }
+    if sku.startswith("MIL-HAWAN-GHEE-"):
+        return {
+            **common,
+            "Source": "100% Pure Desi Cow Milk Fat",
+            "Intended Rituals": "Yajna, Havan, Homam, Agnihotra, Akhand Jyot, and Aarti",
+            "Characteristics": "Clean golden flame, minimal soot, natural auspicious satvik aroma",
+            "Storage": "Store sealed in a cool, dry place away from direct sunlight",
+            "Shelf Life": "12 months from packing date",
+        }
+    if sku.startswith("MIL-GOBAR-UPLE-"):
+        return {
+            **common,
+            "Raw Material": "100% Indigenous Desi Cow Dung & Organic Neem Leaves",
+            "Processing": "Naturally sun-dried and sanitized, zero chemical additives or coal",
+            "Intended Rituals": "Vedic Yajna, Homa, Agnihotra, Dhoop base, Environment purification",
+            "Packaging": "12 pieces cushioned box packing to prevent breakage",
+        }
+    if sku.startswith("MIL-DHOOP-BATTI-"):
+        return {
+            **common,
+            "Composition": "Gir Cow Dung, Pure Guggul, Natural Loban, Bhimseni Camphor, Ayurvedic Herbs",
+            "Features": "100% Charcoal-Free, Bamboo-Less, Chemical-Free, Low Smoke",
+            "Burning Time": "Approx 45 minutes per stick",
+            "Package Contents": "30 Dhoop Sticks with 1 handmade ceramic holder",
+        }
+    if sku.startswith("MIL-BHIMSENI-KAPOOR-"):
+        return {
+            **common,
+            "Purity": "100% Pure Bhimseni Camphor (Cinnamomum camphora extract flakes)",
+            "Residue Standard": "Leaves zero soot, ash, or toxic chemical residue upon combustion",
+            "Usage": "Daily Aarti, Hawan Ahuti, Diffusers, and Natural Aromatherapy",
+            "Storage": "Keep tightly closed in an airtight jar to prevent evaporation",
+        }
+    if sku.startswith("MIL-HAWAN-SAMAGRI-"):
+        return {
+            **common,
+            "Herbal Composition": "51 Sacred Herbs: Jatamansi, Nagarmotha, Chandan, Guggul, Loban, Navgraha Woods",
+            "Purity Standard": "100% Natural botanicals, no added artificial colour or synthetic perfume",
+            "Usage": "Sacred Ahuti in Navchandi, Griha Pravesh, Gayatri Hawan, and Daily Homa",
+            "Net Quantity": "500 grams",
+        }
+    if sku.startswith("MIL-GOMAYE-DIYA-"):
+        return {
+            **common,
+            "Raw Material": "Pure Indigenous Cow Dung, Organic Clay, and Natural Plant Binders",
+            "Eco Property": "100% Biodegradable; burns completely with ghee leaving sacred holy ash",
+            "Use": "Diwali, Navratri, Daily Mandir Puja, and Floating Deepdan",
+            "Package Contents": "24 pieces per pack",
+        }
     if sku.startswith("MIL-GHEE-"):
         return {
             **common,

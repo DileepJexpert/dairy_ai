@@ -55,7 +55,7 @@ async def save_node(db, actor, data, node_id=None):
         raise HTTPException(409, "This slug is already in use")
     if kind == "department" and data.parent_id is not None:
         raise HTTPException(422, "Departments cannot have a parent")
-    if kind == "category":
+    if kind in ("category", "subcategory"):
         parent = index.get(data.parent_id)
         if not parent:
             raise HTTPException(422, "Choose an existing parent department or category")
@@ -96,7 +96,7 @@ async def assign_product(db, actor, product_id, data):
         raise HTTPException(404, "Product not found")
     index = {n.id: n for n in await nodes(db)}
     category = index.get(data.category_id)
-    if not category or category.kind != "category" or not effective_active(category, index):
+    if not category or category.kind not in ("category", "subcategory") or not effective_active(category, index):
         raise HTTPException(422, "Choose an active product category")
     assignment = await db.get(ProductClassification, product_id)
     if data.expected_version != (assignment.version if assignment else 0):

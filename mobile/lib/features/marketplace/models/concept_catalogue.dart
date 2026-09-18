@@ -6,11 +6,18 @@ String _previewTitle(Product p) {
           r'^MILTERRA (CALCI-PRO|MINERA-360|LACTA-PRO|RUMEN-PRO|HEAT-GUARD)',
           caseSensitive: false)
       .firstMatch(p.title);
-  if (line != null) return line.group(0)!;
-  if (p.title.contains('Bovine Gold'))
+  if (line != null) {
+    return line.group(0)!;
+  }
+  if (p.title.contains('Bovine Gold')) {
     return 'MILTERRA Bovine Gold Cattle Feed';
-  if (p.title.contains('Cal-Gold')) return 'MILTERRA Cal-Gold';
-  if (p.title.contains('Lacto-Energy')) return 'MILTERRA Lacto-Energy';
+  }
+  if (p.title.contains('Cal-Gold')) {
+    return 'MILTERRA Cal-Gold';
+  }
+  if (p.title.contains('Lacto-Energy')) {
+    return 'MILTERRA Lacto-Energy';
+  }
   return p.title;
 }
 
@@ -24,12 +31,12 @@ List<Product> get conceptCatalogue => defaultMilterraProducts
           inStock: false,
           availableQuantity: 0,
           taxonomy: {
-            ...?p.taxonomy,
+            ...p.taxonomy,
             'concept': true,
             'status': 'Concept Preview'
           },
           specifications: {
-            ...?p.specifications,
+            ...p.specifications,
             'listing_status': 'concept',
             'imagery': 'Concept packaging',
             'concept': true,

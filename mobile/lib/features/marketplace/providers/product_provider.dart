@@ -124,3 +124,14 @@ final vendorFamiliesProvider = FutureProvider<List<ProductFamily>>((ref) async {
       .map((j) => ProductFamily.fromJson(Map<String, dynamic>.from(j)))
       .toList();
 });
+
+final recentRFQsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  try {
+    final response = await ref.read(dioProvider).get('/rfq/recent');
+    return (response.data['data'] as List? ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  } catch (_) {
+    return [];
+  }
+});

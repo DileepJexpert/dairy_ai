@@ -26,7 +26,32 @@ def require_enabled():
 async def public_taxonomy(db: AsyncSession = Depends(get_db)):
     if not settings.COMMERCE_TAXONOMY_ENABLED:
         return {"success": True, "enabled": False, "data": []}
-    return {"success": True, "enabled": True, "data": await service.public_nodes(db)}
+    nodes = await service.public_nodes(db)
+    
+    dept_map: dict[str, dict] = {}
+    for n in nodes:
+        if n["kind"] == "department":
+            dept_map[n["id"]] = {**n, "categories": []}
+            
+    cat_map: dict[str, dict] = {}
+    for n in nodes:
+        if n["kind"] == "category":
+            cat_obj = {**n, "subcategories": []}
+            cat_map[n["id"]] = cat_obj
+            parent_id = n.get("parent_id")
+            if parent_id and parent_id in dept_map:
+                dept_map[parent_id]["categories"].append(cat_obj)
+                
+    for n in nodes:
+        if n["kind"] == "subcategory":
+            parent_id = n.get("parent_id")
+            if parent_id and parent_id in cat_map:
+                cat_map[parent_id]["subcategories"].append(n)
+            elif parent_id and parent_id in dept_map:
+                dept_map[parent_id]["categories"].append({**n, "subcategories": []})
+
+    tree = list(dept_map.values())
+    return {"success": True, "enabled": True, "data": nodes, "tree": tree}
 
 
 @router.get("/commerce/access")

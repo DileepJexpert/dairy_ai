@@ -4,6 +4,8 @@ import '../../auth/providers/auth_provider.dart';
 import '../../marketplace/models/product_models.dart';
 import '../../marketplace/widgets/store_design.dart';
 import '../../marketplace/widgets/product_media_manager.dart';
+import '../../commerce/models/taxonomy.dart';
+import '../../commerce/providers/commerce_provider.dart';
 
 final vendorProductsProvider =
     FutureProvider.autoDispose<List<Product>>((ref) async {
@@ -422,6 +424,15 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
                         color: storeOrange,
                       ),
                     ),
+                    if (p.compareAtPrice != null && p.compareAtPrice! > p.price)
+                      Text(
+                        storeMoney(p.compareAtPrice!),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: storeMuted,
+                          decoration: TextDecoration.lineThrough,
+                        ),
+                      ),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
@@ -647,9 +658,10 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
       ref.invalidate(vendorProductsProvider);
     } catch (_) {
       ref.invalidate(vendorProductsProvider);
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Listing status was not saved. Please try again.')));
+      }
     }
   }
 
@@ -657,17 +669,23 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
   // Modal Sheet: Add New Product Across Any Department
   // --------------------------------------------------------------------------
   Future<void> _openAddProductModal(BuildContext context) async {
+    final sku = TextEditingController(
+        text: 'SKU-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}');
     final title = TextEditingController();
     final brand = TextEditingController(text: 'Milterra');
     final packSize = TextEditingController(text: '500 ml');
     final price = TextEditingController();
+    final mrp = TextEditingController();
     final stock = TextEditingController(text: '25');
     final unit = TextEditingController(text: 'jar');
+    final weight = TextEditingController(text: '500');
     final image = TextEditingController();
     final desc = TextEditingController();
 
-    String selectedDepartment = 'Dairy Foods';
-    ProductCategory backendCategory = ProductCategory.feedNutrition;
+    String? selectedDepartmentId;
+    String? selectedCategoryId;
+    String? selectedSubcategoryId;
+    bool isSubmitting = false;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -680,277 +698,536 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
         padding: EdgeInsets.fromLTRB(
             24, 20, 24, MediaQuery.viewInsetsOf(sheet).bottom + 24),
         child: StatefulBuilder(
-          builder: (modalCtx, setModalState) => SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          builder: (modalCtx, setModalState) => Consumer(
+            builder: (ctx, ref, _) {
+              final taxonomy = ref.watch(taxonomyProvider).valueOrNull ??
+                  const TaxonomyCatalogue(enabled: false, nodes: []);
+              final departments = taxonomy.departments;
+
+              if (selectedDepartmentId == null && departments.isNotEmpty) {
+                selectedDepartmentId = departments.first.id;
+              }
+
+              final categories = selectedDepartmentId != null
+                  ? taxonomy.categoriesFor(selectedDepartmentId)
+                  : <TaxonomyNode>[];
+
+              if (selectedCategoryId != null &&
+                  !categories.any((c) => c.id == selectedCategoryId)) {
+                selectedCategoryId = null;
+                selectedSubcategoryId = null;
+              }
+
+              final subcategories = selectedCategoryId != null
+                  ? taxonomy.subcategoriesFor(selectedCategoryId)
+                  : <TaxonomyNode>[];
+
+              if (selectedSubcategoryId != null &&
+                  !subcategories.any((s) => s.id == selectedSubcategoryId)) {
+                selectedSubcategoryId = null;
+              }
+
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Add New Product / SKU',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color: storeGreen,
+                              ),
+                            ),
+                            Text(
+                              'Amazon/Flipkart-style Catalogue Onboarding',
+                              style: TextStyle(fontSize: 12, color: storeMuted),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(sheet),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 20),
+
+                    // Section: Category Hierarchy
                     const Text(
-                      'Add New Product Listing',
+                      'Marketplace Taxonomy Classification *',
                       style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
                         color: storeGreen,
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(sheet),
-                    ),
-                  ],
-                ),
-                const Divider(height: 20),
+                    const SizedBox(height: 8),
 
-                // Department Selection Dropdown
-                const Text(
-                  'Department & Category',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: storeGreen,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedDepartment,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'Dairy Foods',
-                      child: Text('🥛 Gourmet Farm Dairy (Ghee, Paneer, Milk)'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Animal nutrition',
-                      child: Text(
-                          '🌾 Cattle Feed & Nutrition (Pellets, Minerals)'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Equipment',
-                      child: Text('⚙️ Modern Farm & Dairy Machinery'),
-                    ),
-                  ],
-                  onChanged: (val) {
-                    if (val == null) return;
-                    setModalState(() {
-                      selectedDepartment = val;
-                      backendCategory = val == 'Equipment'
-                          ? ProductCategory.equipment
-                          : ProductCategory.feedNutrition;
-                      if (val == 'Dairy Foods') {
-                        unit.text = 'jar';
-                        packSize.text = '500 ml';
-                      } else if (val == 'Animal nutrition') {
-                        unit.text = 'bag';
-                        packSize.text = '50 kg';
-                      } else {
-                        unit.text = 'unit';
-                        packSize.text = '1 machine';
-                      }
-                    });
-                  },
-                ),
-                const SizedBox(height: 14),
-
-                // Product Title
-                TextField(
-                  controller: title,
-                  decoration: const InputDecoration(
-                    labelText: 'Product Title *',
-                    hintText: 'e.g. Pure A2 Gir Cow Bilona Ghee',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Brand & Pack size in a Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: brand,
+                    // Department (L1) Dropdown
+                    if (departments.isNotEmpty) ...[
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedDepartmentId,
                         decoration: const InputDecoration(
-                          labelText: 'Brand',
+                          labelText: 'Department (Level 1)',
                           border: OutlineInputBorder(),
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         ),
+                        items: departments
+                            .map((d) => DropdownMenuItem(
+                                  value: d.id,
+                                  child: Text(d.name),
+                                ))
+                            .toList(),
+                        onChanged: (val) {
+                          if (val == null) return;
+                          setModalState(() {
+                            selectedDepartmentId = val;
+                            selectedCategoryId = null;
+                            selectedSubcategoryId = null;
+                            final deptName = departments
+                                .firstWhere((d) => d.id == val)
+                                .name
+                                .toLowerCase();
+                            if (deptName.contains('equipment') ||
+                                deptName.contains('machinery')) {
+                              unit.text = 'unit';
+                              packSize.text = '1 machine';
+                            } else if (deptName.contains('feed') ||
+                                deptName.contains('nutrition')) {
+                              unit.text = 'bag';
+                              packSize.text = '50 kg';
+                            } else {
+                              unit.text = 'jar';
+                              packSize.text = '500 ml';
+                            }
+                          });
+                        },
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: packSize,
-                        decoration: const InputDecoration(
-                          labelText: 'Pack Size',
-                          hintText: 'e.g. 500 ml / 1 kg',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                      const SizedBox(height: 10),
+                    ],
 
-                // Price & Initial Stock Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: price,
-                        keyboardType: TextInputType.number,
+                    // Category (L2) Dropdown
+                    if (categories.isNotEmpty) ...[
+                      DropdownButtonFormField<String?>(
+                        initialValue: selectedCategoryId,
                         decoration: const InputDecoration(
-                          labelText: 'Price (₹) *',
-                          prefixText: '₹ ',
+                          labelText: 'Category (Level 2)',
                           border: OutlineInputBorder(),
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: stock,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Stock Qty *',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: unit,
-                        decoration: const InputDecoration(
-                          labelText: 'Unit',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Image URL with presets
-                TextField(
-                  controller: image,
-                  decoration: const InputDecoration(
-                    labelText: 'Product Image URL (optional)',
-                    hintText: 'https://... or leave empty for auto-artwork',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Description
-                TextField(
-                  controller: desc,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Short Description',
-                    hintText:
-                        'Key features, purity certification, source farm...',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Publish Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: storeAmber,
-                      foregroundColor: storeGreen,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(StoreLayout.radius),
-                      ),
-                    ),
-                    onPressed: () async {
-                      if (title.text.trim().length < 2 ||
-                          double.tryParse(price.text) == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content:
-                                Text('Please enter a valid title and price.'),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('— Select Category —'),
                           ),
-                        );
-                        return;
-                      }
+                          ...categories.map((c) => DropdownMenuItem<String?>(
+                                value: c.id,
+                                child: Text(c.name),
+                              )),
+                        ],
+                        onChanged: (val) {
+                          setModalState(() {
+                            selectedCategoryId = val;
+                            selectedSubcategoryId = null;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                    ],
 
-                      try {
-                        final dio = ref.read(dioProvider);
-                        final created =
-                            (await dio.post('/vendor/products', data: {
-                          'sku': 'APP-${DateTime.now().microsecondsSinceEpoch}',
-                          'title': title.text.trim(),
-                          'brand': brand.text.trim(),
-                          'pack_size': packSize.text.trim(),
-                          'description': desc.text.trim(),
-                          'category':
-                              backendCategory == ProductCategory.equipment
-                                  ? 'EQUIPMENT'
-                                  : 'FEED_NUTRITION',
-                          'base_price': price.text.trim(),
-                          'unit': unit.text.trim(),
-                        }))
-                                .data['data'];
+                    // Subcategory (L3) Dropdown
+                    if (subcategories.isNotEmpty) ...[
+                      DropdownButtonFormField<String?>(
+                        initialValue: selectedSubcategoryId,
+                        decoration: const InputDecoration(
+                          labelText: 'Subcategory (Level 3 - Optional)',
+                          border: OutlineInputBorder(),
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('— Select Subcategory (Optional) —'),
+                          ),
+                          ...subcategories.map((s) => DropdownMenuItem<String?>(
+                                value: s.id,
+                                child: Text(s.name),
+                              )),
+                        ],
+                        onChanged: (val) {
+                          setModalState(() {
+                            selectedSubcategoryId = val;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                    ],
 
-                        final id = created['id'];
-                        await dio.put(
-                          '/vendor/products/$id/inventory',
-                          data: {
-                            'available_quantity':
-                                int.tryParse(stock.text) ?? 20,
-                          },
-                        );
-
-                        if (image.text.trim().isNotEmpty) {
-                          await dio.post(
-                            '/vendor/products/$id/media',
-                            data: {
-                              'url': image.text.trim(),
-                              'is_primary': true,
-                            },
-                          );
-                        }
-                      } catch (_) {
-                        // Successfully handles development mock/offline
-                      }
-
-                      ref.invalidate(vendorProductsProvider);
-                      if (sheet.mounted) Navigator.pop(sheet);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            backgroundColor: storeGreen,
-                            content: Text(
-                              'Product "${title.text.trim()}" published to catalogue.',
+                    // Section: SKU and Title
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: sku,
+                            decoration: InputDecoration(
+                              labelText: 'Seller SKU *',
+                              hintText: 'e.g. MIL-GHEE-500',
+                              border: const OutlineInputBorder(),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                              suffixIcon: IconButton(
+                                icon: const Icon(Icons.refresh, size: 18),
+                                tooltip: 'Auto-generate SKU',
+                                onPressed: () => setModalState(() => sku.text =
+                                    'SKU-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}'),
+                              ),
                             ),
                           ),
-                        );
-                      }
-                    },
-                    child: const Text(
-                      'Publish Product Listing',
-                      style:
-                          TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: brand,
+                            decoration: const InputDecoration(
+                              labelText: 'Brand',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
+                    const SizedBox(height: 12),
+
+                    // Title
+                    TextField(
+                      controller: title,
+                      decoration: const InputDecoration(
+                        labelText: 'Product Title *',
+                        hintText: 'e.g. Pure A2 Gir Cow Bilona Ghee (Glass Jar)',
+                        border: OutlineInputBorder(),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Pack Size & Unit
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: packSize,
+                            decoration: const InputDecoration(
+                              labelText: 'Pack Size / Variant *',
+                              hintText: 'e.g. 500 ml / 1 kg',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: unit,
+                            decoration: const InputDecoration(
+                              labelText: 'Unit of Measure',
+                              hintText: 'jar / bottle / bag',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: weight,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Weight (g)',
+                              hintText: 'e.g. 500',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Price, MRP & Stock Row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: price,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Selling Price (₹) *',
+                              prefixText: '₹ ',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: mrp,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'MRP / Compare (₹)',
+                              prefixText: '₹ ',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: stock,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Initial Stock *',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Image URL with presets
+                    TextField(
+                      controller: image,
+                      decoration: const InputDecoration(
+                        labelText: 'Primary Image URL (optional)',
+                        hintText:
+                            'https://... or leave empty to upload via media manager',
+                        border: OutlineInputBorder(),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Description
+                    TextField(
+                      controller: desc,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Short Description & Key Highlights',
+                        hintText:
+                            'Key purity features, certifications, source farm...',
+                        border: OutlineInputBorder(),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Publish Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: storeAmber,
+                          foregroundColor: storeGreen,
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(StoreLayout.radius),
+                          ),
+                        ),
+                        icon: isSubmitting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: storeGreen,
+                                ),
+                              )
+                            : const Icon(Icons.check_circle_outline),
+                        label: Text(
+                          isSubmitting
+                              ? 'Publishing Listing...'
+                              : 'Publish Product Listing',
+                          style: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: isSubmitting
+                            ? null
+                            : () async {
+                                final titleText = title.text.trim();
+                                final priceVal =
+                                    double.tryParse(price.text.trim());
+                                if (titleText.length < 2 ||
+                                    priceVal == null ||
+                                    priceVal <= 0) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'Please enter a valid product title and price.'),
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                setModalState(() => isSubmitting = true);
+
+                                try {
+                                  final dio = ref.read(dioProvider);
+                                  final chosenTaxonomyId =
+                                      selectedSubcategoryId ??
+                                          selectedCategoryId ??
+                                          selectedDepartmentId;
+
+                                  final payload = <String, dynamic>{
+                                    'sku': sku.text.trim().isNotEmpty
+                                        ? sku.text.trim()
+                                        : 'SKU-${DateTime.now().millisecondsSinceEpoch}',
+                                    'title': titleText,
+                                    'brand': brand.text.trim().isNotEmpty
+                                        ? brand.text.trim()
+                                        : null,
+                                    'pack_size': packSize.text.trim().isNotEmpty
+                                        ? packSize.text.trim()
+                                        : null,
+                                    'description': desc.text.trim().isNotEmpty
+                                        ? desc.text.trim()
+                                        : null,
+                                    'category': 'FEED_NUTRITION',
+                                    'base_price': priceVal,
+                                    'unit': unit.text.trim().isNotEmpty
+                                        ? unit.text.trim()
+                                        : 'unit',
+                                    'initial_stock':
+                                        int.tryParse(stock.text.trim()) ?? 0,
+                                  };
+
+                                  if (chosenTaxonomyId != null) {
+                                    payload['category_id'] = chosenTaxonomyId;
+                                  }
+                                  final mrpVal =
+                                      double.tryParse(mrp.text.trim());
+                                  if (mrpVal != null && mrpVal > 0) {
+                                    payload['compare_at_price'] = mrpVal;
+                                  }
+                                  final weightVal =
+                                      int.tryParse(weight.text.trim());
+                                  if (weightVal != null && weightVal > 0) {
+                                    payload['weight_grams'] = weightVal;
+                                  }
+
+                                  final res = await dio.post(
+                                    '/vendor/products',
+                                    data: payload,
+                                  );
+                                  final createdData =
+                                      res.data['data'] as Map<String, dynamic>?;
+                                  final newProductId =
+                                      createdData?['id']?.toString();
+
+                                  if (newProductId != null &&
+                                      image.text.trim().isNotEmpty) {
+                                    await dio.post(
+                                      '/vendor/products/$newProductId/media',
+                                      data: {
+                                        'url': image.text.trim(),
+                                        'is_primary': true,
+                                      },
+                                    );
+                                  }
+
+                                  ref.invalidate(vendorProductsProvider);
+                                  if (sheet.mounted) Navigator.pop(sheet);
+
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        backgroundColor: storeGreen,
+                                        content: Text(
+                                          'Product "$titleText" published successfully!',
+                                        ),
+                                        action: newProductId != null
+                                            ? SnackBarAction(
+                                                label: 'Add Images',
+                                                textColor: storeAmber,
+                                                onPressed: () {
+                                                  showDialog<void>(
+                                                    context: context,
+                                                    barrierDismissible: false,
+                                                    builder: (_) =>
+                                                        ProductMediaManager(
+                                                      productId: newProductId,
+                                                      title: titleText,
+                                                    ),
+                                                  );
+                                                },
+                                              )
+                                            : null,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  setModalState(() => isSubmitting = false);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            'Failed to publish product: $e'),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ),
     );
 
-    for (final c in [title, brand, packSize, price, stock, unit, image, desc]) {
+    for (final c in [
+      sku,
+      title,
+      brand,
+      packSize,
+      price,
+      mrp,
+      stock,
+      unit,
+      weight,
+      image,
+      desc
+    ]) {
       c.dispose();
     }
   }

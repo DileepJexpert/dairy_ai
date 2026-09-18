@@ -14,7 +14,7 @@ class TaxonomyFields(BaseModel):
 
 
 class TaxonomyCreate(TaxonomyFields):
-    kind: Literal["department", "category"]
+    kind: Literal["department", "category", "subcategory"]
 
 
 class TaxonomyUpdate(TaxonomyFields):

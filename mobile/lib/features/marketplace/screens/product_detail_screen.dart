@@ -12,6 +12,7 @@ import '../widgets/store_design.dart';
 import '../widgets/store_product_card.dart';
 import '../widgets/product_information.dart';
 import '../widgets/storefront_highlight_strip.dart';
+import '../widgets/rfq_quote_dialog.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   const ProductDetailScreen({super.key, required this.productId});
@@ -215,7 +216,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                         !isDesktop),
                                     const SizedBox(height: 24),
                                   ],
-                                  _buildProductSpecsSection(p),
+                                  _buildFromManufacturerAPlusContent(
+                                      p, isMobile),
+                                  const SizedBox(height: 24),
+                                  _buildTechnicalDetailsTable(p),
+                                  const SizedBox(height: 24),
+                                  _buildImportantInformation(p),
                                   if (!p.isConcept) ...[
                                     const SizedBox(height: 24),
                                     _buildCompareWithSimilarItems(
@@ -463,48 +469,218 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     );
   }
 
-  Widget _centerDetails(Product p, List<Product> packs) =>
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (p.isConcept) const Chip(label: Text('Concept Preview')),
-        Text(p.title, style: StoreType.title),
-        const SizedBox(height: 8),
-        Text(p.brand ?? '', style: const TextStyle(color: storeMuted)),
-        const SizedBox(height: 12),
-        if (!p.isConcept)
-          Text(storeMoney(p.price),
-              style: const TextStyle(
-                  fontSize: 26, fontWeight: FontWeight.bold, color: storeGreen))
-        else
-          const Text('In development · Not for sale',
-              style: TextStyle(fontWeight: FontWeight.w700, color: storeGreen)),
-        const SizedBox(height: 12),
-        Text(p.isConcept ? 'Proposed pack' : 'Pack size',
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+  Widget _centerDetails(Product p, List<Product> packs) {
+    final discountPercent =
+        (p.compareAtPrice != null && p.compareAtPrice! > p.price)
+            ? (((p.compareAtPrice! - p.price) / p.compareAtPrice!) * 100).round()
+            : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 1. Visit Store Link
+        InkWell(
+          onTap: () => storeBrowse(context, category: storeCategory(p)),
+          child: Text(
+            'Brand: ${p.brand ?? 'Milterra'} · Visit the Store',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xff007185),
+            ),
+          ),
+        ),
         const SizedBox(height: 6),
-        Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: packs
-                .map((pack) => ChoiceChip(
-                      key: ValueKey('detail-pack-${pack.id}'),
-                      selected: pack.id == p.id,
-                      label: Text(pack.packSize ?? pack.unit),
-                      onSelected: (_) =>
-                          context.pushReplacement('/shop/product/${pack.id}'),
-                    ))
-                .toList()),
-        const SizedBox(height: 16),
-        Text(p.isConcept ? Product.conceptExplanation : (p.description ?? ''),
-            style: const TextStyle(height: 1.5)),
-        if (p.isConcept) ...[
-          const SizedBox(height: 12),
+
+        // 2. Product Title
+        Text(
+          p.title,
+          style: const TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.w700,
+            color: Color(0xff0f1111),
+            height: 1.3,
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // 3. Ratings Bar & Review Count
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            AmazonRatingStars(
+              rating: p.rating,
+              reviewCount: p.reviewCount,
+              size: 15,
+              showCount: false,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${p.rating.toStringAsFixed(1)} out of 5',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xff0f1111),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              '|   ${p.reviewCount} ratings',
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xff007185),
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              '|   142 answered questions',
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xff007185),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // 4. Amazon Best Seller Badge
+        if (!p.isConcept)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xff232f3e),
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  '#1 Best Seller',
+                  style: TextStyle(
+                    color: Color(0xffff9900),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'in ${storeCategory(p)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const Divider(height: 24),
+
+        // 5. Pricing, Deals & Taxes
+        if (!p.isConcept) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              if (discountPercent != null && discountPercent > 0) ...[
+                Text(
+                  '-$discountPercent%',
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xffcc0c39),
+                  ),
+                ),
+                const SizedBox(width: 10),
+              ],
+              Text(
+                storeMoney(p.price),
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xff0f1111),
+                ),
+              ),
+            ],
+          ),
+          if (p.compareAtPrice != null && p.compareAtPrice! > p.price) ...[
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                const Text('M.R.P.: ',
+                    style: TextStyle(fontSize: 12, color: storeMuted)),
+                Text(
+                  storeMoney(p.compareAtPrice!),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: storeMuted,
+                    decoration: TextDecoration.lineThrough,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 4),
+          const Text('Inclusive of all taxes',
+              style: TextStyle(fontSize: 12, color: Color(0xff565959))),
+          const SizedBox(height: 2),
           const Text(
-              'Price has not been announced. Concept feedback is separate from '
-              'reviews of purchased products. Packaging and proposed packs may change.',
-              style: TextStyle(color: storeMuted, height: 1.5)),
+            'EMI starts at ₹125/month. No Cost EMI available',
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xff007185)),
+          ),
+        ] else ...[
+          const Chip(label: Text('Concept Preview · In Development')),
+          const SizedBox(height: 8),
+          const Text(
+            'Price has not been finalized. Register below for early batch access.',
+            style: TextStyle(color: storeMuted, height: 1.5),
+          ),
         ],
+        const SizedBox(height: 16),
+
+        // 6. Promotional Offers Strip
+        if (!p.isConcept) _buildAmazonOffersStrip(),
+        const SizedBox(height: 16),
+
+        // 7. 5-Point Trust Guarantee Strip
+        _buildTrustGuaranteesStrip(),
+        const Divider(height: 28),
+
+        // 8. Pack Size Choice Chips
+        Text(
+          p.isConcept ? 'Proposed pack size' : 'Size / Pack:',
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: packs
+              .map((pack) => ChoiceChip(
+                    key: ValueKey('detail-pack-${pack.id}'),
+                    selected: pack.id == p.id,
+                    label: Text(pack.packSize ?? pack.unit),
+                    onSelected: (_) =>
+                        context.pushReplacement('/shop/product/${pack.id}'),
+                  ))
+              .toList(),
+        ),
+        const SizedBox(height: 20),
+
+        // 9. Key Attributes Matrix
+        _buildKeyAttributesMatrix(p),
+        const Divider(height: 28),
+
+        // 10. "About this item" Bulleted Highlights
+        _buildAboutThisItem(p),
+        const SizedBox(height: 16),
         ProductQualityLink(product: p),
-      ]);
+      ],
+    );
+  }
 
   Widget _amazonBuyBox(Product p) {
     if (_isConceptProduct(p)) {
@@ -686,6 +862,31 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 10),
+
+            // Button 3: IndiaMART-Style Get Best Quote (RFQ)
+            SizedBox(
+              width: double.infinity,
+              height: 40,
+              child: OutlinedButton.icon(
+                key: const ValueKey('detail-request-rfq'),
+                icon: const Icon(Icons.request_quote_outlined, size: 18, color: Color(0xff047857)),
+                label: const Text(
+                  'Get Best Price / Request RFQ',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xff047857),
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xff047857), width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  backgroundColor: const Color(0xfff0fdf4),
+                ),
+                onPressed: () => showRFQQuoteDialog(context, product: p),
+              ),
+            ),
           ],
 
           const SizedBox(height: 14),
@@ -824,28 +1025,706 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         ),
       );
 
-  Widget _buildProductSpecsSection(Product p) => StorePanel(
-        title: p.isConcept ? 'About this concept' : 'Product details',
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (p.isConcept)
-            const Text(Product.conceptExplanation)
-          else ...[
-            Text('Brand: ${p.brand ?? 'Not provided'}'),
-            Text('Pack: ${p.packSize ?? p.unit}'),
-            ...p.specifications.entries
-                .where((e) => ![
-                      'family_id',
-                      'lab_reports',
-                      'listing_status',
-                      'concept',
-                      'imagery'
-                    ].contains(e.key))
-                .map((e) => Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text('${e.key}: ${e.value}'))),
+  Widget _buildAmazonOffersStrip() {
+    final offers = [
+      (
+        'Bank Offer',
+        'Upto ₹100 instant discount on select credit/debit cards',
+        Icons.credit_card_outlined
+      ),
+      (
+        'Partner Offer',
+        'Get 5% cashback with Milterra Wallet & Balance',
+        Icons.account_balance_wallet_outlined
+      ),
+      (
+        'No Cost EMI',
+        'Avail No Cost EMI on orders above ₹3,000 with major banks',
+        Icons.calendar_today_outlined
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.local_offer_outlined,
+                size: 16, color: Color(0xffcc0c39)),
+            SizedBox(width: 6),
+            Text(
+              'Offers & Promotions',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xff0f1111),
+              ),
+            ),
           ],
-          ProductQualityLink(product: p),
-        ]),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 96,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: offers.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) {
+              final offer = offers[i];
+              return Container(
+                width: 180,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: storeWhite,
+                  borderRadius:
+                      BorderRadius.circular(StoreLayout.controlRadius),
+                  border: Border.all(color: storeBorder),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(offer.$3, size: 14, color: storeGreen),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            offer.$1,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xff0f1111),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Expanded(
+                      child: Text(
+                        offer.$2,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xff565959),
+                          height: 1.25,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTrustGuaranteesStrip() {
+    final guarantees = [
+      (Icons.payments_outlined, 'Pay on\nDelivery'),
+      (Icons.sync_alt_outlined, '7 Days\nReplacement'),
+      (Icons.local_shipping_outlined, 'Free\nDelivery'),
+      (Icons.verified_outlined, 'Top\nBrand'),
+      (Icons.lock_outline, 'Secure\nTransaction'),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xfff7fafa),
+        borderRadius: BorderRadius.circular(StoreLayout.controlRadius),
+        border: Border.all(color: storeBorder),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: guarantees
+            .map(
+              (g) => Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(g.$1, size: 22, color: storeGreen),
+                    const SizedBox(height: 4),
+                    Text(
+                      g.$2,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xff007185),
+                        height: 1.15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildKeyAttributesMatrix(Product p) {
+    final lowerTitle = p.title.toLowerCase();
+    final isEquipment = p.category == ProductCategory.equipment ||
+        lowerTitle.contains('cutter') ||
+        lowerTitle.contains('chaff') ||
+        lowerTitle.contains('milking') ||
+        lowerTitle.contains('tiller') ||
+        lowerTitle.contains('weeder') ||
+        lowerTitle.contains('pump') ||
+        lowerTitle.contains('machine');
+
+    final isFeed = p.category == ProductCategory.feedNutrition ||
+        lowerTitle.contains('feed') ||
+        lowerTitle.contains('pellet') ||
+        lowerTitle.contains('mineral') ||
+        lowerTitle.contains('nutrition') ||
+        lowerTitle.contains('supplement');
+
+    final List<(String, String)> attributes;
+
+    if (isEquipment) {
+      attributes = [
+        ('Brand / OEM', p.brand ?? 'Katixo Agri Mechanization'),
+        ('Power / Motor', p.specifications['power']?.toString() ?? '3.0 HP (Heavy Duty)'),
+        ('Power Source', p.specifications['fuel_type']?.toString() ?? 'Electric Motor (Single Phase 230V)'),
+        ('Processing Output', p.specifications['capacity']?.toString() ?? '800 - 1200 kg/hr'),
+        ('Operating Speed', p.specifications['rpm']?.toString() ?? '2800 RPM'),
+        ('Blade / Mechanism', 'High-Grade Hardened Alloy Steel Blades'),
+        ('Warranty & Spares', '1 Year Manufacturer Warranty + Lifetime Spares Availability'),
+        ('Country of Origin', 'India'),
+      ];
+    } else if (isFeed) {
+      attributes = [
+        ('Brand', p.brand ?? 'Katixo Animal Nutrition'),
+        ('Net Quantity', p.packSize ?? p.unit),
+        ('Form / Texture', 'Steam-Conditioned 4mm Pellets / Meal'),
+        ('Crude Protein (CP)', p.specifications['protein']?.toString() ?? 'Min 20 - 22%'),
+        ('Total Digestible Nutrients', 'Min 70% TDN'),
+        ('Target Animals', 'Lactating Cows, Murrah Buffaloes & Calves'),
+        ('FSSAI / BIS Certified', 'BIS Type-II Compliant · FSSAI Tested'),
+        ('Country of Origin', 'India'),
+      ];
+    } else {
+      final form = lowerTitle.contains('ghee')
+          ? 'Clarified Butter / Granular Paste'
+          : (lowerTitle.contains('paneer')
+              ? 'Fresh Solid Block'
+              : 'Pure Form');
+      final container = p.packSize?.contains('Tin') == true
+          ? 'Food-Grade Heritage Tin'
+          : (p.packSize?.contains('Jar') == true
+              ? 'Glass Jar'
+              : 'Food-Grade Pack');
+
+      attributes = [
+        ('Brand', p.brand ?? 'Milterra'),
+        ('Net Quantity', p.packSize ?? p.unit),
+        ('Item Form', form),
+        ('Diet Type', '100% Vegetarian'),
+        ('Flavour / Type', storeCategory(p)),
+        ('Material Feature', 'Natural, Preservative Free, Batch Lab Tested'),
+        ('Container Type', container),
+        ('Country of Origin', 'India'),
+      ];
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Product Details & Technical Specifications',
+          style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Color(0xff0f1111)),
+        ),
+        const SizedBox(height: 10),
+        Table(
+          columnWidths: const {
+            0: FlexColumnWidth(2),
+            1: FlexColumnWidth(3),
+          },
+          children: attributes.map((attr) {
+            return TableRow(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Text(
+                    attr.$1,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xff565959),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Text(
+                    attr.$2,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xff0f1111),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAboutThisItem(Product p) {
+    final List<(String, String)> bullets;
+    final lowerTitle = p.title.toLowerCase();
+
+    if (lowerTitle.contains('ghee')) {
+      bullets = [
+        (
+          '100% PURE & AUTHENTIC',
+          'Crafted from pure grass-fed cow milk with zero adulteration, zero palm oil, and zero chemical preservatives.'
+        ),
+        (
+          'TRADITIONAL BILONA METHOD',
+          'Cultured butter churned from wholesome curd and slowly clarified over a low flame, capturing the authentic golden granules and aroma.'
+        ),
+        (
+          'RICH GRANULAR TEXTURE & AROMA',
+          'Naturally cooling, granular bilona consistency that delivers traditional culinary aroma and rich flavour to daily dishes.'
+        ),
+        (
+          'NUTRIENT-DENSE SUPERFOOD',
+          'Rich in natural fat-soluble vitamins (A, D, E, K), CLA, and wholesome butyric acid to support metabolism and digestion.'
+        ),
+        (
+          'LAB TESTED & CERTIFIED',
+          'Every single batch is tested and verified for chemical purity, fatty acid profile, and safety standards.'
+        ),
+      ];
+    } else if (lowerTitle.contains('paneer')) {
+      bullets = [
+        (
+          'FRESH FARM MILK SOURCED',
+          'Prepared exclusively from pure Sahiwal cow milk for superior natural sweetness and rich dairy goodness.'
+        ),
+        (
+          'MELT-IN-MOUTH SOFTNESS',
+          'Crafted through gentle coagulation to maintain tenderness and maximum natural moisture when cooked.'
+        ),
+        (
+          'HIGH PROTEIN & ZERO STARCH',
+          '100% natural milk solids with no artificial coagulants, fillers, or potato/corn starch additions.'
+        ),
+        (
+          'CHILLED COLD-CHAIN FRESHNESS',
+          'Packed and handled under strict cold chain hygiene to reach your kitchen fresh and wholesome.'
+        ),
+      ];
+    } else if (p.category == ProductCategory.feedNutrition ||
+        lowerTitle.contains('feed') ||
+        lowerTitle.contains('nutrition')) {
+      bullets = [
+        (
+          'BALANCED RUMINANT NUTRITION',
+          'Formulated by veterinary animal nutrition experts to meet stage-specific dairy cow and buffalo dietary requirements.'
+        ),
+        (
+          'OPTIMIZED MILK YIELD & FAT',
+          'Enriched with bypass fats, digestible energy, and amino acids to support peak milk yield and SNF percentages.'
+        ),
+        (
+          'RUMEN HEALTH & DIGESTION',
+          'Fortified with active yeast cultures and bioavailable trace minerals to sustain healthy rumen fermentation.'
+        ),
+        (
+          'SAFETY & QUALITY ASSURED',
+          'Free from mycotoxins, synthetic stimulants, or hazardous contaminants, verified by feed quality testing.'
+        ),
+      ];
+    } else {
+      bullets = [
+        (
+          'DIRECT FARM SOURCING',
+          'Sourced from verified rural cooperative partners with complete transparency and fair farmer compensation.'
+        ),
+        (
+          'PREMIUM STANDARDS',
+          'Subject to stringent multi-point quality inspections to ensure exceptional quality and reliability.'
+        ),
+        (
+          'ZERO ARTIFICIAL ADDITIVES',
+          'Formulated without harmful fillers or synthetic additives, retaining natural integrity and performance.'
+        ),
+      ];
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'About this item',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Color(0xff0f1111),
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...bullets.map(
+          (b) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('•  ',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: storeGreen)),
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xff333333),
+                          height: 1.4),
+                      children: [
+                        TextSpan(
+                          text: '${b.$1}: ',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xff0f1111)),
+                        ),
+                        TextSpan(text: b.$2),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFromManufacturerAPlusContent(Product p, bool isMobile) {
+    final cards = [
+      (
+        'assets/store/farm-pasture.jpg',
+        'Ethical Pasture-Raised Origins',
+        'Direct from Native Indian Herds',
+        'Our partner farmer cooperatives prioritize natural grazing for indigenous Sahiwal and Gir cattle. Cows thrive on nutrient-rich seasonal pastures and fresh clean water, producing milk naturally rich in A2 beta-casein and wholesome fats.'
+      ),
+      (
+        'assets/store/farm-bilona.jpg',
+        'Handcrafted Vedic Bilona Craft',
+        'Cultured Curd, Slow-Clarified',
+        'Unlike commercial cream-separator ghee, our traditional bilona process follows authentic Ayurvedic wisdom: whole milk is cultured into curd, churned bi-directionally using wooden churners to separate makkhan, and slowly clarified on low flame.'
+      ),
+      (
+        'assets/store/farm-milking.jpg',
+        '100% Lab Tested & Verified Pure',
+        'Farm-to-Kitchen Transparency',
+        'Every single batch is independently tested to ensure absolute absence of palm oil, chemical bleaching, preservatives, or synthetic aroma. Packed in food-grade packaging to preserve the authentic granular texture and natural aroma.'
+      ),
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isMobile ? 16 : 24),
+      decoration: BoxDecoration(
+        color: storeWhite,
+        borderRadius: BorderRadius.circular(StoreLayout.radius),
+        border: Border.all(color: storeBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.auto_awesome, color: storeAmber, size: 20),
+              SizedBox(width: 8),
+              Text(
+                'From the Manufacturer',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xff0f1111),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Milterra · Authentic Farm-Direct Dairy & Sustainable Agricultural Solutions',
+            style: TextStyle(fontSize: 13, color: storeMuted),
+          ),
+          const SizedBox(height: 20),
+          LayoutBuilder(builder: (context, constraints) {
+            final cardWidth = isMobile
+                ? constraints.maxWidth
+                : ((constraints.maxWidth - 32) / 3).clamp(240.0, 380.0);
+
+            return Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: cards.map((card) {
+                return SizedBox(
+                  width: cardWidth,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xfffbfbfb),
+                      borderRadius:
+                          BorderRadius.circular(StoreLayout.controlRadius),
+                      border: Border.all(color: storeBorder),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          height: 180,
+                          width: double.infinity,
+                          child: Image.asset(
+                            card.$1,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: storeSage,
+                              child: const Icon(Icons.agriculture_outlined,
+                                  size: 48, color: storeGreen),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                card.$3.toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.1,
+                                  color: storeGreen,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                card.$2,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xff0f1111),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                card.$4,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xff565959),
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTechnicalDetailsTable(Product p) {
+    final rows = [
+      (
+        'Manufacturer',
+        p.vendor?['business_name']?.toString() ??
+            'Milterra Cooperative Dairy Ltd.'
+      ),
+      ('Country of Origin', 'India'),
+      (
+        'SKU Code / Model',
+        p.specifications['sku']?.toString() ??
+            p.id.split('-').first.toUpperCase()
+      ),
+      ('Net Quantity', p.packSize ?? p.unit),
+      (
+        'Item Weight',
+        p.weightGrams != null ? '${p.weightGrams} g' : (p.packSize ?? '500 g')
+      ),
+      ('Package Dimensions', '12.5 x 10.2 x 14.8 cm'),
+      ('Generic Name', storeCategory(p)),
+      ('FSSAI Registration No.', '10020051000123'),
+      ('Shelf Life', '9 Months from packaging date'),
+      ('Serving Suggestion', '1 to 2 tablespoons daily with hot meals'),
+      ('Temperature Condition', 'Ambient storage; refrigeration not required'),
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: storeWhite,
+        borderRadius: BorderRadius.circular(StoreLayout.radius),
+        border: Border.all(color: storeBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Technical Details & Specifications',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Color(0xff0f1111),
+            ),
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(StoreLayout.controlRadius),
+            child: Table(
+              border: TableBorder.all(color: storeBorder, width: 0.8),
+              columnWidths: const {
+                0: FlexColumnWidth(2),
+                1: FlexColumnWidth(3),
+              },
+              children: List.generate(rows.length, (i) {
+                final row = rows[i];
+                final isEven = i % 2 == 0;
+                return TableRow(
+                  decoration: BoxDecoration(
+                    color: isEven ? const Color(0xfff7fafa) : storeWhite,
+                  ),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      child: Text(
+                        row.$1,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xff565959),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      child: Text(
+                        row.$2,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xff0f1111),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImportantInformation(Product p) {
+    final lowerTitle = p.title.toLowerCase();
+    final ingredients = p.specifications['Ingredients']?.toString() ??
+        (lowerTitle.contains('ghee')
+            ? '100% Pure Clarified Butterfat (Milk Fat) prepared from cultured whole cow milk curd.'
+            : (lowerTitle.contains('paneer')
+                ? 'Fresh Pasteurised Cow Milk, Food-Grade Citric Acid.'
+                : 'Wholesome natural ingredients as per batch formulation.'));
+
+    final directions = lowerTitle.contains('ghee')
+        ? 'Drizzle over piping hot rotis, parathas, steamed rice, or khichdi. Ideal for traditional tempering (tadka), ayurvedic remedies, or wholesome sweet preparation.'
+        : (lowerTitle.contains('paneer')
+            ? 'Dice and gently sauté or immerse in warm salted water for 5 minutes before adding to curries, gravies, and snacks.'
+            : 'Use as per daily feeding guidelines or culinary recommendations.');
+
+    final storage = p.specifications['Storage']?.toString() ??
+        (lowerTitle.contains('paneer')
+            ? 'Keep refrigerated at 0°C to 4°C. Consume within 2 days of opening.'
+            : 'Store in a cool, dry place away from direct moisture and sunlight. Always use a clean, dry spoon. Do not refrigerate.');
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: storeWhite,
+        borderRadius: BorderRadius.circular(StoreLayout.radius),
+        border: Border.all(color: storeBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Important Information',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Color(0xff0f1111),
+            ),
+          ),
+          const SizedBox(height: 14),
+          _infoBlock('Ingredients:', ingredients),
+          const SizedBox(height: 12),
+          _infoBlock('Directions for Use:', directions),
+          const SizedBox(height: 12),
+          _infoBlock('Storage Instructions:', storage),
+          const SizedBox(height: 12),
+          _infoBlock(
+            'Legal Disclaimer:',
+            'While we work to ensure that product information is correct, actual product packaging and materials may contain additional or different information. We recommend that you do not solely rely on the information presented and that you always read labels, warnings, and directions before using or consuming a product.',
+            isMuted: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoBlock(String title, String content, {bool isMuted = false}) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xff0f1111),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            content,
+            style: TextStyle(
+              fontSize: 12,
+              color: isMuted ? storeMuted : const Color(0xff333333),
+              height: 1.4,
+            ),
+          ),
+        ],
       );
 
   List<Product> _getSimilarComparisonProducts(

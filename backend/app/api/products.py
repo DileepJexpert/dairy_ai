@@ -9,7 +9,7 @@ from app.dependencies import get_current_user,require_role
 from app.models.user import User,UserRole
 from app.models.product import Product,ProductCategory,ProductReview,MerchandisingPlacement,ConceptFeedback
 from app.repositories import product_repo,vendor_repo
-from app.schemas.product import ProductCreate,ProductUpdate,InventoryUpdate,ProductMediaCreate,ProductFamilyCreate,ProductFamilyUpdate,FamilyVariantCreate,ProductReviewCreate,MerchandisingPlacementCreate,MerchandisingPlacementUpdate,ConceptFeedbackCreate
+from app.schemas.product import ProductCreate,ProductUpdate,InventoryUpdate,ProductMediaCreate,ProductFamilyCreate,ProductFamilyUpdate,FamilyVariantCreate,ProductReviewCreate,MerchandisingPlacementCreate,MerchandisingPlacementUpdate,ConceptFeedbackCreate,ProductModerationUpdate
 from app.services import product_service
 from app.config import settings
 from app.services import commerce_taxonomy_service as taxonomy
@@ -31,7 +31,12 @@ async def enrich(db,p):
    result['specifications'] = {**result['specifications'], 'concept': True, 'listing_status': 'concept'}
    result['in_stock'] = False
  if settings.COMMERCE_TAXONOMY_ENABLED:
-  result['taxonomy'] = (await taxonomy.product_metadata(db,[p.id])).get(str(p.id))
+  tax_meta = (await taxonomy.product_metadata(db,[p.id])).get(str(p.id))
+  result['taxonomy'] = tax_meta
+  if tax_meta:
+   result['category_id'] = tax_meta.get('category_id')
+   result['category_name'] = tax_meta.get('category_name')
+   result['department_name'] = tax_meta.get('department_name')
  return result
 
 
@@ -338,3 +343,42 @@ async def media(product_id:str,data:ProductMediaCreate,current_user:User=Depends
  if not p:raise HTTPException(404,"Product not found")
  v_id = p.vendor_id if is_admin else (await vendor(db,current_user)).id
  x=await product_service.add_media(db,p,v_id,is_admin,data);return {"success":True,"data":{"id":str(x.id),"url":x.url},"message":"Media added"}
+
+
+@router.put("/admin/products/{product_id}/moderation")
+async def admin_moderate_product(
+    product_id: str,
+    data: ProductModerationUpdate,
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.super_admin)),
+    db: AsyncSession = Depends(get_db)
+):
+    p = await product_repo.get(db, uid(product_id, "product"))
+    if not p:
+        raise HTTPException(404, "Product not found")
+
+    p.publication_status = data.publication_status
+    if data.is_active is not None:
+        p.is_active = data.is_active
+    if data.is_featured is not None:
+        p.is_featured = data.is_featured
+
+    specs = dict(p.specifications or {})
+    if data.rejection_reason:
+        specs["rejection_reason"] = data.rejection_reason
+    specs["moderated_at"] = datetime.utcnow().isoformat()
+    specs["moderated_by"] = str(current_user.id)
+    p.specifications = specs
+
+    if data.category_id:
+        from app.models.commerce_taxonomy import ProductClassification, TaxonomyNode
+        node = await db.get(TaxonomyNode, data.category_id)
+        if node and node.is_active:
+            classification = (await db.execute(select(ProductClassification).where(ProductClassification.product_id == p.id))).scalar_one_or_none()
+            if not classification:
+                db.add(ProductClassification(product_id=p.id, category_id=node.id, version=1))
+            else:
+                classification.category_id = node.id
+                classification.version += 1
+
+    await db.flush()
+    return {"success": True, "data": await enrich(db, p), "message": f"Product status updated to {data.publication_status}"}

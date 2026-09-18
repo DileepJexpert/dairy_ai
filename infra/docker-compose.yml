@@ -50,6 +50,8 @@ services:
     env_file:
       - ../.env
     environment:
+      DATABASE_URL: postgresql+asyncpg://dairy:dairy123@postgres:5432/dairy_ai
+      COMMERCE_TAXONOMY_ENABLED: "true"
       PRODUCT_MEDIA_DIR: /app/storage/product-media
     volumes:
       - product_media:/app/storage/product-media

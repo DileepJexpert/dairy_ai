@@ -62,7 +62,8 @@ async def search(db:AsyncSession,filters:dict,page:int,per_page:int):
   stocked=select(ProductInventory.product_id).where(ProductInventory.available_quantity-ProductInventory.reserved_quantity>0)
   q=q.where(Product.id.in_(stocked) if filters['in_stock'] else Product.id.not_in(stocked))
  total=(await db.execute(select(func.count()).select_from(q.subquery()))).scalar_one(); order=Product.created_at.desc()
- if filters.get('sort_by')=='price_asc':order=Product.base_price.asc()
- if filters.get('sort_by')=='price_desc':order=Product.base_price.desc()
- if filters.get('sort_by')=='featured':order=Product.is_featured.desc()
+ if filters.get('sort_by') in ('featured', 'bestsellers', 'trending'):order=Product.is_featured.desc()
+ elif filters.get('sort_by')=='price_asc':order=Product.base_price.asc()
+ elif filters.get('sort_by')=='price_desc':order=Product.base_price.desc()
+ elif filters.get('sort_by')=='newest':order=Product.created_at.desc()
  return list((await db.execute(q.order_by(order,Product.id).offset((page-1)*per_page).limit(per_page))).scalars()),total

@@ -42,6 +42,7 @@ from app.api.analytics import router as analytics_router
 from app.api.commerce_admin import router as commerce_admin_router
 from app.api.customer_commerce import router as customer_commerce_router
 from app.api.product_media import router as product_media_router
+from app.api.rfq import router as rfq_router
 from app.database import init_db
 from app.config import settings
 
@@ -109,12 +110,32 @@ async def log_requests(request: Request, call_next):
     path = request.url.path
     client = request.client.host if request.client else "unknown"
 
-    logger.info(f">>> {method} {path} | client={client}")
+    # Allow direct API calls (e.g. /marketplace/products) to cleanly route to /api/v1
+    if (
+        not path.startswith("/api/v1")
+        and not path.startswith("/docs")
+        and not path.startswith("/redoc")
+        and not path.startswith("/openapi.json")
+        and path != "/health"
+    ):
+        api_prefixes = (
+            "/marketplace", "/admin", "/vendor", "/commerce", "/cart",
+            "/auth", "/farmers", "/cattle", "/health-records", "/milk", "/feed",
+            "/breeding", "/finance", "/vet", "/chat", "/whatsapp",
+            "/notifications", "/super-admin", "/cooperative", "/collection",
+            "/payments", "/outbreak", "/withdrawal", "/carbon", "/vision",
+            "/schemes", "/mandi", "/pashu-aadhaar", "/milk-purity", "/products",
+            "/analytics", "/rfq",
+        )
+        if any(path == p or path.startswith(f"{p}/") for p in api_prefixes):
+            request.scope["path"] = f"/api/v1{path}"
+
+    logger.info(f">>> {method} {request.url.path} | client={client}")
 
     response = await call_next(request)
 
     duration_ms = round((time.time() - start_time) * 1000, 2)
-    logger.info(f"<<< {method} {path} | status={response.status_code} | {duration_ms}ms")
+    logger.info(f"<<< {method} {request.url.path} | status={response.status_code} | {duration_ms}ms")
 
     return response
 
@@ -155,8 +176,9 @@ app.include_router(analytics_router, prefix="/api/v1")
 app.include_router(commerce_admin_router, prefix="/api/v1")
 app.include_router(customer_commerce_router, prefix="/api/v1")
 app.include_router(product_media_router, prefix="/api/v1")
+app.include_router(rfq_router, prefix="/api/v1")
 
-logger.info("Registered routers: auth, farmers, cattle, health, milk, feed, breeding, finance, vet, chat, whatsapp, notifications, admin, super-admin, vendor, cooperative, collection, payments, marketplace, outbreak, withdrawal, carbon, vision, schemes, mandi, pashu-aadhaar, milk-purity, products, taxonomy, cart, addresses, orders, analytics")
+logger.info("Registered routers: auth, farmers, cattle, health, milk, feed, breeding, finance, vet, chat, whatsapp, notifications, admin, super-admin, vendor, cooperative, collection, payments, marketplace, outbreak, withdrawal, carbon, vision, schemes, mandi, pashu-aadhaar, milk-purity, products, taxonomy, cart, addresses, orders, analytics, rfq")
 
 
 @app.get("/health")

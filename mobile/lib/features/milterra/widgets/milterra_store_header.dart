@@ -285,13 +285,13 @@ class MilterraCategoryNav extends StatelessWidget {
   final ValueChanged<String> onSelectCategory;
 
   static const List<Map<String, dynamic>> categories = [
-    {'name': 'All Ghee', 'icon': Icons.local_fire_department_outlined},
-    {'name': 'A2 Desi Cow Ghee', 'icon': Icons.spa_outlined},
-    {'name': 'Rich Buffalo Ghee', 'icon': Icons.water_drop_outlined},
-    {'name': 'Herbal Infused Ghee', 'icon': Icons.eco_outlined},
-    {'name': 'Malai Paneer & Makhan', 'icon': Icons.lunch_dining_outlined},
+    {'name': 'All Organic Essentials', 'icon': Icons.spa},
+    {'name': 'Vedic Bilona Ghee', 'icon': Icons.local_fire_department_outlined},
+    {'name': 'Fresh Milk & Dairy', 'icon': Icons.water_drop_outlined},
     {'name': 'Puja & Hawan Samagri', 'icon': Icons.wb_sunny_outlined},
-    {'name': '🌱 MILTERRA Earth Soil', 'icon': Icons.yard_outlined},
+    {'name': 'Natural Agarbatti & Dhoop', 'icon': Icons.grass_outlined},
+    {'name': 'Vermicompost & Living Soil', 'icon': Icons.yard_outlined},
+    {'name': 'Cold-Pressed Sarso (Mustard) Oil', 'icon': Icons.opacity_outlined},
   ];
 
   @override
@@ -312,7 +312,7 @@ class MilterraCategoryNav extends StatelessWidget {
                 final name = cat['name'] as String;
                 final icon = cat['icon'] as IconData;
                 final isSelected = selectedCategory == name ||
-                    (selectedCategory == 'All products' && name == 'All Ghee');
+                    ((selectedCategory == 'All products' || selectedCategory == 'All' || selectedCategory == 'All Ghee') && name == 'All Organic Essentials');
 
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),

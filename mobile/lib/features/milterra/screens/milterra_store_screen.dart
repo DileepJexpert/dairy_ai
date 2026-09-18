@@ -45,39 +45,86 @@ class _MilterraStoreScreenState extends ConsumerState<MilterraStoreScreen> {
 
   bool _matchesCategory(Product p, String cat) {
     final t = p.title.toLowerCase();
-    if (cat == 'All Ghee' || cat == 'All products' || cat == 'All') {
-      return t.contains('ghee') ||
-          t.contains('butter') ||
-          t.contains('paneer') ||
-          t.contains('earth') ||
-          t.contains('samagri');
+    // Exclude farm machinery from Milterra storefront
+    if (p.category == ProductCategory.equipment) return false;
+    if (t.contains('cutter') ||
+        t.contains('chaff') ||
+        t.contains('milker') ||
+        t.contains('machine')) {
+      return false;
+    }
+
+    if (cat == 'All Organic Essentials' ||
+        cat == 'All Ghee' ||
+        cat == 'All products' ||
+        cat == 'All') {
+      return true;
     }
     switch (cat) {
-      case 'A2 Desi Cow Ghee':
-        return t.contains('cow') && t.contains('ghee');
-      case 'Rich Buffalo Ghee':
-        return t.contains('buffalo') && t.contains('ghee');
-      case 'Herbal Infused Ghee':
-        return (t.contains('tulsi') ||
-                t.contains('brahmi') ||
-                t.contains('ashwagandha') ||
-                t.contains('herbal')) &&
-            t.contains('ghee');
-      case 'Malai Paneer & Makhan':
-        return t.contains('paneer') || t.contains('butter') || t.contains('makhan');
+      case 'Vedic Bilona Ghee':
+        return t.contains('ghee');
+      case 'Fresh Milk & Dairy':
+        return t.contains('milk') ||
+            t.contains('doodh') ||
+            t.contains('chhachh') ||
+            t.contains('chaas') ||
+            t.contains('buttermilk') ||
+            t.contains('paneer') ||
+            t.contains('makhan') ||
+            t.contains('butter') ||
+            t.contains('dahi') ||
+            t.contains('curd');
       case 'Puja & Hawan Samagri':
         return t.contains('hawan') ||
+            t.contains('yajna') ||
             t.contains('puja') ||
             t.contains('samagri') ||
             t.contains('diya') ||
-            t.contains('kanda');
-      case '🌱 MILTERRA Earth Soil':
-        return t.contains('earth') ||
-            t.contains('vermicompost') ||
+            t.contains('kanda') ||
+            t.contains('uple');
+      case 'Natural Agarbatti & Dhoop':
+        return t.contains('agarbatti') ||
+            t.contains('dhoop') ||
+            t.contains('sambrani') ||
+            t.contains('kapoor') ||
+            t.contains('camphor') ||
+            t.contains('incense');
+      case 'Vermicompost & Living Soil':
+        return t.contains('vermicompost') ||
+            t.contains('earth') ||
             t.contains('manure') ||
-            t.contains('soil');
+            t.contains('khad') ||
+            t.contains('soil') ||
+            t.contains('compost');
+      case 'Cold-Pressed Sarso (Mustard) Oil':
+        return t.contains('sarso') ||
+            t.contains('mustard') ||
+            t.contains('oil') ||
+            t.contains('kachi ghani') ||
+            t.contains('tel') ||
+            t.contains('sesame') ||
+            t.contains('til');
       default:
         return true;
+    }
+  }
+
+  String _categorySubtitle(String cat) {
+    switch (cat) {
+      case 'Vedic Bilona Ghee':
+        return 'Handcrafted using traditional wooden Bilona churning of whole cultured A2 Gir Cow & Buffalo curd.';
+      case 'Fresh Milk & Dairy':
+        return 'Pure grass-fed A2 chilled raw milk, fresh masala chhachh (buttermilk), malai paneer & makhan.';
+      case 'Puja & Hawan Samagri':
+        return 'Pure Cow Dung Diyas, Hawan Ghee, Yajna Samagri & sacred Cow Dung sticks.';
+      case 'Natural Agarbatti & Dhoop':
+        return '100% charcoal-free, organic cow-dung & herbal incense sticks, dhoop cones & sambrani.';
+      case 'Vermicompost & Living Soil':
+        return 'Living bio-organic vermicompost & composted cow manure for healthy organic farming & gardening.';
+      case 'Cold-Pressed Sarso (Mustard) Oil':
+        return 'Traditional wood-pressed (Kachi Ghani) pure yellow & black mustard oil with authentic aroma.';
+      default:
+        return '100% Pure, Chemical-Free Farm Direct Vedic Foods, Living Soil & Sacred Essentials.';
     }
   }
 
@@ -136,9 +183,9 @@ class _MilterraStoreScreenState extends ConsumerState<MilterraStoreScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 2),
-                                    const Text(
-                                      'Handcrafted using traditional wooden Bilona churning of A2 whole curd.',
-                                      style: TextStyle(
+                                    Text(
+                                      _categorySubtitle(_selectedCategory),
+                                      style: const TextStyle(
                                           fontSize: 12, color: storeMuted),
                                     ),
                                   ],

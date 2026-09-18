@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/store_design.dart';
+import '../../milterra/widgets/milterra_store_header.dart';
+import '../../milterra/widgets/milterra_store_footer.dart';
 
 class AboutMilterraScreen extends StatelessWidget {
   const AboutMilterraScreen({super.key});
@@ -11,8 +13,7 @@ class AboutMilterraScreen extends StatelessWidget {
       backgroundColor: storeCream,
       body: Column(
         children: [
-          const StoreHeader(currentCategory: 'All'),
-          const StoreCategoryNavigation(selected: 'About Milterra'),
+          const MilterraStoreHeader(),
           Expanded(
             child: SingleChildScrollView(
               child: Column(
@@ -72,7 +73,7 @@ class AboutMilterraScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const StoreFooter(),
+                  const MilterraStoreFooter(),
                 ],
               ),
             ),

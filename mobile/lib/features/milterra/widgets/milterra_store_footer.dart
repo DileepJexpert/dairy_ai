@@ -116,7 +116,7 @@ class MilterraStoreFooter extends StatelessWidget {
                           ),
                           const SizedBox(height: 10),
                           _footerLink(context, 'About Our Vedic Farm', '/about'),
-                          _footerLink(context, 'Lab Reports & Certificates', '/purity-scanner'),
+                          _footerLink(context, 'Lab Reports & Certificates', '/purity'),
                           _footerLink(context, 'Milterra Earth Living Soil', '/earth'),
                           _footerLink(context, 'Farmer & Machinery Hub →', '/marketplace'),
                           _footerLink(context, 'Help & Customer Support', '/help'),

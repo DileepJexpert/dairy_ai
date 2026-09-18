@@ -478,7 +478,7 @@ class _MilterraProductDetailScreenState
                   .read(cartProvider.notifier)
                   .add(product.id, _quantity, product);
               if (mounted) {
-                context.push('/cart/checkout');
+                context.push('/marketplace/checkout');
               }
             },
             child: const Text('Buy Now • Express Glass Delivery',

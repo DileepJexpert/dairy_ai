@@ -39,11 +39,12 @@ class MilterraStoreHeader extends ConsumerWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: StoreLayout.maxWidth),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              children: [
-                // Minimal Milterra Brand Logo
-                InkWell(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth >= 860;
+
+                final logoWidget = InkWell(
                   onTap: () => context.go('/shop'),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -84,44 +85,38 @@ class MilterraStoreHeader extends ConsumerWidget {
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 24),
+                );
 
-                // Search Bar (Flexible)
-                Expanded(
-                  child: Container(
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: storeWhite,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: TextField(
-                      controller: searchController,
-                      onSubmitted: onSearch,
-                      style: const TextStyle(fontSize: 13, color: storeText),
-                      decoration: const InputDecoration(
-                        hintText: 'Search A2 Gir Cow Ghee, Buffalo Bilona Ghee, Malai Paneer...',
-                        hintStyle: TextStyle(fontSize: 12, color: storeMuted),
-                        prefixIcon: Icon(Icons.search, size: 18, color: storeGreen),
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 9),
+                final searchWidget = Container(
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: storeWhite,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
                       ),
+                    ],
+                  ),
+                  child: TextField(
+                    controller: searchController,
+                    onSubmitted: onSearch,
+                    style: const TextStyle(fontSize: 13, color: storeText),
+                    decoration: const InputDecoration(
+                      hintText: 'Search A2 Gir Cow Ghee, Buffalo Bilona Ghee, Malai Paneer...',
+                      hintStyle: TextStyle(fontSize: 12, color: storeMuted),
+                      prefixIcon: Icon(Icons.search, size: 18, color: storeGreen),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: 9),
                     ),
                   ),
-                ),
-                const SizedBox(width: 20),
+                );
 
-                // Switch to Farmer Hub link
-                InkWell(
+                final farmerHubSwitch = InkWell(
                   onTap: () => context.go('/marketplace'),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -136,7 +131,7 @@ class MilterraStoreHeader extends ConsumerWidget {
                         Icon(Icons.agriculture, color: storeGold, size: 14),
                         SizedBox(width: 6),
                         Text(
-                          'Farmer Hub (Machinery & Mandi) →',
+                          'Farmer Hub →',
                           style: TextStyle(
                             color: storeGold,
                             fontSize: 11,
@@ -146,11 +141,9 @@ class MilterraStoreHeader extends ConsumerWidget {
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
+                );
 
-                // Account
-                InkWell(
+                final accountWidget = InkWell(
                   onTap: () {
                     if (user == null) {
                       context.push('/login');
@@ -159,24 +152,25 @@ class MilterraStoreHeader extends ConsumerWidget {
                     }
                   },
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(Icons.person_outline, color: storeWhite, size: 20),
-                      const SizedBox(width: 4),
-                      Text(
-                        user != null ? (user.name ?? 'Account') : 'Sign In',
-                        style: const TextStyle(
-                          color: storeWhite,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                      if (isWide) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          user != null ? (user.name ?? 'Account') : 'Sign In',
+                          style: const TextStyle(
+                            color: storeWhite,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
-                ),
-                const SizedBox(width: 16),
+                );
 
-                // Wishlist
-                InkWell(
+                final wishlistWidget = InkWell(
                   onTap: () => context.push('/wishlist'),
                   child: Stack(
                     clipBehavior: Clip.none,
@@ -204,11 +198,9 @@ class MilterraStoreHeader extends ConsumerWidget {
                         ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 16),
+                );
 
-                // Cart Drawer Trigger
-                InkWell(
+                final cartWidget = InkWell(
                   onTap: () => showStoreCart(context),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -232,8 +224,47 @@ class MilterraStoreHeader extends ConsumerWidget {
                       ],
                     ),
                   ),
-                ),
-              ],
+                );
+
+                if (!isWide) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          logoWidget,
+                          const Spacer(),
+                          farmerHubSwitch,
+                          const SizedBox(width: 10),
+                          accountWidget,
+                          const SizedBox(width: 10),
+                          wishlistWidget,
+                          const SizedBox(width: 10),
+                          cartWidget,
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      searchWidget,
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    logoWidget,
+                    const SizedBox(width: 20),
+                    Expanded(child: searchWidget),
+                    const SizedBox(width: 16),
+                    farmerHubSwitch,
+                    const SizedBox(width: 16),
+                    accountWidget,
+                    const SizedBox(width: 16),
+                    wishlistWidget,
+                    const SizedBox(width: 16),
+                    cartWidget,
+                  ],
+                );
+              },
             ),
           ),
         ),

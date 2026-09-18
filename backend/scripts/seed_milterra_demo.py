@@ -15,8 +15,7 @@ from app.models.analytics import ClickstreamEvent, VisitorSession
 from app.models.cart import Cart, CartItem, CartStatus
 from app.models.product import Product, ProductCategory, ProductFamily, ProductInventory
 from app.models.user import User, UserRole
-from app.models.vendor import Vendor, VendorType
-from app.services.auth_service import hash_otp
+from app.services.auth_service import hash_otp, hash_password
 
 
 PRODUCTS = [
@@ -173,7 +172,26 @@ DEMO_CUSTOMERS = [
 async def seed() -> None:
     await init_db()
     async with async_session_factory() as db:
-        # 1. Vendor & Products
+        # 1. Admin & Vendor Users
+        admin_user = (await db.execute(select(User).where(User.phone == "9999900000"))).scalar_one_or_none()
+        if not admin_user:
+            admin_user = User(
+                id=uuid.uuid4(),
+                phone="9999900000",
+                role=UserRole.admin,
+                is_active=True,
+                password_hash=hash_password("Password@123"),
+                otp_hash=hash_otp("123456"),
+                otp_expires_at=(datetime.now(timezone.utc) + timedelta(days=365)).replace(tzinfo=None),
+            )
+            db.add(admin_user)
+            await db.flush()
+        else:
+            admin_user.password_hash = hash_password("Password@123")
+            admin_user.otp_hash = hash_otp("123456")
+            admin_user.otp_expires_at = (datetime.now(timezone.utc) + timedelta(days=365)).replace(tzinfo=None)
+            await db.flush()
+
         vendor_user = (await db.execute(select(User).where(User.phone == "9999900090"))).scalar_one_or_none()
         if not vendor_user:
             vendor_user = User(
@@ -181,10 +199,35 @@ async def seed() -> None:
                 phone="9999900090",
                 role=UserRole.vendor,
                 is_active=True,
+                password_hash=hash_password("Password@123"),
                 otp_hash=hash_otp("123456"),
                 otp_expires_at=(datetime.now(timezone.utc) + timedelta(days=365)).replace(tzinfo=None),
             )
             db.add(vendor_user)
+            await db.flush()
+        else:
+            vendor_user.password_hash = hash_password("Password@123")
+            vendor_user.otp_hash = hash_otp("123456")
+            vendor_user.otp_expires_at = (datetime.now(timezone.utc) + timedelta(days=365)).replace(tzinfo=None)
+            await db.flush()
+
+        farmer_user = (await db.execute(select(User).where(User.phone == "9876500001"))).scalar_one_or_none()
+        if not farmer_user:
+            farmer_user = User(
+                id=uuid.uuid4(),
+                phone="9876500001",
+                role=UserRole.farmer,
+                is_active=True,
+                password_hash=hash_password("Password@123"),
+                otp_hash=hash_otp("123456"),
+                otp_expires_at=(datetime.now(timezone.utc) + timedelta(days=365)).replace(tzinfo=None),
+            )
+            db.add(farmer_user)
+            await db.flush()
+        else:
+            farmer_user.password_hash = hash_password("Password@123")
+            farmer_user.otp_hash = hash_otp("123456")
+            farmer_user.otp_expires_at = (datetime.now(timezone.utc) + timedelta(days=365)).replace(tzinfo=None)
             await db.flush()
 
         vendor = (await db.execute(select(Vendor).where(Vendor.user_id == vendor_user.id))).scalar_one_or_none()
@@ -267,10 +310,16 @@ async def seed() -> None:
                     phone=phone,
                     role=role,
                     is_active=True,
+                    password_hash=hash_password("Password@123"),
                     otp_hash=hash_otp("123456"),
                     otp_expires_at=(datetime.now(timezone.utc) + timedelta(days=365)).replace(tzinfo=None),
                 )
                 db.add(c_user)
+                await db.flush()
+            else:
+                c_user.password_hash = hash_password("Password@123")
+                c_user.otp_hash = hash_otp("123456")
+                c_user.otp_expires_at = (datetime.now(timezone.utc) + timedelta(days=365)).replace(tzinfo=None)
                 await db.flush()
             customer_users.append(c_user)
 

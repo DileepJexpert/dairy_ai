@@ -31,11 +31,21 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   int _secondsLeft = AppConstants.otpResendSeconds;
   bool _canResend = false;
 
+  bool get _isDemoPhone {
+    return widget.phone.startsWith('99999') ||
+        widget.phone.startsWith('98765') ||
+        widget.phone.startsWith('98201') ||
+        widget.phone.startsWith('97654') ||
+        widget.phone.startsWith('94481') ||
+        widget.phone.startsWith('99351') ||
+        widget.phone.startsWith('98290');
+  }
+
   @override
   void initState() {
     super.initState();
     _startResendTimer();
-    if (widget.phone.startsWith('99999')) {
+    if (_isDemoPhone) {
       _otpController.text = '123456';
     }
   }
@@ -200,7 +210,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                   ),
                 ),
 
-                if (widget.phone.startsWith('99999')) ...[
+                if (_isDemoPhone) ...[
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.symmetric(

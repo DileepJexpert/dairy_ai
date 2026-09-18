@@ -152,6 +152,63 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Widget _buildDemoChip({
+    required String label,
+    required String phone,
+    required String password,
+    required Color color,
+    required Color bgColor,
+    required Color borderColor,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _phoneController.text = phone;
+            _passwordController.text = password;
+            _createAccount = false;
+            _submitted = false;
+          });
+          Clipboard.setData(ClipboardData(text: '$phone | $password'));
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Autofilled $label ($phone / $password)'),
+              backgroundColor: color,
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.touch_app_outlined, size: 14, color: color),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
@@ -170,10 +227,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Uri(path: '/otp-verify', queryParameters: query).toString(),
           );
         },
-        authenticated: (_) {
+        authenticated: (user) {
           final routeNext = widget.nextPath ??
               GoRouterState.of(context).uri.queryParameters['next'];
-          context.go(routeNext?.isNotEmpty == true ? routeNext! : '/shop');
+          if (routeNext != null && routeNext.isNotEmpty) {
+            context.go(routeNext);
+          } else {
+            final role = user.role.toLowerCase();
+            if (role == 'admin' || role == 'super_admin') {
+              context.go('/admin/ecommerce');
+            } else if (role == 'vendor' || role == 'seller') {
+              context.go('/vendor-dashboard');
+            } else {
+              context.go('/shop');
+            }
+          }
         },
         error: (message) => showErrorDialog(context, message: message),
         orElse: () {},
@@ -220,167 +288,83 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               style: StoreType.body,
                             ),
                             const SizedBox(height: 16),
-                            if ((widget.nextPath?.contains('admin') ?? false) ||
-                                widget.heading
-                                    .toLowerCase()
-                                    .contains('admin')) ...[
-                              Container(
-                                margin: const EdgeInsets.only(bottom: 20),
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xfff0fdf4),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                      color: const Color(0xff86efac)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.shield_outlined,
-                                        color: storeGreen, size: 22),
-                                    const SizedBox(width: 10),
-                                    const Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Dev Admin Credential',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                              color: storeDarkGreenNav,
-                                            ),
-                                          ),
-                                          SizedBox(height: 2),
-                                          Text(
-                                            'Phone: 9999900000  •  OTP: 123456',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: storeMuted,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    TextButton.icon(
-                                      style: TextButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 4),
-                                        backgroundColor:
-                                            storeGreen.withValues(alpha: 0.1),
-                                      ),
-                                      onPressed: () {
-                                        _phoneController.text = '9999900000';
-                                        Clipboard.setData(const ClipboardData(
-                                            text: '9999900000'));
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                                'Copied & autofilled Admin phone: 9999900000 (OTP: 123456)'),
-                                            duration: Duration(seconds: 2),
-                                            backgroundColor: storeGreen,
-                                          ),
-                                        );
-                                      },
-                                      icon: const Icon(Icons.copy,
-                                          size: 13, color: storeGreen),
-                                      label: const Text(
-                                        'Autofill',
+                            // Quick 1-Click Demo Credentials for Testing
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 20),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xfff8fafc),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xffe2e8f0)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Row(
+                                    children: [
+                                      Icon(Icons.bolt,
+                                          size: 18, color: storeDarkGreenNav),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        'Quick Demo Accounts (1-Click Autofill)',
                                         style: TextStyle(
-                                          fontSize: 11,
                                           fontWeight: FontWeight.bold,
-                                          color: storeGreen,
+                                          fontSize: 12,
+                                          color: storeDarkGreenNav,
                                         ),
                                       ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Click any role to autofill phone & password for instant testing:',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: storeMuted,
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      _buildDemoChip(
+                                        label: '🛡️ Admin',
+                                        phone: '9999900000',
+                                        password: 'Password@123',
+                                        color: const Color(0xff047857),
+                                        bgColor: const Color(0xffecfdf5),
+                                        borderColor: const Color(0xffa7f3d0),
+                                      ),
+                                      _buildDemoChip(
+                                        label: '👤 Customer',
+                                        phone: '9820112345',
+                                        password: 'Password@123',
+                                        color: const Color(0xff1d4ed8),
+                                        bgColor: const Color(0xffeff6ff),
+                                        borderColor: const Color(0xffbfdbfe),
+                                      ),
+                                      _buildDemoChip(
+                                        label: '🏪 Seller',
+                                        phone: '9999900090',
+                                        password: 'Password@123',
+                                        color: const Color(0xffb45309),
+                                        bgColor: const Color(0xfffffbeb),
+                                        borderColor: const Color(0xfffde68a),
+                                      ),
+                                      _buildDemoChip(
+                                        label: '🚜 Farmer',
+                                        phone: '9876500001',
+                                        password: 'Password@123',
+                                        color: const Color(0xff4338ca),
+                                        bgColor: const Color(0xffeef2ff),
+                                        borderColor: const Color(0xffc7d2fe),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                            ] else if ((widget.nextPath?.contains('seller') ??
-                                    false) ||
-                                (widget.nextPath?.contains('vendor') ??
-                                    false) ||
-                                widget.heading
-                                    .toLowerCase()
-                                    .contains('seller') ||
-                                widget.heading
-                                    .toLowerCase()
-                                    .contains('vendor')) ...[
-                              Container(
-                                margin: const EdgeInsets.only(bottom: 20),
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xfffffbeb),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                      color: const Color(0xfffde68a)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.storefront_outlined,
-                                        color: Color(0xffb45309), size: 22),
-                                    const SizedBox(width: 10),
-                                    const Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Dev Seller Credential',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                              color: Color(0xff78350f),
-                                            ),
-                                          ),
-                                          SizedBox(height: 2),
-                                          Text(
-                                            'Phone: 9999900090  •  OTP: 123456',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: storeMuted,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    TextButton.icon(
-                                      style: TextButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 4),
-                                        backgroundColor: const Color(0xffb45309)
-                                            .withValues(alpha: 0.1),
-                                      ),
-                                      onPressed: () {
-                                        _phoneController.text = '9999900090';
-                                        Clipboard.setData(const ClipboardData(
-                                            text: '9999900090'));
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                                'Copied & autofilled Seller phone: 9999900090 (OTP: 123456)'),
-                                            duration: Duration(seconds: 2),
-                                            backgroundColor: Color(0xffb45309),
-                                          ),
-                                        );
-                                      },
-                                      icon: const Icon(Icons.copy,
-                                          size: 13, color: Color(0xffb45309)),
-                                      label: const Text(
-                                        'Autofill',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xffb45309),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                            ),
                             if (!_usesOtp && _createAccount) ...[
                               TextFormField(
                                 controller: _nameController,

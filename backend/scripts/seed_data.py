@@ -13,7 +13,7 @@ from app.models.health import HealthRecord, Vaccination, SensorReading
 from app.models.milk import MilkRecord, MilkPrice
 from app.models.vet import VetProfile
 from app.models.finance import Transaction
-from app.services.auth_service import hash_otp
+from app.services.auth_service import hash_otp, hash_password
 
 
 async def seed():
@@ -27,6 +27,7 @@ async def seed():
         # === ADMIN USER ===
         demo_otp_expiry = (datetime.now(timezone.utc) + timedelta(days=365)).replace(tzinfo=None)
         admin = User(id=uuid.uuid4(), phone="9999900000", role=UserRole.admin, is_active=True,
+                     password_hash=hash_password("Password@123"),
                      otp_hash=hash_otp("123456"), otp_expires_at=demo_otp_expiry)
         db.add(admin)
 
@@ -40,6 +41,7 @@ async def seed():
         farmer_objs = []
         for fd in farmers_data:
             user = User(id=uuid.uuid4(), phone=fd["phone"], role=UserRole.farmer, is_active=True,
+                        password_hash=hash_password("Password@123"),
                         otp_hash=hash_otp("123456"), otp_expires_at=demo_otp_expiry)
             db.add(user)
             await db.flush()

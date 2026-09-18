@@ -97,7 +97,10 @@ class _FarmerMarketplaceScreenState
       backgroundColor: storeCream,
       body: Column(
         children: [
-          const StoreHeader(currentCategory: 'All'),
+          StoreHeader(
+            currentCategory: _selectedCategory,
+            isFarmerHub: true,
+          ),
           StoreCategoryNavigation(
             selected: _selectedCategory,
             onSelected: (cat) => setState(() => _selectedCategory = cat),

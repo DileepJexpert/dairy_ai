@@ -219,13 +219,17 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             StoreHeader(
               currentCategory: _label(_category),
               initialSearch: _search.text,
+              isFarmerHub: widget.category == ProductCategory.equipment ||
+                  widget.category == ProductCategory.feedNutrition,
             ),
             StoreCategoryNavigation(
               selected: _category,
               onSelected: _browse,
               legacyEquipment: widget.category == ProductCategory.equipment,
             ),
-            const StorefrontHighlightStrip(),
+            if (widget.category != ProductCategory.equipment &&
+                widget.category != ProductCategory.feedNutrition)
+              const StorefrontHighlightStrip(),
 
             // Main Scrollable Content Area
             Expanded(

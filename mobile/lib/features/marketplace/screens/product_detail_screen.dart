@@ -99,17 +99,29 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         final isDesktop = screenConstraints.maxWidth >= 960;
         final isMobile = screenConstraints.maxWidth < StoreLayout.tablet;
 
+        final isEquipmentOrFeed = product != null &&
+            (product.category == ProductCategory.equipment ||
+                product.category == ProductCategory.feedNutrition ||
+                product.title.toLowerCase().contains('chaff') ||
+                product.title.toLowerCase().contains('milker') ||
+                product.title.toLowerCase().contains('cutter') ||
+                product.title.toLowerCase().contains('machine') ||
+                product.title.toLowerCase().contains('feed') ||
+                product.title.toLowerCase().contains('pellet'));
+
         return Column(
           children: [
             // Top Amazon Header & Subnav
             StoreHeader(
               currentCategory: product == null ? 'All' : storeCategory(product),
+              isFarmerHub: isEquipmentOrFeed,
             ),
             StoreCategoryNavigation(
               selected: product?.taxonomy?['category_id']?.toString() ??
                   (product == null ? 'All products' : storeCategory(product)),
             ),
-            StorefrontHighlightStrip(currentProductId: product?.id),
+            if (!isEquipmentOrFeed)
+              StorefrontHighlightStrip(currentProductId: product?.id),
 
             // Content Area
             Expanded(

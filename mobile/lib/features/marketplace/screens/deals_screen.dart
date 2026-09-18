@@ -80,21 +80,23 @@ class DealsScreen extends ConsumerWidget {
                                                                 p.id,
                                                                 p.minOrderQuantity,
                                                                 p);
-                                                        if (context.mounted)
+                                                        if (context.mounted) {
                                                           ScaffoldMessenger.of(
                                                                   context)
                                                               .showSnackBar(
                                                                   const SnackBar(
                                                                       content: Text(
                                                                           'Added to cart')));
+                                                        }
                                                       } catch (_) {
-                                                        if (context.mounted)
+                                                        if (context.mounted) {
                                                           ScaffoldMessenger.of(
                                                                   context)
                                                               .showSnackBar(
                                                                   const SnackBar(
                                                                       content: Text(
                                                                           'Could not add item. Please try again.')));
+                                                        }
                                                       }
                                                     },
                                                   )))

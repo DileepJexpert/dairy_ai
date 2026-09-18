@@ -58,19 +58,21 @@ class LightningDealsRail extends ConsumerWidget {
                                           await ref
                                               .read(cartProvider.notifier)
                                               .add(p.id, p.minOrderQuantity, p);
-                                          if (context.mounted)
+                                          if (context.mounted) {
                                             ScaffoldMessenger.of(context)
                                                 .showSnackBar(const SnackBar(
                                                     content:
                                                         Text('Added to cart'),
                                                     backgroundColor:
                                                         storeGreen));
+                                          }
                                         } catch (_) {
-                                          if (context.mounted)
+                                          if (context.mounted) {
                                             ScaffoldMessenger.of(context)
                                                 .showSnackBar(const SnackBar(
                                                     content: Text(
                                                         'Could not add this product. Please retry.')));
+                                          }
                                         }
                                       },
                                     )),

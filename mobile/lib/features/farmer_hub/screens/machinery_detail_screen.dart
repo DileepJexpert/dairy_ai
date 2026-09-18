@@ -51,7 +51,10 @@ class _MachineryDetailScreenState extends ConsumerState<MachineryDetailScreen> {
       backgroundColor: storeCream,
       body: Column(
         children: [
-          const StoreHeader(currentCategory: 'All'),
+          const StoreHeader(
+            currentCategory: 'Machinery & Equipment',
+            isFarmerHub: true,
+          ),
           const StoreCategoryNavigation(selected: 'Machinery & Equipment'),
           Expanded(
             child: productAsync.when(

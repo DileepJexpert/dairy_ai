@@ -31,7 +31,7 @@ List<Product> get conceptCatalogue => defaultMilterraProducts
           inStock: false,
           availableQuantity: 0,
           taxonomy: {
-            ...p.taxonomy,
+            ...?p.taxonomy,
             'concept': true,
             'status': 'Concept Preview'
           },

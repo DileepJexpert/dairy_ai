@@ -202,7 +202,7 @@ class _ProductMediaManagerState extends ConsumerState<ProductMediaManager> {
                                                                           ]));
                                                               if (confirmed ==
                                                                       true &&
-                                                                  mounted)
+                                                                  mounted) {
                                                                 await _run(
                                                                     () async {
                                                                   await ref
@@ -211,6 +211,7 @@ class _ProductMediaManagerState extends ConsumerState<ProductMediaManager> {
                                                                       .delete(
                                                                           '/vendor/products/${widget.productId}/media/${row['id']}');
                                                                 });
+                                                              }
                                                             },
                                                       icon: const Icon(
                                                           Icons.delete_outline),

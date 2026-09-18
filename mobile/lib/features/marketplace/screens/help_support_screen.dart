@@ -24,12 +24,12 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
   @override
   Widget build(BuildContext context) {
     final help = ref.watch(storeHelpProvider);
-    final _faqs = (help.valueOrNull?['faqs'] as List? ?? [])
+    final faqs = (help.valueOrNull?['faqs'] as List? ?? [])
         .map((e) => Map<String, String>.from(e))
         .toList();
     final filteredFaqs = _filterQuery.isEmpty
-        ? _faqs
-        : _faqs.where((f) {
+        ? faqs
+        : faqs.where((f) {
             final q = _filterQuery.toLowerCase();
             return f['question']!.toLowerCase().contains(q) ||
                 f['answer']!.toLowerCase().contains(q) ||

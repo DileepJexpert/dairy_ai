@@ -541,10 +541,14 @@ class StoreHeader extends ConsumerStatefulWidget {
     this.search,
     this.currentCategory,
     this.initialSearch = '',
+    this.searchHint,
+    this.isFarmerHub = false,
   });
   final Widget? search;
   final String? currentCategory;
   final String initialSearch;
+  final String? searchHint;
+  final bool isFarmerHub;
 
   @override
   ConsumerState<StoreHeader> createState() => _StoreHeaderState();
@@ -597,11 +601,18 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
   void _triggerSearch() {
     final query = _searchCtrl.text.trim();
     final effectiveCat = _normalizeCategory(_selectedCategory);
-    storeBrowse(
-      context,
-      category: effectiveCat == 'All' ? null : effectiveCat,
-      query: query.isEmpty ? null : query,
-    );
+    if (widget.isFarmerHub) {
+      context.go(Uri(path: '/marketplace', queryParameters: {
+        if (effectiveCat != 'All') 'category': effectiveCat,
+        if (query.isNotEmpty) 'query': query,
+      }).toString());
+    } else {
+      storeBrowse(
+        context,
+        category: effectiveCat == 'All' ? null : effectiveCat,
+        query: query.isEmpty ? null : query,
+      );
+    }
   }
 
   @override
@@ -636,7 +647,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                   children: [
                     // Brand Logo
                     InkWell(
-                      onTap: () => context.go('/shop'),
+                      onTap: () => context.go(widget.isFarmerHub ? '/marketplace' : '/shop'),
                       borderRadius: BorderRadius.circular(4),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -644,20 +655,20 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.spa_outlined,
+                            Icon(widget.isFarmerHub ? Icons.agriculture : Icons.spa_outlined,
                                 color: storeGold, size: 22),
                             const SizedBox(width: 4),
                             Text(
-                              'milterra',
+                              widget.isFarmerHub ? 'katixo' : 'milterra',
                               style: StoreType.logo.copyWith(
                                 color: storeWhite,
                                 fontSize: isMobile ? 23 : 26,
                               ),
                             ),
-                            const Padding(
-                              padding: EdgeInsets.only(top: 6),
-                              child: Text('.in',
-                                  style: TextStyle(
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(widget.isFarmerHub ? '.farmer' : '.in',
+                                  style: const TextStyle(
                                       color: storeGold,
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold)),
@@ -1145,7 +1156,10 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
               onSubmitted: (_) => _triggerSearch(),
               style: const TextStyle(fontSize: 13, color: Color(0xff111111)),
               decoration: InputDecoration(
-                hintText: 'Search Milterra.in (e.g. A2 Cow Ghee, Paneer)...',
+                hintText: widget.searchHint ??
+                    (widget.isFarmerHub
+                        ? 'Search Katixo (e.g. Chaff Cutter, Milking Machine, Feeds)...'
+                        : 'Search Milterra.in (e.g. A2 Cow Ghee, Paneer)...'),
                 hintStyle:
                     const TextStyle(color: Color(0xff777777), fontSize: 12),
                 filled: true,

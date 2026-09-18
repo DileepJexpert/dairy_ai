@@ -22,10 +22,10 @@ const nodes = [
       slug: 'cow-ghee',
       parentId: 'food'),
   TaxonomyNode(
-      id: 'farm',
+      id: 'puja',
       kind: 'department',
-      name: 'Farm Essentials',
-      slug: 'farm-essentials'),
+      name: 'Puja & Hawan Samagri',
+      slug: 'puja-hawan-samagri'),
 ];
 
 void main() {
@@ -51,7 +51,7 @@ void main() {
             theme: StoreTheme.light, home: const ProductListScreen())));
     await tester.pumpAndSettle();
     expect(find.text('Dairy Foods'), findsWidgets);
-    expect(find.text('Farm Essentials'), findsWidgets);
+    expect(find.text('Puja & Hawan Samagri'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
   test('Authentication returns stay on known internal routes', () {
@@ -116,7 +116,7 @@ void main() {
               home: const CommerceCategoriesScreen())));
       await tester.pumpAndSettle();
       expect(find.text('Departments & categories'), findsOneWidget);
-      expect(find.text('Farm Essentials'), findsOneWidget);
+      expect(find.text('Puja & Hawan Samagri'), findsOneWidget);
       expect(tester.takeException(), isNull);
     }
   });

@@ -956,6 +956,20 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     if (_taxonomy?.enabled == true) {
       for (final dept in _taxonomy!.nodes
           .where((n) => n.kind == 'department' && n.isActive)) {
+        // When on Milterra consumer storefront (/shop), strictly filter out B2B Farm Essentials, Animal nutrition, Equipment
+        if (widget.category == null) {
+          final dName = dept.name.toLowerCase();
+          final dSlug = dept.slug.toLowerCase();
+          if (dName.contains('farm essential') ||
+              dSlug.contains('farm-essential') ||
+              dName.contains('equipment') ||
+              dName.contains('machinery') ||
+              dName.contains('animal nutrition') ||
+              dName.contains('cattle nutrition') ||
+              dName.contains('feed')) {
+            continue;
+          }
+        }
         final existingKey = groups.keys.firstWhere(
           (k) =>
               k.toLowerCase() == dept.name.toLowerCase() ||
@@ -970,6 +984,19 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             groups.putIfAbsent(existingKey, () => {dept.id: 'All ${dept.name}'});
         for (final node in _taxonomy!.nodes
             .where((n) => n.parentId == dept.id && n.isActive)) {
+          if (widget.category == null) {
+            final nName = node.name.toLowerCase();
+            final nSlug = node.slug.toLowerCase();
+            if (nName.contains('equipment') ||
+                nName.contains('machinery') ||
+                nName.contains('animal nutrition') ||
+                nName.contains('cattle nutrition') ||
+                nName.contains('cattle feed') ||
+                nSlug.contains('equipment') ||
+                nSlug.contains('animal-nutrition')) {
+              continue;
+            }
+          }
           if (!group.keys
               .any((key) => key.toLowerCase() == node.name.toLowerCase())) {
             group[node.id] = node.name;
@@ -1272,10 +1299,12 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     return all.where((p) {
       if (p.isDraft) return false;
 
-      // On consumer storefront (/shop), hide farm machinery & cattle feed unless explicitly selected/searched
-      if (widget.category == null && !isEquipmentCategory && !isAllNutrition && catLower != 'stage-based nutrition') {
+      // On consumer storefront (/shop), strictly hide farm machinery & cattle feeds
+      if (widget.category == null) {
         final cat = storeCategory(p);
-        if ((cat == 'Animal nutrition' || cat == 'Equipment') && query.isEmpty) {
+        if (cat == 'Animal nutrition' ||
+            cat == 'Equipment' ||
+            p.category == ProductCategory.equipment) {
           return false;
         }
       }

@@ -1083,15 +1083,18 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
         ),
     ];
     if (!baseCategories.containsKey(resolvedKey)) {
-      // If still unknown and looks like a UUID (contains hyphens), map to 'All'
-      if (resolvedKey.contains('-')) {
-        resolvedKey = 'All';
+      if (widget.isFarmerHub) {
+        if (resolvedKey.contains('-')) {
+          resolvedKey = 'All';
+        } else {
+          items.add(DropdownMenuItem(
+            value: resolvedKey,
+            child:
+                Text(resolvedKey, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ));
+        }
       } else {
-        items.add(DropdownMenuItem(
-          value: resolvedKey,
-          child:
-              Text(resolvedKey, maxLines: 1, overflow: TextOverflow.ellipsis),
-        ));
+        resolvedKey = 'All';
       }
     }
     final dropdownValue =

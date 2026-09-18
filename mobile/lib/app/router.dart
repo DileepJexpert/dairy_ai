@@ -82,7 +82,6 @@ import 'package:dairy_ai/features/milk_purity/screens/purity_scanner_screen.dart
 import 'package:dairy_ai/features/milk_purity/screens/batch_certificate_screen.dart';
 import 'package:dairy_ai/features/herd/screens/cattle_lifecycle_screen.dart';
 import 'package:dairy_ai/features/vet_farmer/screens/tele_vet_booking_screen.dart';
-import 'package:dairy_ai/features/marketplace/screens/marketplace_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/marketplace_detail_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/sell_on_milterra_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/product_list_screen.dart';
@@ -98,6 +97,10 @@ import 'package:dairy_ai/features/cart/screens/wishlist_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/about_milterra_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/help_support_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/milterra_earth_screen.dart';
+import 'package:dairy_ai/features/milterra/screens/milterra_store_screen.dart';
+import 'package:dairy_ai/features/milterra/screens/milterra_product_detail_screen.dart';
+import 'package:dairy_ai/features/farmer_hub/screens/farmer_marketplace_screen.dart';
+import 'package:dairy_ai/features/farmer_hub/screens/machinery_detail_screen.dart';
 
 // ---------------------------------------------------------------------------
 // Navigation keys
@@ -271,7 +274,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/', redirect: (_, __) => '/shop'),
       GoRoute(
         path: '/shop/product/:productId',
-        builder: (context, state) => ProductDetailScreen(
+        builder: (context, state) => MilterraProductDetailScreen(
+          productId: state.pathParameters['productId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/machinery/:productId',
+        builder: (context, state) => MachineryDetailScreen(
           productId: state.pathParameters['productId']!,
         ),
       ),
@@ -362,13 +371,25 @@ final routerProvider = Provider<GoRouter>((ref) {
         redirect: (_, __) => '/shop/deals',
       ),
       GoRoute(
-          path: '/shop',
-          builder: (_, state) => ProductListScreen(
+        path: '/shop',
+        builder: (_, state) {
+          final isFarmer = state.uri.queryParameters['store'] == 'farmer';
+          if (isFarmer) {
+            return FarmerMarketplaceScreen(
               key: ValueKey(state.uri.toString()),
               initialQuery: state.uri.queryParameters['query'] ?? '',
               initialCategory:
-                  state.uri.queryParameters['category'] ?? 'All products',
-              initialSort: state.uri.queryParameters['sort'] ?? 'Featured')),
+                  state.uri.queryParameters['category'] ?? 'All Departments',
+            );
+          }
+          return MilterraStoreScreen(
+            key: ValueKey(state.uri.toString()),
+            initialQuery: state.uri.queryParameters['query'] ?? '',
+            initialCategory:
+                state.uri.queryParameters['category'] ?? 'All Ghee',
+          );
+        },
+      ),
       GoRoute(
           path: '/admin/commerce',
           builder: (_, __) => const CommerceCategoriesScreen()),
@@ -493,7 +514,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/marketplace',
-        builder: (context, state) => const MarketplaceScreen(),
+        builder: (context, state) => FarmerMarketplaceScreen(
+          key: ValueKey(state.uri.toString()),
+          initialQuery: state.uri.queryParameters['query'] ?? '',
+          initialCategory:
+              state.uri.queryParameters['category'] ?? 'All Departments',
+        ),
+      ),
+      GoRoute(
+        path: '/farmer',
+        redirect: (_, __) => '/marketplace',
+      ),
+      GoRoute(
+        path: '/farmer-store',
+        redirect: (_, __) => '/marketplace',
       ),
       GoRoute(
         path: '/sell',

@@ -346,24 +346,8 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                         () => storeBrowse(context, sort: 'Newest Arrivals')),
                     _drawerTile(context, 'Movers & Shakers',
                         () => storeBrowse(context, sort: 'Trending')),
-                    if (taxonomy?.enabled == true &&
-                        taxonomy!.departments.isNotEmpty) ...[
-                      for (final dept in taxonomy.departments) ...[
-                        const Divider(height: 16),
-                        _sectionHeader(dept.name),
-                        _drawerTile(context, 'All ${dept.name}',
-                            () => storeBrowse(context, category: dept.id)),
-                        for (final cat in taxonomy.categoriesFor(dept.id)) ...[
-                          _drawerTile(context, cat.name,
-                              () => storeBrowse(context, category: cat.id)),
-                          for (final sub in taxonomy.subcategoriesFor(cat.id))
-                            _drawerTile(context, '   ↳ ${sub.name}',
-                                () => storeBrowse(context, category: sub.id)),
-                        ],
-                      ],
-                    ] else ...[
-                      const Divider(height: 16),
-                      _sectionHeader('🧈 Vedic Bilona Ghee'),
+                    const Divider(height: 16),
+                    _sectionHeader('🧈 Vedic Bilona Ghee'),
                       _drawerTile(context, 'All Vedic Ghee',
                           () => storeBrowse(context, category: 'Vedic Bilona Ghee')),
                       _drawerTile(context, 'A2 Desi Gir Cow Ghee',
@@ -456,7 +440,6 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                         Navigator.pop(context);
                         context.go('/marketplace');
                       }),
-                    ],
                     _sectionHeader('Programs & Features'),
                     _drawerTile(context, 'Quality & Research', () {
                       Navigator.pop(context);
@@ -1058,11 +1041,10 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
       baseCategories['All'] = 'All Departments';
       baseCategories['Equipment'] = '⚙️ Farm Machinery';
       baseCategories['Animal nutrition'] = '🌾 Cattle Nutrition';
-    }
-
-    if (taxonomy?.enabled == true) {
-      for (final node in taxonomy!.nodes) {
-        baseCategories[node.id] = node.name;
+      if (taxonomy?.enabled == true) {
+        for (final node in taxonomy!.nodes) {
+          baseCategories[node.id] = node.name;
+        }
       }
     }
 
@@ -1071,7 +1053,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
     // If currentCat is a taxonomy node ID, resolve it to its name or keep the ID key
     String resolvedKey = currentCat;
     if (!baseCategories.containsKey(resolvedKey)) {
-      if (taxonomy?.enabled == true) {
+      if (widget.isFarmerHub && taxonomy?.enabled == true) {
         for (final node in taxonomy!.nodes) {
           if (node.id == currentCat ||
               node.name.toLowerCase() == currentCat.toLowerCase()) {
@@ -1243,16 +1225,17 @@ class StoreCategoryNavigation extends ConsumerWidget {
       'All Organic Essentials': 'All Organic Essentials',
     };
 
-    if (taxonomy?.enabled == true && taxonomy!.departments.isNotEmpty) {
-      for (final dept in taxonomy.departments) {
-        entries[dept.id] = dept.name;
-        for (final child in taxonomy.categoriesFor(dept.id)) {
-          entries[child.id] = child.name;
+    if (legacyEquipment) {
+      entries['Equipment'] = 'Farm Machinery';
+      entries['Animal nutrition'] = 'Feed & Cattle Nutrition';
+      if (taxonomy?.enabled == true && taxonomy!.departments.isNotEmpty) {
+        for (final dept in taxonomy.departments) {
+          entries[dept.id] = dept.name;
+          for (final child in taxonomy.categoriesFor(dept.id)) {
+            entries[child.id] = child.name;
+          }
         }
       }
-    } else if (legacyEquipment) {
-      entries['Equipment'] = 'Equipment';
-      entries['Animal nutrition'] = 'Feed & Nutrition';
     } else {
       entries['Vedic Bilona Ghee'] = 'Vedic Bilona Ghee';
       entries['Fresh Milk & Dairy'] = 'Fresh Milk & Dairy';
@@ -1382,37 +1365,37 @@ class StoreCategoryNavigation extends ConsumerWidget {
 
               // Right side direct tags (Desktop)
               if (MediaQuery.sizeOf(context).width >= 960) ...[
-                // OLX-Style "+ Post Free Ad"
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: InkWell(
-                    key: const ValueKey('subnav-post-ad-btn'),
-                    onTap: () => context.push('/marketplace/sell'),
-                    borderRadius: BorderRadius.circular(4),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xfffef08a),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.add_circle, color: Color(0xff064e3b), size: 14),
-                          SizedBox(width: 4),
-                          Text(
-                            '+ Post Free Ad',
-                            style: TextStyle(
-                              color: Color(0xff064e3b),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
+                if (legacyEquipment)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: InkWell(
+                      key: const ValueKey('subnav-post-ad-btn'),
+                      onTap: () => context.push('/marketplace/sell'),
+                      borderRadius: BorderRadius.circular(4),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xfffef08a),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add_circle, color: Color(0xff064e3b), size: 14),
+                            SizedBox(width: 4),
+                            Text(
+                              '+ Post Free Ad',
+                              style: TextStyle(
+                                color: Color(0xff064e3b),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
 
                 // Lab Test Reports
                 Padding(

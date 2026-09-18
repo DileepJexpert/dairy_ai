@@ -30,6 +30,17 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   bool _isConceptProduct(Product p) => p.isConcept;
 
+  bool _isEquipmentOrFeed(Product? product) {
+    if (product == null) return false;
+    final cat = storeCategory(product);
+    if (cat == 'Animal nutrition' || cat == 'Equipment') return true;
+    final title = product.title.toLowerCase();
+    return title.contains('chaff cutter') ||
+        title.contains('milking machine') ||
+        title.contains('cattle feed') ||
+        title.contains('feed pellet');
+  }
+
   bool _isEarthProduct(Product p) {
     if (p.taxonomy?['is_earth'] == true) return true;
     final cat = p.taxonomy?['category_id']?.toString() ?? '';
@@ -100,14 +111,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         final isMobile = screenConstraints.maxWidth < StoreLayout.tablet;
 
         final isEquipmentOrFeed = product != null &&
-            (product.category == ProductCategory.equipment ||
-                product.category == ProductCategory.feedNutrition ||
-                product.title.toLowerCase().contains('chaff') ||
-                product.title.toLowerCase().contains('milker') ||
-                product.title.toLowerCase().contains('cutter') ||
-                product.title.toLowerCase().contains('machine') ||
-                product.title.toLowerCase().contains('feed') ||
-                product.title.toLowerCase().contains('pellet'));
+            (storeCategory(product) == 'Animal nutrition' ||
+                storeCategory(product) == 'Equipment' ||
+                product.title.toLowerCase().contains('chaff cutter') ||
+                product.title.toLowerCase().contains('milking machine') ||
+                product.title.toLowerCase().contains('cattle feed') ||
+                product.title.toLowerCase().contains('feed pellet'));
 
         return Column(
           children: [
@@ -876,30 +885,32 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               ),
             ),
             const SizedBox(height: 10),
-
-            // Button 3: IndiaMART-Style Get Best Quote (RFQ)
-            SizedBox(
-              width: double.infinity,
-              height: 40,
-              child: OutlinedButton.icon(
-                key: const ValueKey('detail-request-rfq'),
-                icon: const Icon(Icons.request_quote_outlined, size: 18, color: Color(0xff047857)),
-                label: const Text(
-                  'Get Best Price / Request RFQ',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xff047857),
+            if (_isEquipmentOrFeed(p)) ...[
+              const SizedBox(height: 10),
+              // Button 3: IndiaMART-Style Get Best Quote (RFQ)
+              SizedBox(
+                width: double.infinity,
+                height: 40,
+                child: OutlinedButton.icon(
+                  key: const ValueKey('detail-request-rfq'),
+                  icon: const Icon(Icons.request_quote_outlined, size: 18, color: Color(0xff047857)),
+                  label: const Text(
+                    'Get Best Price / Request RFQ',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xff047857),
+                    ),
                   ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xff047857), width: 1.5),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    backgroundColor: const Color(0xfff0fdf4),
+                  ),
+                  onPressed: () => showRFQQuoteDialog(context, product: p),
                 ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xff047857), width: 1.5),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  backgroundColor: const Color(0xfff0fdf4),
-                ),
-                onPressed: () => showRFQQuoteDialog(context, product: p),
               ),
-            ),
+            ],
           ],
 
           const SizedBox(height: 14),

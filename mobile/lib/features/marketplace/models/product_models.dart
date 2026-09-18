@@ -795,6 +795,95 @@ const defaultMilterraProducts = <Product>[
     },
   ),
   Product(
+    id: 'mil-milk-cow-1l',
+    familyId: 'fam-milk-sahiwal-1l',
+    publicationStatus: 'published',
+    vendorId: 'vendor-milterra-dairy',
+    title: 'MILTERRA Pure A2 Sahiwal Cow Milk (Glass Bottle)',
+    category: ProductCategory.feedNutrition,
+    price: 85,
+    unit: 'bottle',
+    brand: 'MILTERRA',
+    packSize: '1 litre',
+    description:
+        'Farm-fresh, raw chilled A2 Sahiwal cow milk delivered in sterilized glass bottles. 100% pure, unadulterated, and free from antibiotics or synthetic hormones.',
+    taxonomy: {
+      'department_name': 'Fresh Milk & Dairy',
+      'category_name': 'Fresh Milk',
+      'department_id': 'fresh-milk-dairy',
+      'category_id': 'fresh-milk'
+    },
+    inStock: true,
+    availableQuantity: 60,
+    minOrderQuantity: 1,
+    specifications: {
+      'Milk Type': 'A2 Pure Sahiwal Cow Milk',
+      'Packaging': 'Eco-Friendly Glass Bottle',
+      'Fat Content': 'Min 4.5% Natural Milk Fat',
+      'Storage': 'Keep Refrigerated at 2-4°C',
+      'Shelf Life': '48 Hours from Milking'
+    },
+  ),
+  Product(
+    id: 'mil-milk-buff-1l',
+    familyId: 'fam-milk-murrah-1l',
+    publicationStatus: 'published',
+    vendorId: 'vendor-milterra-dairy',
+    title: 'MILTERRA Fresh Murrah Buffalo Milk',
+    category: ProductCategory.feedNutrition,
+    price: 90,
+    unit: 'bottle',
+    brand: 'MILTERRA',
+    packSize: '1 litre',
+    description:
+        'Thick, creamy, pure Murrah buffalo milk with high natural fat and calcium. Ideal for rich curd, kheer, and traditional sweets.',
+    taxonomy: {
+      'department_name': 'Fresh Milk & Dairy',
+      'category_name': 'Fresh Milk',
+      'department_id': 'fresh-milk-dairy',
+      'category_id': 'fresh-milk'
+    },
+    inStock: true,
+    availableQuantity: 40,
+    minOrderQuantity: 1,
+    specifications: {
+      'Milk Type': 'Pure Murrah Buffalo Milk',
+      'Packaging': 'Glass Bottle',
+      'Fat Content': 'Min 7.0% Natural Milk Fat',
+      'Storage': 'Keep Refrigerated at 2-4°C',
+      'Shelf Life': '48 Hours from Milking'
+    },
+  ),
+  Product(
+    id: 'mil-chhachh-1l',
+    familyId: 'fam-chhachh-1l',
+    publicationStatus: 'published',
+    vendorId: 'vendor-milterra-dairy',
+    title: 'MILTERRA Vedic Desi Cow Chhachh (Spiced Buttermilk)',
+    category: ProductCategory.feedNutrition,
+    price: 45,
+    unit: 'bottle',
+    brand: 'MILTERRA',
+    packSize: '1 litre',
+    description:
+        'Authentic churned bilona chhachh spiced with roasted cumin (jeera), mint, and rock salt (sendha namak). Probiotic-rich traditional digestive tonic.',
+    taxonomy: {
+      'department_name': 'Fresh Milk & Dairy',
+      'category_name': 'Chhachh & Buttermilk',
+      'department_id': 'fresh-milk-dairy',
+      'category_id': 'chhachh'
+    },
+    inStock: true,
+    availableQuantity: 50,
+    minOrderQuantity: 1,
+    specifications: {
+      'Base': 'Cultured Bilona Chhachh',
+      'Ingredients': 'Curd Churn Water, Roasted Jeera, Himalayan Rock Salt, Mint',
+      'Benefits': 'Natural Probiotic, Aids Digestion & Cooling',
+      'Storage': 'Keep Chilled (0-4°C)'
+    },
+  ),
+  Product(
     id: 'mil-paneer-200',
     familyId: 'c3333333-3333-3333-3333-333333333333',
     publicationStatus: 'published',

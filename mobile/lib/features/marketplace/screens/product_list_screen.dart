@@ -953,23 +953,27 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         'Equipment': 'Dairy & Farm Equipment',
       };
     }
-    for (final dept in _taxonomy?.nodes
-            .where((n) => n.kind == 'department' && n.isActive) ??
-        <TaxonomyNode>[]) {
-      if (widget.category == null && (_taxonomy?.nodes.length ?? 0) > 3) {
-        if (dept.name.toLowerCase() == 'dairy foods' ||
-            dept.name.toLowerCase() == 'farm essentials' ||
-            dept.name.toLowerCase() == 'ayurvedic skincare') {
-          continue;
-        }
-      }
-      final group =
-          groups.putIfAbsent(dept.name, () => {dept.id: 'All ${dept.name}'});
-      for (final node in _taxonomy!.nodes
-          .where((n) => n.parentId == dept.id && n.isActive)) {
-        if (!group.keys
-            .any((key) => key.toLowerCase() == node.name.toLowerCase())) {
-          group[node.id] = node.name;
+    if (_taxonomy?.enabled == true) {
+      for (final dept in _taxonomy!.nodes
+          .where((n) => n.kind == 'department' && n.isActive)) {
+        final existingKey = groups.keys.firstWhere(
+          (k) =>
+              k.toLowerCase() == dept.name.toLowerCase() ||
+              k
+                  .replaceAll(RegExp(r'[^\w\s&]'), '')
+                  .trim()
+                  .toLowerCase() ==
+                  dept.name.toLowerCase(),
+          orElse: () => dept.name,
+        );
+        final group =
+            groups.putIfAbsent(existingKey, () => {dept.id: 'All ${dept.name}'});
+        for (final node in _taxonomy!.nodes
+            .where((n) => n.parentId == dept.id && n.isActive)) {
+          if (!group.keys
+              .any((key) => key.toLowerCase() == node.name.toLowerCase())) {
+            group[node.id] = node.name;
+          }
         }
       }
     }
@@ -1206,61 +1210,52 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     final isAllCategory = catLower == 'all products' ||
         catLower == 'all' ||
         catLower == 'all organic essentials';
-    final isGheeCategory = catLower == 'vedic bilona ghee' ||
+    final isGheeCategory = catLower.contains('ghee') ||
         catLower == 'all ghee' ||
         catLower == 'all-ghee' ||
-        catLower == 'ghee' ||
-        catLower == 'ghee collection' ||
-        catLower == 'cow ghee' ||
-        catLower == 'buffalo ghee' ||
-        catLower == 'herbal ghee';
-    final isCowGheeCategory = catLower == 'cow ghee' || catLower == 'cow-ghee';
+        catLower == 'ghee collection';
+    final isCowGheeCategory = catLower.contains('cow ghee') || catLower == 'cow-ghee';
     final isBuffGheeCategory =
-        catLower == 'buffalo ghee' || catLower == 'buffalo-ghee';
-    final isHerbalGheeCategory = catLower == 'herbal ghee' ||
+        catLower.contains('buffalo ghee') || catLower == 'buffalo-ghee';
+    final isHerbalGheeCategory = catLower.contains('herbal ghee') ||
         catLower == 'herbal-ghee' ||
-        catLower == 'herbal infused ghee';
+        catLower.contains('herbal infused');
 
-    final isMilkDairyCategory = catLower == 'fresh milk & dairy' ||
-        catLower == 'dairy foods' ||
+    final isMilkDairyCategory = catLower.contains('fresh milk') ||
+        catLower.contains('dairy foods') ||
+        catLower.contains('chhachh') ||
+        catLower.contains('chaas') ||
+        catLower.contains('paneer') ||
+        catLower.contains('makhan') ||
+        catLower.contains('butter') ||
         catLower == 'milk' ||
         catLower == 'doodh' ||
-        catLower == 'chhachh' ||
-        catLower == 'chaas' ||
-        catLower == 'paneer' ||
-        catLower == 'other products' ||
-        catLower == 'makhan' ||
-        catLower == 'butter';
+        catLower == 'other products';
 
-    final isPujaSacredCategory = catLower == 'puja & hawan samagri' ||
-        catLower == 'puja-hawan-samagri' ||
-        catLower == 'hawan & yajna ghee' ||
-        catLower == 'cow dung sacred products' ||
-        catLower == 'bhimseni kapoor & samagri';
+    final isPujaSacredCategory = catLower.contains('puja') ||
+        catLower.contains('hawan') ||
+        catLower.contains('samagri') ||
+        catLower.contains('kanda') ||
+        catLower.contains('uple') ||
+        catLower.contains('kapoor') ||
+        catLower.contains('camphor') ||
+        catLower.contains('diya');
 
-    final isAgarbattiCategory = catLower == 'natural agarbatti & dhoop' ||
-        catLower == 'dhoop-agarbatti' ||
-        catLower == 'agarbatti' ||
-        catLower == 'dhoop';
+    final isAgarbattiCategory = catLower.contains('agarbatti') ||
+        catLower.contains('dhoop') ||
+        catLower.contains('incense');
 
-    final isEarthCategory = catLower == 'vermicompost & living soil' ||
-        catLower == 'milterra earth' ||
-        catLower == 'milterra-earth' ||
-        catLower == 'earth' ||
-        catLower == 'living soil' ||
-        catLower == 'vermicompost' ||
-        catLower == 'farm manure' ||
-        catLower == 'organic compost' ||
-        catLower == 'compost cakes' ||
-        catLower == 'compost starter' ||
-        catLower == 'garden soil mix';
+    final isEarthCategory = catLower.contains('vermicompost') ||
+        catLower.contains('living soil') ||
+        catLower.contains('earth') ||
+        catLower.contains('manure') ||
+        catLower.contains('compost') ||
+        catLower.contains('soil mix');
 
-    final isSarsoOilCategory = catLower == 'cold-pressed sarso (mustard) oil' ||
-        catLower == 'sarso-oil' ||
-        catLower == 'sarso' ||
-        catLower == 'mustard' ||
-        catLower == 'oil' ||
-        catLower == 'til';
+    final isSarsoOilCategory = catLower.contains('sarso') ||
+        catLower.contains('mustard') ||
+        catLower.contains('oil') ||
+        catLower.contains('til');
 
     final isAllNutrition = catLower == 'animal nutrition' ||
         catLower == 'cattle nutrition' ||
@@ -1279,12 +1274,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
 
       // On consumer storefront (/shop), hide farm machinery & cattle feed unless explicitly selected/searched
       if (widget.category == null && !isEquipmentCategory && !isAllNutrition && catLower != 'stage-based nutrition') {
-        if ((p.category == ProductCategory.equipment ||
-                p.category == ProductCategory.feedNutrition ||
-                (p.isConcept && (storeCategory(p) == 'Animal nutrition' || storeCategory(p) == 'Equipment')) ||
-                storeCategory(p) == 'Animal nutrition' ||
-                storeCategory(p) == 'Equipment') &&
-            query.isEmpty) {
+        final cat = storeCategory(p);
+        if ((cat == 'Animal nutrition' || cat == 'Equipment') && query.isEmpty) {
           return false;
         }
       }

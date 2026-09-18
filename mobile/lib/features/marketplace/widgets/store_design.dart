@@ -50,33 +50,49 @@ String storeCategory(Product p) {
     return p.taxonomy!['category_name'].toString();
   }
   if (p.taxonomyEnabled) return 'Uncategorized';
-  final name = p.title.toLowerCase();
+  final name =
+      '${p.title} ${p.taxonomy?['subcategory_name'] ?? ''} ${p.taxonomy?['category_name'] ?? ''} ${p.taxonomy?['department_name'] ?? ''}'
+          .toLowerCase();
+  if (p.category == ProductCategory.equipment) return 'Equipment';
+  if (name.contains('feed') ||
+      name.contains('pellet') ||
+      name.contains('mineral') ||
+      name.contains('calcium') ||
+      name.contains('fat') ||
+      name.contains('seed') ||
+      name.contains('rumen') ||
+      name.contains('janam') ||
+      name.contains('nutrition') ||
+      name.contains('supplement') ||
+      name.contains('cattle') ||
+      p.category == ProductCategory.feedNutrition && p.isConcept) {
+    return 'Animal nutrition';
+  }
   if (name.contains('sarso') ||
       name.contains('mustard') ||
+      name.contains('til oil') ||
+      name.contains('sesame') ||
       name.contains('kachi ghani') ||
-      (name.contains('oil') &&
-          (name.contains('wood') ||
-              name.contains('cold') ||
-              name.contains('til') ||
-              name.contains('sesame') ||
-              name.contains('tel')))) {
+      (name.contains('oil') && !name.contains('ghee'))) {
     return 'Cold-Pressed Sarso (Mustard) Oil';
   }
   if (name.contains('agarbatti') ||
       name.contains('dhoop') ||
       name.contains('incense') ||
+      name.contains('loban') ||
+      name.contains('guggal') ||
       name.contains('sambrani')) {
     return 'Natural Agarbatti & Dhoop';
   }
   if (name.contains('hawan') ||
       name.contains('yajna') ||
-      name.contains('kanda') ||
-      name.contains('uple') ||
+      name.contains('puja') ||
       name.contains('diya') ||
-      name.contains('kapoor') ||
+      name.contains('deepam') ||
+      name.contains('samidha') ||
       name.contains('camphor') ||
-      name.contains('samagri') ||
-      (name.contains('cow dung') &&
+      name.contains('kapoor') ||
+      (name.contains('kanda') &&
           !name.contains('vermicompost') &&
           !name.contains('manure') &&
           !name.contains('compost'))) {
@@ -111,16 +127,6 @@ String storeCategory(Product p) {
   }
   if (name.contains('ghee') && name.contains('buffalo')) return 'Buffalo ghee';
   if (name.contains('ghee')) return 'Cow ghee';
-  if (p.category == ProductCategory.equipment) return 'Equipment';
-  if (name.contains('feed') ||
-      name.contains('pellet') ||
-      name.contains('mineral') ||
-      name.contains('calcium') ||
-      name.contains('fat') ||
-      name.contains('seed') ||
-      name.contains('nutrition')) {
-    return 'Animal nutrition';
-  }
   if (name.contains('milking') ||
       name.contains('milker') ||
       name.contains('analyzer') ||

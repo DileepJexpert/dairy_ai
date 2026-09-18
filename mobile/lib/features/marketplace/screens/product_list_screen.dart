@@ -956,6 +956,13 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     for (final dept in _taxonomy?.nodes
             .where((n) => n.kind == 'department' && n.isActive) ??
         <TaxonomyNode>[]) {
+      if (widget.category == null && (_taxonomy?.nodes.length ?? 0) > 3) {
+        if (dept.name.toLowerCase() == 'dairy foods' ||
+            dept.name.toLowerCase() == 'farm essentials' ||
+            dept.name.toLowerCase() == 'ayurvedic skincare') {
+          continue;
+        }
+      }
       final group =
           groups.putIfAbsent(dept.name, () => {dept.id: 'All ${dept.name}'});
       for (final node in _taxonomy!.nodes
@@ -1029,85 +1036,95 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       title: Text(pack),
                       value: _packs.contains(pack),
                       onChanged: (v) {
-                        setState(() =>
-                            v == true ? _packs.add(pack) : _packs.remove(pack));
+                        setState(() {
+                          if (v == true) {
+                            _packs.add(pack);
+                          } else {
+                            _packs.remove(pack);
+                          }
+                        });
                         refresh();
                       },
                     ))
                 .toList()),
-      if (!_conceptOnly) ...[
-        const Divider(),
-        const Text('PRICE', style: TextStyle(fontWeight: FontWeight.bold)),
-        // Custom Min/Max Price Inputs
-        Row(
+      if (!_conceptOnly)
+        ExpansionTile(
+          key: PageStorageKey('price-filter-$_category'),
+          tilePadding: EdgeInsets.zero,
+          initiallyExpanded: true,
+          title: const Text('Price & Availability',
+              style: TextStyle(fontSize: 13)),
           children: [
-            Expanded(
-              child: SizedBox(
-                height: 32,
-                child: TextField(
-                  controller: _minPriceCtrl,
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 12),
-                  decoration: const InputDecoration(
-                    hintText: '₹ Min',
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                    border: OutlineInputBorder(),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 32,
+                    child: TextField(
+                      controller: _minPriceCtrl,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(fontSize: 12),
+                      decoration: const InputDecoration(
+                        hintText: '₹ Min',
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: SizedBox(
-                height: 32,
-                child: TextField(
-                  controller: _maxPriceCtrl,
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 12),
-                  decoration: const InputDecoration(
-                    hintText: '₹ Max',
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                    border: OutlineInputBorder(),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: SizedBox(
+                    height: 32,
+                    child: TextField(
+                      controller: _maxPriceCtrl,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(fontSize: 12),
+                      decoration: const InputDecoration(
+                        hintText: '₹ Max',
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            SizedBox(
-              height: 32,
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                const SizedBox(width: 6),
+                SizedBox(
+                  height: 32,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    onPressed: () {
+                      final min = double.tryParse(_minPriceCtrl.text.trim()) ?? 0;
+                      final max = double.tryParse(_maxPriceCtrl.text.trim()) ?? 0;
+                      setState(() {
+                        _priceMin = min;
+                        _priceMax = max;
+                      });
+                      refresh();
+                    },
+                    child: const Text('Go',
+                        style:
+                            TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
                 ),
-                onPressed: () {
-                  final min = double.tryParse(_minPriceCtrl.text.trim()) ?? 0;
-                  final max = double.tryParse(_maxPriceCtrl.text.trim()) ?? 0;
-                  setState(() {
-                    _priceMin = min;
-                    _priceMax = max;
-                  });
+              ],
+            ),
+
+            CheckboxListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: const Text('In Stock only'),
+                value: _inStock,
+                onChanged: (v) {
+                  setState(() => _inStock = v ?? false);
                   refresh();
-                },
-                child: const Text('Go',
-                    style:
-                        TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-            ),
+                }),
           ],
         ),
-
-        CheckboxListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            title: const Text('In Stock only'),
-            value: _inStock,
-            onChanged: (v) {
-              setState(() => _inStock = v ?? false);
-              refresh();
-            }),
-      ],
     ]));
   }
 
@@ -1261,8 +1278,13 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       if (p.isDraft) return false;
 
       // On consumer storefront (/shop), hide farm machinery & cattle feed unless explicitly selected/searched
-      if (widget.category == null && !isEquipmentCategory && !isAllNutrition) {
-        if (p.category == ProductCategory.equipment && query.isEmpty) {
+      if (widget.category == null && !isEquipmentCategory && !isAllNutrition && catLower != 'stage-based nutrition') {
+        if ((p.category == ProductCategory.equipment ||
+                p.category == ProductCategory.feedNutrition ||
+                (p.isConcept && (storeCategory(p) == 'Animal nutrition' || storeCategory(p) == 'Equipment')) ||
+                storeCategory(p) == 'Animal nutrition' ||
+                storeCategory(p) == 'Equipment') &&
+            query.isEmpty) {
           return false;
         }
       }

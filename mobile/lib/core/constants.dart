@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 /// Application-wide constants for DairyAI.
 class AppConstants {
   AppConstants._();
@@ -6,12 +8,18 @@ class AppConstants {
   static const String appTagline = 'A little goodness, every day.';
 
   // API
-  static const String apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000',
-  );
+  static const String _envBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+
+  static String get apiBaseUrl {
+    if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
+    if (kIsWeb) return 'http://localhost:8000';
+    return defaultTargetPlatform == TargetPlatform.android
+        ? 'http://10.0.2.2:8000'
+        : 'http://localhost:8000';
+  }
+
   static const String apiVersion = '/api/v1';
-  static const String baseUrl = '$apiBaseUrl$apiVersion';
+  static String get baseUrl => '$apiBaseUrl$apiVersion';
 
   // Auth
   static const String accessTokenKey = 'access_token';

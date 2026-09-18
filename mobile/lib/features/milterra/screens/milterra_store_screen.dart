@@ -228,24 +228,31 @@ class _MilterraStoreScreenState extends ConsumerState<MilterraStoreScreen> {
                                       color: storeGreen),
                                 ),
                               ),
-                              error: (err, _) => Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(40),
-                                  child: Text('Unable to load catalogue: $err',
-                                      style: const TextStyle(color: storeText)),
-                                ),
-                              ),
+                              error: (_, __) {
+                                final d2cProducts = defaultMilterraProducts.where((p) {
+                                  if (query.isNotEmpty) {
+                                    final matchTitle =
+                                        p.title.toLowerCase().contains(query);
+                                    final matchDesc = (p.description ?? '')
+                                        .toLowerCase()
+                                        .contains(query);
+                                    if (!matchTitle && !matchDesc) return false;
+                                  }
+                                  return _matchesCategory(p, _selectedCategory);
+                                }).toList();
+                                return _buildProductGrid(d2cProducts);
+                              },
                               data: (allProducts) {
                                 // Filter exclusively for D2C Ghee & Foods
                                 final d2cProducts = allProducts.where((p) {
-                                   if (query.isNotEmpty) {
-                                     final matchTitle =
-                                         p.title.toLowerCase().contains(query);
-                                     final matchDesc = (p.description ?? '')
-                                         .toLowerCase()
-                                         .contains(query);
-                                     if (!matchTitle && !matchDesc) return false;
-                                   }
+                                  if (query.isNotEmpty) {
+                                    final matchTitle =
+                                        p.title.toLowerCase().contains(query);
+                                    final matchDesc = (p.description ?? '')
+                                        .toLowerCase()
+                                        .contains(query);
+                                    if (!matchTitle && !matchDesc) return false;
+                                  }
                                   return _matchesCategory(p, _selectedCategory);
                                 }).toList();
 
@@ -268,56 +275,16 @@ class _MilterraStoreScreenState extends ConsumerState<MilterraStoreScreen> {
                                         const SizedBox(height: 8),
                                         ElevatedButton(
                                           onPressed: () => setState(() =>
-                                              _selectedCategory = 'All Ghee'),
-                                          child: const Text('View All Ghee'),
+                                              _selectedCategory =
+                                                  'All Organic Essentials'),
+                                          child: const Text('Explore All Essentials'),
                                         ),
                                       ],
                                     ),
                                   );
                                 }
 
-                                return LayoutBuilder(
-                                  builder: (ctx, constraints) {
-                                    int crossAxisCount = 4;
-                                    if (constraints.maxWidth < 600) {
-                                      crossAxisCount = 1;
-                                    } else if (constraints.maxWidth < 900) {
-                                      crossAxisCount = 2;
-                                    } else if (constraints.maxWidth < 1200) {
-                                      crossAxisCount = 3;
-                                    }
-
-                                    return GridView.builder(
-                                      shrinkWrap: true,
-                                      physics:
-                                          const NeverScrollableScrollPhysics(),
-                                      gridDelegate:
-                                          SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: crossAxisCount,
-                                        mainAxisSpacing: 20,
-                                        crossAxisSpacing: 20,
-                                        childAspectRatio: 0.72,
-                                      ),
-                                      itemCount: d2cProducts.length,
-                                      itemBuilder: (ctx, i) {
-                                        final prod = d2cProducts[i];
-                                        return StoreProductCard(
-                                          packs: [prod],
-                                          onOpen: (p) => context
-                                              .push('/product/${p.id}'),
-                                          onAdd: (p) async {
-                                            await ref
-                                                .read(cartProvider.notifier)
-                                                .add(p.id, 1, p);
-                                            if (context.mounted) {
-                                              showStoreCart(context);
-                                            }
-                                          },
-                                        );
-                                      },
-                                    );
-                                  },
-                                );
+                                return _buildProductGrid(d2cProducts);
                               },
                             ),
                           ],

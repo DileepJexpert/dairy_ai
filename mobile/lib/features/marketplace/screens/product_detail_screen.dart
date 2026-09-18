@@ -517,43 +517,44 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         const SizedBox(height: 8),
 
         // 3. Ratings Bar & Review Count
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            AmazonRatingStars(
-              rating: p.rating,
-              reviewCount: p.reviewCount,
-              size: 15,
-              showCount: false,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '${p.rating.toStringAsFixed(1)} out of 5',
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Color(0xff0f1111),
+        if (!p.isConcept) ...[
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              AmazonRatingStars(
+                rating: p.rating,
+                reviewCount: p.reviewCount,
+                size: 15,
+                showCount: false,
               ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              '|   ${p.reviewCount} ratings',
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xff007185),
+              Text(
+                '${p.rating.toStringAsFixed(1)} out of 5',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xff0f1111),
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              '|   142 answered questions',
-              style: TextStyle(
-                fontSize: 13,
-                color: Color(0xff007185),
+              Text(
+                '|   ${p.reviewCount} ratings',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xff007185),
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
+              const Text(
+                '|   142 answered questions',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Color(0xff007185),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
 
         // 4. Amazon Best Seller Badge
         if (!p.isConcept)
@@ -1251,7 +1252,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Product Details & Technical Specifications',
+          'Product details',
           style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -1466,12 +1467,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             children: [
               Icon(Icons.auto_awesome, color: storeAmber, size: 20),
               SizedBox(width: 8),
-              Text(
-                'From the Manufacturer',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xff0f1111),
+              Expanded(
+                child: Text(
+                  'From the Manufacturer',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xff0f1111),
+                  ),
                 ),
               ),
             ],

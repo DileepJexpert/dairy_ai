@@ -20,7 +20,7 @@ class ProductListScreen extends ConsumerStatefulWidget {
       {super.key,
       this.category,
       this.initialQuery = '',
-      this.initialCategory = 'All products',
+      this.initialCategory = 'All Organic Essentials',
       this.initialSort = 'Featured'});
   final ProductCategory? category;
   final String initialQuery, initialCategory, initialSort;
@@ -34,7 +34,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   final _minPriceCtrl = TextEditingController();
   final _maxPriceCtrl = TextEditingController();
 
-  String _category = 'All products', _sort = 'Featured';
+  String _category = 'All Organic Essentials', _sort = 'Featured';
   bool _inStock = false;
   final Set<String> _packs = {};
   double _priceMin = 0, _priceMax = 0;
@@ -42,7 +42,11 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   TaxonomyCatalogue? _taxonomy;
 
   String _label(String value) {
-    if (value == 'All products' || value == 'All') return 'All Departments';
+    if (value == 'All products' ||
+        value == 'All' ||
+        value == 'All Organic Essentials') {
+      return 'All Organic Essentials';
+    }
     if (_taxonomy?.enabled == true) {
       final node = _taxonomy!.findNode(value);
       if (node != null) {
@@ -50,10 +54,40 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       }
     }
     final lower = value.toLowerCase();
+    if (lower.contains('sarso') ||
+        lower.contains('mustard') ||
+        lower.contains('oil')) {
+      return '🌻 Cold-Pressed Sarso (Mustard) Oil';
+    }
+    if (lower.contains('agarbatti') || lower.contains('dhoop')) {
+      return '🌸 Natural Agarbatti & Dhoop';
+    }
+    if (lower.contains('puja') ||
+        lower.contains('hawan') ||
+        lower.contains('samagri') ||
+        lower.contains('diya') ||
+        lower.contains('kanda')) {
+      return '🪔 Puja & Hawan: Sacred Essentials';
+    }
     if (lower.contains('earth') ||
+        lower.contains('vermicompost') ||
+        lower.contains('manure') ||
+        lower.contains('compost') ||
+        lower.contains('soil') ||
         lower == 'milterra-earth' ||
         lower == 'cat-earth') {
-      return '🌱 MILTERRA Earth: Living Soil';
+      return '🌱 Vermicompost & Living Soil';
+    }
+    if (lower.contains('milk') ||
+        lower.contains('chhachh') ||
+        lower.contains('chaas') ||
+        lower.contains('paneer') ||
+        lower.contains('makhan') ||
+        lower.contains('dairy foods')) {
+      return '🥛 Fresh Milk & Dairy (Chhachh & Paneer)';
+    }
+    if (lower.contains('ghee')) {
+      return '🧈 Vedic Bilona Ghee';
     }
     if (lower.contains('animal') ||
         lower.contains('cattle nutrition') ||
@@ -62,35 +96,26 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       return 'MILTERRA Cattle Nutrition Solutions';
     }
     return switch (value) {
-      'Dairy Foods' => 'Dairy Foods',
-      'All Ghee' || 'all-ghee' || 'Ghee' => 'Ghee Collection',
-      'MILTERRA Earth' || 'milterra-earth' || 'Earth' => '🌱 MILTERRA Earth',
-      'Vermicompost' => 'Premium Vermicompost',
-      'Farm Manure' => 'Cow-Dung Farm Manure',
-      'Organic Compost' => 'Enriched Organic Compost',
-      'Compost Cakes' => 'Dried Compost Cakes',
-      'Compost Starter' => 'Compost Starter',
-      'Garden Soil Mix' => 'Garden Soil Mix',
-      'Animal nutrition' ||
-      'Cattle Nutrition' ||
-      'MILTERRA Cattle Nutrition Solutions' =>
-        'MILTERRA Cattle Nutrition Solutions',
-      'Pashu Aahar / Cattle Feed' => 'Pashu Aahar / Cattle Feed',
-      'Stage-Based Nutrition Courses' ||
-      'Stage-Based Nutrition' =>
-        'Stage-Based Nutrition',
-      'Supplements' || 'Supplements & Minerals' => 'Supplements & Minerals',
-      'Equipment' => 'Dairy & Farm Equipment',
+      'Vedic Bilona Ghee' || 'All Ghee' || 'all-ghee' || 'Ghee' =>
+        '🧈 Vedic Bilona Ghee',
+      'Fresh Milk & Dairy' || 'Dairy Foods' =>
+        '🥛 Fresh Milk & Dairy (Chhachh & Paneer)',
+      'Puja & Hawan Samagri' || 'puja-hawan-samagri' =>
+        '🪔 Puja & Hawan: Sacred Essentials',
+      'Natural Agarbatti & Dhoop' || 'dhoop-agarbatti' =>
+        '🌸 Natural Agarbatti & Dhoop',
+      'Vermicompost & Living Soil' ||
+      'MILTERRA Earth' ||
+      'milterra-earth' ||
+      'Earth' =>
+        '🌱 Vermicompost & Living Soil',
+      'Cold-Pressed Sarso (Mustard) Oil' || 'sarso-oil' =>
+        '🌻 Cold-Pressed Sarso (Mustard) Oil',
       'Cow ghee' => 'A2 Desi Cow Ghee',
       'Buffalo ghee' => 'Rich Buffalo Ghee',
       'Herbal Ghee' || 'Herbal ghee' || 'herbal-ghee' => 'Herbal Infused Ghee',
       'Paneer' => 'Fresh Malai Paneer',
       'Other products' => 'White Butter (Makhan)',
-      'Puja & Hawan Samagri' || 'puja-hawan-samagri' => '🪔 Puja & Hawan: Sacred Essentials',
-      'Hawan & Yajna Ghee' || 'hawan-yajna-ghee' => 'Pure Desi Cow Hawan Ghee',
-      'Cow Dung Sacred Products' || 'cow-dung-products' => 'Cow Dung Sacred Products (Hawan Kanda & Diyas)',
-      'Natural Dhoop & Agarbatti' || 'dhoop-agarbatti' => 'Panchagavya Dhoop & Agarbatti',
-      'Bhimseni Kapoor & Samagri' || 'kapoor-samagri' => 'Bhimseni Kapoor & Hawan Herbs',
       _ => value,
     };
   }
@@ -114,11 +139,10 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     if (oldWidget.initialQuery != widget.initialQuery ||
         oldWidget.initialCategory != widget.initialCategory ||
         oldWidget.initialSort != widget.initialSort) {
-      _search.text = widget.initialQuery;
-      _category = widget.initialCategory;
-      _sort = widget.initialSort;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _browse(_category, sort: _sort);
+      setState(() {
+        _search.text = widget.initialQuery;
+        _category = widget.initialCategory;
+        _sort = widget.initialSort;
       });
     }
   }
@@ -150,7 +174,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
           duration: const Duration(milliseconds: 350));
     }
     final params = <String, String>{};
-    if (category != 'All products' && category != 'All') {
+    if (category != 'All products' &&
+        category != 'All' &&
+        category != 'All Organic Essentials') {
       params['category'] = category;
     }
     if (_search.text.trim().isNotEmpty) {
@@ -252,16 +278,18 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                               // Hero Banner (Home / Unfiltered view)
                               if (_search.text.isEmpty &&
                                   (_category == 'All products' ||
-                                      _category == 'All')) ...[
+                                      _category == 'All' ||
+                                      _category == 'All Organic Essentials')) ...[
                                 _hero(size.maxWidth),
                                 const SizedBox(height: 24),
                               ],
 
-                              // IndiaMART-Style RFQ Banner
-                              _buildRFQBanner(isMobile),
-
-                              // IndiaMART-Style Live Buyer Demand Ticker
-                              _buildLiveRequirementTicker(),
+                              // IndiaMART-Style RFQ Banner & Live Demand (exclusive to Farmer Hub)
+                              if (widget.category == ProductCategory.equipment ||
+                                  widget.category == ProductCategory.feedNutrition) ...[
+                                _buildRFQBanner(isMobile),
+                                _buildLiveRequirementTicker(),
+                              ],
 
                               // Amazon Catalogue Section (Results Bar + Sidebar + Grid)
                               Container(
@@ -286,7 +314,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                         children: [
                                           // Dedicated Category/Department Landing Banner (when filtered)
                                           if (_category != 'All products' &&
-                                              _category != 'All') ...[
+                                              _category != 'All' &&
+                                              _category != 'All Organic Essentials') ...[
                                             _buildDepartmentLandingBanner(
                                                 isMobile),
                                             const SizedBox(height: 14),
@@ -457,11 +486,14 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                           ? 'Hot New Releases & Recent Arrivals'
                           : (_sort == 'Trending'
                               ? 'Movers & Shakers: Trending in Store'
-                              : (_category == 'All products'
-                                  ? (query.isEmpty
+                              : (query.isNotEmpty
+                                  ? 'Results for “$query”'
+                                  : (_category == 'All products' ||
+                                          _category == 'All' ||
+                                          _category ==
+                                              'All Organic Essentials'
                                       ? 'Showing all products'
-                                      : 'Results for “$query”')
-                                  : '${_label(_category)}${query.isEmpty ? '' : ' · “$query”'}'))),
+                                      : _label(_category))))),
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -872,33 +904,55 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
 
   Widget _filters(VoidCallback refresh) {
     final groups = <String, Map<String, String>>{
-      'Dairy Foods': {
-        'Dairy Foods': 'All Dairy Foods',
-        'All Ghee': 'All Ghee',
-        'Cow ghee': 'Cow ghee',
-        'Buffalo ghee': 'Buffalo ghee',
-        'Herbal Ghee': 'Herbal Ghee',
-        'Paneer': 'Paneer',
-        'Other products': 'White Butter (Makhan)'
+      '🧈 Vedic Bilona Ghee': {
+        'Vedic Bilona Ghee': 'All Vedic Bilona Ghee',
+        'Cow ghee': 'A2 Desi Cow Ghee',
+        'Buffalo ghee': 'Rich Murrah Buffalo Ghee',
+        'Herbal Ghee': 'Herbal Infused Ghee',
       },
-      'Farm Essentials': {
-        'Farm Essentials': 'All Farm Essentials',
+      '🥛 Fresh Milk & Dairy': {
+        'Fresh Milk & Dairy': 'All Fresh Dairy',
+        'milk': 'A2 Raw Chilled Milk',
+        'chhachh': 'Masala Chhachh (Chaas)',
+        'Paneer': 'Fresh Malai Paneer',
+        'Other products': 'Cultured White Butter (Makhan)',
+      },
+      '🪔 Puja & Hawan Samagri': {
+        'Puja & Hawan Samagri': 'All Puja & Hawan Items',
+        'Hawan & Yajna Ghee': 'Pure Desi Cow Hawan Ghee',
+        'Cow Dung Sacred Products': 'Cow Dung Diyas & Kanda',
+        'Bhimseni Kapoor & Samagri': 'Shuddha Bhimseni Kapoor',
+      },
+      '🌸 Natural Agarbatti & Dhoop': {
+        'Natural Agarbatti & Dhoop': 'All Agarbatti & Dhoop',
+        'dhoop-agarbatti': 'Cow Dung Agarbatti Sticks',
+        'dhoop': 'Panchagavya Herbal Dhoop',
+      },
+      '🌱 Vermicompost & Living Soil': {
+        'Vermicompost & Living Soil': 'All Living Soil & Compost',
+        'Vermicompost': 'Bio-Vermicompost',
+        'Farm Manure': 'Composted Cow Farm Manure',
+        'Organic Compost': 'Enriched Organic Compost',
+        'Garden Soil Mix': 'Living Garden Soil Mix',
+      },
+      '🌻 Cold-Pressed Sarso Oil': {
+        'Cold-Pressed Sarso (Mustard) Oil': 'All Cold-Pressed Oils',
+        'sarso': 'Kachi Ghani Sarso Oil (1L & 5L)',
+        'til': 'Wood-Pressed Til (Sesame) Oil',
+      },
+    };
+    if (widget.category == ProductCategory.equipment ||
+        widget.category == ProductCategory.feedNutrition) {
+      groups['🌾 Cattle Nutrition'] = {
         'Animal nutrition': 'All Cattle Nutrition',
         'Pashu Aahar / Cattle Feed': 'Pashu Aahar / Cattle Feed',
         'Stage-Based Nutrition': 'Stage-Based Nutrition',
         'Supplements': 'Supplements & Minerals',
-        'Equipment': 'Dairy & Farm Equipment'
-      },
-      'MILTERRA Earth': {
-        'MILTERRA Earth': 'All MILTERRA Earth',
-        'Vermicompost': 'Vermicompost',
-        'Farm Manure': 'Farm Manure',
-        'Organic Compost': 'Organic Compost',
-        'Compost Cakes': 'Compost Cakes',
-        'Compost Starter': 'Compost Starter',
-        'Garden Soil Mix': 'Garden Soil Mix'
-      },
-    };
+      };
+      groups['⚙️ Farm Machinery'] = {
+        'Equipment': 'Dairy & Farm Equipment',
+      };
+    }
     for (final dept in _taxonomy?.nodes
             .where((n) => n.kind == 'department' && n.isActive) ??
         <TaxonomyNode>[]) {
@@ -920,7 +974,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       ..sort();
     final activeDepartments =
         _scope.map((p) => p.taxonomy?['department_name']).toSet();
-    final isAll = _category == 'All products' || _category == 'All';
+    final isAll = _category == 'All products' ||
+        _category == 'All' ||
+        _category == 'All Organic Essentials';
     final orderedGroups = groups.entries.toList()
       ..sort((a, b) {
         bool relevant(MapEntry<String, Map<String, String>> g) =>
@@ -942,7 +998,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 },
                 child: const Text('Clear all'))
           ]),
-      _categoryFilterItem('All products', 'All Departments', refresh,
+      _categoryFilterItem('All Organic Essentials', 'All Organic Essentials', refresh,
           icon: Icons.grid_view_rounded),
       for (final group in orderedGroups)
         ExpansionTile(
@@ -1074,7 +1130,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 catLower == 'cat-animal-nutrition' ||
                 catLower == 'animal-nutrition'));
     return InkWell(
-      key: ValueKey('category-filter-$value'),
+      key: ValueKey((value == 'All Organic Essentials' || value == 'All products')
+          ? 'category-filter-All products'
+          : 'category-filter-$value'),
       onTap: () {
         _browse(value);
         refresh();
@@ -1128,24 +1186,64 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         .firstOrNull;
     final catLower = (selectedNode?.name ?? _category).toLowerCase();
 
-    final isAllCategory = catLower == 'all products' || catLower == 'all';
-    final isDairyFoodsCategory = catLower == 'dairy foods' ||
-        catLower == 'dairy-foods' ||
-        catLower == 'cat-dairy-foods';
-    final isAllGheeCategory = catLower == 'all ghee' ||
+    final isAllCategory = catLower == 'all products' ||
+        catLower == 'all' ||
+        catLower == 'all organic essentials';
+    final isGheeCategory = catLower == 'vedic bilona ghee' ||
+        catLower == 'all ghee' ||
         catLower == 'all-ghee' ||
         catLower == 'ghee' ||
-        catLower == 'ghee collection';
+        catLower == 'ghee collection' ||
+        catLower == 'cow ghee' ||
+        catLower == 'buffalo ghee' ||
+        catLower == 'herbal ghee';
     final isCowGheeCategory = catLower == 'cow ghee' || catLower == 'cow-ghee';
     final isBuffGheeCategory =
         catLower == 'buffalo ghee' || catLower == 'buffalo-ghee';
     final isHerbalGheeCategory = catLower == 'herbal ghee' ||
         catLower == 'herbal-ghee' ||
         catLower == 'herbal infused ghee';
-    final isPaneerCategory = catLower == 'paneer';
-    final isButterCategory = catLower == 'other products' ||
-        catLower == 'butter' ||
-        catLower == 'makhan';
+
+    final isMilkDairyCategory = catLower == 'fresh milk & dairy' ||
+        catLower == 'dairy foods' ||
+        catLower == 'milk' ||
+        catLower == 'doodh' ||
+        catLower == 'chhachh' ||
+        catLower == 'chaas' ||
+        catLower == 'paneer' ||
+        catLower == 'other products' ||
+        catLower == 'makhan' ||
+        catLower == 'butter';
+
+    final isPujaSacredCategory = catLower == 'puja & hawan samagri' ||
+        catLower == 'puja-hawan-samagri' ||
+        catLower == 'hawan & yajna ghee' ||
+        catLower == 'cow dung sacred products' ||
+        catLower == 'bhimseni kapoor & samagri';
+
+    final isAgarbattiCategory = catLower == 'natural agarbatti & dhoop' ||
+        catLower == 'dhoop-agarbatti' ||
+        catLower == 'agarbatti' ||
+        catLower == 'dhoop';
+
+    final isEarthCategory = catLower == 'vermicompost & living soil' ||
+        catLower == 'milterra earth' ||
+        catLower == 'milterra-earth' ||
+        catLower == 'earth' ||
+        catLower == 'living soil' ||
+        catLower == 'vermicompost' ||
+        catLower == 'farm manure' ||
+        catLower == 'organic compost' ||
+        catLower == 'compost cakes' ||
+        catLower == 'compost starter' ||
+        catLower == 'garden soil mix';
+
+    final isSarsoOilCategory = catLower == 'cold-pressed sarso (mustard) oil' ||
+        catLower == 'sarso-oil' ||
+        catLower == 'sarso' ||
+        catLower == 'mustard' ||
+        catLower == 'oil' ||
+        catLower == 'til';
 
     final isAllNutrition = catLower == 'animal nutrition' ||
         catLower == 'cattle nutrition' ||
@@ -1155,41 +1253,19 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         catLower == 'farm-essentials' ||
         catLower == 'farm essentials';
 
-    final isPashuAaharCategory = catLower == 'pashu aahar / cattle feed' ||
-        catLower == 'cattle feed' ||
-        catLower == 'cattle-feed' ||
-        catLower == 'pashu aahar';
-    final isStageNutritionCategory =
-        catLower == 'stage-based nutrition courses' ||
-            catLower == 'stage-based nutrition' ||
-            catLower == 'janam-42';
-    final isSupplementsCategory = catLower == 'supplements' ||
-        catLower == 'supplements & minerals' ||
-        catLower == 'minerals';
-
     final isEquipmentCategory = catLower == 'equipment' ||
         catLower == 'farm machinery' ||
         catLower == 'cat-machinery';
 
-    final isEarthAllCategory = catLower == 'milterra earth' ||
-        catLower == 'milterra-earth' ||
-        catLower == 'earth' ||
-        catLower == 'living soil' ||
-        catLower == 'compost';
-    final isVermicompostCategory = catLower == 'vermicompost';
-    final isManureCategory = catLower == 'farm manure' || catLower == 'manure';
-    final isEnrichedCompostCategory = catLower == 'organic compost' ||
-        catLower == 'enriched organic compost' ||
-        catLower == 'enriched compost';
-    final isCakesCategory = catLower == 'compost cakes' || catLower == 'cakes';
-    final isStarterCategory =
-        catLower == 'compost starter' || catLower == 'starter';
-    final isSoilMixCategory = catLower == 'garden soil mix' ||
-        catLower == 'soil mix' ||
-        catLower == 'soil';
-
     return all.where((p) {
       if (p.isDraft) return false;
+
+      // On consumer storefront (/shop), hide farm machinery & cattle feed unless explicitly selected/searched
+      if (widget.category == null && !isEquipmentCategory && !isAllNutrition) {
+        if (p.category == ProductCategory.equipment && query.isEmpty) {
+          return false;
+        }
+      }
 
       // Dynamic backend taxonomy node resolution
       if (_taxonomy?.enabled == true && !isAllCategory) {
@@ -1212,223 +1288,117 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         }
       }
 
+      final pCategory = storeCategory(p);
+      final pTitle = p.title.toLowerCase();
+
       // Category filter
       final bool matchesCategory;
       if (isAllCategory) {
         matchesCategory = true;
-      } else if (isEarthAllCategory) {
-        matchesCategory = p.taxonomy?['is_earth'] == true ||
-            p.taxonomy?['category_name'] == 'MILTERRA Earth' ||
-            p.title.toLowerCase().contains('earth') ||
-            p.title.toLowerCase().contains('vermicompost') ||
-            p.title.toLowerCase().contains('manure') ||
-            p.title.toLowerCase().contains('compost') ||
-            p.title.toLowerCase().contains('soil mix');
-      } else if (isVermicompostCategory) {
-        matchesCategory = p.title.toLowerCase().contains('vermicompost');
-      } else if (isManureCategory) {
-        matchesCategory = p.title.toLowerCase().contains('manure');
-      } else if (isEnrichedCompostCategory) {
-        matchesCategory =
-            p.title.toLowerCase().contains('enriched organic compost') ||
-                (p.title.toLowerCase().contains('compost') &&
-                    !p.title.toLowerCase().contains('vermicompost') &&
-                    !p.title.toLowerCase().contains('cake') &&
-                    !p.title.toLowerCase().contains('starter'));
-      } else if (isCakesCategory) {
-        matchesCategory = p.title.toLowerCase().contains('cake');
-      } else if (isStarterCategory) {
-        matchesCategory = p.title.toLowerCase().contains('starter');
-      } else if (isSoilMixCategory) {
-        matchesCategory = p.title.toLowerCase().contains('soil mix') ||
-            (p.title.toLowerCase().contains('soil') &&
-                p.title.toLowerCase().contains('garden'));
-      } else if (isAllGheeCategory) {
-        matchesCategory = storeCategory(p) == 'Cow ghee' ||
-            storeCategory(p) == 'Buffalo ghee' ||
-            storeCategory(p) == 'Herbal Ghee' ||
-            p.title.toLowerCase().contains('ghee') ||
-            p.taxonomy?['category_name']
-                    ?.toString()
-                    .toLowerCase()
-                    .contains('ghee') ==
-                true ||
-            p.taxonomy?['collection']?.toString().toLowerCase() == 'ghee';
-      } else if (isDairyFoodsCategory) {
-        matchesCategory = storeCategory(p) == 'Cow ghee' ||
-            storeCategory(p) == 'Buffalo ghee' ||
-            storeCategory(p) == 'Herbal Ghee' ||
-            storeCategory(p) == 'Paneer' ||
-            storeCategory(p) == 'Other products' ||
-            p.taxonomy?['department_name'] == 'Dairy Foods';
       } else if (isCowGheeCategory) {
-        matchesCategory = storeCategory(p) == 'Cow ghee' ||
-            p.title.toLowerCase().contains('cow ghee');
+        matchesCategory = pCategory == 'Cow ghee' ||
+            (pTitle.contains('cow') && pTitle.contains('ghee'));
       } else if (isBuffGheeCategory) {
-        matchesCategory = storeCategory(p) == 'Buffalo ghee' ||
-            p.title.toLowerCase().contains('buffalo ghee');
+        matchesCategory = pCategory == 'Buffalo ghee' ||
+            (pTitle.contains('buffalo') && pTitle.contains('ghee'));
       } else if (isHerbalGheeCategory) {
-        matchesCategory = storeCategory(p) == 'Herbal Ghee' ||
-            p.taxonomy?['category_name']?.toString().toLowerCase() ==
-                'herbal ghee' ||
-            p.taxonomy?['category_id'] == 'herbal-ghee' ||
-            p.title.toLowerCase().contains('tulsi') ||
-            p.title.toLowerCase().contains('brahmi') ||
-            p.title.toLowerCase().contains('ashwagandha') ||
-            (p.title.toLowerCase().contains('ghee') &&
-                p.title.toLowerCase().contains('herbal'));
-      } else if (isPaneerCategory) {
-        matchesCategory = storeCategory(p) == 'Paneer' ||
-            p.title.toLowerCase().contains('paneer');
-      } else if (isButterCategory) {
-        matchesCategory = storeCategory(p) == 'Other products' ||
-            p.title.toLowerCase().contains('butter') ||
-            p.title.toLowerCase().contains('makhan');
-      } else if (catLower.contains('puja') ||
-          catLower.contains('hawan-samagri') ||
-          catLower == 'puja-hawan-samagri') {
-        matchesCategory = storeCategory(p) == 'Hawan & Yajna Ghee' ||
-            storeCategory(p) == 'Cow Dung Sacred Products' ||
-            storeCategory(p) == 'Natural Dhoop & Agarbatti' ||
-            storeCategory(p) == 'Bhimseni Kapoor & Samagri' ||
-            storeCategory(p) == 'Puja & Hawan Samagri' ||
-            p.taxonomy?['department_name'] == 'Puja & Hawan Samagri' ||
-            p.taxonomy?['department_id'] == 'puja-hawan-samagri' ||
-            p.taxonomy?['is_sacred'] == true;
-      } else if (catLower.contains('hawan-yajna') ||
-          catLower == 'hawan & yajna ghee' ||
-          catLower == 'hawan-yajna-ghee') {
-        matchesCategory = storeCategory(p) == 'Hawan & Yajna Ghee' ||
-            p.taxonomy?['category_id'] == 'hawan-yajna-ghee' ||
-            p.title.toLowerCase().contains('hawan ghee') ||
-            p.title.toLowerCase().contains('yajna');
-      } else if (catLower.contains('cow-dung') ||
-          catLower == 'cow dung sacred products' ||
-          catLower == 'cow-dung-products') {
-        matchesCategory = storeCategory(p) == 'Cow Dung Sacred Products' ||
-            p.taxonomy?['category_id'] == 'cow-dung-products' ||
-            p.title.toLowerCase().contains('kanda') ||
-            p.title.toLowerCase().contains('diya') ||
-            (p.title.toLowerCase().contains('cow dung') &&
-                !p.title.toLowerCase().contains('dhoop') &&
-                !p.title.toLowerCase().contains('vermicompost') &&
-                !p.title.toLowerCase().contains('manure') &&
-                !p.title.toLowerCase().contains('compost'));
-      } else if (catLower.contains('dhoop') ||
-          catLower.contains('agarbatti') ||
-          catLower == 'dhoop-agarbatti') {
-        matchesCategory = storeCategory(p) == 'Natural Dhoop & Agarbatti' ||
-            p.taxonomy?['category_id'] == 'dhoop-agarbatti' ||
-            p.title.toLowerCase().contains('dhoop') ||
-            p.title.toLowerCase().contains('agarbatti');
-      } else if (catLower.contains('kapoor') ||
-          catLower.contains('samagri') ||
-          catLower == 'kapoor-samagri') {
-        matchesCategory = storeCategory(p) == 'Bhimseni Kapoor & Samagri' ||
-            p.taxonomy?['category_id'] == 'kapoor-samagri' ||
-            p.title.toLowerCase().contains('kapoor') ||
-            p.title.toLowerCase().contains('samagri') ||
-            p.title.toLowerCase().contains('camphor');
-      } else if (catLower == 'farm essentials' ||
-          catLower == 'farm-essentials') {
-        matchesCategory = p.taxonomy?['department_name'] == 'Farm Essentials' ||
+        matchesCategory = pCategory == 'Herbal Ghee' ||
+            pTitle.contains('herbal') ||
+            pTitle.contains('brahmi') ||
+            pTitle.contains('tulsi');
+      } else if (isGheeCategory) {
+        matchesCategory = pCategory == 'Cow ghee' ||
+            pCategory == 'Buffalo ghee' ||
+            pCategory == 'Herbal Ghee' ||
+            pTitle.contains('ghee');
+      } else if (isMilkDairyCategory) {
+        if (catLower == 'milk' || catLower == 'doodh') {
+          matchesCategory = pTitle.contains('milk') || pTitle.contains('doodh');
+        } else if (catLower == 'chhachh' || catLower == 'chaas') {
+          matchesCategory = pTitle.contains('chhachh') ||
+              pTitle.contains('chaas') ||
+              pTitle.contains('buttermilk');
+        } else if (catLower == 'paneer') {
+          matchesCategory = pCategory == 'Paneer' || pTitle.contains('paneer');
+        } else if (catLower == 'other products' ||
+            catLower == 'makhan' ||
+            catLower == 'butter') {
+          matchesCategory = pCategory == 'Other products' ||
+              pTitle.contains('butter') ||
+              pTitle.contains('makhan');
+        } else {
+          matchesCategory = pCategory == 'Fresh Milk & Dairy' ||
+              pCategory == 'Paneer' ||
+              pCategory == 'Other products' ||
+              pTitle.contains('milk') ||
+              pTitle.contains('chhachh') ||
+              pTitle.contains('paneer') ||
+              pTitle.contains('makhan') ||
+              pTitle.contains('butter');
+        }
+      } else if (isPujaSacredCategory) {
+        matchesCategory = pCategory == 'Puja & Hawan Samagri' ||
+            pTitle.contains('hawan') ||
+            pTitle.contains('yajna') ||
+            pTitle.contains('puja') ||
+            pTitle.contains('diya') ||
+            pTitle.contains('kanda') ||
+            pTitle.contains('uple') ||
+            pTitle.contains('kapoor') ||
+            pTitle.contains('camphor') ||
+            pTitle.contains('samagri');
+      } else if (isAgarbattiCategory) {
+        matchesCategory = pCategory == 'Natural Agarbatti & Dhoop' ||
+            pTitle.contains('agarbatti') ||
+            pTitle.contains('dhoop') ||
+            pTitle.contains('incense') ||
+            pTitle.contains('loban') ||
+            pTitle.contains('guggal') ||
+            pTitle.contains('sambrani');
+      } else if (isEarthCategory) {
+        matchesCategory = pCategory == 'Vermicompost & Living Soil' ||
+            p.taxonomy?['is_earth'] == true ||
+            pTitle.contains('earth') ||
+            pTitle.contains('vermicompost') ||
+            pTitle.contains('manure') ||
+            pTitle.contains('compost') ||
+            pTitle.contains('soil');
+      } else if (isSarsoOilCategory) {
+        matchesCategory = pCategory == 'Cold-Pressed Sarso (Mustard) Oil' ||
+            pTitle.contains('sarso') ||
+            pTitle.contains('mustard') ||
+            pTitle.contains('kachi ghani') ||
+            pTitle.contains('til') ||
+            pTitle.contains('sesame') ||
+            pTitle.contains('oil');
+      } else if (isEquipmentCategory) {
+        matchesCategory = pCategory == 'Equipment' ||
             p.category == ProductCategory.equipment;
       } else if (isAllNutrition) {
-        final title = p.title.toLowerCase();
-        final isFood = title.contains('ghee') ||
-            title.contains('paneer') ||
-            title.contains('butter') ||
-            title.contains('makhan');
-        final isEquip = title.contains('milking') ||
-            title.contains('analyzer') ||
-            title.contains('cutter') ||
-            title.contains('can') ||
-            title.contains('mat') ||
-            p.category == ProductCategory.equipment;
-        final isEarth = p.taxonomy?['is_earth'] == true ||
-            p.taxonomy?['department_name'] == 'MILTERRA Earth' ||
-            p.taxonomy?['category_name'] == 'MILTERRA Earth' ||
-            p.taxonomy?['department_id'] == 'milterra-earth' ||
-            title.contains('earth') ||
-            title.contains('vermicompost') ||
-            title.contains('manure') ||
-            title.contains('compost') ||
-            title.contains('soil mix');
-        final isSacred = p.taxonomy?['is_sacred'] == true ||
-            p.taxonomy?['department_name'] == 'Puja & Hawan Samagri' ||
-            p.taxonomy?['department_id'] == 'puja-hawan-samagri' ||
-            title.contains('hawan') ||
-            title.contains('kanda') ||
-            title.contains('dhoop') ||
-            title.contains('kapoor') ||
-            title.contains('camphor') ||
-            title.contains('diya');
-        matchesCategory = !isFood &&
-            !isEquip &&
-            !isEarth &&
-            !isSacred &&
-            (p.category == ProductCategory.feedNutrition ||
-                p.taxonomy?['concept'] == true ||
-                p.taxonomy?['category_id'] == 'animal-nutrition' ||
-                p.taxonomy?['department_id'] == 'farm-essentials');
-      } else if (isPashuAaharCategory) {
-        final title = p.title.toLowerCase();
-        final isEarth = p.taxonomy?['is_earth'] == true ||
-            title.contains('earth') ||
-            title.contains('vermicompost') ||
-            title.contains('manure') ||
-            title.contains('compost');
-        matchesCategory = !isEarth &&
-            (p.taxonomy?['category_name'] == 'Pashu Aahar / Cattle Feed' ||
-                p.taxonomy?['subcategory_name'] ==
-                    'Pashu Aahar / Cattle Feed' ||
-                title.contains('feed') ||
-                title.contains('pellet') ||
-                title.contains('aahar'));
-      } else if (isStageNutritionCategory) {
-        final title = p.title.toLowerCase();
-        final isEarth = p.taxonomy?['is_earth'] == true ||
-            title.contains('earth') ||
-            title.contains('vermicompost') ||
-            title.contains('manure') ||
-            title.contains('compost');
-        matchesCategory = !isEarth &&
-            (p.taxonomy?['category_name'] == 'Stage-Based Nutrition Courses' ||
-                p.taxonomy?['subcategory_name'] ==
-                    'Stage-Based Nutrition Courses' ||
-                title.contains('janam') ||
-                title.contains('course'));
-      } else if (isSupplementsCategory) {
-        final title = p.title.toLowerCase();
-        final isEarth = p.taxonomy?['is_earth'] == true ||
-            title.contains('earth') ||
-            title.contains('vermicompost') ||
-            title.contains('manure') ||
-            title.contains('compost');
-        matchesCategory = !isEarth &&
-            (p.taxonomy?['category_name'] == 'Supplements' ||
-                p.taxonomy?['subcategory_name'] == 'Supplements' ||
-                title.contains('mineral') ||
-                title.contains('supplement') ||
-                title.contains('calcium') ||
-                title.contains('calci-') ||
-                title.contains('drench') ||
-                title.contains('minera-') ||
-                title.contains('lacta-') ||
-                title.contains('rumen-') ||
-                title.contains('heat-guard') ||
-                title.contains('bypass fat'));
-      } else if (isEquipmentCategory) {
-        matchesCategory = storeCategory(p) == 'Equipment' ||
-            p.category == ProductCategory.equipment;
+        matchesCategory = pCategory == 'Animal nutrition' ||
+            p.category == ProductCategory.feedNutrition;
       } else {
-        matchesCategory = (_taxonomy?.enabled == true
-            ? (_taxonomy!
-                    .descendants(_category)
-                    .contains(p.taxonomy?['category_id']) ||
-                storeCategory(p) == _category)
-            : storeCategory(p) == _category);
+        final catName = p.taxonomy?['category_name']?.toString().toLowerCase() ?? '';
+        final subcatName = p.taxonomy?['subcategory_name']?.toString().toLowerCase() ?? '';
+        final deptName = p.taxonomy?['department_name']?.toString().toLowerCase() ?? '';
+        final collectionName = p.taxonomy?['collection']?.toString().toLowerCase() ?? '';
+        final specCollection = p.specifications['collection']?.toString().toLowerCase() ?? '';
+        final specDept = p.specifications['department']?.toString().toLowerCase() ?? '';
+
+        matchesCategory = pCategory.toLowerCase() == catLower ||
+            collectionName == catLower ||
+            collectionName.contains(catLower) ||
+            deptName == catLower ||
+            deptName.contains(catLower) ||
+            catName == catLower ||
+            catName.contains(catLower) ||
+            subcatName == catLower ||
+            subcatName.contains(catLower) ||
+            specCollection == catLower ||
+            specDept == catLower ||
+            pTitle.contains(catLower);
       }
+
       if (!matchesCategory) return false;
       return query.isEmpty ||
           '${p.title} ${p.packSize ?? ''} ${p.brand ?? ''}'
@@ -1488,6 +1458,19 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     final groups = storeProductGroups(items);
 
     if (items.isEmpty) {
+      if (_search.text.isNotEmpty ||
+          _priceMin > 0 ||
+          _priceMax > 0 ||
+          _inStock ||
+          _packs.isNotEmpty) {
+        return _message(
+            Icons.search_off,
+            'No products matched your filters',
+            'Try clearing price or department filters to see more results.',
+            'Clear all filters',
+            _reset);
+      }
+
       final isNutrition = _category == 'Animal nutrition' ||
           _category == 'Cattle Nutrition' ||
           _category == 'MILTERRA Cattle Nutrition Solutions' ||

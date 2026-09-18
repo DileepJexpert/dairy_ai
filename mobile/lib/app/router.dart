@@ -97,8 +97,6 @@ import 'package:dairy_ai/features/cart/screens/wishlist_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/about_milterra_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/help_support_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/milterra_earth_screen.dart';
-import 'package:dairy_ai/features/milterra/screens/milterra_store_screen.dart';
-import 'package:dairy_ai/features/milterra/screens/milterra_product_detail_screen.dart';
 import 'package:dairy_ai/features/farmer_hub/screens/farmer_marketplace_screen.dart';
 import 'package:dairy_ai/features/farmer_hub/screens/machinery_detail_screen.dart';
 
@@ -274,7 +272,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/', redirect: (_, __) => '/shop'),
       GoRoute(
         path: '/shop/product/:productId',
-        builder: (context, state) => MilterraProductDetailScreen(
+        builder: (context, state) => ProductDetailScreen(
           productId: state.pathParameters['productId']!,
         ),
       ),
@@ -382,11 +380,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                   state.uri.queryParameters['category'] ?? 'All Departments',
             );
           }
-          return MilterraStoreScreen(
+          return ProductListScreen(
             key: ValueKey(state.uri.toString()),
             initialQuery: state.uri.queryParameters['query'] ?? '',
             initialCategory:
-                state.uri.queryParameters['category'] ?? 'All Ghee',
+                state.uri.queryParameters['category'] ?? 'All Organic Essentials',
           );
         },
       ),

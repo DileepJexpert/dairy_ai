@@ -700,6 +700,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         _buildAboutThisItem(p),
         const SizedBox(height: 16),
         ProductQualityLink(product: p),
+        _buildSellerStoreBadgeCard(p),
       ],
     );
   }
@@ -935,8 +936,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
           // Ships from / Sold by
           _buyBoxDetailRow('Ships from', 'Milterra Direct'),
-          _buyBoxDetailRow('Sold by',
-              p.vendor?['business_name']?.toString() ?? 'Verified Partner'),
+          _buyBoxDetailRow(
+            'Sold by',
+            p.vendor?['business_name']?.toString() ?? 'Verified Partner',
+            onTap: () => context.push('/store/vendor/${p.vendorId}'),
+          ),
 
           const Divider(height: 20),
 
@@ -1023,31 +1027,134 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         ]),
       );
 
-  Widget _buyBoxDetailRow(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-                width: 70,
-                child: Text(label,
-                    style: const TextStyle(fontSize: 11, color: storeMuted))),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xff007185),
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+  Widget _buildSellerStoreBadgeCard(Product p) {
+    final sellerName =
+        p.vendor?['business_name']?.toString() ?? 'Milterra Partner';
+    final district = p.vendor?['district']?.toString() ?? '';
+    final state = p.vendor?['state']?.toString() ?? '';
+    final location = [district, state].where((s) => s.isNotEmpty).join(', ');
+    final rating = p.vendor?['rating_avg']?.toString() ?? '4.8';
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: storeCream,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: storeBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: storeWhite,
+              shape: BoxShape.circle,
+              border: Border.all(color: storeBorder),
             ),
-          ],
-        ),
-      );
+            child: const Icon(Icons.storefront_rounded,
+                size: 20, color: storeGreen),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        sellerName,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xff111827),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.verified,
+                        size: 13, color: Color(0xff059669)),
+                  ],
+                ),
+                Text(
+                  location.isNotEmpty
+                      ? '$location · ★ $rating'
+                      : '★ $rating Verified Producer',
+                  style: const TextStyle(fontSize: 11, color: storeMuted),
+                ),
+              ],
+            ),
+          ),
+          OutlinedButton(
+            onPressed: () => context.push('/store/vendor/${p.vendorId}'),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: storeGreen),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              minimumSize: const Size(60, 32),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6)),
+            ),
+            child: const Text(
+              'Visit Store',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: storeGreen),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buyBoxDetailRow(String label, String value, {VoidCallback? onTap}) {
+    final valueWidget = Text(
+      value,
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        color: const Color(0xff007185),
+        decoration: onTap != null ? TextDecoration.underline : null,
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+              width: 70,
+              child: Text(label,
+                  style: const TextStyle(fontSize: 11, color: storeMuted))),
+          const SizedBox(width: 4),
+          Expanded(
+            child: onTap != null
+                ? InkWell(
+                    onTap: onTap,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(child: valueWidget),
+                        const SizedBox(width: 3),
+                        const Icon(Icons.open_in_new,
+                            size: 10, color: Color(0xff007185)),
+                      ],
+                    ),
+                  )
+                : valueWidget,
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildAmazonOffersStrip() {
     final offers = [

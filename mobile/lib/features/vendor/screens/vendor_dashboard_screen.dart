@@ -19,6 +19,20 @@ class VendorDashboardScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Vendor Dashboard'), actions: [
         IconButton(
+          onPressed: () {
+            final profile = ref.read(vendorProfileProvider).valueOrNull;
+            if (profile != null && profile.id.isNotEmpty) {
+              context.push('/store/vendor/${profile.id}');
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Loading seller profile…')),
+              );
+            }
+          },
+          icon: const Icon(Icons.storefront_outlined),
+          tooltip: 'View My Public Storefront',
+        ),
+        IconButton(
             onPressed: () => context.push('/vendor/products'),
             icon: const Icon(Icons.inventory_2),
             tooltip: 'My products')

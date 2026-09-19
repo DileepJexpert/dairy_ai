@@ -86,6 +86,7 @@ import 'package:dairy_ai/features/marketplace/screens/marketplace_detail_screen.
 import 'package:dairy_ai/features/marketplace/screens/sell_on_milterra_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/product_list_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/product_detail_screen.dart';
+import 'package:dairy_ai/features/marketplace/screens/vendor_storefront_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/deals_screen.dart';
 import 'package:dairy_ai/features/marketplace/models/product_models.dart';
 import 'package:dairy_ai/features/cart/screens/cart_screen.dart';
@@ -275,6 +276,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => ProductDetailScreen(
           productId: state.pathParameters['productId']!,
         ),
+      ),
+      GoRoute(
+        path: '/store/vendor/:vendorId',
+        builder: (context, state) => VendorStorefrontScreen(
+          vendorId: state.pathParameters['vendorId']!,
+        ),
+      ),
+      GoRoute(
+        path: '/vendor/store/:vendorId',
+        redirect: (context, state) =>
+            '/store/vendor/${state.pathParameters['vendorId']}',
       ),
       GoRoute(
         path: '/machinery/:productId',

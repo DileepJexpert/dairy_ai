@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 from fastapi import APIRouter,Depends,HTTPException,Query,status
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user,require_role
@@ -246,6 +246,39 @@ async def create_product_review(product_id:str,data:ProductReviewCreate,db:Async
 async def marketplace_vendors(current_user:User=Depends(require_role(UserRole.admin, UserRole.super_admin)), db:AsyncSession=Depends(get_db)):
  vendors, total = await vendor_repo.list_all(db, limit=100)
  return {"success": True, "data": [{"id": str(v.id), "business_name": v.business_name, "is_active": v.is_active} for v in vendors if v.is_active], "total": total, "message": "Active marketplace vendors"}
+@router.get("/marketplace/vendors/{vendor_id}")
+async def public_vendor_storefront(vendor_id: str, db: AsyncSession = Depends(get_db)):
+ v_uid = uid(vendor_id, "vendor")
+ v = await vendor_repo.get_by_id(db, v_uid)
+ if not v or not v.is_active:
+  raise HTTPException(404, "Vendor storefront not found")
+ prod_count = (await db.execute(
+  select(func.count(Product.id)).where(
+   Product.vendor_id == v.id,
+   Product.is_active.is_(True),
+   Product.publication_status == "published"
+  )
+ )).scalar() or 0
+ return {
+  "success": True,
+  "data": {
+   "id": str(v.id),
+   "business_name": v.business_name,
+   "vendor_type": v.vendor_type.value if hasattr(v.vendor_type, "value") else str(v.vendor_type),
+   "description": v.description or "Trusted agricultural & dairy producer on Milterra.",
+   "district": v.district or "Regional Hub",
+   "state": v.state or "India",
+   "rating_avg": float(v.rating_avg or 4.8),
+   "total_orders": int(v.total_orders or 0),
+   "is_verified": bool(v.is_verified),
+   "fssai_license_number": v.license_number,
+   "gst_number": v.gst_number,
+   "service_areas": v.service_areas or [],
+   "products_services": v.products_services or [],
+   "total_products": prod_count,
+  },
+  "message": "Vendor storefront details",
+ }
 @router.get("/vendor/families")
 async def vendor_families(current_user:User=Depends(require_role(UserRole.vendor, UserRole.admin, UserRole.super_admin)), db:AsyncSession=Depends(get_db)):
  is_admin = current_user.role in (UserRole.admin, UserRole.super_admin)

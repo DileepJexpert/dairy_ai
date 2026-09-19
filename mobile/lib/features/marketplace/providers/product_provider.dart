@@ -135,3 +135,31 @@ final recentRFQsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) asyn
     return [];
   }
 });
+
+class VendorStorefrontData {
+  final Map<String, dynamic> vendor;
+  final List<Product> products;
+  const VendorStorefrontData({
+    required this.vendor,
+    required this.products,
+  });
+}
+
+final vendorStorefrontProvider =
+    FutureProvider.family<VendorStorefrontData, String>((ref, vendorId) async {
+  final dio = ref.read(dioProvider);
+  final vendorRes = await dio.get('/marketplace/vendors/$vendorId');
+  final vendorMap = Map<String, dynamic>.from(vendorRes.data['data'] as Map);
+
+  final prodRes = await dio.get('/marketplace/products', queryParameters: {
+    'vendor_id': vendorId,
+    'per_page': 100,
+  });
+  final rawProducts = (prodRes.data['data'] as List? ?? []);
+  final products = rawProducts
+      .map((j) => Product.fromJson(Map<String, dynamic>.from(j as Map)))
+      .where((p) => p.isPublished && !p.isDraft)
+      .toList();
+
+  return VendorStorefrontData(vendor: vendorMap, products: products);
+});

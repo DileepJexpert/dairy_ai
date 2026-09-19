@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from pydantic import BaseModel
 from fastapi import APIRouter,Depends,HTTPException,Query,status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -192,17 +193,29 @@ async def product_detail(product_id:str,db:AsyncSession=Depends(get_db)):
  return {"success":True,"data":await enrich(db,p),"message":"Product details"}
 
 
-def serialize_review(review: ProductReview) -> dict:
+class ReviewModerationUpdate(BaseModel):
+    is_approved: bool
+    rejection_reason: str | None = None
+
+class VendorReviewReply(BaseModel):
+    reply: str
+
+def serialize_review(review: ProductReview, product_title: str | None = None) -> dict:
  return {
   "id": str(review.id),
   "product_id": str(review.product_id),
+  "product_title": product_title,
   "author_name": review.author_name,
   "rating": review.rating,
   "headline": review.headline,
   "content": review.content,
   "source_label": review.source_label,
   "is_seeded": review.is_seeded,
-  "created_at": review.created_at.isoformat(),
+  "is_approved": review.is_approved,
+  "rejection_reason": getattr(review, "rejection_reason", None),
+  "vendor_reply": getattr(review, "vendor_reply", None),
+  "vendor_replied_at": review.vendor_replied_at.isoformat() if getattr(review, "vendor_replied_at", None) else None,
+  "created_at": review.created_at.isoformat() if review.created_at else None,
  }
 
 
@@ -242,6 +255,46 @@ async def create_product_review(product_id:str,data:ProductReviewCreate,db:Async
  db.add(review)
  await db.flush()
  return {"success":True,"data":serialize_review(review),"message":"Feedback saved"}
+
+
+@router.get("/admin/marketplace/reviews")
+async def admin_marketplace_reviews(status_filter: str | None = None, current_user: User = Depends(require_role(UserRole.admin, UserRole.super_admin)), db: AsyncSession = Depends(get_db)):
+ query = select(ProductReview, Product.title).outerjoin(Product, Product.id == ProductReview.product_id)
+ if status_filter == "approved":
+  query = query.where(ProductReview.is_approved.is_(True))
+ elif status_filter == "rejected":
+  query = query.where(ProductReview.is_approved.is_(False))
+ rows = (await db.execute(query.order_by(ProductReview.created_at.desc()).limit(200))).all()
+ return {
+  "success": True,
+  "data": [serialize_review(r, title) for r, title in rows],
+  "total": len(rows),
+  "message": "All product reviews",
+ }
+
+
+@router.patch("/admin/marketplace/reviews/{review_id}/moderation")
+async def moderate_review(review_id: str, data: ReviewModerationUpdate, current_user: User = Depends(require_role(UserRole.admin, UserRole.super_admin)), db: AsyncSession = Depends(get_db)):
+ r_uuid = uid(review_id, "review")
+ review = await db.get(ProductReview, r_uuid)
+ if not review:
+  raise HTTPException(404, "Review not found")
+ review.is_approved = data.is_approved
+ review.rejection_reason = data.rejection_reason if not data.is_approved else None
+ await db.flush()
+ return {"success": True, "data": serialize_review(review), "message": f"Review {'approved' if data.is_approved else 'rejected'}"}
+
+
+@router.post("/vendor/products/reviews/{review_id}/reply")
+async def vendor_reply_review(review_id: str, data: VendorReviewReply, current_user: User = Depends(require_role(UserRole.vendor, UserRole.admin, UserRole.super_admin)), db: AsyncSession = Depends(get_db)):
+ r_uuid = uid(review_id, "review")
+ review = await db.get(ProductReview, r_uuid)
+ if not review:
+  raise HTTPException(404, "Review not found")
+ review.vendor_reply = data.reply.strip()
+ review.vendor_replied_at = datetime.utcnow()
+ await db.flush()
+ return {"success": True, "data": serialize_review(review), "message": "Vendor reply posted"}
 @router.get("/admin/marketplace/vendors")
 async def marketplace_vendors(current_user:User=Depends(require_role(UserRole.admin, UserRole.super_admin)), db:AsyncSession=Depends(get_db)):
  vendors, total = await vendor_repo.list_all(db, limit=100)

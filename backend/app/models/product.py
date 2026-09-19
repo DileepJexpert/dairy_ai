@@ -96,6 +96,9 @@ class ProductReview(Base):
     )
     is_seeded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_approved: Mapped[bool] = mapped_column(Boolean, default=True, index=True, nullable=False)
+    rejection_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    vendor_reply: Mapped[str | None] = mapped_column(Text, nullable=True)
+    vendor_replied_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, index=True, nullable=False
     )

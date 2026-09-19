@@ -182,6 +182,32 @@ class VendorPayoutItem {
   }
 }
 
+class VendorAnalytics {
+  final int storefrontViews;
+  final int productImpressions;
+  final double conversionRate;
+  final double avgOrderValue;
+  final double repeatCustomerRate;
+
+  const VendorAnalytics({
+    this.storefrontViews = 0,
+    this.productImpressions = 0,
+    this.conversionRate = 0.0,
+    this.avgOrderValue = 0.0,
+    this.repeatCustomerRate = 0.0,
+  });
+
+  factory VendorAnalytics.fromJson(Map<String, dynamic> json) {
+    return VendorAnalytics(
+      storefrontViews: (json['storefront_views'] as num?)?.toInt() ?? 0,
+      productImpressions: (json['product_impressions'] as num?)?.toInt() ?? 0,
+      conversionRate: (json['conversion_rate'] as num?)?.toDouble() ?? 0.0,
+      avgOrderValue: (json['avg_order_value'] as num?)?.toDouble() ?? 0.0,
+      repeatCustomerRate: (json['repeat_customer_rate'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+}
+
 class VendorDashboard {
   final double totalRevenue;
   final int totalOrders;
@@ -198,6 +224,7 @@ class VendorDashboard {
   final int lowStockCount;
   final List<VendorLowStockItem> lowStockItems;
   final List<VendorPayoutItem> recentPayouts;
+  final VendorAnalytics? analytics;
 
   const VendorDashboard({
     this.totalRevenue = 0.0,
@@ -215,11 +242,13 @@ class VendorDashboard {
     this.lowStockCount = 0,
     this.lowStockItems = const [],
     this.recentPayouts = const [],
+    this.analytics,
   });
 
   factory VendorDashboard.fromJson(Map<String, dynamic> json) {
     final stats = json['stats'] as Map<String, dynamic>?;
     final settlements = json['settlements'] as Map<String, dynamic>?;
+    final analyticsMap = json['analytics'] as Map<String, dynamic>?;
 
     final lowStockRaw = json['low_stock_items'] as List<dynamic>?;
     final payoutsRaw = (settlements?['recent_payouts'] ?? json['recent_payouts']) as List<dynamic>?;
@@ -233,6 +262,7 @@ class VendorDashboard {
       recentOrders: ((json['recent_orders'] as List<dynamic>?) ?? [])
           .map((e) => VendorOrder.fromJson(e as Map<String, dynamic>))
           .toList(),
+      analytics: analyticsMap != null ? VendorAnalytics.fromJson(analyticsMap) : null,
       grossSales: (settlements?['gross_sales'] ?? json['gross_sales'] as num?)?.toDouble() ?? 0.0,
       commissionRate: (settlements?['commission_rate'] ?? json['commission_rate'] as num?)?.toDouble() ?? 5.0,
       commissionAmount: (settlements?['commission_amount'] ?? json['commission_amount'] as num?)?.toDouble() ?? 0.0,

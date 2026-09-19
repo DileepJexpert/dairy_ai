@@ -68,6 +68,20 @@ final adminVendorSettlementsProvider =
       .toList();
 });
 
+final adminReviewsProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final response =
+      await ref.watch(dioProvider).get('/admin/marketplace/reviews');
+  final body = response.data;
+  if (body is! Map || body['data'] is! List) {
+    throw const FormatException('Reviews response was invalid');
+  }
+  return (body['data'] as List)
+      .whereType<Map>()
+      .map((item) => Map<String, dynamic>.from(item))
+      .toList();
+});
+
 final adminConceptFeedbackProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final response =
@@ -110,6 +124,7 @@ class _EcommerceAdminPanelScreenState
   late TabController _tabController;
   bool _adminSaving = false;
   String _catalogFilter = 'all';
+  String _reviewStatusFilter = 'all';
 
   Future<void> _editInterest(Map<String, dynamic> interest) async {
     final notes = TextEditingController(
@@ -711,7 +726,7 @@ class _EcommerceAdminPanelScreenState
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 13, vsync: this);
+    _tabController = TabController(length: 14, vsync: this);
   }
 
   @override
@@ -864,6 +879,9 @@ class _EcommerceAdminPanelScreenState
                 icon: Icon(Icons.warehouse_outlined, size: 18),
                 text: 'Inventory'),
             Tab(
+                icon: Icon(Icons.rate_review_outlined, size: 18),
+                text: 'Reviews Moderation'),
+            Tab(
                 icon: Icon(Icons.history_edu_outlined, size: 18),
                 text: 'Audit Trail'),
           ],
@@ -875,7 +893,7 @@ class _EcommerceAdminPanelScreenState
           MaterialBanner(content: Text(adminState.error!), actions: [
             TextButton(
                 onPressed: () =>
-                    ref.read(adminMarketplaceProvider.notifier).refresh(),
+                ref.read(adminMarketplaceProvider.notifier).refresh(),
                 child: const Text('Retry'))
           ]),
         Expanded(
@@ -894,6 +912,7 @@ class _EcommerceAdminPanelScreenState
             _buildDealsTab(),
             _buildCouponsTab(adminState),
             _buildInventoryTab(adminState),
+            _buildReviewsTab(),
             _buildAuditLogsTab(adminState),
           ],
         )),
@@ -4906,6 +4925,484 @@ class _EcommerceAdminPanelScreenState
         color: isSelected ? Colors.white : const Color(0xff334155),
       ),
       backgroundColor: const Color(0xfff1f5f9),
+    );
+  }
+
+  Future<void> _updateReviewModeration(
+      String reviewId, bool isApproved, String? reason) async {
+    try {
+      await ref.read(dioProvider).patch(
+        '/admin/marketplace/reviews/$reviewId/moderation',
+        data: {
+          'is_approved': isApproved,
+          'rejection_reason': reason,
+        },
+      );
+      ref.invalidate(adminReviewsProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isApproved
+                ? 'Review approved and published!'
+                : 'Review flagged and hidden from storefront.'),
+            backgroundColor: isApproved ? storeGreen : storeError,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Failed to update review: $e'),
+              backgroundColor: storeError),
+        );
+      }
+    }
+  }
+
+  Future<void> _showFlagReviewDialog(Map<String, dynamic> review) async {
+    final reasonCtrl = TextEditingController(
+        text: 'Violates community guidelines / suspicious review');
+    final reviewId = review['id'].toString();
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Flag / Suppress Review'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Author: ${review['author_name'] ?? 'Visitor'}',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text('Headline: "${review['headline'] ?? ''}"',
+                  style: const TextStyle(
+                      fontStyle: FontStyle.italic, fontSize: 13)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: reasonCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Reason for Flagging',
+                  hintText:
+                      'e.g. Inappropriate content, spam, or competitor attack',
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: storeError),
+            onPressed: () async {
+              Navigator.pop(dialogCtx);
+              await _updateReviewModeration(
+                  reviewId, false, reasonCtrl.text.trim());
+            },
+            child: const Text('Confirm Flag'),
+          ),
+        ],
+      ),
+    );
+    reasonCtrl.dispose();
+  }
+
+  Widget _buildReviewsTab() {
+    final reviewsAsync = ref.watch(adminReviewsProvider);
+
+    return reviewsAsync.when(
+      loading: () =>
+          const Center(child: CircularProgressIndicator(color: storeGreen)),
+      error: (err, _) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: storeError),
+            const SizedBox(height: 12),
+            Text('Failed to load reviews: $err',
+                style: const TextStyle(color: storeError)),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: () => ref.invalidate(adminReviewsProvider),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+      data: (reviews) {
+        final approvedCount =
+            reviews.where((r) => r['is_approved'] == true).length;
+        final rejectedCount =
+            reviews.where((r) => r['is_approved'] == false).length;
+        final avgRating = reviews.isEmpty
+            ? 0.0
+            : (reviews
+                    .map((r) => (r['rating'] as num?)?.toDouble() ?? 5.0)
+                    .reduce((a, b) => a + b) /
+                reviews.length);
+
+        final filtered = reviews.where((r) {
+          if (_reviewStatusFilter == 'approved') return r['is_approved'] == true;
+          if (_reviewStatusFilter == 'rejected') {
+            return r['is_approved'] == false;
+          }
+          return true;
+        }).toList();
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Customer Reviews & Ratings Moderation',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: storeGreen,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Moderate customer feedback, ratings, and vendor responses.',
+                        style: TextStyle(
+                            fontSize: 13, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'Refresh Reviews',
+                    onPressed: () => ref.invalidate(adminReviewsProvider),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  _buildStatMetricCard(
+                    title: 'Total Reviews',
+                    value: '${reviews.length}',
+                    subtitle: 'Customer Submissions',
+                    icon: Icons.rate_review_outlined,
+                    color: storeGreen,
+                  ),
+                  const SizedBox(width: 14),
+                  _buildStatMetricCard(
+                    title: 'Average Rating',
+                    value: '★ ${avgRating.toStringAsFixed(1)}',
+                    subtitle: 'Storewide Feedback',
+                    icon: Icons.star_rounded,
+                    color: const Color(0xfff59e0b),
+                  ),
+                  const SizedBox(width: 14),
+                  _buildStatMetricCard(
+                    title: 'Live Approved',
+                    value: '$approvedCount',
+                    subtitle: 'Visible on Store',
+                    icon: Icons.check_circle_outline,
+                    color: const Color(0xff10b981),
+                  ),
+                  const SizedBox(width: 14),
+                  _buildStatMetricCard(
+                    title: 'Flagged / Hidden',
+                    value: '$rejectedCount',
+                    subtitle: 'Suppressed from Store',
+                    icon: Icons.cancel_outlined,
+                    color: storeError,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  _buildFilterChip('All (${reviews.length})', 'all',
+                      _reviewStatusFilter, (v) => setState(() => _reviewStatusFilter = v)),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Approved ($approvedCount)', 'approved',
+                      _reviewStatusFilter, (v) => setState(() => _reviewStatusFilter = v)),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Flagged ($rejectedCount)', 'rejected',
+                      _reviewStatusFilter, (v) => setState(() => _reviewStatusFilter = v)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (filtered.isEmpty)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(36),
+                    child: Center(
+                      child: Text(
+                        'No reviews matching $_reviewStatusFilter filter.',
+                        style: const TextStyle(color: storeMuted),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                ...filtered.map((rev) => _buildReviewCard(rev)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildReviewCard(Map<String, dynamic> rev) {
+    final isApproved = rev['is_approved'] == true;
+    final rating = (rev['rating'] as num?)?.toInt() ?? 5;
+    final productTitle =
+        rev['product_title']?.toString() ?? 'Milterra Dairy Product';
+    final author = rev['author_name']?.toString() ?? 'Anonymous';
+    final headline = rev['headline']?.toString() ?? '';
+    final content = rev['content']?.toString() ?? '';
+    final reason = rev['rejection_reason']?.toString();
+    final vendorReply = rev['vendor_reply']?.toString();
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 14),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+          color: isApproved ? storeBorder : const Color(0xfffecaca),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Row(
+                  children: List.generate(
+                      5,
+                      (i) => Icon(
+                            i < rating
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            size: 16,
+                            color: const Color(0xfff59e0b),
+                          )),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  headline,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isApproved
+                        ? const Color(0xffecfdf5)
+                        : const Color(0xfffef2f2),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                        color: isApproved
+                            ? const Color(0xffa7f3d0)
+                            : const Color(0xfffecaca)),
+                  ),
+                  child: Text(
+                    isApproved ? 'LIVE' : 'FLAGGED',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: isApproved
+                          ? const Color(0xff065f46)
+                          : const Color(0xff991b1b),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.person_outline, size: 14, color: storeMuted),
+                const SizedBox(width: 4),
+                Text(author,
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xff475569))),
+                const SizedBox(width: 10),
+                const Text('•', style: TextStyle(color: storeMuted)),
+                const SizedBox(width: 10),
+                const Icon(Icons.shopping_bag_outlined,
+                    size: 14, color: storeGreen),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    productTitle,
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: storeGreen),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(content,
+                style: const TextStyle(
+                    fontSize: 13, height: 1.4, color: Color(0xff1e293b))),
+            if (!isApproved && reason != null && reason.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xfffff1f2),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text('Reason for Flagging: $reason',
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xffbe123c))),
+              ),
+            ],
+            if (vendorReply != null && vendorReply.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xfff0fdf4),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xffbbf7d0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.reply, size: 13, color: storeGreen),
+                        SizedBox(width: 4),
+                        Text('Official Seller Response:',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: storeGreen)),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(vendorReply,
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xff166534))),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (!isApproved)
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xff10b981),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.check, size: 15),
+                    label: const Text('Approve & Publish',
+                        style: TextStyle(fontSize: 12)),
+                    onPressed: () => _updateReviewModeration(
+                        rev['id'].toString(), true, null),
+                  )
+                else
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: storeError,
+                      side: const BorderSide(color: Color(0xfff87171)),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.flag_outlined, size: 15),
+                    label: const Text('Flag / Suppress',
+                        style: TextStyle(fontSize: 12)),
+                    onPressed: () => _showFlagReviewDialog(rev),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatMetricCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: storeBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 20, color: color),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: storeMuted,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                color: storeMuted,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

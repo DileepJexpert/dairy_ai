@@ -488,6 +488,285 @@ TOTAL: ${storeMoney(total)}
     );
   }
 
+  void _showShippingLabelDialog(BuildContext context, Map<String, dynamic> order) {
+    final orderId = order['id']?.toString() ?? '';
+    final shortId = orderId.length >= 8 ? orderId.substring(0, 8).toUpperCase() : orderId;
+    final createdAt = order['created_at']?.toString() ?? '';
+    final carrier = (order['carrier']?.toString().isNotEmpty == true) ? order['carrier'].toString() : 'Delhivery Surface';
+    final trackingNumber = (order['tracking_number']?.toString().isNotEmpty == true)
+        ? order['tracking_number'].toString()
+        : 'MLT${shortId}IN';
+
+    final address = order['address'] is Map
+        ? Map<String, dynamic>.from(order['address'] as Map)
+        : const <String, dynamic>{};
+    final recipient = address['recipient_name']?.toString() ?? 'Consignee Customer';
+    final phone = address['phone_number']?.toString() ?? address['phone']?.toString() ?? '9876543210';
+    final street = address['street_address']?.toString() ?? 'Direct Route';
+    final city = address['village_or_city']?.toString() ?? address['city']?.toString() ?? 'City Hub';
+    final district = address['district']?.toString() ?? '';
+    final state = address['state']?.toString() ?? 'India';
+    final pincode = address['pincode']?.toString() ?? '110001';
+
+    final vendor = order['vendor_info'] is Map ? Map<String, dynamic>.from(order['vendor_info'] as Map) : const <String, dynamic>{};
+    final vendorName = vendor['business_name']?.toString() ?? 'Milterra Producer Cooperative';
+    final vendorOrigin = [vendor['district'], vendor['state']].where((s) => s != null && s.toString().isNotEmpty).join(', ');
+    final vendorGst = vendor['gst_number']?.toString() ?? '29AABCM1234F1Z5';
+
+    final items = order['items'] is List ? (order['items'] as List).whereType<Map>().toList() : [];
+    final total = double.tryParse(order['total']?.toString() ?? '') ?? 0.0;
+    final paymentMethod = order['payment_method']?.toString() ?? 'PREPAID';
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (_, controller) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: ListView(
+            controller: controller,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.qr_code_2_rounded, size: 24, color: storeGreen),
+                      SizedBox(width: 8),
+                      Text(
+                        'Standard Logistics Waybill (4" × 6")',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: storeGreen),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.black, width: 2),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: const BoxDecoration(
+                        border: Border(bottom: BorderSide(color: Colors.black, width: 1.5)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(carrier.toUpperCase(),
+                                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1.2)),
+                              Text('ROUTING: ${state.toUpperCase().substring(0, state.length.clamp(0, 3))}/HUB-${pincode.length >= 3 ? pincode.substring(0, 3) : "DEL"}',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.black, width: 2),
+                            ),
+                            child: Text(
+                              paymentMethod.toUpperCase().contains('COD') ? 'COD : $total' : 'PREPAID',
+                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                            color: const Color(0xfff8fafc),
+                            child: const Text(
+                              '| ||| | || |||| | ||| | ||||| || | ||| || ||| | ||| |||| | ||',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 3.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'AWB: $trackingNumber',
+                            style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(color: Colors.black, thickness: 1.5, height: 1),
+
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('SHIP TO / CONSIGNEE:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 0.8)),
+                                const SizedBox(height: 4),
+                                Text(recipient, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
+                                const SizedBox(height: 2),
+                                Text('$street, $city', style: const TextStyle(fontSize: 12, height: 1.2)),
+                                Text('$district, $state', style: const TextStyle(fontSize: 12)),
+                                const SizedBox(height: 4),
+                                Text('Contact: +91 $phone', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.black, width: 2),
+                            ),
+                            child: Column(
+                              children: [
+                                const Text('PIN CODE', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 9)),
+                                const SizedBox(height: 2),
+                                Text(
+                                  pincode,
+                                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 1.5),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(color: Colors.black, thickness: 1.5, height: 1),
+
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('RETURN IF UNDELIVERED TO (SHIPPER):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 0.8)),
+                          const SizedBox(height: 2),
+                          Text(vendorName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          Text(vendorOrigin.isNotEmpty ? vendorOrigin : 'Milterra Central Hub', style: const TextStyle(fontSize: 11)),
+                          Text('GSTIN: $vendorGst', style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                        ],
+                      ),
+                    ),
+                    const Divider(color: Colors.black, thickness: 1.5, height: 1),
+
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      color: const Color(0xfff8fafc),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Order ID: #$shortId', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                              Text('Date: ${createdAt.length >= 10 ? createdAt.substring(0, 10) : createdAt}', style: const TextStyle(fontSize: 11)),
+                              const Text('Weight: 0.85 kg', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Contents: ${items.map((it) => "${it['title']} (×${it['quantity']})").join(", ")}',
+                            style: const TextStyle(fontSize: 11, color: Color(0xff334155)),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.copy, size: 16),
+                    label: const Text('Copy Waybill Text'),
+                    onPressed: () {
+                      final waybillText = '''
+CARRIER: ${carrier.toUpperCase()}
+AWB: $trackingNumber
+SERVICE: $paymentMethod
+PIN CODE: $pincode
+
+CONSIGNEE:
+$recipient
+$street, $city, $district, $state - $pincode
+PHONE: +91 $phone
+
+SHIPPER:
+$vendorName
+$vendorOrigin
+GSTIN: $vendorGst
+
+ORDER: #$shortId | WEIGHT: 0.85 KG
+ITEMS: ${items.map((it) => "${it['title']} ×${it['quantity']}").join(", ")}
+''';
+                      Clipboard.setData(ClipboardData(text: waybillText.trim()));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Waybill text copied to clipboard!'), backgroundColor: storeGreen),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(backgroundColor: storeGreen),
+                    icon: const Icon(Icons.check, size: 16),
+                    label: const Text('Close'),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) => Scaffold(
         backgroundColor: storeCream,
@@ -717,27 +996,44 @@ TOTAL: ${storeMoney(total)}
                                         Text(storeMoney(total), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: storeGreen)),
                                       ],
                                     ),
-                                    const Spacer(),
-                                    OutlinedButton.icon(
-                                      style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        alignment: WrapAlignment.end,
+                                        children: [
+                                          OutlinedButton.icon(
+                                            style: OutlinedButton.styleFrom(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                            ),
+                                            icon: const Icon(Icons.receipt_long, size: 16),
+                                            label: const Text('Invoice', style: TextStyle(fontSize: 12)),
+                                            onPressed: () => _showPackingSlipDialog(context, order),
+                                          ),
+                                          OutlinedButton.icon(
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: const Color(0xff1e293b),
+                                              side: const BorderSide(color: Color(0xffcbd5e1)),
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                            ),
+                                            icon: const Icon(Icons.qr_code_2_rounded, size: 16),
+                                            label: const Text('Label (4x6)', style: TextStyle(fontSize: 12)),
+                                            onPressed: () => _showShippingLabelDialog(context, order),
+                                          ),
+                                          if (canFulfill)
+                                            FilledButton.icon(
+                                              style: FilledButton.styleFrom(
+                                                backgroundColor: storeGreen,
+                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                              ),
+                                              icon: const Icon(Icons.local_shipping_outlined, size: 16),
+                                              label: const Text('Update', style: TextStyle(fontSize: 12)),
+                                              onPressed: () => update(context, ref, order),
+                                            ),
+                                        ],
                                       ),
-                                      icon: const Icon(Icons.receipt_long, size: 16),
-                                      label: const Text('Packing Slip & Invoice', style: TextStyle(fontSize: 12)),
-                                      onPressed: () => _showPackingSlipDialog(context, order),
                                     ),
-                                    if (canFulfill) ...[
-                                      const SizedBox(width: 8),
-                                      FilledButton.icon(
-                                        style: FilledButton.styleFrom(
-                                          backgroundColor: storeGreen,
-                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                        ),
-                                        icon: const Icon(Icons.local_shipping_outlined, size: 16),
-                                        label: const Text('Update', style: TextStyle(fontSize: 12)),
-                                        onPressed: () => update(context, ref, order),
-                                      ),
-                                    ],
                                   ],
                                 ),
                               ],

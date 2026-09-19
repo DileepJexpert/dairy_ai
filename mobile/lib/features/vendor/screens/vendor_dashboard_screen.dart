@@ -260,6 +260,137 @@ class VendorDashboardScreen extends ConsumerWidget {
                 ),
               ),
 
+              // ---- Store Traffic & Insights ----
+              if (dashboard.analytics != null) ...[
+                const SizedBox(height: 16),
+                Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.insights_rounded,
+                                    size: 18, color: Color(0xff4338ca)),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Traffic & Store Insights',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: Color(0xff312e81),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xffeef2ff),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${dashboard.analytics!.conversionRate.toStringAsFixed(1)}% Conversion',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xff4338ca),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Storefront Visits',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: DairyTheme.subtleGrey)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${dashboard.analytics!.storefrontViews}',
+                                    style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Product Impressions',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: DairyTheme.subtleGrey)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${dashboard.analytics!.productImpressions}',
+                                    style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Avg Order Value',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: DairyTheme.subtleGrey)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    currencyFormat.format(
+                                        dashboard.analytics!.avgOrderValue),
+                                    style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            const Icon(Icons.repeat_rounded,
+                                size: 14, color: Color(0xff059669)),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${dashboard.analytics!.repeatCustomerRate.toStringAsFixed(1)}% Repeat Buyers Rate',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xff059669),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 24),
 
               // ---- Recent orders ----

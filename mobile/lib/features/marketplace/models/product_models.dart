@@ -299,10 +299,13 @@ class Product {
   }
 
   bool get isDraft => (publicationStatus ?? '').toLowerCase() == 'draft';
+  bool get isPendingApproval =>
+      (publicationStatus ?? '').toLowerCase() == 'pending_approval';
+  bool get isRejected => (publicationStatus ?? '').toLowerCase() == 'rejected';
   bool get isPublished =>
       (publicationStatus ?? 'published').toLowerCase() == 'published';
 
-  bool get canPurchase => !isConcept && !isDraft;
+  bool get canPurchase => !isConcept && !isDraft && isPublished;
   bool get isFeatured =>
       specifications['is_featured'] == true ||
       specifications['featured'] == true;

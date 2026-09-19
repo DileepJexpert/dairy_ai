@@ -20,6 +20,7 @@ class PaymentStatus(str, enum.Enum):
     pending = "PENDING"
     paid = "PAID"
     failed = "FAILED"
+    refunded = "REFUNDED"
 
 
 class FulfillmentStatus(str, enum.Enum):

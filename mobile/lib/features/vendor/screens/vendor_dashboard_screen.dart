@@ -34,6 +34,66 @@ class VendorDashboardScreen extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // ---- Low stock alert banner ----
+              if (dashboard.lowStockCount > 0) ...[
+                Card(
+                  color: const Color(0xfffff7ed),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: Color(0xfffdba74)),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded,
+                                color: Color(0xffc2410c), size: 24),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${dashboard.lowStockCount} Product${dashboard.lowStockCount > 1 ? 's' : ''} Low in Stock!',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: Color(0xff9a3412)),
+                              ),
+                            ),
+                            FilledButton.tonal(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: const Color(0xffea580c),
+                                foregroundColor: Colors.white,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              onPressed: () =>
+                                  context.push('/vendor/products'),
+                              child: const Text('Restock',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          dashboard.lowStockItems
+                              .map((item) =>
+                                  '${item.title} (${item.isOutOfStock ? 'OUT OF STOCK' : '${item.availableQuantity} left'})')
+                              .join(' • '),
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xff7c2d12)),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
               // ---- Summary cards ----
               Row(
                 children: [
@@ -70,13 +130,120 @@ class VendorDashboardScreen extends ConsumerWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _StatCard(
-                      title: 'Pending',
+                      title: 'Pending Orders',
                       value: dashboard.pendingOrders.toString(),
                       icon: Icons.pending_actions,
                       color: DairyTheme.errorRed,
                     ),
                   ),
                 ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // ---- Settlements & Payouts Card ----
+              Card(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.account_balance_wallet_outlined,
+                                  color: DairyTheme.primaryGreen),
+                              const SizedBox(width: 8),
+                              Text('Payouts & Settlement',
+                                  style: context.textTheme.titleMedium
+                                      ?.copyWith(
+                                          fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          TextButton.icon(
+                            icon: const Icon(Icons.history, size: 16),
+                            label: const Text('History',
+                                style: TextStyle(fontSize: 12)),
+                            onPressed: () => _showPayoutHistory(
+                                context, dashboard, currencyFormat),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Pending Payout',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: DairyTheme.subtleGrey)),
+                                const SizedBox(height: 2),
+                                Text(
+                                  currencyFormat
+                                      .format(dashboard.pendingSettlement),
+                                  style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w900,
+                                      color: DairyTheme.primaryGreen),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Total Settled',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: DairyTheme.subtleGrey)),
+                                const SizedBox(height: 2),
+                                Text(
+                                  currencyFormat
+                                      .format(dashboard.totalSettled),
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xfff1f5f9),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Gross: ${currencyFormat.format(dashboard.grossSales)}',
+                              style: const TextStyle(
+                                  fontSize: 11, color: Color(0xff475569)),
+                            ),
+                            Text(
+                              'Fee (${dashboard.commissionRate.toStringAsFixed(1)}%): -${currencyFormat.format(dashboard.commissionAmount)}',
+                              style: const TextStyle(
+                                  fontSize: 11, color: Color(0xff64748b)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
 
               const SizedBox(height: 24),
@@ -103,6 +270,76 @@ class VendorDashboardScreen extends ConsumerWidget {
                     )),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showPayoutHistory(BuildContext context, VendorDashboard dashboard,
+      NumberFormat currencyFormat) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Payout History',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (dashboard.recentPayouts.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: Text(
+                      'No payouts recorded yet. Payouts are processed by admin upon order delivery.'),
+                ),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: dashboard.recentPayouts.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (c, i) {
+                  final p = dashboard.recentPayouts[i];
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const CircleAvatar(
+                      backgroundColor: Color(0xffdcfce7),
+                      child:
+                          Icon(Icons.check, color: DairyTheme.primaryGreen),
+                    ),
+                    title: Text(currencyFormat.format(p.amount),
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text(
+                        'Ref: ${p.paymentReference ?? 'N/A'} • ${p.bankName ?? ''}\n${p.createdAt}'),
+                    trailing: Chip(
+                      visualDensity: VisualDensity.compact,
+                      label: Text(p.status.toUpperCase(),
+                          style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: DairyTheme.primaryGreen)),
+                      backgroundColor: const Color(0xffecfdf5),
+                    ),
+                  );
+                },
+              ),
+          ],
         ),
       ),
     );

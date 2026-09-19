@@ -112,3 +112,8 @@ class CertificateInput(Input):
         if self.status == "CERTIFIED" and (not self.report_url or not self.certified_by):
             raise ValueError("Certified records require a report URL and certifier name")
         return self
+
+
+class ProductModerationRequest(Input):
+    status: Literal["published", "rejected", "pending_approval"]
+    reason: str = Field(default="", max_length=500)

@@ -19,6 +19,12 @@ class _VendorRegistrationScreenState
 
   final _businessNameCtrl = TextEditingController();
   final _gstNumberCtrl = TextEditingController();
+  final _licenseNumberCtrl = TextEditingController();
+  final _bankNameCtrl = TextEditingController();
+  final _accountNumberCtrl = TextEditingController();
+  final _ifscCodeCtrl = TextEditingController();
+  final _accountHolderNameCtrl = TextEditingController();
+  final _upiIdCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
   final _districtCtrl = TextEditingController();
   final _stateCtrl = TextEditingController();
@@ -31,6 +37,12 @@ class _VendorRegistrationScreenState
   void dispose() {
     _businessNameCtrl.dispose();
     _gstNumberCtrl.dispose();
+    _licenseNumberCtrl.dispose();
+    _bankNameCtrl.dispose();
+    _accountNumberCtrl.dispose();
+    _ifscCodeCtrl.dispose();
+    _accountHolderNameCtrl.dispose();
+    _upiIdCtrl.dispose();
     _addressCtrl.dispose();
     _districtCtrl.dispose();
     _stateCtrl.dispose();
@@ -54,6 +66,24 @@ class _VendorRegistrationScreenState
       'gst_number': _gstNumberCtrl.text.trim().isEmpty
           ? null
           : _gstNumberCtrl.text.trim(),
+      'license_number': _licenseNumberCtrl.text.trim().isEmpty
+          ? null
+          : _licenseNumberCtrl.text.trim(),
+      'bank_name': _bankNameCtrl.text.trim().isEmpty
+          ? null
+          : _bankNameCtrl.text.trim(),
+      'account_number': _accountNumberCtrl.text.trim().isEmpty
+          ? null
+          : _accountNumberCtrl.text.trim(),
+      'ifsc_code': _ifscCodeCtrl.text.trim().isEmpty
+          ? null
+          : _ifscCodeCtrl.text.trim(),
+      'account_holder_name': _accountHolderNameCtrl.text.trim().isEmpty
+          ? null
+          : _accountHolderNameCtrl.text.trim(),
+      'upi_id': _upiIdCtrl.text.trim().isEmpty
+          ? null
+          : _upiIdCtrl.text.trim(),
       'address': _addressCtrl.text.trim().isEmpty
           ? null
           : _addressCtrl.text.trim(),
@@ -142,6 +172,74 @@ class _VendorRegistrationScreenState
                 textCapitalization: TextCapitalization.characters,
               ),
               const SizedBox(height: 16),
+
+              // FSSAI License Number
+              TextFormField(
+                controller: _licenseNumberCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'FSSAI License Number',
+                  hintText: 'Optional for dairy/food vendors',
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 24),
+
+              Text('Bank & Settlement Account',
+                  style: context.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+
+              TextFormField(
+                controller: _bankNameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Bank Name',
+                  hintText: 'e.g. State Bank of India, HDFC Bank',
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: _accountNumberCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Bank Account Number',
+                  hintText: 'For automated order settlements',
+                ),
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: _ifscCodeCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'IFSC Code',
+                  hintText: 'e.g. SBIN0001234',
+                ),
+                textInputAction: TextInputAction.next,
+                textCapitalization: TextCapitalization.characters,
+              ),
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: _accountHolderNameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Account Holder / Beneficiary Name',
+                  hintText: 'Name as registered with bank',
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: _upiIdCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'UPI ID (optional)',
+                  hintText: 'e.g. business@upi',
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 24),
 
               // Address
               TextFormField(

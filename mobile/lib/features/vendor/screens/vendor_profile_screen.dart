@@ -19,6 +19,12 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _businessNameCtrl = TextEditingController();
   final _gstNumberCtrl = TextEditingController();
+  final _licenseNumberCtrl = TextEditingController();
+  final _bankNameCtrl = TextEditingController();
+  final _accountNumberCtrl = TextEditingController();
+  final _ifscCodeCtrl = TextEditingController();
+  final _accountHolderNameCtrl = TextEditingController();
+  final _upiIdCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
   final _districtCtrl = TextEditingController();
   final _stateCtrl = TextEditingController();
@@ -30,6 +36,12 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen> {
   void dispose() {
     _businessNameCtrl.dispose();
     _gstNumberCtrl.dispose();
+    _licenseNumberCtrl.dispose();
+    _bankNameCtrl.dispose();
+    _accountNumberCtrl.dispose();
+    _ifscCodeCtrl.dispose();
+    _accountHolderNameCtrl.dispose();
+    _upiIdCtrl.dispose();
     _addressCtrl.dispose();
     _districtCtrl.dispose();
     _stateCtrl.dispose();
@@ -41,6 +53,12 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen> {
   void _populateFields(VendorProfile profile) {
     _businessNameCtrl.text = profile.businessName;
     _gstNumberCtrl.text = profile.gstNumber ?? '';
+    _licenseNumberCtrl.text = profile.licenseNumber ?? '';
+    _bankNameCtrl.text = profile.bankName ?? '';
+    _accountNumberCtrl.text = profile.accountNumber ?? '';
+    _ifscCodeCtrl.text = profile.ifscCode ?? '';
+    _accountHolderNameCtrl.text = profile.accountHolderName ?? '';
+    _upiIdCtrl.text = profile.upiId ?? '';
     _addressCtrl.text = profile.address ?? '';
     _districtCtrl.text = profile.district ?? '';
     _stateCtrl.text = profile.state ?? '';
@@ -64,6 +82,24 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen> {
       'gst_number': _gstNumberCtrl.text.trim().isEmpty
           ? null
           : _gstNumberCtrl.text.trim(),
+      'license_number': _licenseNumberCtrl.text.trim().isEmpty
+          ? null
+          : _licenseNumberCtrl.text.trim(),
+      'bank_name': _bankNameCtrl.text.trim().isEmpty
+          ? null
+          : _bankNameCtrl.text.trim(),
+      'account_number': _accountNumberCtrl.text.trim().isEmpty
+          ? null
+          : _accountNumberCtrl.text.trim(),
+      'ifsc_code': _ifscCodeCtrl.text.trim().isEmpty
+          ? null
+          : _ifscCodeCtrl.text.trim(),
+      'account_holder_name': _accountHolderNameCtrl.text.trim().isEmpty
+          ? null
+          : _accountHolderNameCtrl.text.trim(),
+      'upi_id': _upiIdCtrl.text.trim().isEmpty
+          ? null
+          : _upiIdCtrl.text.trim(),
       'address':
           _addressCtrl.text.trim().isEmpty ? null : _addressCtrl.text.trim(),
       'district':
@@ -205,6 +241,47 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen> {
         // Details
         _DetailTile(label: 'Phone', value: profile.phone ?? 'Not set'),
         _DetailTile(label: 'GST Number', value: profile.gstNumber ?? 'Not set'),
+        _DetailTile(
+            label: 'FSSAI License', value: profile.licenseNumber ?? 'Not set'),
+        const SizedBox(height: 16),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.account_balance,
+                        size: 20, color: DairyTheme.primaryGreen),
+                    const SizedBox(width: 8),
+                    Text('Bank & Settlement Account',
+                        style: context.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const Divider(height: 24),
+                _DetailTile(
+                    label: 'Bank Name', value: profile.bankName ?? 'Not set'),
+                _DetailTile(
+                  label: 'Account Number',
+                  value: profile.accountNumber != null &&
+                          profile.accountNumber!.isNotEmpty
+                      ? '•••• •••• •••• ${profile.accountNumber!.length > 4 ? profile.accountNumber!.substring(profile.accountNumber!.length - 4) : profile.accountNumber!}'
+                      : 'Not set',
+                ),
+                _DetailTile(
+                    label: 'IFSC Code', value: profile.ifscCode ?? 'Not set'),
+                _DetailTile(
+                    label: 'Beneficiary Name',
+                    value: profile.accountHolderName ?? 'Not set'),
+                _DetailTile(
+                    label: 'UPI ID', value: profile.upiId ?? 'Not set'),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
         _DetailTile(label: 'Address', value: profile.address ?? 'Not set'),
         _DetailTile(
           label: 'Location',
@@ -254,6 +331,49 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen> {
               decoration: const InputDecoration(labelText: 'GST Number'),
               textCapitalization: TextCapitalization.characters,
             ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _licenseNumberCtrl,
+              decoration:
+                  const InputDecoration(labelText: 'FSSAI License Number'),
+            ),
+            const SizedBox(height: 24),
+            Text('Bank & Settlement Details',
+                style: context.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _bankNameCtrl,
+              decoration: const InputDecoration(
+                  labelText: 'Bank Name (e.g. State Bank of India)'),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _accountNumberCtrl,
+              decoration:
+                  const InputDecoration(labelText: 'Bank Account Number'),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _ifscCodeCtrl,
+              decoration: const InputDecoration(
+                  labelText: 'IFSC Code (e.g. SBIN0001234)'),
+              textCapitalization: TextCapitalization.characters,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _accountHolderNameCtrl,
+              decoration: const InputDecoration(
+                  labelText: 'Account Holder / Beneficiary Name'),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _upiIdCtrl,
+              decoration: const InputDecoration(
+                  labelText: 'UPI ID (optional, e.g. business@upi)'),
+            ),
+            const SizedBox(height: 24),
             const SizedBox(height: 16),
             TextFormField(
               controller: _addressCtrl,

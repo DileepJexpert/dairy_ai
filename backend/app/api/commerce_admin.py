@@ -4,20 +4,23 @@ from datetime import datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user, require_role
 from app.models.user import User, UserRole
-from app.models.vendor import Vendor
+from app.models.vendor import Vendor, VendorPayout, PayoutStatus
+from app.models.order import Order, OrderItem, PaymentStatus
 from app.models.product import Product, ProductFamily, ProductInventory, ProductMedia
 from app.models.commerce_admin import CommerceCoupon, CommerceCertificate, CommerceAudit
 from app.repositories import cart_repo
 from app.schemas.commerce_admin import (
     OfferUpdate, OfferCreate, SellerUpdate, CouponInput, ActiveUpdate, CouponQuote, CertificateInput,
+    ProductModerationRequest,
 )
+from app.schemas.vendor import VendorPayoutCreate, VendorCommissionUpdate
 from app.services.commerce_admin_service import audit, serialize_coupon, validate_coupon
 from app.services.product_policy import purchase_enabled
 from app.services.product_service import slugify
@@ -56,6 +59,9 @@ async def snapshot(db, vendor_id=None):
     sellers = [{"id": str(v.id), "business_name": v.business_name, "gstin": v.gst_number,
                 "fssai_license": v.license_number, "contact_phone": u.phone,
                 "contact_email": u.email, "warehouse_city": v.district, "warehouse_state": v.state,
+                "bank_name": v.bank_name, "account_number": v.account_number,
+                "ifsc_code": v.ifsc_code, "account_holder_name": v.account_holder_name, "upi_id": v.upi_id,
+                "commission_rate": round(float(getattr(v, "commission_rate", 5.0) or 5.0), 2),
                 "status": "suspended" if not v.is_active else "approved" if v.is_verified else "pendingApproval",
                 "rating_score": v.rating_avg, "created_at": v.created_at.isoformat() + "Z"}
                for v, u in (await db.execute(vendors_query.order_by(Vendor.business_name))).all()]
@@ -107,6 +113,28 @@ async def update_seller(vendor_id: uuid.UUID, data: SellerUpdate, user: User = D
     audit(db, user, "sellerApproval" if vendor.is_active else "sellerSuspension", "SellerAccount", vendor.id, f"Status: {data.status}. {data.reason}")
     await db.flush()
     return {"success": True}
+
+
+@router.patch("/admin/commerce/products/{product_id}/moderation")
+async def moderate_product(
+    product_id: uuid.UUID,
+    data: ProductModerationRequest,
+    user: User = Depends(admin_only),
+    db: AsyncSession = Depends(get_db),
+):
+    product = (await db.execute(select(Product).where(Product.id == product_id).with_for_update())).scalar_one_or_none()
+    if not product:
+        raise HTTPException(404, "Product not found")
+    product.publication_status = data.status
+    specs = dict(product.specifications or {})
+    if data.status == "rejected":
+        specs["rejection_reason"] = data.reason
+    elif data.status == "published":
+        specs.pop("rejection_reason", None)
+    product.specifications = specs
+    audit(db, user, "productModeration", "Product", product.id, f"Set publication status to {data.status}. Reason: {data.reason}")
+    await db.flush()
+    return {"success": True, "data": {"id": str(product.id), "publication_status": product.publication_status}}
 
 
 @router.patch("/admin/commerce/offers/{product_id}")
@@ -262,3 +290,129 @@ async def public_certificates(product_id: uuid.UUID | None = None, db: AsyncSess
     if product_id:
         query = query.where(Product.id == product_id)
     return {"success": True, "data": [certificate_json(c, p) for c, p in (await db.execute(query.order_by(CommerceCertificate.test_date.desc()))).all()]}
+
+
+@router.get("/admin/commerce/vendors/settlements")
+async def get_vendor_settlements(user: User = Depends(admin_only), db: AsyncSession = Depends(get_db)):
+    vendors = (await db.execute(select(Vendor).order_by(Vendor.business_name))).scalars().all()
+    settlements = []
+
+    for v in vendors:
+        order_items_q = (
+            select(OrderItem)
+            .join(Order, OrderItem.order_id == Order.id)
+            .where(OrderItem.vendor_id == v.id, Order.payment_status == PaymentStatus.paid)
+        )
+        items = (await db.execute(order_items_q)).scalars().all()
+        gross_sales = round(sum(float(it.line_total) for it in items), 2)
+
+        comm_rate = round(float(getattr(v, "commission_rate", 5.0) or 5.0), 2)
+        comm_amt = round(gross_sales * (comm_rate / 100.0), 2)
+        net_payable = max(0.0, round(gross_sales - comm_amt, 2))
+
+        payouts_q = select(VendorPayout).where(VendorPayout.vendor_id == v.id)
+        payouts = (await db.execute(payouts_q)).scalars().all()
+        total_settled = round(sum(float(p.amount) for p in payouts if p.status == PayoutStatus.paid), 2)
+        pending_balance = max(0.0, round(net_payable - total_settled, 2))
+
+        settlements.append({
+            "vendor_id": str(v.id),
+            "business_name": v.business_name,
+            "is_active": v.is_active,
+            "commission_rate": comm_rate,
+            "bank_name": v.bank_name,
+            "account_number": v.account_number,
+            "ifsc_code": v.ifsc_code,
+            "account_holder_name": v.account_holder_name,
+            "upi_id": v.upi_id,
+            "gross_sales": gross_sales,
+            "commission_amount": comm_amt,
+            "net_payable": net_payable,
+            "total_settled": total_settled,
+            "pending_balance": pending_balance,
+            "payouts_count": len(payouts),
+            "recent_payouts": [
+                {
+                    "id": str(p.id),
+                    "amount": float(p.amount),
+                    "status": p.status.value if hasattr(p.status, "value") else str(p.status),
+                    "payment_reference": p.payment_reference,
+                    "bank_name": p.bank_name,
+                    "remarks": p.remarks,
+                    "processed_at": p.processed_at.isoformat() if p.processed_at else None,
+                    "created_at": p.created_at.isoformat() if p.created_at else "",
+                }
+                for p in sorted(payouts, key=lambda x: x.created_at, reverse=True)[:5]
+            ],
+        })
+
+    return {"success": True, "data": settlements}
+
+
+@router.post("/admin/commerce/vendors/{vendor_id}/payouts", status_code=201)
+async def create_vendor_payout(
+    vendor_id: uuid.UUID,
+    data: VendorPayoutCreate,
+    user: User = Depends(admin_only),
+    db: AsyncSession = Depends(get_db),
+):
+    vendor = await db.get(Vendor, vendor_id)
+    if not vendor:
+        raise HTTPException(404, "Vendor not found")
+
+    payout = VendorPayout(
+        vendor_id=vendor.id,
+        amount=data.amount,
+        gross_amount=data.gross_amount or data.amount,
+        commission_amount=data.commission_amount or 0.0,
+        status=PayoutStatus.paid,
+        payment_reference=data.payment_reference,
+        bank_name=data.bank_name or vendor.bank_name,
+        account_number=data.account_number or vendor.account_number,
+        remarks=data.remarks,
+        processed_at=datetime.utcnow(),
+    )
+    db.add(payout)
+    await db.flush()
+    audit(db, user, "vendorPayoutDisbursed", "VendorPayout", payout.id, f"Disbursed ₹{payout.amount} to {vendor.business_name}. Ref: {payout.payment_reference}")
+    await db.flush()
+
+    return {
+        "success": True,
+        "data": {
+            "id": str(payout.id),
+            "vendor_id": str(payout.vendor_id),
+            "amount": float(payout.amount),
+            "status": payout.status.value if hasattr(payout.status, "value") else str(payout.status),
+            "payment_reference": payout.payment_reference,
+            "processed_at": payout.processed_at.isoformat() if payout.processed_at else None,
+        },
+        "message": f"Payout of ₹{payout.amount} recorded successfully",
+    }
+
+
+@router.patch("/admin/commerce/vendors/{vendor_id}/commission")
+async def update_vendor_commission(
+    vendor_id: uuid.UUID,
+    data: VendorCommissionUpdate,
+    user: User = Depends(admin_only),
+    db: AsyncSession = Depends(get_db),
+):
+    vendor = await db.get(Vendor, vendor_id)
+    if not vendor:
+        raise HTTPException(404, "Vendor not found")
+
+    old_rate = vendor.commission_rate
+    vendor.commission_rate = data.commission_rate
+    audit(db, user, "vendorCommissionUpdate", "Vendor", vendor.id, f"Updated commission from {old_rate}% to {data.commission_rate}%")
+    await db.flush()
+
+    return {
+        "success": True,
+        "data": {
+            "vendor_id": str(vendor.id),
+            "commission_rate": float(vendor.commission_rate),
+        },
+        "message": f"Commission rate updated to {data.commission_rate}%",
+    }
+

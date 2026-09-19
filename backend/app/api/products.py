@@ -298,7 +298,7 @@ async def create_product(data:ProductCreate,current_user:User=Depends(require_ro
  is_admin = current_user.role in (UserRole.admin, UserRole.super_admin)
  v = (await vendor(db, current_user)) if not is_admin else await vendor_repo.get_by_id(db, data.vendor_id) if data.vendor_id else None
  if not v or not v.is_active: raise HTTPException(422, "Select an active vendor before creating a product")
- p=await product_service.create(db,v.id,data);return {"success":True,"data":await enrich(db,p),"message":"Product created"}
+ p=await product_service.create(db,v.id,data,is_admin);return {"success":True,"data":await enrich(db,p),"message":"Product created"}
 @router.get("/vendor/products")
 async def vendor_products(current_user:User=Depends(require_role(UserRole.vendor, UserRole.admin, UserRole.super_admin)),db:AsyncSession=Depends(get_db)):
  is_admin = current_user.role in (UserRole.admin, UserRole.super_admin)

@@ -9,7 +9,7 @@ from app.models.finance import Transaction, TransactionType, TransactionCategory
 from app.models.vet import VetProfile, Consultation, Prescription
 from app.models.conversation import Conversation, Channel
 from app.models.notification import Notification, NotificationType
-from app.models.vendor import Vendor, VendorType
+from app.models.vendor import Vendor, VendorType, VendorPayout, PayoutStatus
 from app.models.cooperative import Cooperative, CooperativeType
 from app.models.collection import (
     CollectionCenter, MilkCollection, CollectionRoute,

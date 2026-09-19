@@ -816,6 +816,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
+                path: '/vendor/products',
+                builder: (context, state) => const VendorProductsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
                 path: '/vendor-orders',
                 builder: (context, state) => const VendorOrdersScreen(),
               ),
@@ -837,8 +845,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const VendorRegistrationScreen(),
       ),
       GoRoute(
-          path: '/vendor/products',
-          builder: (context, state) => const VendorProductsScreen()),
+        path: '/seller/dashboard',
+        redirect: (_, __) => '/vendor-dashboard',
+      ),
 
       // ---- Cooperative shell ----
       StatefulShellRoute.indexedStack(

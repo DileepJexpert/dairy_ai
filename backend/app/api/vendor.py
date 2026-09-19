@@ -28,12 +28,18 @@ def _vendor_to_dict(vendor) -> dict:
         "state": vendor.state,
         "gst_number": vendor.gst_number,
         "license_number": vendor.license_number,
+        "bank_name": vendor.bank_name,
+        "account_number": vendor.account_number,
+        "ifsc_code": vendor.ifsc_code,
+        "account_holder_name": vendor.account_holder_name,
+        "upi_id": vendor.upi_id,
         "description": vendor.description,
         "products_services": vendor.products_services or [],
         "service_areas": vendor.service_areas or [],
         "rating_avg": vendor.rating_avg,
         "total_orders": vendor.total_orders,
         "total_revenue": round(float(vendor.total_revenue), 2),
+        "commission_rate": round(float(getattr(vendor, "commission_rate", 5.0) or 5.0), 2),
         "is_verified": vendor.is_verified,
         "is_active": vendor.is_active,
     }
@@ -128,3 +134,29 @@ async def vendor_dashboard(
         "data": dashboard,
         "message": "Vendor dashboard",
     }
+
+
+@router.get("/payouts")
+async def get_my_payouts(
+    current_user: User = Depends(require_role(UserRole.vendor)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    vendor = await vendor_repo.get_by_user_id(db, current_user.id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor profile not found.")
+    dashboard = await vendor_service.get_vendor_dashboard(db, vendor.id, current_user.id)
+    return {
+        "success": True,
+        "data": {
+            "settlements": dashboard.get("settlements", {}),
+            "bank_details": {
+                "bank_name": vendor.bank_name,
+                "account_number": vendor.account_number,
+                "ifsc_code": vendor.ifsc_code,
+                "account_holder_name": vendor.account_holder_name,
+                "upi_id": vendor.upi_id,
+            },
+        },
+        "message": "Vendor payout history",
+    }
+

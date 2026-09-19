@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -310,8 +310,18 @@ async def cancel_order(order_id: uuid.UUID, data: CancelRequest, user: User = De
     if order.status == OrderStatus.cancelled:
         return {'success': True, 'data': await detail(db, order)}
     items = await _items(db, order.id)
-    if order.payment_status == PaymentStatus.paid or any(i.fulfillment_status not in (FulfillmentStatus.pending, FulfillmentStatus.confirmed) for i in items):
-        raise HTTPException(409, 'This order requires staff cancellation and refund review')
+    if order.payment_status == PaymentStatus.paid:
+        contact = await db.get(OrderContact, order.id)
+        if not contact:
+            contact = OrderContact(order_id=order.id)
+            db.add(contact)
+        contact.notes = f"Cancellation requested: {data.reason}".strip()
+        event(db, order, 'Cancellation & refund requested by customer', 'CANCEL_REQUESTED', data.reason)
+        audit(db, user, 'order.cancel_request', 'order', order.id, data.model_dump_json())
+        await db.flush()
+        return {'success': True, 'data': await detail(db, order), 'message': 'Cancellation request submitted for staff review and refund'}
+    if any(i.fulfillment_status not in (FulfillmentStatus.pending, FulfillmentStatus.confirmed) for i in items):
+        raise HTTPException(409, 'Shipped or delivered orders require support assistance')
     for item in sorted(items, key=lambda i: str(i.product_id)):
         if not order.is_prelaunch_interest:
             inventory = (await db.execute(select(ProductInventory).where(ProductInventory.product_id == item.product_id).with_for_update())).scalar_one_or_none()
@@ -322,3 +332,62 @@ async def cancel_order(order_id: uuid.UUID, data: CancelRequest, user: User = De
     event(db, order, 'Purchase interest withdrawn' if order.is_prelaunch_interest else 'Order cancelled', 'CANCELLED', data.reason)
     await db.flush()
     return {'success': True, 'data': await detail(db, order)}
+
+
+@router.get('/admin/cancellations')
+async def admin_cancellations(user: User = Depends(require_role(UserRole.admin, UserRole.super_admin)), db: AsyncSession = Depends(get_db)):
+    query = (
+        select(Order, User.phone)
+        .join(User, User.id == Order.user_id)
+        .where(
+            or_(
+                Order.payment_status == PaymentStatus.refunded,
+                Order.id.in_(
+                    select(OrderEvent.order_id).where(OrderEvent.status == 'CANCEL_REQUESTED')
+                ),
+            )
+        )
+        .order_by(Order.created_at.desc())
+        .limit(100)
+    )
+    rows = (await db.execute(query)).all()
+    results = []
+    for order, phone in rows:
+        d = await detail(db, order)
+        d['customer_phone'] = phone
+        contact = await db.get(OrderContact, order.id)
+        d['notes'] = contact.notes if contact else ''
+        results.append(d)
+    return {'success': True, 'data': results}
+
+
+class RefundProcessRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    action: Literal['approve', 'reject']
+    refund_reference: str = Field(default='', max_length=100)
+    remarks: str = Field(default='', max_length=800)
+    restock_inventory: bool = True
+
+
+@router.post('/admin/refunds/{order_id}')
+async def process_refund(order_id: uuid.UUID, data: RefundProcessRequest, user: User = Depends(require_role(UserRole.admin, UserRole.super_admin)), db: AsyncSession = Depends(get_db)):
+    order = (await db.execute(select(Order).where(Order.id == order_id).with_for_update())).scalar_one_or_none()
+    if not order:
+        raise HTTPException(404, 'Order not found')
+    items = await _items(db, order.id)
+    if data.action == 'approve':
+        order.payment_status = PaymentStatus.refunded
+        order.status = OrderStatus.cancelled
+        for item in items:
+            item.fulfillment_status = FulfillmentStatus.cancelled
+            if data.restock_inventory and not order.is_prelaunch_interest:
+                inv = (await db.execute(select(ProductInventory).where(ProductInventory.product_id == item.product_id).with_for_update())).scalar_one_or_none()
+                if inv:
+                    inv.available_quantity += item.quantity
+        event(db, order, f'Refund processed: ₹{order.total}', 'REFUNDED', f'Ref: {data.refund_reference} · {data.remarks}'.strip(' ·'))
+        audit(db, user, 'order.refund_approved', 'order', order.id, data.model_dump_json())
+    else:
+        event(db, order, 'Cancellation request rejected', 'CONFIRMED', data.remarks)
+        audit(db, user, 'order.refund_rejected', 'order', order.id, data.model_dump_json())
+    await db.flush()
+    return {'success': True, 'data': await detail(db, order), 'message': f'Refund {data.action}d successfully'}

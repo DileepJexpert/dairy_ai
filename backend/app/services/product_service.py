@@ -79,7 +79,7 @@ async def create_family_variant(db:AsyncSession, fam:ProductFamily, vendor_id:uu
     await db.flush()
     return p
 
-async def create(db:AsyncSession,vendor_id:uuid.UUID,data:ProductCreate):
+async def create(db:AsyncSession,vendor_id:uuid.UUID,data:ProductCreate,is_admin:bool=True):
     if await product_repo.sku_exists(db,data.sku):raise HTTPException(409,"SKU already exists")
     if data.family_id:
         family = await product_repo.get_family(db, data.family_id)
@@ -91,6 +91,8 @@ async def create(db:AsyncSession,vendor_id:uuid.UUID,data:ProductCreate):
             values["category"] = ProductCategory(cat_val)
         except ValueError:
             values["category"] = ProductCategory.equipment if "equipment" in cat_val.lower() else ProductCategory.feed_nutrition
+    if not is_admin:
+        values["publication_status"] = "pending_approval"
     p=Product(vendor_id=vendor_id,slug=slugify(data.title),**values);db.add(p);await db.flush()
     db.add(ProductInventory(product_id=p.id, available_quantity=data.initial_stock));await db.flush()
     if data.category_id:

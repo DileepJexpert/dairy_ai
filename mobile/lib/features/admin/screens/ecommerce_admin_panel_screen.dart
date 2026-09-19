@@ -40,6 +40,34 @@ final adminPurchaseInterestsProvider =
       .toList();
 });
 
+final adminCancellationsProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final response =
+      await ref.watch(dioProvider).get('/marketplace/orders/admin/cancellations');
+  final body = response.data;
+  if (body is! Map || body['data'] is! List) {
+    throw const FormatException('Cancellations response was invalid');
+  }
+  return (body['data'] as List)
+      .whereType<Map>()
+      .map((item) => Map<String, dynamic>.from(item))
+      .toList();
+});
+
+final adminVendorSettlementsProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final response =
+      await ref.watch(dioProvider).get('/admin/commerce/vendors/settlements');
+  final body = response.data;
+  if (body is! Map || body['data'] is! List) {
+    throw const FormatException('Vendor settlements response was invalid');
+  }
+  return (body['data'] as List)
+      .whereType<Map>()
+      .map((item) => Map<String, dynamic>.from(item))
+      .toList();
+});
+
 final adminConceptFeedbackProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final response =
@@ -81,6 +109,7 @@ class _EcommerceAdminPanelScreenState
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _adminSaving = false;
+  String _catalogFilter = 'all';
 
   Future<void> _editInterest(Map<String, dynamic> interest) async {
     final notes = TextEditingController(
@@ -150,6 +179,462 @@ class _EcommerceAdminPanelScreenState
     notes.dispose();
   }
 
+  Future<void> _processRefundDialog(Map<String, dynamic> order) async {
+    final orderId = order['id']?.toString() ?? '';
+    final orderNumber = order['order_number']?.toString() ?? orderId;
+    final total = double.tryParse(order['total']?.toString() ?? '') ?? 0.0;
+    final refCtrl = TextEditingController();
+    final remarksCtrl = TextEditingController();
+    String action = 'approve';
+    bool restockInventory = true;
+    bool saving = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialog) => AlertDialog(
+          title: Text('Review Cancellation: #$orderNumber'),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xfff8fafc),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xffe2e8f0)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Order Total: ${storeMoney(total)}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14)),
+                        const SizedBox(height: 4),
+                        Text('Customer: ${order['contact_phone'] ?? 'N/A'}',
+                            style: const TextStyle(
+                                fontSize: 12, color: Color(0xff64748b))),
+                        if (order['cancel_reason'] != null &&
+                            order['cancel_reason'].toString().isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text('Reason: ${order['cancel_reason']}',
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  color: storeError,
+                                  fontStyle: FontStyle.italic)),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Moderation Action',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(
+                          value: 'approve',
+                          label: Text('Approve & Refund'),
+                          icon: Icon(Icons.check_circle_outline)),
+                      ButtonSegment(
+                          value: 'reject',
+                          label: Text('Reject Request'),
+                          icon: Icon(Icons.cancel_outlined)),
+                    ],
+                    selected: {action},
+                    onSelectionChanged: saving
+                        ? null
+                        : (val) => setDialog(() => action = val.first),
+                  ),
+                  const SizedBox(height: 14),
+                  if (action == 'approve') ...[
+                    TextField(
+                      controller: refCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Payment Gateway / Bank Reference (UTR)',
+                        hintText: 'e.g. UPI-REF-98765432 or RAZORPAY_REF',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: restockInventory,
+                      onChanged: saving
+                          ? null
+                          : (v) => setDialog(() => restockInventory = v ?? true),
+                      title: const Text('Restock inventory quantities',
+                          style: TextStyle(fontSize: 13)),
+                      subtitle: const Text(
+                          'Adds items back to vendor inventory automatically',
+                          style: TextStyle(fontSize: 11)),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: remarksCtrl,
+                    maxLength: 800,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: action == 'approve'
+                          ? 'Admin remarks (Optional)'
+                          : 'Rejection explanation (Required)',
+                      hintText: action == 'approve'
+                          ? 'Refund processed via UPI'
+                          : 'e.g. Package already dispatched with courier',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor:
+                    action == 'approve' ? storeGreen : storeError,
+              ),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      if (action == 'reject' &&
+                          remarksCtrl.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'Please enter an explanation for rejecting this request.')),
+                        );
+                        return;
+                      }
+                      setDialog(() => saving = true);
+                      try {
+                        await ref.read(dioProvider).post(
+                          '/marketplace/orders/admin/refunds/$orderId',
+                          data: {
+                            'action': action,
+                            'refund_reference': refCtrl.text.trim(),
+                            'remarks': remarksCtrl.text.trim(),
+                            'restock_inventory': restockInventory,
+                          },
+                        );
+                        ref.invalidate(adminCancellationsProvider);
+                        ref.read(adminMarketplaceProvider.notifier).refresh();
+                        if (context.mounted) Navigator.pop(context);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(action == 'approve'
+                                  ? 'Refund approved and order cancelled.'
+                                  : 'Cancellation request rejected.'),
+                              backgroundColor:
+                                  action == 'approve' ? storeGreen : Colors.orange,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          setDialog(() => saving = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(commerceError(e)),
+                                backgroundColor: storeError),
+                          );
+                        }
+                      }
+                    },
+              child: Text(saving
+                  ? 'Processing…'
+                  : (action == 'approve'
+                      ? 'Confirm Refund'
+                      : 'Reject Request')),
+            ),
+          ],
+        ),
+      ),
+    );
+    refCtrl.dispose();
+    remarksCtrl.dispose();
+  }
+
+  Future<void> _disbursePayoutDialog(Map<String, dynamic> settlement) async {
+    final vendorId = settlement['vendor_id']?.toString() ?? '';
+    final businessName = settlement['business_name']?.toString() ?? 'Vendor';
+    final pendingBalance =
+        double.tryParse(settlement['pending_balance']?.toString() ?? '') ?? 0.0;
+    final grossSales =
+        double.tryParse(settlement['gross_sales']?.toString() ?? '') ?? 0.0;
+    final commissionAmt =
+        double.tryParse(settlement['commission_amount']?.toString() ?? '') ??
+            0.0;
+    final bankName = settlement['bank_name']?.toString() ?? '';
+    final accNo = settlement['account_number']?.toString() ?? '';
+    final ifsc = settlement['ifsc_code']?.toString() ?? '';
+    final upi = settlement['upi_id']?.toString() ?? '';
+
+    final amountCtrl =
+        TextEditingController(text: pendingBalance.toStringAsFixed(2));
+    final refCtrl = TextEditingController();
+    final remarksCtrl = TextEditingController();
+    var saving = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialog) => AlertDialog(
+          title: Text('Disburse Payout: $businessName'),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xfff0fdf4),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xffbbf7d0)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Pending Balance:',
+                                style: TextStyle(
+                                    fontSize: 13, color: Color(0xff166534))),
+                            Text(storeMoney(pendingBalance),
+                                style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    color: storeGreen)),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                            'Gross Sales: ${storeMoney(grossSales)} · Platform Fee: -${storeMoney(commissionAmt)}',
+                            style: const TextStyle(
+                                fontSize: 11, color: Color(0xff15803d))),
+                        const Divider(height: 12),
+                        Text(
+                            'Bank: ${bankName.isEmpty ? 'Not Provided' : bankName} · A/C: ${accNo.isEmpty ? 'N/A' : accNo}',
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xff14532d))),
+                        if (ifsc.isNotEmpty || upi.isNotEmpty)
+                          Text(
+                              'IFSC: ${ifsc.isEmpty ? 'N/A' : ifsc} · UPI: ${upi.isEmpty ? 'N/A' : upi}',
+                              style: const TextStyle(
+                                  fontSize: 11, color: Color(0xff166534))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: amountCtrl,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Disbursal Amount (₹)',
+                      hintText: 'e.g. 5000.00',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: refCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Bank Reference / UTR Number',
+                      hintText: 'e.g. UTR-20260919-897612 or IMPS-9021',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: remarksCtrl,
+                    maxLength: 400,
+                    decoration: const InputDecoration(
+                      labelText: 'Disbursement Remarks',
+                      hintText: 'e.g. Settled weekly orders via NEFT',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: storeGreen),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final amt =
+                          double.tryParse(amountCtrl.text.trim()) ?? 0.0;
+                      if (amt <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'Please enter a valid payout amount greater than 0.')),
+                        );
+                        return;
+                      }
+                      if (refCtrl.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'Please enter a bank reference or UTR number.')),
+                        );
+                        return;
+                      }
+                      setDialog(() => saving = true);
+                      try {
+                        await ref.read(dioProvider).post(
+                          '/admin/commerce/vendors/$vendorId/payouts',
+                          data: {
+                            'amount': amt,
+                            'gross_amount': grossSales,
+                            'commission_amount': commissionAmt,
+                            'payment_reference': refCtrl.text.trim(),
+                            'remarks': remarksCtrl.text.trim(),
+                            'bank_name': bankName,
+                            'account_number': accNo,
+                          },
+                        );
+                        ref.invalidate(adminVendorSettlementsProvider);
+                        if (context.mounted) Navigator.pop(context);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Payout of ${storeMoney(amt)} recorded for $businessName.'),
+                              backgroundColor: storeGreen,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          setDialog(() => saving = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(commerceError(e)),
+                                backgroundColor: storeError),
+                          );
+                        }
+                      }
+                    },
+              child: Text(saving ? 'Disbursing…' : 'Confirm Payout'),
+            ),
+          ],
+        ),
+      ),
+    );
+    amountCtrl.dispose();
+    refCtrl.dispose();
+    remarksCtrl.dispose();
+  }
+
+  Future<void> _editCommissionDialog(SellerAccount seller) async {
+    final rateCtrl = TextEditingController(
+        text: seller.commissionRatePercent.toStringAsFixed(1));
+    var saving = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialog) => AlertDialog(
+          title: Text('Platform Commission: ${seller.businessName}'),
+          content: SizedBox(
+            width: 380,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                    'Set the platform commission percentage deducted from delivered orders:',
+                    style: TextStyle(fontSize: 13, color: storeMuted)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: rateCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Commission Rate (%)',
+                    suffixText: '%',
+                    hintText: 'e.g. 5.0 or 10.0',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: storeGreen),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final rate = double.tryParse(rateCtrl.text.trim());
+                      if (rate == null || rate < 0 || rate > 100) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'Please enter a valid rate between 0% and 100%.')),
+                        );
+                        return;
+                      }
+                      setDialog(() => saving = true);
+                      try {
+                        await ref
+                            .read(adminMarketplaceProvider.notifier)
+                            .updateSellerCommission(seller.id, rate);
+                        ref.invalidate(adminVendorSettlementsProvider);
+                        if (context.mounted) Navigator.pop(context);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Updated commission rate to $rate% for ${seller.businessName}.'),
+                              backgroundColor: storeGreen,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          setDialog(() => saving = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(commerceError(e)),
+                                backgroundColor: storeError),
+                          );
+                        }
+                      }
+                    },
+              child: Text(saving ? 'Saving…' : 'Save Rate'),
+            ),
+          ],
+        ),
+      ),
+    );
+    rateCtrl.dispose();
+  }
+
   Future<void> _saveAdminAction(Future<void> Function() action,
       {BuildContext? dialog}) async {
     if (_adminSaving) return;
@@ -171,6 +656,56 @@ class _EcommerceAdminPanelScreenState
     } finally {
       if (mounted) setState(() => _adminSaving = false);
     }
+  }
+
+  Future<void> _approveProduct(Product product) async {
+    await _saveAdminAction(() async {
+      await ref.read(dioProvider).patch(
+        '/admin/commerce/products/${product.id}/moderation',
+        data: {'status': 'published'},
+      );
+    });
+  }
+
+  Future<void> _rejectProduct(Product product) async {
+    final reasonCtrl = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text('Reject Product: ${product.title}'),
+        content: TextField(
+          controller: reasonCtrl,
+          decoration: const InputDecoration(
+            labelText: 'Reason for rejection',
+            hintText: 'e.g. Incomplete FSSAI compliance, low image quality',
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: storeError),
+            onPressed: () async {
+              Navigator.pop(dialogCtx);
+              await _saveAdminAction(() async {
+                await ref.read(dioProvider).patch(
+                  '/admin/commerce/products/${product.id}/moderation',
+                  data: {
+                    'status': 'rejected',
+                    'reason': reasonCtrl.text.trim(),
+                  },
+                );
+              });
+            },
+            child: const Text('Confirm Rejection'),
+          ),
+        ],
+      ),
+    );
+    reasonCtrl.dispose();
   }
 
   @override
@@ -397,6 +932,44 @@ class _EcommerceAdminPanelScreenState
             ],
           ),
           const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            children: [
+              ChoiceChip(
+                label: Text('All (${allProducts.length})'),
+                selected: _catalogFilter == 'all',
+                onSelected: (_) => setState(() => _catalogFilter = 'all'),
+              ),
+              ChoiceChip(
+                label: Text(
+                  'Pending Review (${allProducts.where((p) => p.isPendingApproval).length})',
+                  style: TextStyle(
+                    color: allProducts.any((p) => p.isPendingApproval)
+                        ? storeAmberDark
+                        : null,
+                    fontWeight: allProducts.any((p) => p.isPendingApproval)
+                        ? FontWeight.bold
+                        : null,
+                  ),
+                ),
+                selected: _catalogFilter == 'pending',
+                onSelected: (_) => setState(() => _catalogFilter = 'pending'),
+              ),
+              ChoiceChip(
+                label: Text(
+                    'Published (${allProducts.where((p) => p.isPublished).length})'),
+                selected: _catalogFilter == 'published',
+                onSelected: (_) => setState(() => _catalogFilter = 'published'),
+              ),
+              ChoiceChip(
+                label: Text(
+                    'Rejected (${allProducts.where((p) => p.isRejected).length})'),
+                selected: _catalogFilter == 'rejected',
+                onSelected: (_) => setState(() => _catalogFilter = 'rejected'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           if (catalogState.isLoading)
             const LinearProgressIndicator(color: storeGold),
           if (catalogState.hasError)
@@ -437,15 +1010,32 @@ class _EcommerceAdminPanelScreenState
               child: ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: allProducts.length,
+                itemCount: allProducts.where((p) {
+                  if (_catalogFilter == 'pending') return p.isPendingApproval;
+                  if (_catalogFilter == 'published') return p.isPublished;
+                  if (_catalogFilter == 'rejected') return p.isRejected;
+                  return true;
+                }).length,
                 separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, i) {
-                  final p = allProducts[i];
+                  final filtered = allProducts.where((p) {
+                    if (_catalogFilter == 'pending') return p.isPendingApproval;
+                    if (_catalogFilter == 'published') return p.isPublished;
+                    if (_catalogFilter == 'rejected') return p.isRejected;
+                    return true;
+                  }).toList();
+                  final p = filtered[i];
                   final isConcept = p.isConcept;
+                  final isPending = p.isPendingApproval;
+                  final isRejected = p.isRejected;
                   final status = isConcept
                       ? 'Concept Preview'
-                      : p.taxonomy?['status']?.toString() ??
-                          'Active Commercial';
+                      : isPending
+                          ? 'Pending Approval'
+                          : isRejected
+                              ? 'Rejected'
+                              : p.taxonomy?['status']?.toString() ??
+                                  'Active Commercial';
                   final pricing = isConcept
                       ? 'Price not announced · Not for sale'
                       : 'Base MRP: ${storeMoney(p.price)}';
@@ -472,12 +1062,20 @@ class _EcommerceAdminPanelScreenState
                           decoration: BoxDecoration(
                             color: isConcept
                                 ? const Color(0xffe8f5e9)
-                                : const Color(0xffe3f2fd),
+                                : isPending
+                                    ? const Color(0xfffff8e1)
+                                    : isRejected
+                                        ? const Color(0xffffebee)
+                                        : const Color(0xffe3f2fd),
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
                                 color: isConcept
                                     ? storeGreen
-                                    : const Color(0xff90caf9)),
+                                    : isPending
+                                        ? storeAmberDark
+                                        : isRejected
+                                            ? storeError
+                                            : const Color(0xff90caf9)),
                           ),
                           child: Text(
                             status,
@@ -486,10 +1084,53 @@ class _EcommerceAdminPanelScreenState
                               fontWeight: FontWeight.bold,
                               color: isConcept
                                   ? storeGreen
-                                  : const Color(0xff1565c0),
+                                  : isPending
+                                      ? storeAmberDark
+                                      : isRejected
+                                          ? storeError
+                                          : const Color(0xff1565c0),
                             ),
                           ),
                         ),
+                        if (isPending) ...[
+                          const SizedBox(width: 8),
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                                backgroundColor: storeGreen,
+                                minimumSize: const Size(70, 32),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8)),
+                            onPressed: () => _approveProduct(p),
+                            child: const Text('Approve',
+                                style: TextStyle(fontSize: 11)),
+                          ),
+                          const SizedBox(width: 6),
+                          OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                                minimumSize: const Size(64, 32),
+                                side: const BorderSide(color: storeError),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8)),
+                            onPressed: () => _rejectProduct(p),
+                            child: const Text('Reject',
+                                style: TextStyle(
+                                    fontSize: 11, color: storeError)),
+                          ),
+                        ],
+                        if (isRejected) ...[
+                          const SizedBox(width: 8),
+                          OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                                minimumSize: const Size(80, 32),
+                                side: const BorderSide(color: storeGreen),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8)),
+                            onPressed: () => _approveProduct(p),
+                            child: const Text('Re-approve',
+                                style: TextStyle(
+                                    fontSize: 11, color: storeGreen)),
+                          ),
+                        ],
                         const SizedBox(width: 10),
                         IconButton(
                           icon: const Icon(Icons.photo_library_outlined),
@@ -956,6 +1597,8 @@ class _EcommerceAdminPanelScreenState
   // TAB 3: Sellers & KYC Approvals
   // ---------------------------------------------------------------------------
   Widget _buildSellersTab(AdminMarketplaceState state) {
+    final settlements = ref.watch(adminVendorSettlementsProvider);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -981,19 +1624,21 @@ class _EcommerceAdminPanelScreenState
 
                 return ListTile(
                   contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   leading: CircleAvatar(
                     backgroundColor: isApproved ? storeGreen : storeAmber,
                     child: Text(s.businessName.substring(0, 1),
                         style: const TextStyle(
                             color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
-                  title: Row(
+                  title: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(s.businessName,
                           style: const TextStyle(
                               fontWeight: FontWeight.bold, fontSize: 14)),
-                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
@@ -1010,11 +1655,30 @@ class _EcommerceAdminPanelScreenState
                                 color:
                                     isApproved ? storeGreen : storeAmberDark)),
                       ),
+                      ActionChip(
+                        visualDensity: VisualDensity.compact,
+                        avatar: const Icon(Icons.percent, size: 12),
+                        label: Text(
+                            'Fee: ${s.commissionRatePercent.toStringAsFixed(1)}%',
+                            style: const TextStyle(fontSize: 11)),
+                        onPressed: () => _editCommissionDialog(s),
+                      ),
                     ],
                   ),
-                  subtitle: Text(
-                    'GSTIN: ${s.gstin ?? "N/A"} · FSSAI: ${s.fssaiLicense ?? "N/A"} · Warehouse: ${s.warehouseCity ?? "N/A"} · Comm: ${s.commissionRatePercent}%',
-                    style: const TextStyle(fontSize: 12, color: storeMuted),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Text(
+                        'GSTIN: ${s.gstin ?? "N/A"} · FSSAI: ${s.fssaiLicense ?? "N/A"} · City: ${s.warehouseCity ?? "N/A"}',
+                        style: const TextStyle(fontSize: 12, color: storeMuted),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Bank: ${s.bankAccountNumber != null ? "A/C ••••" + (s.bankAccountNumber!.length > 4 ? s.bankAccountNumber!.substring(s.bankAccountNumber!.length - 4) : s.bankAccountNumber!) : "Not Added"} · IFSC: ${s.ifscCode ?? "N/A"} · UPI: ${s.upiId ?? "N/A"}',
+                        style: const TextStyle(fontSize: 11, color: storeMuted),
+                      ),
+                    ],
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1051,6 +1715,240 @@ class _EcommerceAdminPanelScreenState
                 );
               },
             ),
+          ),
+          const SizedBox(height: 32),
+
+          // -----------------------------------------------------------------
+          // Vendor Settlements & Payouts Console
+          // -----------------------------------------------------------------
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Vendor Financial Settlements & Payouts',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: storeGreen),
+                  ),
+                  Text(
+                    'Net payable earnings from fulfilled customer orders minus platform commission.',
+                    style: TextStyle(fontSize: 12, color: storeMuted),
+                  ),
+                ],
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: storeGreen),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Refresh balances'),
+                onPressed: () =>
+                    ref.invalidate(adminVendorSettlementsProvider),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          settlements.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.red),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: Text('Could not load vendor settlements: $err')),
+                    TextButton(
+                      onPressed: () =>
+                          ref.invalidate(adminVendorSettlementsProvider),
+                      child: const Text('Try again'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            data: (rows) {
+              if (rows.isEmpty) {
+                return const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(
+                      child: Text('No registered vendors found.'),
+                    ),
+                  ),
+                );
+              }
+              return Card(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: rows.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, idx) {
+                    final item = rows[idx];
+                    final name = item['business_name']?.toString() ?? 'Vendor';
+                    final gross = double.tryParse(
+                            item['gross_sales']?.toString() ?? '') ??
+                        0.0;
+                    final commAmt = double.tryParse(
+                            item['commission_amount']?.toString() ?? '') ??
+                        0.0;
+                    final commRate = double.tryParse(
+                            item['commission_rate']?.toString() ?? '') ??
+                        5.0;
+                    final netPayable = double.tryParse(
+                            item['net_payable']?.toString() ?? '') ??
+                        0.0;
+                    final totalSettled = double.tryParse(
+                            item['total_settled']?.toString() ?? '') ??
+                        0.0;
+                    final pending = double.tryParse(
+                            item['pending_balance']?.toString() ?? '') ??
+                        0.0;
+                    final acc = item['account_number']?.toString() ?? '';
+                    final bank = item['bank_name']?.toString() ?? '';
+                    final recentPayouts = item['recent_payouts'] is List
+                        ? (item['recent_payouts'] as List)
+                            .whereType<Map>()
+                            .toList()
+                        : [];
+
+                    final hasPending = pending > 0;
+
+                    return ExpansionTile(
+                      tilePadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      leading: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: hasPending
+                              ? const Color(0xfffef3c7)
+                              : const Color(0xfff0fdf4),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.account_balance_wallet_outlined,
+                          color: hasPending
+                              ? const Color(0xffb45309)
+                              : storeGreen,
+                        ),
+                      ),
+                      title: Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(name,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14)),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: hasPending
+                                  ? const Color(0xfffff7ed)
+                                  : const Color(0xffecfdf5),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                  color: hasPending
+                                      ? const Color(0xfffdba74)
+                                      : const Color(0xffa7f3d0)),
+                            ),
+                            child: Text(
+                              hasPending
+                                  ? 'PENDING: ${storeMoney(pending)}'
+                                  : 'ALL SETTLED',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                color: hasPending
+                                    ? const Color(0xffc2410c)
+                                    : storeGreen,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Gross: ${storeMoney(gross)} · Fee (${commRate.toStringAsFixed(1)}%): -${storeMoney(commAmt)} · Net: ${storeMoney(netPayable)} · Settled: ${storeMoney(totalSettled)}\nBank: ${bank.isEmpty ? 'Not added' : bank} ${acc.isNotEmpty ? '(••••${acc.length > 4 ? acc.substring(acc.length - 4) : acc})' : ''}',
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xff475569)),
+                        ),
+                      ),
+                      trailing: FilledButton.tonalIcon(
+                        style: FilledButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          backgroundColor: hasPending
+                              ? storeGreen.withValues(alpha: 0.12)
+                              : const Color(0xfff1f5f9),
+                          foregroundColor:
+                              hasPending ? storeGreen : storeMuted,
+                        ),
+                        icon: const Icon(Icons.payments_outlined, size: 16),
+                        label: const Text('Disburse Payout'),
+                        onPressed: hasPending
+                            ? () => _disbursePayoutDialog(
+                                Map<String, dynamic>.from(item))
+                            : null,
+                      ),
+                      children: [
+                        if (recentPayouts.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Center(
+                              child: Text('No historical payouts recorded yet.',
+                                  style: TextStyle(
+                                      fontSize: 12, color: storeMuted)),
+                            ),
+                          )
+                        else ...[
+                          const Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text('Recent Disbursements',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: storeMuted)),
+                            ),
+                          ),
+                          ...recentPayouts.map((p) => ListTile(
+                                dense: true,
+                                leading: const Icon(Icons.check_circle_outline,
+                                    color: storeGreen, size: 18),
+                                title: Text(
+                                    '${storeMoney(double.tryParse(p['amount']?.toString() ?? '') ?? 0.0)} · Ref: ${p['payment_reference'] ?? 'N/A'}',
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600)),
+                                subtitle: Text(
+                                    '${p['processed_at'] ?? p['created_at'] ?? ''} ${p['remarks'] != null && p['remarks'].toString().isNotEmpty ? '· ' + p['remarks'].toString() : ''}',
+                                    style: const TextStyle(fontSize: 11)),
+                                trailing: Text(
+                                    (p['status'] ?? 'PAID')
+                                        .toString()
+                                        .toUpperCase(),
+                                    style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: storeGreen)),
+                              )),
+                        ],
+                      ],
+                    );
+                  },
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -1819,12 +2717,186 @@ class _EcommerceAdminPanelScreenState
   // ---------------------------------------------------------------------------
   Widget _buildShipmentsTab() {
     final interests = ref.watch(adminPurchaseInterestsProvider);
+    final cancellations = ref.watch(adminCancellationsProvider);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Cancellation & Refund Requests',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: storeGreen),
+                  ),
+                  Text(
+                    'Customer cancellation requests for paid orders awaiting admin refund review.',
+                    style: TextStyle(fontSize: 12, color: storeMuted),
+                  ),
+                ],
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: storeGreen),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Refresh requests'),
+                onPressed: () => ref.invalidate(adminCancellationsProvider),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          cancellations.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, _) => Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.red),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: Text('Could not load refund queue: $error')),
+                    TextButton(
+                      onPressed: () =>
+                          ref.invalidate(adminCancellationsProvider),
+                      child: const Text('Try again'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            data: (rows) {
+              if (rows.isEmpty) {
+                return const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(
+                      child: Text(
+                          'No pending refund or cancellation requests. All customer orders are in good standing.'),
+                    ),
+                  ),
+                );
+              }
+              return Card(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: rows.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final order = rows[index];
+                    final orderNumber =
+                        order['order_number']?.toString() ?? order['id'] ?? '';
+                    final total = double.tryParse(
+                            order['total']?.toString() ?? '') ??
+                        0.0;
+                    final reason = order['cancel_reason']?.toString() ??
+                        order['notes']?.toString() ??
+                        '';
+                    final customerPhone =
+                        order['contact_phone']?.toString() ?? '';
+                    final isRefunded =
+                        order['payment_status']?.toString().toUpperCase() ==
+                            'REFUNDED';
+
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      leading: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isRefunded
+                              ? const Color(0xffecfdf5)
+                              : const Color(0xfffee2e2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          isRefunded
+                              ? Icons.check_circle_outline
+                              : Icons.assignment_return_outlined,
+                          color: isRefunded ? storeGreen : storeError,
+                        ),
+                      ),
+                      title: Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text('Order #$orderNumber',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text(customerPhone,
+                              style: const TextStyle(
+                                  color: storeGreen,
+                                  fontWeight: FontWeight.w600)),
+                          Chip(
+                            visualDensity: VisualDensity.compact,
+                            backgroundColor: isRefunded
+                                ? const Color(0xffdcfce7)
+                                : const Color(0xfffef3c7),
+                            label: Text(
+                              isRefunded ? 'REFUNDED' : 'PENDING REVIEW',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: isRefunded
+                                      ? storeGreen
+                                      : const Color(0xffb45309)),
+                            ),
+                          ),
+                        ],
+                      ),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Total: ${storeMoney(total)} • Status: ${order['status'] ?? ''} • Payment: ${order['payment_status'] ?? ''}',
+                              style: const TextStyle(
+                                  fontSize: 12, color: Color(0xff475569)),
+                            ),
+                            if (reason.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  'Reason: $reason',
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      color: storeError,
+                                      fontStyle: FontStyle.italic),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      trailing: isRefunded
+                          ? null
+                          : FilledButton.tonalIcon(
+                              style: FilledButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              icon: const Icon(Icons.rate_review_outlined,
+                                  size: 16),
+                              label: const Text('Review / Refund'),
+                              onPressed: () => _processRefundDialog(order),
+                            ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 32),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [

@@ -31,6 +31,11 @@ class Vendor(Base):
     state: Mapped[str | None] = mapped_column(String(100), nullable=True)
     gst_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
     license_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    bank_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    account_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    ifsc_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    account_holder_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    upi_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     products_services: Mapped[list | None] = mapped_column(JSON, default=list)
     service_areas: Mapped[list | None] = mapped_column(JSON, default=list)
@@ -39,7 +44,33 @@ class Vendor(Base):
     total_revenue: Mapped[float] = mapped_column(Float, default=0.0)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    commission_rate: Mapped[float] = mapped_column(Float, default=5.0)
     lat: Mapped[float | None] = mapped_column(Float, nullable=True)
     lng: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class PayoutStatus(str, enum.Enum):
+    pending = "pending"
+    processing = "processing"
+    paid = "paid"
+    failed = "failed"
+
+
+class VendorPayout(Base):
+    __tablename__ = "vendor_payouts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("vendors.id", ondelete="CASCADE"), index=True, nullable=False)
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    gross_amount: Mapped[float] = mapped_column(Float, default=0.0)
+    commission_amount: Mapped[float] = mapped_column(Float, default=0.0)
+    status: Mapped[PayoutStatus] = mapped_column(SAEnum(PayoutStatus), default=PayoutStatus.pending, nullable=False)
+    payment_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    bank_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    account_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+

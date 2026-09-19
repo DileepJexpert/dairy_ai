@@ -356,23 +356,63 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Department/Category pill
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: storeWarm,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    storeCategory(p).toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: storeGreen,
-                      letterSpacing: 0.5,
+                // Department/Category pill & Publication Status
+                Row(
+                  children: [
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: storeWarm,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        storeCategory(p).toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: storeGreen,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: p.isPendingApproval
+                            ? const Color(0xfffff8e1)
+                            : p.isRejected
+                                ? const Color(0xffffebee)
+                                : const Color(0xffe8f5e9),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                            color: p.isPendingApproval
+                                ? storeAmberDark
+                                : p.isRejected
+                                    ? storeError
+                                    : storeGreen),
+                      ),
+                      child: Text(
+                        p.isPendingApproval
+                            ? 'PENDING REVIEW'
+                            : p.isRejected
+                                ? 'REJECTED'
+                                : 'LIVE ON STORE',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: p.isPendingApproval
+                              ? storeAmberDark
+                              : p.isRejected
+                                  ? storeError
+                                  : storeGreen,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 4),
 

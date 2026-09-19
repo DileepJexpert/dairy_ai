@@ -116,9 +116,12 @@ class AdminMarketplaceState {
                   contactPhone: s['contact_phone'],
                   warehouseCity: s['warehouse_city'],
                   warehouseState: s['warehouse_state'],
+                  bankAccountNumber: s['account_number'],
+                  ifscCode: s['ifsc_code'],
+                  upiId: s['upi_id'],
                   status: SellerStatus.values.byName(s['status']),
                   ratingScore: _number(s['rating_score']),
-                  commissionRatePercent: 0,
+                  commissionRatePercent: _number(s['commission_rate'] ?? 5.0),
                   createdAt: DateTime.parse(s['created_at']),
                 ))
             .toList(),
@@ -235,6 +238,8 @@ class AdminMarketplaceNotifier extends StateNotifier<AdminMarketplaceState> {
       _save('$base/sellers/$id', {'status': 'approved'});
   Future<void> suspendSeller(String id, String reason) =>
       _save('$base/sellers/$id', {'status': 'suspended', 'reason': reason});
+  Future<void> updateSellerCommission(String id, double rate) =>
+      _save('/admin/commerce/vendors/$id/commission', {'commission_rate': rate});
   Future<void> updateOfferPrice(String id, double price, double mrp) =>
       _save('$base/offers/$id', {'selling_price': price, 'mrp': mrp});
   Future<void> updateOfferStock(String id, int stock) =>

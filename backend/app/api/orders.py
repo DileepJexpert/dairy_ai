@@ -230,6 +230,31 @@ async def operations(user: User = Depends(require_role(UserRole.admin, UserRole.
             items = [item for item in items if item.vendor_id == vendor.id]
         data = await detail(db, order)
         data['items'] = serialize(order, items)['items']
+
+        # Attach vendor legal and compliance details for packing slip & tax invoice
+        order_vendor = vendor
+        if not order_vendor and items:
+            order_vendor = await vendor_repo.get_by_id(db, items[0].vendor_id)
+
+        if order_vendor:
+            data['vendor_info'] = {
+                'id': str(order_vendor.id),
+                'business_name': order_vendor.business_name,
+                'gst_number': order_vendor.gst_number or 'Unregistered',
+                'license_number': order_vendor.license_number or 'Applied / Standard',
+                'district': order_vendor.district or '',
+                'state': order_vendor.state or '',
+                'contact_person': order_vendor.contact_person or '',
+            }
+        else:
+            data['vendor_info'] = {
+                'business_name': 'Milterra Partner Vendor',
+                'gst_number': 'Unregistered',
+                'license_number': 'Standard',
+                'district': '',
+                'state': '',
+            }
+
         # Seller sees their lines and revenue, not another seller's basket.
         if vendor:
             data['subtotal'] = data['total'] = str(sum((i.line_total for i in items), Decimal('0')))

@@ -15,6 +15,7 @@ from app.models.analytics import ClickstreamEvent, VisitorSession
 from app.models.cart import Cart, CartItem, CartStatus
 from app.models.product import Product, ProductCategory, ProductFamily, ProductInventory
 from app.models.user import User, UserRole
+from app.models.vendor import Vendor, VendorType
 from app.services.auth_service import hash_otp, hash_password
 
 

@@ -114,6 +114,12 @@ class MerchandisingRepository {
       data: {'is_active': active},
     );
   }
+
+  Future<void> delete(String placementId) async {
+    await ref.read(dioProvider).delete(
+      '/admin/marketplace/merchandising/placements/$placementId',
+    );
+  }
 }
 
 final merchandisingRepositoryProvider = Provider<MerchandisingRepository>(

@@ -1,9 +1,11 @@
 """Commerce admin APIs using the same products and inventory as the storefront."""
+import csv
+import io
 import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select, or_, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -474,4 +476,110 @@ async def update_vendor_commission(
         },
         "message": f"Commission rate updated to {data.commission_rate}%",
     }
+
+
+@router.get("/admin/commerce/reports/gstr1")
+async def gstr1_tax_report(
+    format: str = "json",
+    user: User = Depends(admin_only),
+    db: AsyncSession = Depends(get_db),
+):
+    orders_q = select(Order).where(Order.payment_status != PaymentStatus.failed).order_by(Order.created_at.desc())
+    orders = (await db.execute(orders_q)).scalars().all()
+
+    rows = []
+    for o in orders:
+        inv_no = f"INV-{o.created_at.strftime('%Y%m')}-{str(o.id)[:6].upper()}"
+        tot = float(o.total_amount)
+        taxable = round(tot / 1.05, 2)
+        tax = round(tot - taxable, 2)
+        shipping_st = (getattr(o, "shipping_state", None) or "").strip().lower()
+        is_interstate = shipping_st not in ("delhi", "haryana", "uttar pradesh", "")
+        cgst = 0.0 if is_interstate else round(tax / 2, 2)
+        sgst = 0.0 if is_interstate else round(tax / 2, 2)
+        igst = tax if is_interstate else 0.0
+
+        rows.append({
+            "invoice_number": inv_no,
+            "order_id": str(o.id),
+            "order_date": o.created_at.strftime("%Y-%m-%d %H:%M"),
+            "shipping_state": getattr(o, "shipping_state", None) or "Standard",
+            "tax_rate_percent": 5.0,
+            "taxable_amount": taxable,
+            "cgst": cgst,
+            "sgst": sgst,
+            "igst": igst,
+            "total_tax": tax,
+            "total_invoice_amount": tot,
+            "payment_status": o.payment_status.value if hasattr(o.payment_status, "value") else str(o.payment_status),
+            "order_status": o.order_status.value if hasattr(o.order_status, "value") else str(o.order_status),
+        })
+
+    if format.lower() == "csv":
+        output = io.StringIO()
+        fieldnames = [
+            "invoice_number", "order_id", "order_date", "shipping_state",
+            "tax_rate_percent", "taxable_amount", "cgst", "sgst", "igst",
+            "total_tax", "total_invoice_amount", "payment_status", "order_status"
+        ]
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        for r in rows:
+            writer.writerow(r)
+        return Response(
+            content=output.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=gstr1_sales_register.csv"},
+        )
+
+    return {"success": True, "data": rows, "total": len(rows)}
+
+
+@router.get("/admin/commerce/reports/settlements")
+async def settlements_financial_report(
+    format: str = "json",
+    user: User = Depends(admin_only),
+    db: AsyncSession = Depends(get_db),
+):
+    settlements_data = await get_vendor_settlements(user=user, db=db)
+    items = settlements_data.get("data", [])
+
+    rows = []
+    for item in items:
+        rows.append({
+            "vendor_id": item["vendor_id"],
+            "business_name": item["business_name"],
+            "commission_rate_percent": item["commission_rate"],
+            "gross_sales": item["gross_sales"],
+            "platform_commission": item["commission_amount"],
+            "net_payable": item["net_payable"],
+            "total_settled": item["total_settled"],
+            "pending_balance": item["pending_balance"],
+            "bank_name": item.get("bank_name") or "",
+            "account_number": item.get("account_number") or "",
+            "ifsc_code": item.get("ifsc_code") or "",
+            "upi_id": item.get("upi_id") or "",
+            "payouts_count": item["payouts_count"],
+        })
+
+    if format.lower() == "csv":
+        output = io.StringIO()
+        fieldnames = [
+            "vendor_id", "business_name", "commission_rate_percent",
+            "gross_sales", "platform_commission", "net_payable",
+            "total_settled", "pending_balance", "bank_name",
+            "account_number", "ifsc_code", "upi_id", "payouts_count"
+        ]
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        for r in rows:
+            writer.writerow(r)
+        return Response(
+            content=output.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=vendor_settlements_register.csv"},
+        )
+
+    return {"success": True, "data": rows, "total": len(rows)}
+
 

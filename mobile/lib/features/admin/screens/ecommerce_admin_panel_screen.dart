@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -937,6 +938,449 @@ class _EcommerceAdminPanelScreenState
     rateCtrl.dispose();
   }
 
+  Future<void> _deletePlacementDialog(StorefrontPlacement placement) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Campaign?'),
+        content: Text('Remove "${placement.headline}" from the storefront?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: storeError),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await ref.read(merchandisingRepositoryProvider).delete(placement.id);
+      ref.invalidate(adminStorefrontPlacementsProvider);
+      ref.invalidate(storefrontPlacementsProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Storefront campaign removed'),
+            backgroundColor: storeGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete campaign: $e'),
+            backgroundColor: storeError,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showFinancialReportDialog(
+      BuildContext context, String reportType) async {
+    final isGstr1 = reportType == 'gstr1';
+    final title = isGstr1
+        ? 'GSTR-1 Tax Sales Register'
+        : 'Vendor Financial Settlements Statement';
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => FutureBuilder<Response<dynamic>>(
+        future: ref.read(dioProvider).get(
+          isGstr1
+              ? '/admin/commerce/reports/gstr1'
+              : '/admin/commerce/reports/settlements',
+          queryParameters: {'format': 'json'},
+        ),
+        builder: (ctx, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const AlertDialog(
+              content: SizedBox(
+                height: 120,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Generating financial report…'),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+
+          if (snapshot.hasError || snapshot.data?.data['success'] != true) {
+            return AlertDialog(
+              title: Text(title),
+              content: Text('Failed to load report: ${snapshot.error}'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          }
+
+          final data = snapshot.data!.data as Map<String, dynamic>;
+          final rows = (data['data'] as List? ?? [])
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+
+          return AlertDialog(
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      isGstr1 ? Icons.receipt_long : Icons.account_balance,
+                      color: storeGreen,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(title, style: const TextStyle(fontSize: 16)),
+                  ],
+                ),
+                Text(
+                  '${rows.length} Records',
+                  style: const TextStyle(fontSize: 12, color: storeMuted),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 700,
+              height: 480,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (isGstr1) ...[
+                    Builder(builder: (ctx) {
+                      final totalTaxable = rows.fold<double>(
+                          0.0,
+                          (sum, r) =>
+                              sum +
+                              (double.tryParse(r['taxable_amount']?.toString() ?? '') ??
+                                  0.0));
+                      final totalTax = rows.fold<double>(
+                          0.0,
+                          (sum, r) =>
+                              sum +
+                              (double.tryParse(r['total_tax']?.toString() ?? '') ??
+                                  0.0));
+                      final totalInvoice = rows.fold<double>(
+                          0.0,
+                          (sum, r) =>
+                              sum +
+                              (double.tryParse(
+                                      r['total_invoice_amount']?.toString() ?? '') ??
+                                  0.0));
+
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xfff8fafc),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xffe2e8f0)),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Total Taxable',
+                                      style: TextStyle(
+                                          fontSize: 11, color: storeMuted)),
+                                  Text(storeMoney(totalTaxable),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14)),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Total GST (5%)',
+                                      style: TextStyle(
+                                          fontSize: 11, color: storeMuted)),
+                                  Text(storeMoney(totalTax),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: storeGreen)),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Gross Invoiced',
+                                      style: TextStyle(
+                                          fontSize: 11, color: storeMuted)),
+                                  Text(storeMoney(totalInvoice),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: Color(0xff1e3a8a))),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ] else ...[
+                    Builder(builder: (ctx) {
+                      final totalGross = rows.fold<double>(
+                          0.0,
+                          (sum, r) =>
+                              sum +
+                              (double.tryParse(r['gross_sales']?.toString() ?? '') ??
+                                  0.0));
+                      final totalNet = rows.fold<double>(
+                          0.0,
+                          (sum, r) =>
+                              sum +
+                              (double.tryParse(r['net_payable']?.toString() ?? '') ??
+                                  0.0));
+                      final totalPending = rows.fold<double>(
+                          0.0,
+                          (sum, r) =>
+                              sum +
+                              (double.tryParse(
+                                      r['pending_balance']?.toString() ?? '') ??
+                                  0.0));
+
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xfff8fafc),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xffe2e8f0)),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Gross Platform Sales',
+                                      style: TextStyle(
+                                          fontSize: 11, color: storeMuted)),
+                                  Text(storeMoney(totalGross),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14)),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Total Net Payable',
+                                      style: TextStyle(
+                                          fontSize: 11, color: storeMuted)),
+                                  Text(storeMoney(totalNet),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: storeGreen)),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Pending Settlement',
+                                      style: TextStyle(
+                                          fontSize: 11, color: storeMuted)),
+                                  Text(storeMoney(totalPending),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: Color(0xffc2410c))),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: rows.isEmpty
+                        ? const Center(child: Text('No report records found'))
+                        : SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: SingleChildScrollView(
+                              child: DataTable(
+                                headingRowColor: WidgetStateProperty.all(
+                                    const Color(0xfff1f5f9)),
+                                columns: isGstr1
+                                    ? const [
+                                        DataColumn(label: Text('Invoice #')),
+                                        DataColumn(label: Text('Date')),
+                                        DataColumn(label: Text('State')),
+                                        DataColumn(label: Text('Taxable')),
+                                        DataColumn(label: Text('CGST')),
+                                        DataColumn(label: Text('SGST')),
+                                        DataColumn(label: Text('IGST')),
+                                        DataColumn(label: Text('Total')),
+                                        DataColumn(label: Text('Status')),
+                                      ]
+                                    : const [
+                                        DataColumn(label: Text('Vendor')),
+                                        DataColumn(label: Text('Fee %')),
+                                        DataColumn(label: Text('Gross')),
+                                        DataColumn(label: Text('Fee Amt')),
+                                        DataColumn(label: Text('Net Payable')),
+                                        DataColumn(label: Text('Settled')),
+                                        DataColumn(label: Text('Pending')),
+                                        DataColumn(label: Text('Bank')),
+                                      ],
+                                rows: rows.map((r) {
+                                  if (isGstr1) {
+                                    return DataRow(cells: [
+                                      DataCell(Text(r['invoice_number'] ?? '')),
+                                      DataCell(Text(r['order_date'] ?? '')),
+                                      DataCell(Text(r['shipping_state'] ?? '')),
+                                      DataCell(Text(storeMoney(double.tryParse(
+                                              r['taxable_amount']?.toString() ?? '') ??
+                                          0.0))),
+                                      DataCell(Text(storeMoney(double.tryParse(
+                                              r['cgst']?.toString() ?? '') ??
+                                          0.0))),
+                                      DataCell(Text(storeMoney(double.tryParse(
+                                              r['sgst']?.toString() ?? '') ??
+                                          0.0))),
+                                      DataCell(Text(storeMoney(double.tryParse(
+                                              r['igst']?.toString() ?? '') ??
+                                          0.0))),
+                                      DataCell(Text(
+                                        storeMoney(double.tryParse(
+                                                r['total_invoice_amount']
+                                                        ?.toString() ??
+                                                    '') ??
+                                            0.0),
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      )),
+                                      DataCell(Text(r['payment_status'] ?? '')),
+                                    ]);
+                                  } else {
+                                    return DataRow(cells: [
+                                      DataCell(Text(
+                                        r['business_name'] ?? '',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      )),
+                                      DataCell(Text('${r['commission_rate_percent']}%')),
+                                      DataCell(Text(storeMoney(double.tryParse(
+                                              r['gross_sales']?.toString() ?? '') ??
+                                          0.0))),
+                                      DataCell(Text(storeMoney(double.tryParse(
+                                              r['platform_commission']
+                                                      ?.toString() ??
+                                                  '') ??
+                                          0.0))),
+                                      DataCell(Text(storeMoney(double.tryParse(
+                                              r['net_payable']?.toString() ?? '') ??
+                                          0.0))),
+                                      DataCell(Text(storeMoney(double.tryParse(
+                                              r['total_settled']?.toString() ?? '') ??
+                                          0.0))),
+                                      DataCell(Text(
+                                        storeMoney(double.tryParse(
+                                                r['pending_balance']?.toString() ??
+                                                    '') ??
+                                            0.0),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: (double.tryParse(
+                                                      r['pending_balance']
+                                                              ?.toString() ??
+                                                          '') ??
+                                                  0.0) >
+                                              0
+                                              ? const Color(0xffc2410c)
+                                              : storeGreen,
+                                        ),
+                                      )),
+                                      DataCell(Text(
+                                          '${r['bank_name'] ?? ''} ${r['account_number'] ?? ''}')),
+                                    ]);
+                                  }
+                                }).toList(),
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton.icon(
+                icon: const Icon(Icons.copy_all, size: 16),
+                label: const Text('Copy CSV Data'),
+                onPressed: () async {
+                  try {
+                    final res = await ref.read(dioProvider).get(
+                      isGstr1
+                          ? '/admin/commerce/reports/gstr1'
+                          : '/admin/commerce/reports/settlements',
+                      queryParameters: {'format': 'csv'},
+                    );
+                    await Clipboard.setData(
+                        ClipboardData(text: res.data.toString()));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('CSV report copied to clipboard!'),
+                          backgroundColor: storeGreen,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to copy CSV: $e'),
+                          backgroundColor: storeError,
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: storeGreen),
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Done'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _saveAdminAction(Future<void> Function() action,
       {BuildContext? dialog}) async {
     if (_adminSaving) return;
@@ -1157,8 +1601,8 @@ class _EcommerceAdminPanelScreenState
                 icon: Icon(Icons.local_offer_outlined, size: 18),
                 text: 'Seller Offers'),
             Tab(
-                icon: Icon(Icons.bolt_outlined, size: 18),
-                text: 'Deals Engine'),
+                icon: Icon(Icons.campaign_outlined, size: 18),
+                text: 'Banners & Deals'),
             Tab(
                 icon: Icon(Icons.confirmation_number_outlined, size: 18),
                 text: 'Coupons'),
@@ -2022,6 +2466,88 @@ class _EcommerceAdminPanelScreenState
               },
             ),
           ),
+          const SizedBox(height: 24),
+
+          // -----------------------------------------------------------------
+          // Tax & Financial Report Exporter Console
+          // -----------------------------------------------------------------
+          Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: Color(0xffcbd5e1)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xffeff6ff),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.receipt_long,
+                            color: Color(0xff2563eb)),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Tax & Financial Report Exporter',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: storeGreen,
+                              ),
+                            ),
+                            Text(
+                              'Generate compliant GSTR-1 sales registers and vendor commission disbursement statements.',
+                              style: TextStyle(fontSize: 12, color: storeMuted),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 10,
+                    children: [
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xff1e3a8a),
+                        ),
+                        icon: const Icon(Icons.file_download_outlined,
+                            size: 18),
+                        label:
+                            const Text('Export GSTR-1 Tax Register (CSV)'),
+                        onPressed: () =>
+                            _showFinancialReportDialog(context, 'gstr1'),
+                      ),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: storeGreen,
+                        ),
+                        icon: const Icon(
+                            Icons.account_balance_wallet_outlined,
+                            size: 18),
+                        label: const Text(
+                            'Export Vendor Settlements (CSV)'),
+                        onPressed: () => _showFinancialReportDialog(
+                            context, 'settlements'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 32),
 
           // -----------------------------------------------------------------
@@ -2360,15 +2886,24 @@ class _EcommerceAdminPanelScreenState
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Active Promotions & Lightning Deals',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: storeGreen)),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Storefront Banner Campaigns & Deals',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: storeGreen)),
+                  Text(
+                    'Curate dynamic top-strip promotional banners and lightning deals for buyers.',
+                    style: TextStyle(fontSize: 12, color: storeMuted),
+                  ),
+                ],
+              ),
               FilledButton.icon(
                 style: FilledButton.styleFrom(backgroundColor: storeGreen),
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('Schedule New Deal'),
+                label: const Text('New Banner Campaign'),
                 onPressed: () => _showCreateDealDialog(),
               ),
             ],
@@ -2398,7 +2933,7 @@ class _EcommerceAdminPanelScreenState
                     child: Padding(
                       padding: EdgeInsets.all(20),
                       child: Text(
-                        'No storefront placement is published. Schedule one to show the highlighted product strip.',
+                        'No storefront placement is published. Schedule one to show the highlighted banner strip.',
                       ),
                     ),
                   ),
@@ -2417,7 +2952,7 @@ class _EcommerceAdminPanelScreenState
                               color: const Color(0xfffff3e0),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(Icons.bolt,
+                            child: const Icon(Icons.campaign,
                                 color: storeOrange, size: 24),
                           ),
                           const SizedBox(width: 14),
@@ -2425,16 +2960,51 @@ class _EcommerceAdminPanelScreenState
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(placement.headline,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14)),
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(placement.headline,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14)),
+                                    ),
+                                    if (placement.badge != null &&
+                                        placement.badge!.isNotEmpty) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: storeGreen,
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          placement.badge!.toUpperCase(),
+                                          style: const TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w900,
+                                              color: Colors.white),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${placement.product.title} · ${storeMoney(placement.product.price)} · ${placement.placementType.replaceAll('_', ' ')}',
+                                  '${placement.product.title} · ${storeMoney(placement.product.price)} · Type: ${placement.placementType.replaceAll('_', ' ').toUpperCase()}',
                                   style: const TextStyle(
                                       fontSize: 12, color: storeMuted),
                                 ),
+                                if (placement.subheadline != null &&
+                                    placement.subheadline!.isNotEmpty)
+                                  Text(
+                                    placement.subheadline!,
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xff475569),
+                                        fontStyle: FontStyle.italic),
+                                  ),
                                 if (placement.endsAt != null)
                                   Text(
                                     'Runs until: ${placement.endsAt!.toLocal()}',
@@ -2446,6 +3016,7 @@ class _EcommerceAdminPanelScreenState
                           ),
                           Switch(
                             value: placement.isActive,
+                            activeThumbColor: storeGreen,
                             onChanged: (active) async {
                               await ref
                                   .read(merchandisingRepositoryProvider)
@@ -2462,6 +3033,13 @@ class _EcommerceAdminPanelScreenState
                               color:
                                   placement.isActive ? storeGreen : storeMuted,
                             ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline,
+                                color: storeError, size: 20),
+                            tooltip: 'Delete Campaign',
+                            onPressed: () =>
+                                _deletePlacementDialog(placement),
                           ),
                         ],
                       ),

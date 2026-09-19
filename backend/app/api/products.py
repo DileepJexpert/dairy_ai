@@ -108,6 +108,16 @@ async def update_storefront_placement(placement_id:str,data:MerchandisingPlaceme
  return {"success":True,"data":await serialize_placement(db,row),"message":"Storefront placement updated"}
 
 
+@router.delete("/admin/marketplace/merchandising/placements/{placement_id}")
+async def delete_storefront_placement(placement_id:str,current_user:User=Depends(require_role(UserRole.admin,UserRole.super_admin)),db:AsyncSession=Depends(get_db)):
+ row=(await db.execute(select(MerchandisingPlacement).where(MerchandisingPlacement.id==uid(placement_id,"placement")))).scalar_one_or_none()
+ if not row: raise HTTPException(404,"Storefront placement not found")
+ await db.delete(row)
+ await db.flush()
+ return {"success":True,"message":"Storefront placement deleted"}
+
+
+
 @router.post("/marketplace/concepts/{concept_key}/feedback",status_code=status.HTTP_201_CREATED)
 async def create_concept_feedback(concept_key:str,data:ConceptFeedbackCreate,db:AsyncSession=Depends(get_db)):
  key=concept_key.strip().lower()

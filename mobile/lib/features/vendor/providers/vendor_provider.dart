@@ -30,6 +30,25 @@ final vendorDashboardProvider = FutureProvider<VendorDashboard>((ref) async {
   throw Exception(body['message'] ?? 'Failed to load vendor dashboard');
 });
 
+/// Fetches reviews for the authenticated vendor's products.
+final vendorReviewsProvider = FutureProvider.autoDispose
+    .family<List<Map<String, dynamic>>, String?>((ref, filter) async {
+  final dio = ref.watch(dioProvider);
+  final queryParams = <String, dynamic>{};
+  if (filter != null && filter != 'all') {
+    queryParams['status_filter'] = filter;
+  }
+  final response =
+      await dio.get('/vendor/products/reviews', queryParameters: queryParams);
+  final body = response.data as Map<String, dynamic>;
+  if (body['success'] == true) {
+    return (body['data'] as List? ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  }
+  return [];
+});
+
 // ---------------------------------------------------------------------------
 // Action provider (register + update)
 // ---------------------------------------------------------------------------

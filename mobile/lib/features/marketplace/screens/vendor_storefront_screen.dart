@@ -248,6 +248,8 @@ class _VendorStorefrontScreenState
     final rating = double.tryParse(vendor['rating_avg']?.toString() ?? '4.8') ?? 4.8;
     final totalOrders = vendor['total_orders'] ?? 0;
     final isVerified = vendor['is_verified'] == true;
+    final bannerUrl = vendor['banner_url']?.toString();
+    final logoUrl = vendor['logo_url']?.toString();
 
     return Container(
       width: double.infinity,
@@ -268,13 +270,30 @@ class _VendorStorefrontScreenState
           // Banner Top Color Bar with subtle farm branding
           Container(
             height: 90,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xff1e3a2b), Color(0xff2d5a3f), Color(0xff437c56)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+            decoration: BoxDecoration(
+              image: bannerUrl != null && bannerUrl.isNotEmpty
+                  ? DecorationImage(
+                      image: NetworkImage(bannerUrl),
+                      fit: BoxFit.cover,
+                      colorFilter: ColorFilter.mode(
+                        Colors.black.withValues(alpha: 0.35),
+                        BlendMode.darken,
+                      ),
+                    )
+                  : null,
+              gradient: bannerUrl == null || bannerUrl.isEmpty
+                  ? const LinearGradient(
+                      colors: [
+                        Color(0xff1e3a2b),
+                        Color(0xff2d5a3f),
+                        Color(0xff437c56)
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(15)),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
@@ -296,18 +315,20 @@ class _VendorStorefrontScreenState
                   ],
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.25),
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white24),
                   ),
                   child: Text(
                     vendorType,
                     style: const TextStyle(
-                      color: storeWhite,
+                      color: Colors.white,
                       fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.8,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
@@ -329,19 +350,27 @@ class _VendorStorefrontScreenState
                     color: storeCream,
                     shape: BoxShape.circle,
                     border: Border.all(color: storeBorder, width: 2),
+                    image: logoUrl != null && logoUrl.isNotEmpty
+                        ? DecorationImage(
+                            image: NetworkImage(logoUrl),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
                   ),
-                  child: Center(
-                    child: Text(
-                      businessName.isNotEmpty
-                          ? businessName.substring(0, 1).toUpperCase()
-                          : 'V',
-                      style: TextStyle(
-                        fontSize: isWide ? 36 : 28,
-                        fontWeight: FontWeight.w900,
-                        color: storeGreen,
-                      ),
-                    ),
-                  ),
+                  child: logoUrl == null || logoUrl.isEmpty
+                      ? Center(
+                          child: Text(
+                            businessName.isNotEmpty
+                                ? businessName.substring(0, 1).toUpperCase()
+                                : 'V',
+                            style: TextStyle(
+                              fontSize: isWide ? 36 : 28,
+                              fontWeight: FontWeight.w900,
+                              color: storeGreen,
+                            ),
+                          ),
+                        )
+                      : null,
                 ),
                 const SizedBox(width: 16),
 
@@ -623,6 +652,114 @@ class _VendorStorefrontScreenState
               ],
             ),
           ],
+          if ((vendor['support_phone'] != null &&
+                  vendor['support_phone'].toString().isNotEmpty) ||
+              (vendor['support_email'] != null &&
+                  vendor['support_email'].toString().isNotEmpty) ||
+              (vendor['return_policy'] != null &&
+                  vendor['return_policy'].toString().isNotEmpty)) ...[
+            const SizedBox(height: 14),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 16,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (vendor['support_phone'] != null &&
+                    vendor['support_phone'].toString().isNotEmpty)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.phone_outlined,
+                          size: 14, color: storeGreen),
+                      const SizedBox(width: 5),
+                      Text(
+                        vendor['support_phone'].toString(),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xff374151),
+                        ),
+                      ),
+                    ],
+                  ),
+                if (vendor['support_email'] != null &&
+                    vendor['support_email'].toString().isNotEmpty)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.email_outlined,
+                          size: 14, color: storeGreen),
+                      const SizedBox(width: 5),
+                      Text(
+                        vendor['support_email'].toString(),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xff374151),
+                        ),
+                      ),
+                    ],
+                  ),
+                if (vendor['return_policy'] != null &&
+                    vendor['return_policy'].toString().isNotEmpty)
+                  InkWell(
+                    onTap: () => _showReturnPolicyDialog(
+                        context, vendor['return_policy'].toString()),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.assignment_return_outlined,
+                            size: 14, color: Color(0xff4338ca)),
+                        SizedBox(width: 5),
+                        Text(
+                          'Store Return Policy',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xff4338ca),
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showReturnPolicyDialog(BuildContext context, String policy) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.assignment_return_outlined, color: storeGreen),
+            SizedBox(width: 8),
+            Text(
+              'Return & Exchange Policy',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Text(
+          policy,
+          style: const TextStyle(
+            fontSize: 13,
+            height: 1.5,
+            color: Color(0xff374151),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
         ],
       ),
     );

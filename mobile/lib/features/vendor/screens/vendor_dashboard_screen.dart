@@ -135,10 +135,11 @@ class VendorDashboardScreen extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: _StatCard(
-                      title: 'Rating',
-                      value: dashboard.rating.toStringAsFixed(1),
-                      icon: Icons.star,
-                      color: Colors.amber,
+                      title: 'Rating & Reviews ›',
+                      value: '★ ${dashboard.rating.toStringAsFixed(1)}',
+                      icon: Icons.rate_review_outlined,
+                      color: Colors.amber.shade700,
+                      onTap: () => context.push('/vendor/reviews'),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -500,33 +501,43 @@ class _StatCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap;
 
   const _StatCard({
     required this.title,
     required this.value,
     required this.icon,
     required this.color,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: context.textTheme.titleLarge?.copyWith(color: color),
-            ),
-            const SizedBox(height: 4),
-            Text(title, style: context.textTheme.bodySmall),
-          ],
-        ),
+    final content = Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: context.textTheme.titleLarge?.copyWith(color: color),
+          ),
+          const SizedBox(height: 4),
+          Text(title, style: context.textTheme.bodySmall),
+        ],
       ),
+    );
+
+    return Card(
+      child: onTap != null
+          ? InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: onTap,
+              child: content,
+            )
+          : content,
     );
   }
 }

@@ -23,6 +23,12 @@ class VendorProfile {
   final double? lat;
   final double? lng;
   final String? phone;
+  final String? description;
+  final String? logoUrl;
+  final String? bannerUrl;
+  final String? supportPhone;
+  final String? supportEmail;
+  final String? returnPolicy;
   final List<dynamic> productsServices;
   final double rating;
   final int totalOrders;
@@ -48,6 +54,12 @@ class VendorProfile {
     this.lat,
     this.lng,
     this.phone,
+    this.description,
+    this.logoUrl,
+    this.bannerUrl,
+    this.supportPhone,
+    this.supportEmail,
+    this.returnPolicy,
     this.productsServices = const [],
     this.rating = 0.0,
     this.totalOrders = 0,
@@ -75,6 +87,12 @@ class VendorProfile {
       lat: (json['lat'] as num?)?.toDouble(),
       lng: (json['lng'] as num?)?.toDouble(),
       phone: json['phone'] as String?,
+      description: json['description'] as String?,
+      logoUrl: json['logo_url'] as String?,
+      bannerUrl: json['banner_url'] as String?,
+      supportPhone: json['support_phone'] as String?,
+      supportEmail: json['support_email'] as String?,
+      returnPolicy: json['return_policy'] as String?,
       productsServices: (json['products_services'] as List<dynamic>?) ?? [],
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       totalOrders: (json['total_orders'] as num?)?.toInt() ?? 0,
@@ -103,6 +121,12 @@ class VendorProfile {
       'lat': lat,
       'lng': lng,
       'phone': phone,
+      'description': description,
+      'logo_url': logoUrl,
+      'banner_url': bannerUrl,
+      'support_phone': supportPhone,
+      'support_email': supportEmail,
+      'return_policy': returnPolicy,
       'products_services': productsServices,
       'rating': rating,
       'total_orders': totalOrders,

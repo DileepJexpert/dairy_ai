@@ -295,6 +295,26 @@ async def vendor_reply_review(review_id: str, data: VendorReviewReply, current_u
  review.vendor_replied_at = datetime.utcnow()
  await db.flush()
  return {"success": True, "data": serialize_review(review), "message": "Vendor reply posted"}
+
+
+@router.get("/vendor/products/reviews")
+async def vendor_products_reviews(status_filter: str | None = None, current_user: User = Depends(require_role(UserRole.vendor, UserRole.admin, UserRole.super_admin)), db: AsyncSession = Depends(get_db)):
+ is_admin = current_user.role in (UserRole.admin, UserRole.super_admin)
+ v_id = None if is_admin else (await vendor(db, current_user)).id
+ query = select(ProductReview, Product.title).join(Product, Product.id == ProductReview.product_id)
+ if v_id:
+  query = query.where(Product.vendor_id == v_id)
+ if status_filter == "unreplied":
+  query = query.where(ProductReview.vendor_reply.is_(None))
+ elif status_filter == "replied":
+  query = query.where(ProductReview.vendor_reply.is_not(None))
+ rows = (await db.execute(query.order_by(ProductReview.created_at.desc()).limit(200))).all()
+ return {
+  "success": True,
+  "data": [serialize_review(r, title) for r, title in rows],
+  "total": len(rows),
+  "message": "Vendor product reviews",
+ }
 @router.get("/admin/marketplace/vendors")
 async def marketplace_vendors(current_user:User=Depends(require_role(UserRole.admin, UserRole.super_admin)), db:AsyncSession=Depends(get_db)):
  vendors, total = await vendor_repo.list_all(db, limit=100)
@@ -319,6 +339,11 @@ async def public_vendor_storefront(vendor_id: str, db: AsyncSession = Depends(ge
    "business_name": v.business_name,
    "vendor_type": v.vendor_type.value if hasattr(v.vendor_type, "value") else str(v.vendor_type),
    "description": v.description or "Trusted agricultural & dairy producer on Milterra.",
+   "logo_url": getattr(v, "logo_url", None),
+   "banner_url": getattr(v, "banner_url", None),
+   "support_phone": getattr(v, "support_phone", None),
+   "support_email": getattr(v, "support_email", None),
+   "return_policy": getattr(v, "return_policy", None),
    "district": v.district or "Regional Hub",
    "state": v.state or "India",
    "rating_avg": float(v.rating_avg or 4.8),

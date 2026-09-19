@@ -30,6 +30,12 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen> {
   final _stateCtrl = TextEditingController();
   final _pincodeCtrl = TextEditingController();
   final _productsCtrl = TextEditingController();
+  final _descriptionCtrl = TextEditingController();
+  final _logoUrlCtrl = TextEditingController();
+  final _bannerUrlCtrl = TextEditingController();
+  final _supportPhoneCtrl = TextEditingController();
+  final _supportEmailCtrl = TextEditingController();
+  final _returnPolicyCtrl = TextEditingController();
   String _selectedVendorType = 'milk_buyer';
 
   @override
@@ -47,6 +53,12 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen> {
     _stateCtrl.dispose();
     _pincodeCtrl.dispose();
     _productsCtrl.dispose();
+    _descriptionCtrl.dispose();
+    _logoUrlCtrl.dispose();
+    _bannerUrlCtrl.dispose();
+    _supportPhoneCtrl.dispose();
+    _supportEmailCtrl.dispose();
+    _returnPolicyCtrl.dispose();
     super.dispose();
   }
 
@@ -63,6 +75,12 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen> {
     _districtCtrl.text = profile.district ?? '';
     _stateCtrl.text = profile.state ?? '';
     _pincodeCtrl.text = profile.pincode ?? '';
+    _descriptionCtrl.text = profile.description ?? '';
+    _logoUrlCtrl.text = profile.logoUrl ?? '';
+    _bannerUrlCtrl.text = profile.bannerUrl ?? '';
+    _supportPhoneCtrl.text = profile.supportPhone ?? '';
+    _supportEmailCtrl.text = profile.supportEmail ?? '';
+    _returnPolicyCtrl.text = profile.returnPolicy ?? '';
     _selectedVendorType = profile.vendorType;
     _productsCtrl.text = profile.productsServices.join(', ');
   }
@@ -107,6 +125,23 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen> {
       'state': _stateCtrl.text.trim().isEmpty ? null : _stateCtrl.text.trim(),
       'pincode':
           _pincodeCtrl.text.trim().isEmpty ? null : _pincodeCtrl.text.trim(),
+      'description': _descriptionCtrl.text.trim().isEmpty
+          ? null
+          : _descriptionCtrl.text.trim(),
+      'logo_url':
+          _logoUrlCtrl.text.trim().isEmpty ? null : _logoUrlCtrl.text.trim(),
+      'banner_url': _bannerUrlCtrl.text.trim().isEmpty
+          ? null
+          : _bannerUrlCtrl.text.trim(),
+      'support_phone': _supportPhoneCtrl.text.trim().isEmpty
+          ? null
+          : _supportPhoneCtrl.text.trim(),
+      'support_email': _supportEmailCtrl.text.trim().isEmpty
+          ? null
+          : _supportEmailCtrl.text.trim(),
+      'return_policy': _returnPolicyCtrl.text.trim().isEmpty
+          ? null
+          : _returnPolicyCtrl.text.trim(),
       'products_services': products,
     };
 
@@ -419,6 +454,72 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen> {
               ),
               maxLines: 2,
             ),
+            const SizedBox(height: 24),
+            _buildSectionHeader('Store Branding & Public Profile'),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _descriptionCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Store Story / Bio',
+                hintText:
+                    'Share your farm heritage, dairy philosophy, and quality standards...',
+              ),
+              maxLines: 3,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _bannerUrlCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Store Banner Image URL',
+                hintText: 'https://images.unsplash.com/...',
+                prefixIcon: Icon(Icons.panorama_outlined),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _logoUrlCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Store Logo / Producer Emblem URL',
+                hintText: 'https://...',
+                prefixIcon: Icon(Icons.storefront_outlined),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _supportPhoneCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Support Phone / WhatsApp',
+                      hintText: '+91 98765 43210',
+                      prefixIcon: Icon(Icons.phone_outlined),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: _supportEmailCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Support Email',
+                      hintText: 'support@farm.com',
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _returnPolicyCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Return & Exchange Policy',
+                hintText:
+                    'e.g. 48-hour return window for unopened perishables with proof of delivery',
+              ),
+              maxLines: 2,
+            ),
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: actionState.isLoading ? null : _saveProfile,
@@ -435,6 +536,17 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w800,
+        color: Color(0xff1b4332),
       ),
     );
   }

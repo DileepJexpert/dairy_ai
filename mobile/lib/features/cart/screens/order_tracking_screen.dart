@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import 'package:dairy_ai/features/cart/providers/cart_provider.dart';
+import '../../commerce/utils/courier_tracking_utils.dart';
 import '../providers/order_repository.dart';
 import '../../marketplace/widgets/store_design.dart';
 
@@ -1272,6 +1274,30 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                             color: Color(0xff565959),
                             fontWeight: FontWeight.w500),
                       ),
+                      if (trackingNumber.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        InkWell(
+                          onTap: () =>
+                              launchCourierTracking(carrier, trackingNumber),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.open_in_new,
+                                  size: 13, color: Color(0xff007185)),
+                              SizedBox(width: 4),
+                              Text(
+                                'Track Live on Courier Portal',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xff007185),
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -1287,6 +1313,62 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                 ? _buildMobileTimeline(stages, currentStep)
                 : _buildDesktopTimeline(stages, currentStep),
           ),
+
+          if (currentStep >= 4) ...[
+            const Divider(height: 1, color: storeBorder),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xfff8fafc),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: storeBorder),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.assignment_return_outlined,
+                        color: storeGreen, size: 22),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Need to return or exchange?',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xff1e293b),
+                            ),
+                          ),
+                          Text(
+                            'Report transit damage, broken seal, or quality issue within 48h.',
+                            style: TextStyle(fontSize: 11, color: storeMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: storeGreen,
+                        side: const BorderSide(color: storeGreen),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                      ),
+                      onPressed: () =>
+                          _showReturnRequestDialog(context, order.id),
+                      child: const Text(
+                        'Return / Replace',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
 
           const Divider(height: 1, color: storeBorder),
 
@@ -1817,6 +1899,145 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                     fontWeight: FontWeight.bold)),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showReturnRequestDialog(
+      BuildContext context, String orderId) async {
+    String selectedReason = 'Damaged on delivery';
+    final remarksCtrl = TextEditingController();
+    var isSubmitting = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.assignment_return_outlined, color: storeGreen),
+              SizedBox(width: 8),
+              Text(
+                'Request Return or Exchange',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 440,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Select the primary reason for returning this item. Our quality inspection team will review and approve pickup within 24 hours.',
+                  style: TextStyle(fontSize: 12, color: storeMuted),
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<String>(
+                  value: selectedReason,
+                  decoration: const InputDecoration(
+                    labelText: 'Reason for return',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'Damaged on delivery',
+                      child: Text('Damaged on delivery'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Broken container / Defective seal',
+                      child: Text('Broken container / Defective seal'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Spoilage or quality issue',
+                      child: Text('Spoilage or quality issue'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Wrong product delivered',
+                      child: Text('Wrong product delivered'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Other issue',
+                      child: Text('Other issue'),
+                    ),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setDialogState(() => selectedReason = v);
+                  },
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: remarksCtrl,
+                  maxLines: 3,
+                  maxLength: 500,
+                  decoration: const InputDecoration(
+                    labelText: 'Details / Description',
+                    hintText:
+                        'e.g. Broken packaging upon delivery, photos available...',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSubmitting ? null : () => Navigator.pop(dialogCtx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: storeGreen),
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      setDialogState(() => isSubmitting = true);
+                      try {
+                        final dio = ref.read(dioProvider);
+                        final res = await dio.post(
+                          '/marketplace/orders/$orderId/return',
+                          data: {
+                            'reason': selectedReason,
+                            'remarks': remarksCtrl.text.trim(),
+                          },
+                        );
+                        if (!mounted) return;
+                        Navigator.pop(dialogCtx);
+                        ref.invalidate(orderDetailProvider(orderId));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              res.data['message']?.toString() ??
+                                  'Return request submitted successfully',
+                            ),
+                            backgroundColor: storeGreen,
+                          ),
+                        );
+                      } catch (e) {
+                        setDialogState(() => isSubmitting = false);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Failed to submit return: $e'),
+                            backgroundColor: Colors.red.shade700,
+                          ),
+                        );
+                      }
+                    },
+              child: isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Submit Request'),
+            ),
+          ],
+        ),
       ),
     );
   }

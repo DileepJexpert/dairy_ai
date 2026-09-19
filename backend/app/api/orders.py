@@ -37,6 +37,11 @@ def serialize(order: Order, items: list[OrderItem]) -> dict:
             "subtotal": str(order.subtotal), "delivery_fee": str(order.delivery_fee), "total": str(order.total),
             "discount": str(order.subtotal + order.delivery_fee - order.total),
             "address": order.address_snapshot, "created_at": order.created_at.isoformat(),
+            "return_reason": getattr(order, "return_reason", None),
+            "return_status": getattr(order, "return_status", None),
+            "return_requested_at": order.return_requested_at.isoformat() if getattr(order, "return_requested_at", None) else None,
+            "return_processed_at": order.return_processed_at.isoformat() if getattr(order, "return_processed_at", None) else None,
+            "return_remarks": getattr(order, "return_remarks", None),
             "items": [{"product_id": str(item.product_id), "title": item.title, "quantity": item.quantity,
                        "unit_price": str(item.unit_price), "line_total": str(item.line_total),
                        "fulfillment_status": item.fulfillment_status.value} for item in items]}
@@ -416,3 +421,96 @@ async def process_refund(order_id: uuid.UUID, data: RefundProcessRequest, user: 
         audit(db, user, 'order.refund_rejected', 'order', order.id, data.model_dump_json())
     await db.flush()
     return {'success': True, 'data': await detail(db, order), 'message': f'Refund {data.action}d successfully'}
+
+
+class ReturnCreateRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    reason: str = Field(..., max_length=200)
+    remarks: str = Field(default='', max_length=800)
+
+
+@router.post('/{order_id}/return')
+async def request_order_return(order_id: uuid.UUID, data: ReturnCreateRequest, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    order = (await db.execute(select(Order).where(Order.id == order_id).with_for_update())).scalar_one_or_none()
+    if not order:
+        raise HTTPException(404, 'Order not found')
+    if order.user_id != user.id and user.role not in (UserRole.admin, UserRole.super_admin):
+        raise HTTPException(403, 'Not authorized to request return for this order')
+    order.return_reason = data.reason
+    order.return_status = 'RETURN_REQUESTED'
+    order.return_requested_at = datetime.utcnow()
+    order.return_remarks = data.remarks
+    event(db, order, f'Return requested: {data.reason}', 'RETURN_REQUESTED', data.remarks)
+    await db.flush()
+    return {'success': True, 'data': await detail(db, order), 'message': 'Return request submitted successfully'}
+
+
+@router.get('/admin/returns')
+async def admin_returns(user: User = Depends(require_role(UserRole.admin, UserRole.super_admin)), db: AsyncSession = Depends(get_db)):
+    query = (
+        select(Order, User.phone)
+        .join(User, User.id == Order.user_id)
+        .where(Order.return_status.is_not(None))
+        .order_by(Order.return_requested_at.desc())
+        .limit(100)
+    )
+    rows = (await db.execute(query)).all()
+    results = []
+    for order, phone in rows:
+        d = await detail(db, order)
+        d['customer_phone'] = phone
+        contact = await db.get(OrderContact, order.id)
+        d['notes'] = contact.notes if contact else ''
+        results.append(d)
+    return {'success': True, 'data': results}
+
+
+class ReturnProcessRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    action: Literal['approve_pickup', 'reject', 'confirm_received_refund', 'mark_rto']
+    refund_reference: str = Field(default='', max_length=100)
+    remarks: str = Field(default='', max_length=800)
+    restock_inventory: bool = True
+
+
+@router.post('/admin/returns/{order_id}/process')
+async def process_return(order_id: uuid.UUID, data: ReturnProcessRequest, user: User = Depends(require_role(UserRole.admin, UserRole.super_admin)), db: AsyncSession = Depends(get_db)):
+    order = (await db.execute(select(Order).where(Order.id == order_id).with_for_update())).scalar_one_or_none()
+    if not order:
+        raise HTTPException(404, 'Order not found')
+    order.return_processed_at = datetime.utcnow()
+    items = await _items(db, order.id)
+
+    if data.action == 'approve_pickup':
+        order.return_status = 'PICKUP_SCHEDULED'
+        event(db, order, 'Return pickup scheduled with courier', 'PICKUP_SCHEDULED', data.remarks)
+        audit(db, user, 'order.return_pickup_scheduled', 'order', order.id, data.model_dump_json())
+    elif data.action == 'confirm_received_refund':
+        order.return_status = 'RETURN_COMPLETED'
+        order.payment_status = PaymentStatus.refunded
+        for item in items:
+            item.fulfillment_status = FulfillmentStatus.cancelled
+            if data.restock_inventory and not order.is_prelaunch_interest:
+                inv = (await db.execute(select(ProductInventory).where(ProductInventory.product_id == item.product_id).with_for_update())).scalar_one_or_none()
+                if inv:
+                    inv.available_quantity += item.quantity
+        event(db, order, f'Item inspected & return refund issued: ₹{order.total}', 'REFUNDED', f'Ref: {data.refund_reference} · {data.remarks}'.strip(' ·'))
+        audit(db, user, 'order.return_refunded', 'order', order.id, data.model_dump_json())
+    elif data.action == 'mark_rto':
+        order.return_status = 'RTO_DELIVERED'
+        order.status = OrderStatus.cancelled
+        if data.restock_inventory and not order.is_prelaunch_interest:
+            for item in items:
+                inv = (await db.execute(select(ProductInventory).where(ProductInventory.product_id == item.product_id).with_for_update())).scalar_one_or_none()
+                if inv:
+                    inv.available_quantity += item.quantity
+        event(db, order, 'Package returned to origin (RTO)', 'RTO_DELIVERED', data.remarks)
+        audit(db, user, 'order.rto_processed', 'order', order.id, data.model_dump_json())
+    else:
+        order.return_status = 'RETURN_REJECTED'
+        event(db, order, 'Return request rejected', 'RETURN_REJECTED', data.remarks)
+        audit(db, user, 'order.return_rejected', 'order', order.id, data.model_dump_json())
+
+    await db.flush()
+    return {'success': True, 'data': await detail(db, order), 'message': f'Return status updated to {order.return_status}'}
+

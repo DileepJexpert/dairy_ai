@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, Integer, JSON, Numeric, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, Integer, JSON, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -46,6 +46,11 @@ class Order(Base):
     subtotal: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     delivery_fee: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0, nullable=False)
     total: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    return_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    return_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    return_requested_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    return_processed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    return_remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
 

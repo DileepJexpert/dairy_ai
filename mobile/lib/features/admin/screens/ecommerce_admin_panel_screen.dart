@@ -82,6 +82,20 @@ final adminReviewsProvider =
       .toList();
 });
 
+final adminReturnsProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final response =
+      await ref.watch(dioProvider).get('/marketplace/orders/admin/returns');
+  final body = response.data;
+  if (body is! Map || body['data'] is! List) {
+    throw const FormatException('Returns response was invalid');
+  }
+  return (body['data'] as List)
+      .whereType<Map>()
+      .map((item) => Map<String, dynamic>.from(item))
+      .toList();
+});
+
 final adminConceptFeedbackProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final response =
@@ -378,6 +392,279 @@ class _EcommerceAdminPanelScreenState
     );
     refCtrl.dispose();
     remarksCtrl.dispose();
+  }
+
+  Future<void> _processReturnDialog(Map<String, dynamic> order) async {
+    final orderId = order['id']?.toString() ?? '';
+    final total = double.tryParse(order['total']?.toString() ?? '0') ?? 0;
+    final reason = order['return_reason']?.toString() ?? 'Damage/Quality';
+    final remarks = order['return_remarks']?.toString() ?? '';
+    var action = 'confirm_received_refund';
+    final refCtrl = TextEditingController();
+    final remarksCtrl = TextEditingController();
+    var restockInventory = true;
+    var saving = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialog) => AlertDialog(
+          title: Text('Process Return #$orderId'),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xfff8fafc),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: storeBorder),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Order Value: ${storeMoney(total)}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14)),
+                        const SizedBox(height: 4),
+                        Text('Return Reason: $reason',
+                            style: const TextStyle(
+                                fontSize: 12,
+                                color: storeError,
+                                fontWeight: FontWeight.w600)),
+                        if (remarks.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text('Customer Note: $remarks',
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xff475569),
+                                  fontStyle: FontStyle.italic)),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Reverse Logistics Action',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String>(
+                    value: action,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'confirm_received_refund',
+                        child: Text('Inspect Item & Issue Refund'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'approve_pickup',
+                        child: Text('Schedule Reverse Pickup with Courier'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'mark_rto',
+                        child: Text('Mark Returned to Origin (RTO)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'reject',
+                        child: Text('Reject Return Request'),
+                      ),
+                    ],
+                    onChanged: saving
+                        ? null
+                        : (v) => setDialog(() => action = v ?? action),
+                  ),
+                  const SizedBox(height: 14),
+                  if (action == 'confirm_received_refund') ...[
+                    TextField(
+                      controller: refCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Payment Gateway / Bank Reference (UTR)',
+                        hintText: 'e.g. UPI-REF-98765432 or RAZORPAY_REF',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: restockInventory,
+                      onChanged: saving
+                          ? null
+                          : (v) =>
+                              setDialog(() => restockInventory = v ?? true),
+                      title: const Text('Restock inventory quantities',
+                          style: TextStyle(fontSize: 13)),
+                      subtitle: const Text(
+                          'Adds items back to vendor inventory if goods are reusable',
+                          style: TextStyle(fontSize: 11)),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: remarksCtrl,
+                    maxLength: 800,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Admin remarks / Courier notes',
+                      hintText: 'e.g. Package inspected at central hub',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: storeGreen),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      setDialog(() => saving = true);
+                      try {
+                        final dio = ref.read(dioProvider);
+                        final res = await dio.post(
+                          '/marketplace/orders/admin/returns/$orderId/process',
+                          data: {
+                            'action': action,
+                            'refund_reference': refCtrl.text.trim(),
+                            'remarks': remarksCtrl.text.trim(),
+                            'restock_inventory': restockInventory,
+                          },
+                        );
+                        if (!mounted) return;
+                        Navigator.pop(context);
+                        ref.invalidate(adminReturnsProvider);
+                        ref.invalidate(adminCancellationsProvider);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(res.data['message']?.toString() ??
+                                'Return processed successfully'),
+                            backgroundColor: storeGreen,
+                          ),
+                        );
+                      } catch (e) {
+                        setDialog(() => saving = false);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Failed to process return: $e'),
+                            backgroundColor: storeError,
+                          ),
+                        );
+                      }
+                    },
+              child: saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Confirm Action'),
+            ),
+          ],
+        ),
+      ),
+    );
+    refCtrl.dispose();
+    remarksCtrl.dispose();
+  }
+
+  Widget _buildReturnItemTile(Map<String, dynamic> order) {
+    final orderId = order['id']?.toString() ?? '';
+    final shortId =
+        orderId.length >= 8 ? orderId.substring(0, 8).toUpperCase() : orderId;
+    final total = double.tryParse(order['total']?.toString() ?? '0') ?? 0;
+    final customerPhone = order['customer_phone']?.toString() ?? 'N/A';
+    final reason = order['return_reason']?.toString() ?? 'Damage';
+    final returnStatus =
+        order['return_status']?.toString() ?? 'RETURN_REQUESTED';
+    final isCompleted =
+        returnStatus == 'RETURN_COMPLETED' || returnStatus == 'RTO_DELIVERED';
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color:
+              isCompleted ? const Color(0xffdcfce7) : const Color(0xfffef3c7),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          isCompleted
+              ? Icons.check_circle_outline
+              : Icons.assignment_return_outlined,
+          color: isCompleted ? storeGreen : const Color(0xffb45309),
+        ),
+      ),
+      title: Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text('Return #$shortId',
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          Text(customerPhone,
+              style: const TextStyle(
+                  color: storeGreen, fontWeight: FontWeight.w600)),
+          Chip(
+            visualDensity: VisualDensity.compact,
+            backgroundColor:
+                isCompleted ? const Color(0xffdcfce7) : const Color(0xfffef3c7),
+            label: Text(
+              returnStatus.replaceAll('_', ' '),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: isCompleted ? storeGreen : const Color(0xffb45309),
+              ),
+            ),
+          ),
+        ],
+      ),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Order Amount: ${storeMoney(total)} · Reason: $reason',
+                style:
+                    const TextStyle(fontSize: 12, color: Color(0xff475569))),
+            if (order['return_remarks'] != null &&
+                order['return_remarks'].toString().isNotEmpty)
+              Text('Remarks: ${order['return_remarks']}',
+                  style: const TextStyle(
+                      fontSize: 11,
+                      color: storeMuted,
+                      fontStyle: FontStyle.italic)),
+          ],
+        ),
+      ),
+      trailing: isCompleted
+          ? null
+          : FilledButton.tonalIcon(
+              style:
+                  FilledButton.styleFrom(visualDensity: VisualDensity.compact),
+              icon: const Icon(Icons.manage_accounts_outlined, size: 16),
+              label: const Text('Process'),
+              onPressed: () => _processReturnDialog(order),
+            ),
+    );
   }
 
   Future<void> _disbursePayoutDialog(Map<String, dynamic> settlement) async {
@@ -2737,6 +3024,7 @@ class _EcommerceAdminPanelScreenState
   Widget _buildShipmentsTab() {
     final interests = ref.watch(adminPurchaseInterestsProvider);
     final cancellations = ref.watch(adminCancellationsProvider);
+    final returns = ref.watch(adminReturnsProvider);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -2910,6 +3198,81 @@ class _EcommerceAdminPanelScreenState
                               onPressed: () => _processRefundDialog(order),
                             ),
                     );
+                  },
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 32),
+          // Customer Returns & RTO Queue
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Customer Returns & RTO Queue',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: storeGreen),
+                  ),
+                  Text(
+                    'Reverse logistics triage: approve courier pickup, inspect damaged goods, or confirm return refunds.',
+                    style: TextStyle(fontSize: 12, color: storeMuted),
+                  ),
+                ],
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: storeGreen),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Refresh Returns'),
+                onPressed: () => ref.invalidate(adminReturnsProvider),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          returns.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text('Failed to load returns: $err',
+                    style: const TextStyle(color: storeError)),
+              ),
+            ),
+            data: (returnList) {
+              if (returnList.isEmpty) {
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.assignment_turned_in_outlined,
+                              size: 44, color: storeGreen.withValues(alpha: 0.5)),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'No returns or RTO requests pending triage.',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, color: storeMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+              return Card(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: returnList.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, i) {
+                    final retOrder = returnList[i];
+                    return _buildReturnItemTile(retOrder);
                   },
                 ),
               );

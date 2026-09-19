@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
 import '../../admin/providers/admin_marketplace_provider.dart';
+import '../utils/courier_tracking_utils.dart';
 
 final operationsOrdersProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
@@ -968,19 +969,58 @@ ITEMS: ${items.map((it) => "${it['title']} ×${it['quantity']}").join(", ")}
                                             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xff6b21a8)),
                                           ),
                                         ),
-                                        if (tracking.isNotEmpty)
+                                        if (tracking.isNotEmpty) ...[
                                           InkWell(
                                             onTap: () {
-                                              Clipboard.setData(ClipboardData(text: tracking));
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(content: Text('AWB copied to clipboard!'), duration: Duration(seconds: 2)),
+                                              Clipboard.setData(
+                                                  ClipboardData(text: tracking));
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                const SnackBar(
+                                                    content: Text(
+                                                        'AWB copied to clipboard!'),
+                                                    duration:
+                                                        Duration(seconds: 2)),
                                               );
                                             },
                                             child: const Padding(
-                                              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                              child: Text('Copy AWB', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xff7e22ce))),
+                                              padding: EdgeInsets.symmetric(
+                                                  horizontal: 4, vertical: 2),
+                                              child: Text('Copy AWB',
+                                                  style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Color(0xff7e22ce))),
                                             ),
                                           ),
+                                          const Text(' · ',
+                                              style: TextStyle(
+                                                  color: Color(0xffcbd5e1),
+                                                  fontSize: 11)),
+                                          InkWell(
+                                            onTap: () => launchCourierTracking(
+                                                carrier, tracking),
+                                            child: const Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                  horizontal: 4, vertical: 2),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.open_in_new,
+                                                      size: 11,
+                                                      color: Color(0xff0284c7)),
+                                                  SizedBox(width: 2),
+                                                  Text('Track Live',
+                                                      style: TextStyle(
+                                                          fontSize: 11,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: Color(0xff0284c7))),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ],
                                     ),
                                   ),

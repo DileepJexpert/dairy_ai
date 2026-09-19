@@ -1769,6 +1769,11 @@ abstract final class StoreImages {
     if (title.contains('buffalo')) return 'assets/store/buffalo-ghee.png';
     if (title.contains('ghee')) return 'assets/store/cow-ghee.png';
     if (title.contains('paneer')) return 'assets/store/paneer.png';
+    if (title.contains('sarso') ||
+        title.contains('mustard') ||
+        (title.contains('oil') && !title.contains('soil'))) {
+      return 'assets/store/sarso-oil.jpg';
+    }
     return null;
   }
 }

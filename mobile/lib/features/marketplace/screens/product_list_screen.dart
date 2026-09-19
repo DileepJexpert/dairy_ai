@@ -56,7 +56,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     final lower = value.toLowerCase();
     if (lower.contains('sarso') ||
         lower.contains('mustard') ||
-        lower.contains('oil')) {
+        (lower.contains('oil') && !lower.contains('soil'))) {
       return '🌻 Cold-Pressed Sarso (Mustard) Oil';
     }
     if (lower.contains('agarbatti') || lower.contains('dhoop')) {
@@ -1289,7 +1289,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
 
     final isSarsoOilCategory = catLower.contains('sarso') ||
         catLower.contains('mustard') ||
-        catLower.contains('oil') ||
+        (catLower.contains('oil') && !catLower.contains('soil')) ||
         catLower.contains('til');
 
     final isAllNutrition = catLower == 'animal nutrition' ||
@@ -1414,16 +1414,26 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             pTitle.contains('compost') ||
             pTitle.contains('soil');
       } else if (isSarsoOilCategory) {
-        matchesCategory = pCategory == 'Cold-Pressed Sarso (Mustard) Oil' ||
-            pCategory.toLowerCase().contains('sarso') ||
-            pCategory.toLowerCase().contains('mustard') ||
-            pCategory.toLowerCase().contains('oil') ||
-            pTitle.contains('sarso') ||
-            pTitle.contains('mustard') ||
-            pTitle.contains('kachi ghani') ||
-            pTitle.contains('til') ||
-            pTitle.contains('sesame') ||
-            pTitle.contains('oil');
+        if (pTitle.contains('soil') ||
+            pTitle.contains('compost') ||
+            pTitle.contains('vermicompost') ||
+            pTitle.contains('manure') ||
+            pCategory.toLowerCase().contains('soil') ||
+            pCategory.toLowerCase().contains('vermicompost')) {
+          matchesCategory = false;
+        } else {
+          matchesCategory = pCategory == 'Cold-Pressed Sarso (Mustard) Oil' ||
+              pCategory.toLowerCase().contains('sarso') ||
+              pCategory.toLowerCase().contains('mustard') ||
+              (pCategory.toLowerCase().contains('oil') &&
+                  !pCategory.toLowerCase().contains('soil')) ||
+              pTitle.contains('sarso') ||
+              pTitle.contains('mustard') ||
+              pTitle.contains('kachi ghani') ||
+              pTitle.contains('til') ||
+              pTitle.contains('sesame') ||
+              (pTitle.contains('oil') && !pTitle.contains('soil'));
+        }
       } else if (isEquipmentCategory) {
         matchesCategory = pCategory == 'Equipment' ||
             p.category == ProductCategory.equipment;
@@ -1559,7 +1569,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
 
       final isSarsoOil = _category.toLowerCase().contains('sarso') ||
           _category.toLowerCase().contains('mustard') ||
-          _category.toLowerCase().contains('oil') ||
+          (_category.toLowerCase().contains('oil') &&
+              !_category.toLowerCase().contains('soil')) ||
           _category.toLowerCase().contains('til');
 
       if (isSarsoOil) {

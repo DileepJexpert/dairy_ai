@@ -97,9 +97,15 @@ class _MilterraStoreScreenState extends ConsumerState<MilterraStoreScreen> {
             t.contains('soil') ||
             t.contains('compost');
       case 'Cold-Pressed Sarso (Mustard) Oil':
+        if (t.contains('soil') ||
+            t.contains('compost') ||
+            t.contains('vermicompost') ||
+            t.contains('manure')) {
+          return false;
+        }
         return t.contains('sarso') ||
             t.contains('mustard') ||
-            t.contains('oil') ||
+            (t.contains('oil') && !t.contains('soil')) ||
             t.contains('kachi ghani') ||
             t.contains('tel') ||
             t.contains('sesame') ||

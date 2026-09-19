@@ -85,8 +85,11 @@ class _VendorReviewsScreenState extends ConsumerState<VendorReviewsScreen> {
                           data: {'reply': text},
                         );
                         if (!mounted) return;
-                        Navigator.pop(dialogCtx);
+                        if (dialogCtx.mounted) {
+                          Navigator.pop(dialogCtx);
+                        }
                         ref.invalidate(vendorReviewsProvider);
+                        if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
@@ -98,6 +101,7 @@ class _VendorReviewsScreenState extends ConsumerState<VendorReviewsScreen> {
                         );
                       } catch (e) {
                         setDialogState(() => isSubmitting = false);
+                        if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('Failed to publish reply: $e'),

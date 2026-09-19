@@ -73,7 +73,7 @@ String storeCategory(Product p) {
       name.contains('til oil') ||
       name.contains('sesame') ||
       name.contains('kachi ghani') ||
-      (name.contains('oil') && !name.contains('ghee'))) {
+      (name.contains('oil') && !name.contains('ghee') && !name.contains('soil'))) {
     return 'Cold-Pressed Sarso (Mustard) Oil';
   }
   if (name.contains('agarbatti') ||
@@ -1766,8 +1766,8 @@ abstract final class StoreImages {
     if (title.contains('ashwagandha')) {
       return 'assets/store/milterra-ashwagandha-ghee.webp';
     }
-    if (title.contains('cow ghee')) return 'assets/store/cow-ghee.png';
-    if (title.contains('buffalo ghee')) return 'assets/store/buffalo-ghee.png';
+    if (title.contains('buffalo')) return 'assets/store/buffalo-ghee.png';
+    if (title.contains('ghee')) return 'assets/store/cow-ghee.png';
     if (title.contains('paneer')) return 'assets/store/paneer.png';
     return null;
   }

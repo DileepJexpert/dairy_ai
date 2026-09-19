@@ -265,8 +265,11 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                   children: [
                     Center(
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                            maxWidth: StoreLayout.maxWidth),
+                        constraints: BoxConstraints(
+                          maxWidth: StoreLayout.maxWidth,
+                          minHeight:
+                              (size.maxHeight - 200).clamp(520.0, 3000.0),
+                        ),
                         child: Padding(
                           padding: EdgeInsets.symmetric(
                             horizontal: isMobile ? 12 : 24,
@@ -308,45 +311,50 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
 
                                     // Products Grid Column
                                     Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          // Dedicated Category/Department Landing Banner (when filtered)
-                                          if (_category != 'All products' &&
-                                              _category != 'All' &&
-                                              _category != 'All Organic Essentials') ...[
-                                            _buildDepartmentLandingBanner(
-                                                isMobile),
+                                      child: ConstrainedBox(
+                                        constraints: const BoxConstraints(
+                                            minHeight: 460),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            // Dedicated Category/Department Landing Banner (when filtered)
+                                            if (_category != 'All products' &&
+                                                _category != 'All' &&
+                                                _category !=
+                                                    'All Organic Essentials') ...[
+                                              _buildDepartmentLandingBanner(
+                                                  isMobile),
+                                              const SizedBox(height: 14),
+                                            ],
+
+                                            // Amazon Results & Sort Header Bar
+                                            _buildResultsHeader(isDesktop),
                                             const SizedBox(height: 14),
-                                          ],
 
-                                          // Amazon Results & Sort Header Bar
-                                          _buildResultsHeader(isDesktop),
-                                          const SizedBox(height: 14),
-
-                                          // Catalogue State
-                                          catalogue.when(
-                                            loading: () => const SizedBox(
-                                              height: 320,
-                                              child: Center(
-                                                child:
-                                                    CircularProgressIndicator(),
+                                            // Catalogue State
+                                            catalogue.when(
+                                              loading: () => const SizedBox(
+                                                height: 320,
+                                                child: Center(
+                                                  child:
+                                                      CircularProgressIndicator(),
+                                                ),
                                               ),
+                                              error: (_, __) => _message(
+                                                Icons.cloud_off_outlined,
+                                                'We couldn’t load the collection',
+                                                'Please check your connection and try again.',
+                                                'Try again',
+                                                () => ref.invalidate(
+                                                    productsProvider(
+                                                        widget.category)),
+                                              ),
+                                              data: (items) =>
+                                                  _products(items, isMobile),
                                             ),
-                                            error: (_, __) => _message(
-                                              Icons.cloud_off_outlined,
-                                              'We couldn’t load the collection',
-                                              'Please check your connection and try again.',
-                                              'Try again',
-                                              () => ref.invalidate(
-                                                  productsProvider(
-                                                      widget.category)),
-                                            ),
-                                            data: (items) =>
-                                                _products(items, isMobile),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -1407,6 +1415,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             pTitle.contains('soil');
       } else if (isSarsoOilCategory) {
         matchesCategory = pCategory == 'Cold-Pressed Sarso (Mustard) Oil' ||
+            pCategory.toLowerCase().contains('sarso') ||
+            pCategory.toLowerCase().contains('mustard') ||
+            pCategory.toLowerCase().contains('oil') ||
             pTitle.contains('sarso') ||
             pTitle.contains('mustard') ||
             pTitle.contains('kachi ghani') ||
@@ -1546,6 +1557,15 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         );
       }
 
+      final isSarsoOil = _category.toLowerCase().contains('sarso') ||
+          _category.toLowerCase().contains('mustard') ||
+          _category.toLowerCase().contains('oil') ||
+          _category.toLowerCase().contains('til');
+
+      if (isSarsoOil) {
+        return _buildSarsoOilEmptyState(small);
+      }
+
       return _message(
           Icons.search_off,
           'No products matched your filters',
@@ -1618,32 +1638,202 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 : Row(children: [photo, Expanded(child: copy)])));
   }
 
+  Widget _buildSarsoOilEmptyState(bool small) {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 380),
+      padding: EdgeInsets.all(small ? 20 : 32),
+      decoration: BoxDecoration(
+        color: const Color(0xfffffbeb),
+        borderRadius: BorderRadius.circular(StoreLayout.radius),
+        border: Border.all(color: const Color(0xfffde68a), width: 1.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0cd97706),
+            blurRadius: 16,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 68,
+            height: 68,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xfffef3c7), Color(0xfffde68a)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xfff59e0b), width: 2),
+            ),
+            child: const Icon(
+              Icons.local_florist_rounded,
+              size: 36,
+              color: Color(0xffb45309),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xfffef3c7),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xfff59e0b)),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.eco_rounded, size: 13, color: Color(0xffb45309)),
+                SizedBox(width: 5),
+                Text(
+                  'FRESH KACHI GHANI HARVEST BATCH',
+                  style: TextStyle(
+                    color: Color(0xffb45309),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Cold-Pressed Sarso (Mustard) Oil\nFresh Batch in Preparation',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Color(0xff78350f),
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: const Text(
+              'Our organic yellow & black mustard seeds are undergoing traditional wooden Kolhu (< 40°C) cold pressing and natural sedimentation. Zero chemical refining, 100% authentic pungency.\n\nFresh harvest bottles (1L glass & 5L tin) are being prepared!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.5,
+                color: Color(0xff92400e),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: [
+              _buildOilFeaturePill('🪵 Wood-Pressed Kolhu (< 40°C)'),
+              _buildOilFeaturePill('🌾 100% Organically Grown'),
+              _buildOilFeaturePill('🛡️ Zero Argemone / Chemicals'),
+              _buildOilFeaturePill('🏺 Food-Grade Glass & Tin'),
+            ],
+          ),
+          const SizedBox(height: 22),
+          Wrap(
+            spacing: 12,
+            runSpacing: 10,
+            alignment: WrapAlignment.center,
+            children: [
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xffb45309),
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(Icons.explore_outlined, size: 16),
+                label: const Text(
+                  'Explore Vedic Bilona Ghee',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                onPressed: () => _browse('Vedic Bilona Ghee'),
+              ),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xff78350f),
+                  side: const BorderSide(color: Color(0xffd97706)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(Icons.storefront_outlined, size: 16),
+                label: const Text(
+                  'Browse All Products',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                onPressed: _reset,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOilFeaturePill(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xfffde68a)),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: Color(0xff92400e),
+        ),
+      ),
+    );
+  }
+
   Widget _message(IconData icon, String title, String description,
           String action, VoidCallback onTap) =>
       Container(
           width: double.infinity,
+          constraints: const BoxConstraints(minHeight: 320),
           padding: const EdgeInsets.all(StoreLayout.xl),
           decoration: BoxDecoration(
             color: storeWhite,
             borderRadius: BorderRadius.circular(StoreLayout.radius),
             border: Border.all(color: storeBorder),
           ),
-          child: Column(children: [
-            Icon(icon, size: 48, color: storeMuted),
-            const SizedBox(height: StoreLayout.md),
-            Text(title, style: StoreType.title),
-            const SizedBox(height: StoreLayout.xs),
-            Text(description,
-                textAlign: TextAlign.center, style: StoreType.muted),
-            const SizedBox(height: StoreLayout.md),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                  backgroundColor: storeAmber, foregroundColor: storeGreen),
-              onPressed: onTap,
-              child: Text(action,
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-            )
-          ]));
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 48, color: storeMuted),
+              const SizedBox(height: StoreLayout.md),
+              Text(title, style: StoreType.title),
+              const SizedBox(height: StoreLayout.xs),
+              Text(description,
+                  textAlign: TextAlign.center, style: StoreType.muted),
+              const SizedBox(height: StoreLayout.md),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                    backgroundColor: storeAmber, foregroundColor: storeGreen),
+                onPressed: onTap,
+                child: Text(action,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ));
 
   Widget _benefit(IconData icon, String title, String subtitle) =>
       Row(mainAxisSize: MainAxisSize.min, children: [

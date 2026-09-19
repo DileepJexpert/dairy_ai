@@ -8,9 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user,require_role
 from app.models.user import User,UserRole
-from app.models.product import Product,ProductCategory,ProductReview,MerchandisingPlacement,ConceptFeedback
+from app.models.product import Product,ProductCategory,ProductReview,MerchandisingPlacement,ConceptFeedback,ProductInventory
 from app.repositories import product_repo,vendor_repo
-from app.schemas.product import ProductCreate,ProductUpdate,InventoryUpdate,ProductMediaCreate,ProductFamilyCreate,ProductFamilyUpdate,FamilyVariantCreate,ProductReviewCreate,MerchandisingPlacementCreate,MerchandisingPlacementUpdate,ConceptFeedbackCreate,ProductModerationUpdate
+from app.schemas.product import ProductCreate,ProductUpdate,InventoryUpdate,ProductMediaCreate,ProductFamilyCreate,ProductFamilyUpdate,FamilyVariantCreate,ProductReviewCreate,MerchandisingPlacementCreate,MerchandisingPlacementUpdate,ConceptFeedbackCreate,ProductModerationUpdate,BulkInventoryRequest,BulkInventoryItem
 from app.services import product_service
 from app.config import settings
 from app.services import commerce_taxonomy_service as taxonomy
@@ -493,3 +493,59 @@ async def admin_moderate_product(
 
     await db.flush()
     return {"success": True, "data": await enrich(db, p), "message": f"Product status updated to {data.publication_status}"}
+
+
+@router.post("/vendor/products/bulk-inventory")
+async def bulk_inventory_update(
+    data: BulkInventoryRequest,
+    current_user: User = Depends(require_role(UserRole.vendor, UserRole.admin, UserRole.super_admin)),
+    db: AsyncSession = Depends(get_db)
+):
+    is_admin = current_user.role in (UserRole.admin, UserRole.super_admin)
+    v = None if is_admin else await vendor(db, current_user)
+    updated_count = 0
+    results = []
+
+    for item in data.items:
+        p = (await db.execute(select(Product).where(Product.id == item.product_id).with_for_update())).scalar_one_or_none()
+        if not p:
+            continue
+        if not is_admin and p.vendor_id != v.id:
+            continue
+
+        if item.base_price is not None:
+            p.base_price = item.base_price
+        if item.compare_at_price is not None:
+            p.compare_at_price = item.compare_at_price
+        if item.is_active is not None:
+            p.is_active = item.is_active
+
+        inv = (await db.execute(select(ProductInventory).where(ProductInventory.product_id == p.id).with_for_update())).scalar_one_or_none()
+        if not inv:
+            inv = ProductInventory(product_id=p.id, available_quantity=0, reserved_quantity=0)
+            db.add(inv)
+
+        if item.available_quantity is not None:
+            inv.available_quantity = max(inv.reserved_quantity, item.available_quantity)
+        elif item.stock_delta is not None:
+            inv.available_quantity = max(inv.reserved_quantity, inv.available_quantity + item.stock_delta)
+
+        results.append({
+            "product_id": str(p.id),
+            "title": p.title,
+            "base_price": str(p.base_price),
+            "compare_at_price": str(p.compare_at_price) if p.compare_at_price else None,
+            "available_quantity": inv.available_quantity,
+            "reserved_quantity": inv.reserved_quantity,
+            "is_active": p.is_active,
+        })
+        updated_count += 1
+
+    await db.flush()
+    return {
+        "success": True,
+        "data": results,
+        "updated_count": updated_count,
+        "message": f"Successfully updated {updated_count} products",
+    }
+

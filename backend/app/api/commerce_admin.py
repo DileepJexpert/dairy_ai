@@ -84,6 +84,8 @@ async def snapshot(db, vendor_id=None):
                  "action": a.action, "entity_type": a.entity_type, "entity_id": a.entity_id,
                  "details": a.details, "timestamp": a.timestamp.isoformat() + "Z"}
                 for a in (await db.execute(select(CommerceAudit).order_by(CommerceAudit.timestamp.desc()).limit(500))).scalars()]
+    else:
+        coupons = [await serialize_coupon(db, c) for c in (await db.execute(select(CommerceCoupon).where(CommerceCoupon.vendor_id == vendor_id).order_by(CommerceCoupon.code))).scalars()]
     return {"success": True, "data": {"sellers": sellers, "offers": offers, "coupons": coupons,
             "batch_certificates": [certificate_json(c, p) for c, p in (await db.execute(cert_query.order_by(CommerceCertificate.test_date.desc()))).all()],
             "audit_logs": logs}}
@@ -232,9 +234,66 @@ async def toggle_coupon(coupon_id: uuid.UUID, data: ActiveUpdate, user: User = D
     return {"success": True}
 
 
+@router.get("/vendor/commerce/coupons")
+async def get_vendor_coupons(user: User = Depends(seller_or_admin), db: AsyncSession = Depends(get_db)):
+    vendor = (await db.execute(select(Vendor).where(Vendor.user_id == user.id))).scalar_one_or_none()
+    if not vendor:
+        raise HTTPException(404, "Vendor profile not found")
+    rows = (await db.execute(select(CommerceCoupon).where(CommerceCoupon.vendor_id == vendor.id).order_by(CommerceCoupon.code))).scalars().all()
+    return {"success": True, "data": [await serialize_coupon(db, row) for row in rows]}
+
+
+@router.post("/vendor/commerce/coupons", status_code=201)
+async def create_vendor_coupon(data: CouponInput, user: User = Depends(seller_or_admin), db: AsyncSession = Depends(get_db)):
+    vendor = (await db.execute(select(Vendor).where(Vendor.user_id == user.id))).scalar_one_or_none()
+    if not vendor or not vendor.is_active:
+        raise HTTPException(403, "An active vendor account is required")
+    coupon_data = data.model_dump()
+    coupon_data["vendor_id"] = vendor.id
+    row = CommerceCoupon(**coupon_data)
+    db.add(row)
+    await unique_flush(db)
+    audit(db, user, "couponCreate", "VendorCoupon", row.id, f"Created seller coupon {row.code}")
+    await db.flush()
+    return {"success": True, "data": await serialize_coupon(db, row), "message": f"Coupon {row.code} created successfully"}
+
+
+@router.patch("/vendor/commerce/coupons/{coupon_id}")
+async def toggle_vendor_coupon(coupon_id: uuid.UUID, data: ActiveUpdate, user: User = Depends(seller_or_admin), db: AsyncSession = Depends(get_db)):
+    vendor = (await db.execute(select(Vendor).where(Vendor.user_id == user.id))).scalar_one_or_none()
+    if not vendor:
+        raise HTTPException(404, "Vendor profile not found")
+    row = (await db.execute(select(CommerceCoupon).where(CommerceCoupon.id == coupon_id, CommerceCoupon.vendor_id == vendor.id).with_for_update())).scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Coupon not found or not owned by your store")
+    row.is_active = data.is_active
+    audit(db, user, "statusChange", "VendorCoupon", row.id, f"Active: {row.is_active}")
+    await db.flush()
+    return {"success": True, "message": f"Coupon is now {'active' if row.is_active else 'inactive'}"}
+
+
+@router.delete("/vendor/commerce/coupons/{coupon_id}")
+async def delete_vendor_coupon(coupon_id: uuid.UUID, user: User = Depends(seller_or_admin), db: AsyncSession = Depends(get_db)):
+    vendor = (await db.execute(select(Vendor).where(Vendor.user_id == user.id))).scalar_one_or_none()
+    if not vendor:
+        raise HTTPException(404, "Vendor profile not found")
+    row = (await db.execute(select(CommerceCoupon).where(CommerceCoupon.id == coupon_id, CommerceCoupon.vendor_id == vendor.id).with_for_update())).scalar_one_or_none()
+    if not row:
+        raise HTTPException(404, "Coupon not found or not owned by your store")
+    await db.delete(row)
+    audit(db, user, "delete", "VendorCoupon", coupon_id, f"Deleted seller coupon {row.code}")
+    await db.flush()
+    return {"success": True, "message": "Coupon deleted successfully"}
+
+
 @router.get("/marketplace/coupons")
-async def public_coupons(db: AsyncSession = Depends(get_db)):
-    rows = (await db.execute(select(CommerceCoupon).where(CommerceCoupon.is_active.is_(True), or_(CommerceCoupon.valid_until.is_(None), CommerceCoupon.valid_until > datetime.utcnow())).order_by(CommerceCoupon.code))).scalars()
+async def public_coupons(vendor_id: uuid.UUID | None = None, db: AsyncSession = Depends(get_db)):
+    query = select(CommerceCoupon).where(CommerceCoupon.is_active.is_(True), or_(CommerceCoupon.valid_until.is_(None), CommerceCoupon.valid_until > datetime.utcnow()))
+    if vendor_id:
+        query = query.where(or_(CommerceCoupon.vendor_id == vendor_id, CommerceCoupon.vendor_id.is_(None)))
+    else:
+        query = query.where(CommerceCoupon.vendor_id.is_(None))
+    rows = (await db.execute(query.order_by(CommerceCoupon.code))).scalars()
     return {"success": True, "data": [await serialize_coupon(db, row) for row in rows]}
 
 

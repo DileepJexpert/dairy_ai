@@ -33,6 +33,11 @@ class VendorDashboardScreen extends ConsumerWidget {
           tooltip: 'View My Public Storefront',
         ),
         IconButton(
+          onPressed: () => context.push('/vendor/coupons'),
+          icon: const Icon(Icons.local_offer_outlined),
+          tooltip: 'Store Coupons & Deals',
+        ),
+        IconButton(
             onPressed: () => context.push('/vendor/products'),
             icon: const Icon(Icons.inventory_2),
             tooltip: 'My products')
@@ -391,6 +396,37 @@ class VendorDashboardScreen extends ConsumerWidget {
                   ),
                 ),
               ],
+
+              const SizedBox(height: 20),
+
+              // ---- Store Promotions & Coupons Card ----
+              Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: Color(0xffe2e8f0)),
+                ),
+                child: ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xffecfdf5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.local_offer_outlined,
+                        color: DairyTheme.primaryGreen),
+                  ),
+                  title: const Text('Store Coupons & Special Offers',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  subtitle: const Text(
+                      'Create percentage or flat discount vouchers for your buyers',
+                      style:
+                          TextStyle(fontSize: 12, color: DairyTheme.subtleGrey)),
+                  trailing: const Icon(Icons.chevron_right,
+                      color: DairyTheme.subtleGrey),
+                  onTap: () => context.push('/vendor/coupons'),
+                ),
+              ),
 
               const SizedBox(height: 24),
 

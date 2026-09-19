@@ -50,6 +50,7 @@ class CouponInput(Input):
     max_discount_cap: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
     valid_until: datetime | None = None
     is_active: bool = True
+    vendor_id: uuid.UUID | None = None
 
     @field_validator("code")
     @classmethod

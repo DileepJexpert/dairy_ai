@@ -13,6 +13,7 @@ from app.database import Base
 class CommerceCoupon(Base):
     __tablename__ = "commerce_coupons"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vendor_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("vendors.id"), nullable=True, index=True)
     code: Mapped[str] = mapped_column(String(40), unique=True, nullable=False)
     description: Mapped[str] = mapped_column(String(500), nullable=False)
     discount_type: Mapped[str] = mapped_column(String(20), nullable=False)

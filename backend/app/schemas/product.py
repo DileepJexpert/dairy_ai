@@ -162,3 +162,17 @@ class ProductModerationUpdate(BaseModel):
     is_featured: bool | None = None
     rejection_reason: str | None = None
     category_id: uuid.UUID | None = None
+
+
+class BulkInventoryItem(BaseModel):
+    product_id: uuid.UUID
+    available_quantity: int | None = None
+    stock_delta: int | None = None
+    base_price: Decimal | None = None
+    compare_at_price: Decimal | None = None
+    is_active: bool | None = None
+
+
+class BulkInventoryRequest(BaseModel):
+    items: list[BulkInventoryItem]
+

@@ -173,6 +173,7 @@ class DealPromotion {
 class PlatformCoupon {
   const PlatformCoupon({
     required this.id,
+    this.vendorId,
     required this.code,
     required this.description,
     this.discountType = CouponType.percentage,
@@ -185,6 +186,7 @@ class PlatformCoupon {
   });
 
   final String id;
+  final String? vendorId;
   final String code;
   final String description;
   final CouponType discountType;
@@ -194,6 +196,43 @@ class PlatformCoupon {
   final DateTime? validUntil;
   final int usageCount;
   final bool isActive;
+
+  factory PlatformCoupon.fromJson(Map<String, dynamic> j) {
+    double parseNum(dynamic v) => double.tryParse(v?.toString() ?? '') ?? 0.0;
+    return PlatformCoupon(
+      id: j['id']?.toString() ?? '',
+      vendorId: j['vendor_id']?.toString(),
+      code: j['code']?.toString() ?? '',
+      description: j['description']?.toString() ?? '',
+      discountType: j['discount_type'] == 'flat'
+          ? CouponType.flat
+          : CouponType.percentage,
+      discountValue: parseNum(j['discount_value']),
+      minOrderValue: parseNum(j['min_order_value']),
+      maxDiscountCap: j['max_discount_cap'] != null
+          ? parseNum(j['max_discount_cap'])
+          : null,
+      validUntil: j['valid_until'] != null
+          ? DateTime.tryParse(j['valid_until'].toString())
+          : null,
+      usageCount: (j['usage_count'] as num?)?.toInt() ?? 0,
+      isActive: j['is_active'] as bool? ?? true,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        if (id.isNotEmpty) 'id': id,
+        if (vendorId != null) 'vendor_id': vendorId,
+        'code': code,
+        'description': description,
+        'discount_type': discountType.name,
+        'discount_value': discountValue,
+        'min_order_value': minOrderValue,
+        if (maxDiscountCap != null) 'max_discount_cap': maxDiscountCap,
+        if (validUntil != null)
+          'valid_until': validUntil!.toUtc().toIso8601String(),
+        'is_active': isActive,
+      };
 }
 
 @immutable

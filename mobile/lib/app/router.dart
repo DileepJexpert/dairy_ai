@@ -60,6 +60,7 @@ import 'package:dairy_ai/features/vendor/screens/vendor_profile_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/vendor_orders_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/vendor_products_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/vendor_reviews_screen.dart';
+import 'package:dairy_ai/features/vendor/screens/vendor_coupons_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/seller_onboarding_screen.dart';
 
 // Cooperative screens
@@ -860,6 +861,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/vendor/reviews',
         builder: (context, state) => const VendorReviewsScreen(),
+      ),
+      GoRoute(
+        path: '/vendor/coupons',
+        builder: (context, state) => const VendorCouponsScreen(),
       ),
       GoRoute(
         path: '/seller/dashboard',

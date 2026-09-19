@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dairy_ai/core/api_client.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import 'package:dairy_ai/features/vendor/models/vendor_models.dart';
+import 'package:dairy_ai/features/marketplace/models/marketplace_models.dart';
 
 // ---------------------------------------------------------------------------
 // Read-only providers
@@ -44,6 +45,21 @@ final vendorReviewsProvider = FutureProvider.autoDispose
   if (body['success'] == true) {
     return (body['data'] as List? ?? [])
         .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  }
+  return [];
+});
+
+/// Fetches seller-funded store coupons.
+final vendorCouponsProvider =
+    FutureProvider.autoDispose<List<PlatformCoupon>>((ref) async {
+  final dio = ref.watch(dioProvider);
+  final response = await dio.get('/vendor/commerce/coupons');
+  final body = response.data as Map<String, dynamic>;
+  if (body['success'] == true) {
+    return (body['data'] as List? ?? [])
+        .map((e) =>
+            PlatformCoupon.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
   }
   return [];

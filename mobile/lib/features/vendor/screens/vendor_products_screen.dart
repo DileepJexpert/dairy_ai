@@ -52,6 +52,22 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
         iconTheme: const IconThemeData(color: storeGreen),
         actions: [
           IconButton(
+            icon: const Icon(Icons.flash_on),
+            tooltip: 'Quick Stock & Price Editor',
+            onPressed: () {
+              final prods = productsAsync.valueOrNull;
+              if (prods != null && prods.isNotEmpty) {
+                _openBulkEditorModal(context, prods);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('No products available to edit.'),
+                  ),
+                );
+              }
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh listings',
             onPressed: () => ref.invalidate(vendorProductsProvider),
@@ -1271,4 +1287,378 @@ class _VendorProductsScreenState extends ConsumerState<VendorProductsScreen> {
       c.dispose();
     }
   }
+
+  void _openBulkEditorModal(BuildContext context, List<Product> products) {
+    final editItems = products.map((p) => _BulkEditItemState(p)).toList();
+    bool isSaving = false;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Container(
+          height: MediaQuery.of(ctx).size.height * 0.85,
+          decoration: const BoxDecoration(
+            color: storeWhite,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: storeBorder)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: storeSage,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.flash_on, color: storeGreen, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Quick Inventory & Price Editor',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: storeGreen,
+                            ),
+                          ),
+                          Text(
+                            'Rapid stock replenishment and pricing adjustments',
+                            style: TextStyle(fontSize: 11, color: storeMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Product list
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: editItems.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (ctx, i) {
+                    final item = editItems[i];
+                    final p = item.product;
+
+                    return Card(
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: const BorderSide(color: storeBorder),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Product Header Row
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        p.title,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: storeGreen,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Unit: ${p.unit}${p.packSize != null ? ' · ${p.packSize}' : ''}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: storeMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Switch(
+                                  value: item.isActive,
+                                  activeThumbColor: storeGreen,
+                                  onChanged: (val) {
+                                    setSheetState(() => item.isActive = val);
+                                  },
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Price and MRP Row
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: item.priceCtrl,
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                            decimal: true),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Price (\u20B9)',
+                                      isDense: true,
+                                      border: OutlineInputBorder(),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: TextField(
+                                    controller: item.mrpCtrl,
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                            decimal: true),
+                                    decoration: const InputDecoration(
+                                      labelText: 'MRP (\u20B9)',
+                                      isDense: true,
+                                      border: OutlineInputBorder(),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: TextField(
+                                    controller: item.stockCtrl,
+                                    keyboardType: TextInputType.number,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Stock Units',
+                                      isDense: true,
+                                      border: OutlineInputBorder(),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Quick Stock Increments
+                            Row(
+                              children: [
+                                const Text(
+                                  'Quick Add:',
+                                  style: TextStyle(
+                                      fontSize: 11, color: storeMuted),
+                                ),
+                                const SizedBox(width: 8),
+                                _buildQuickStockChip(
+                                  label: '+10',
+                                  onTap: () {
+                                    final cur =
+                                        int.tryParse(item.stockCtrl.text.trim()) ??
+                                            0;
+                                    item.stockCtrl.text = '${cur + 10}';
+                                    setSheetState(() {});
+                                  },
+                                ),
+                                const SizedBox(width: 6),
+                                _buildQuickStockChip(
+                                  label: '+50',
+                                  onTap: () {
+                                    final cur =
+                                        int.tryParse(item.stockCtrl.text.trim()) ??
+                                            0;
+                                    item.stockCtrl.text = '${cur + 50}';
+                                    setSheetState(() {});
+                                  },
+                                ),
+                                const SizedBox(width: 6),
+                                _buildQuickStockChip(
+                                  label: '+100',
+                                  onTap: () {
+                                    final cur =
+                                        int.tryParse(item.stockCtrl.text.trim()) ??
+                                            0;
+                                    item.stockCtrl.text = '${cur + 100}';
+                                    setSheetState(() {});
+                                  },
+                                ),
+                                const Spacer(),
+                                ActionChip(
+                                  backgroundColor: const Color(0xfffee2e2),
+                                  side: BorderSide.none,
+                                  labelPadding: const EdgeInsets.symmetric(
+                                      horizontal: 4, vertical: -2),
+                                  label: const Text(
+                                    'Out of Stock (0)',
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: storeError),
+                                  ),
+                                  onPressed: () {
+                                    item.stockCtrl.text = '0';
+                                    setSheetState(() {});
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              // Sticky Save Footer
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  color: storeWhite,
+                  border: Border(top: BorderSide(color: storeBorder)),
+                ),
+                child: SafeArea(
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(backgroundColor: storeGreen),
+                      onPressed: isSaving
+                          ? null
+                          : () async {
+                              setSheetState(() => isSaving = true);
+                              try {
+                                final dio = ref.read(dioProvider);
+                                final itemsPayload = editItems.map((it) {
+                                  final stock = int.tryParse(
+                                          it.stockCtrl.text.trim()) ??
+                                      it.product.availableQuantity;
+                                  final price = double.tryParse(
+                                          it.priceCtrl.text.trim()) ??
+                                      it.product.price;
+                                  final mrp =
+                                      double.tryParse(it.mrpCtrl.text.trim());
+                                  return {
+                                    'product_id': it.product.id,
+                                    'available_quantity': stock,
+                                    'base_price': price,
+                                    if (mrp != null) 'compare_at_price': mrp,
+                                    'is_active': it.isActive,
+                                  };
+                                }).toList();
+
+                                final res = await dio.post(
+                                  '/vendor/products/bulk-inventory',
+                                  data: {'items': itemsPayload},
+                                );
+                                final body = res.data as Map<String, dynamic>;
+
+                                if (context.mounted) {
+                                  Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        body['message'] ??
+                                            'Bulk inventory updated!',
+                                      ),
+                                      backgroundColor: storeGreen,
+                                    ),
+                                  );
+                                  ref.invalidate(vendorProductsProvider);
+                                }
+                              } catch (e) {
+                                setSheetState(() => isSaving = false);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed bulk update: $e'),
+                                      backgroundColor: storeError,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                      child: isSaving
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              'Save All Changes (${editItems.length} Products)',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ).whenComplete(() {
+      for (final item in editItems) {
+        item.dispose();
+      }
+    });
+  }
+
+  Widget _buildQuickStockChip({required String label, required VoidCallback onTap}) {
+    return ActionChip(
+      backgroundColor: storeSage,
+      side: BorderSide.none,
+      labelPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: -2),
+      label: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: storeGreen,
+        ),
+      ),
+      onPressed: onTap,
+    );
+  }
 }
+
+class _BulkEditItemState {
+  final Product product;
+  late final TextEditingController stockCtrl;
+  late final TextEditingController priceCtrl;
+  late final TextEditingController mrpCtrl;
+  bool isActive = true;
+
+  _BulkEditItemState(this.product) {
+    stockCtrl = TextEditingController(text: '${product.availableQuantity}');
+    priceCtrl = TextEditingController(text: '${product.price}');
+    mrpCtrl = TextEditingController(
+      text: product.compareAtPrice != null ? '${product.compareAtPrice}' : '',
+    );
+    isActive = product.isActive;
+  }
+
+  void dispose() {
+    stockCtrl.dispose();
+    priceCtrl.dispose();
+    mrpCtrl.dispose();
+  }
+}
+

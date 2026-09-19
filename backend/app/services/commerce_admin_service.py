@@ -36,7 +36,8 @@ async def validate_coupon(db, code, subtotal, lock=False):
 
 async def serialize_coupon(db, coupon):
     uses = (await db.execute(select(func.count()).select_from(OrderCoupon).where(OrderCoupon.coupon_id == coupon.id))).scalar_one()
-    return {"id": str(coupon.id), "code": coupon.code, "description": coupon.description,
+    return {"id": str(coupon.id), "vendor_id": str(coupon.vendor_id) if getattr(coupon, "vendor_id", None) else None,
+            "code": coupon.code, "description": coupon.description,
             "discount_type": coupon.discount_type, "discount_value": str(coupon.discount_value),
             "min_order_value": str(coupon.min_order_value),
             "max_discount_cap": str(coupon.max_discount_cap) if coupon.max_discount_cap is not None else None,

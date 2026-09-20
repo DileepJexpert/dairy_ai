@@ -372,7 +372,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                     // Desktop Faceted Filter Sidebar
                                     if (isDesktop) ...[
                                       SizedBox(
-                                        width: 260,
+                                        width: 285,
                                         child: _filters(() => setState(() {})),
                                       ),
                                       const SizedBox(width: 24),
@@ -1547,8 +1547,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       ? FontWeight.w800
                       : (indent ? FontWeight.w500 : FontWeight.w600),
                   color: isSelected ? storeGreen : const Color(0xff222222),
+                  height: 1.25,
                 ),
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -1631,12 +1632,20 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         catLower.contains('sattu') ||
         catLower.contains('millet');
 
-    final isSaltSpiceCategory = catLower.contains('salt') ||
-        catLower.contains('sendha') ||
+    final isSaltCategory = (catLower.contains('salt') ||
+            catLower.contains('sendha') ||
+            catLower.contains('namak')) &&
+        !catLower.contains('spice');
+
+    final isSpiceCategory = catLower.contains('spice') ||
         catLower.contains('haldi') ||
         catLower.contains('turmeric') ||
-        catLower.contains('spice') ||
-        catLower.contains('terroir');
+        catLower.contains('jeera') ||
+        catLower.contains('dhania') ||
+        catLower.contains('chilli');
+
+    final isSaltSpiceCategory = catLower.contains('terroir') ||
+        (catLower.contains('salt') && catLower.contains('spice'));
 
     final isBalconyCategory = catLower.contains('balcony') ||
         catLower.contains('booster') ||
@@ -1814,13 +1823,15 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
               (pTitle.contains('oil') && !pTitle.contains('soil'));
         }
       } else if (isMicrogreenCategory) {
-        matchesCategory = pTitle.contains('microgreen') ||
-            pTitle.contains('punnet') ||
-            pTitle.contains('radish') ||
-            pTitle.contains('sunflower') ||
-            pTitle.contains('pea') ||
-            pTitle.contains('broccoli') ||
-            pCategory.toLowerCase().contains('microgreen');
+        matchesCategory = (pTitle.contains('microgreen') ||
+                pTitle.contains('punnet') ||
+                pTitle.contains('radish micro') ||
+                pTitle.contains('sunflower micro') ||
+                pTitle.contains('pea shoot') ||
+                pTitle.contains('sweet pea') ||
+                pTitle.contains('broccoli & mustard micro') ||
+                pCategory.toLowerCase().contains('microgreen')) &&
+            !pTitle.contains('oil');
       } else if (isFlourCategory) {
         matchesCategory = pTitle.contains('atta') ||
             pTitle.contains('flour') ||
@@ -1830,12 +1841,35 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             pTitle.contains('millet') ||
             pCategory.toLowerCase().contains('flour') ||
             pCategory.toLowerCase().contains('atta');
+      } else if (isSaltCategory) {
+        matchesCategory = pTitle.contains('salt') ||
+            pTitle.contains('sendha') ||
+            pTitle.contains('namak') ||
+            (pCategory.toLowerCase().contains('salt') &&
+                !pCategory.toLowerCase().contains('spice'));
+      } else if (isSpiceCategory) {
+        matchesCategory = pTitle.contains('haldi') ||
+            pTitle.contains('turmeric') ||
+            pTitle.contains('jeera') ||
+            pTitle.contains('cumin') ||
+            pTitle.contains('dhania') ||
+            pTitle.contains('coriander') ||
+            pTitle.contains('mathania') ||
+            pTitle.contains('chilli') ||
+            pTitle.contains('spice') ||
+            pCategory.toLowerCase().contains('spice');
       } else if (isSaltSpiceCategory) {
         matchesCategory = pTitle.contains('salt') ||
             pTitle.contains('sendha') ||
             pTitle.contains('namak') ||
             pTitle.contains('haldi') ||
             pTitle.contains('turmeric') ||
+            pTitle.contains('jeera') ||
+            pTitle.contains('cumin') ||
+            pTitle.contains('dhania') ||
+            pTitle.contains('coriander') ||
+            pTitle.contains('mathania') ||
+            pTitle.contains('chilli') ||
             pCategory.toLowerCase().contains('salt') ||
             pCategory.toLowerCase().contains('spice');
       } else if (isBalconyCategory) {

@@ -1141,6 +1141,7 @@ PRODUCTS_DATA = [
         "stock": 20,
         "category_slug": "pantry-combos",
         "department": "Curated Kitchen & Wellness Boxes",
+        "subheadline": "500ml Vedic Bilona Ghee + 1L Mustard Oil + 2kg Khapli Atta + Lakadong Haldi + Pink Salt + Goat Milk Soap",
         "description": "The ultimate Delhi-NCR and Lucknow urban home purity overhaul: 500 ml Vedic Bilona Cow Ghee + 1 Litre Lakdi Ghani Mustard Oil + 2 kg Ancient Khapli Atta + 200 g Single-Origin Lakadong Turmeric (>7% Curcumin) + 1 kg Crushed Himalayan Pink Salt + 1x Cold-Process Goat Milk & Honey Soap Bar + 1x Tamba Chhachh Balcony Spray. Save ₹451.",
         "specs": {
             "Contents": "1x Bilona Ghee (500ml), 1x Lakdi Ghani Mustard (1L), 1x Khapli Atta (2kg), 1x Lakadong Haldi (200g), 1x Pink Salt (1kg), 1x Goat Milk Soap (100g), 1x Copper Bio-Spray (500ml)",
@@ -1198,6 +1199,7 @@ async def seed_urban_catalog():
             "ALTER TABLE product_reviews ADD COLUMN IF NOT EXISTS vendor_replied_at TIMESTAMP;",
             "UPDATE commerce_taxonomy_nodes SET name = 'Stone-Ground Chakki Atta & Flours' WHERE slug = 'fresh-chakki-flours';",
             "UPDATE commerce_taxonomy_nodes SET name = 'Vedic Skincare & Goat Milk Soaps' WHERE slug = 'shata-dhauta-ghrita-category';",
+            "UPDATE merchandising_placements SET subheadline = '500ml Vedic Bilona Ghee + 1L Mustard Oil + 2kg Khapli Atta + Lakadong Haldi + Pink Salt + Goat Milk Soap' WHERE headline LIKE '%Wellness Restock Box%';",
         ]:
             try:
                 await conn.execute(text(stmt))
@@ -1328,7 +1330,7 @@ async def seed_urban_catalog():
                         product_id=prod.id,
                         placement_type="highlight" if "BESTSELLER" in item["badge"] else "new_launch",
                         headline=item["title"],
-                        subheadline=item["description"][:120],
+                        subheadline=item.get("subheadline") or item["description"][:120],
                         badge=item["badge"],
                         priority=300 if "COMBO" in item["sku"] or "BILONA" in item["sku"] else 200,
                         is_active=True,

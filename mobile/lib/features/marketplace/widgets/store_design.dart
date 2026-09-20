@@ -1832,23 +1832,32 @@ abstract final class StoreImages {
     if (title.contains('buffalo')) return 'assets/store/buffalo-ghee.png';
     if (title.contains('ghee')) return 'assets/store/cow-ghee.png';
     if (title.contains('paneer')) return 'assets/store/paneer.png';
-    if (title.contains('sarso') ||
-        title.contains('mustard') ||
-        title.contains('til') ||
-        title.contains('sesame') ||
-        title.contains('groundnut') ||
-        title.contains('peanut') ||
-        (title.contains('oil') && !title.contains('soil'))) {
-      return 'assets/store/sarso-oil.jpg';
-    }
+
+    // 1. Fresh Living Microgreens (MUST precede oil/mustard check)
     if (title.contains('microgreen') ||
         title.contains('punnet') ||
         title.contains('shoots') ||
-        title.contains('radish') ||
-        title.contains('sunflower') ||
+        title.contains('radish micro') ||
+        title.contains('sunflower micro') ||
         title.contains('broccoli')) {
       return 'assets/store/farm-pasture.jpg';
     }
+
+    // 2. Wood-Pressed Cooking Oils
+    if ((title.contains('sarso') ||
+            title.contains('mustard') ||
+            title.contains('til') ||
+            title.contains('sesame') ||
+            title.contains('groundnut') ||
+            title.contains('peanut') ||
+            title.contains('kacchi ghani') ||
+            title.contains('lakdi ghani') ||
+            (title.contains('oil') && !title.contains('soil'))) &&
+        !title.contains('microgreen')) {
+      return 'assets/store/sarso-oil.jpg';
+    }
+
+    // 3. Ancient Grains, Flours & Sattu
     if (title.contains('atta') ||
         title.contains('khapli') ||
         title.contains('sharbati') ||
@@ -1857,6 +1866,8 @@ abstract final class StoreImages {
         title.contains('flour')) {
       return 'assets/store/nutrition-lineup.jpg';
     }
+
+    // 4. Raw Honey & Heritage Sweeteners
     if (title.contains('honey') ||
         title.contains('gur') ||
         title.contains('khand') ||
@@ -1864,24 +1875,55 @@ abstract final class StoreImages {
         title.contains('sugar')) {
       return 'assets/store/milterra-tulsi-ghee.webp';
     }
+
+    // 5. Mineral Salts & Terroir Spices (Jeera, Dhania, Haldi, Mathania Chilli)
     if (title.contains('salt') ||
         title.contains('sendha') ||
         title.contains('namak') ||
         title.contains('haldi') ||
-        title.contains('turmeric')) {
+        title.contains('turmeric') ||
+        title.contains('jeera') ||
+        title.contains('cumin') ||
+        title.contains('dhania') ||
+        title.contains('coriander') ||
+        title.contains('mathania') ||
+        title.contains('chilli') ||
+        title.contains('spice')) {
       return 'assets/store/minera-360-jar.jpg';
     }
-    if (title.contains('balcony') ||
+
+    // 6. Balcony Soil, Potting Mix & Garden Seed Kits
+    if (title.contains('vermicompost') ||
+        title.contains('potting') ||
+        title.contains('booster') ||
+        title.contains('balcony') ||
+        title.contains('bio-fungicide') ||
+        title.contains('tamba chhachh') ||
         title.contains('spray') ||
-        title.contains('seed') ||
-        title.contains('aloe')) {
+        title.contains('heirloom') ||
+        title.contains('seed kit') ||
+        title.contains('5-in-1') ||
+        title.contains('soil mix') ||
+        title.contains('potted') ||
+        title.contains('plant')) {
       return 'assets/store/earth-soil-mix.jpg';
     }
+
+    // 7. Aloe Vera Botanicals
+    if (title.contains('aloe gel') || title.contains('aloe vera gel')) {
+      return 'assets/store/milterra-tulsi-ghee.webp';
+    }
+    if (title.contains('aloe juice') || title.contains('aloe tonic')) {
+      return 'assets/store/farm-pasture.jpg';
+    }
+
+    // 8. Combos & Starter Boxes
     if (title.contains('box') ||
         title.contains('kit') ||
         title.contains('combo') ||
         title.contains('duo') ||
-        title.contains('starter')) {
+        title.contains('starter') ||
+        title.contains('wellness')) {
       return 'assets/store/hero.png';
     }
     if (title.contains('mattha') ||

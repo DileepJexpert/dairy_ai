@@ -438,6 +438,14 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                           () => storeBrowse(context, category: 'Apartment Balcony & Living Soil', query: 'spray')),
                       _drawerTile(context, 'Heirloom Balcony Kitchen Seeds (5-in-1 Kit)',
                           () => storeBrowse(context, category: 'Apartment Balcony & Living Soil', query: 'seeds')),
+                      _drawerTile(context, '🌵 Pure Aloe Vera & Living Botanicals',
+                          () => storeBrowse(context, category: 'Pure Aloe Vera & Living Botanicals')),
+                      _drawerTile(context, 'Pure Aloe Inner-Leaf Gel (99% Clear)',
+                          () => storeBrowse(context, category: 'Pure Aloe Vera & Living Botanicals', query: 'aloe gel')),
+                      _drawerTile(context, 'Raw Aloe Vera Digestive Juice (Pulp-Rich)',
+                          () => storeBrowse(context, category: 'Pure Aloe Vera & Living Botanicals', query: 'aloe juice')),
+                      _drawerTile(context, 'Live Potted Balcony Aloe Vera Succulent',
+                          () => storeBrowse(context, category: 'Pure Aloe Vera & Living Botanicals', query: 'aloe plant')),
 
                       const Divider(height: 16),
                       _sectionHeader('🎁 Curated Kitchen & Wellness Boxes'),
@@ -1865,7 +1873,8 @@ abstract final class StoreImages {
     }
     if (title.contains('balcony') ||
         title.contains('spray') ||
-        title.contains('seed')) {
+        title.contains('seed') ||
+        title.contains('aloe')) {
       return 'assets/store/earth-soil-mix.jpg';
     }
     if (title.contains('box') ||

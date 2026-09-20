@@ -60,6 +60,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     if (lower.contains('botanical living') || lower == 'botanical' || lower == 'botanical-living') {
       return '🌿 The Botanical Living (Living Greens & Bio-Soil)';
     }
+    if (lower.contains('aloe') || lower == 'pure-aloe-botanicals') {
+      return '🌵 Pure Aloe Vera & Living Botanicals';
+    }
     if (lower.contains('microgreen') ||
         lower.contains('living-harvest') ||
         lower.contains('living harvest') ||
@@ -875,11 +878,11 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       badge: '🌿 CLEAN APARTMENT LIVING',
       title: 'The Botanical Living',
       subtitle:
-          'Urban balcony vitality & clean personal care: Living Microgreen Trays, Odorless Soil, Copper Fungicide & Goat Milk Soaps.',
+          'Urban balcony vitality & clean personal care: 99% Inner-Leaf Aloe Gel, Digestive Juice, Living Microgreens & Odorless Soil.',
       tags: const [
+        '🌵 Pure Aloe Gel',
         '🌱 Live Microgreens',
-        '🪴 Elevator-Safe Soil',
-        '🛡️ Copper Bio-Spray',
+        '🪴 Balcony Living Soil',
         '🧼 Goat Milk Skincare'
       ],
       isSelected: isBotanicalSelected,
@@ -1666,6 +1669,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         catLower == 'the botanical living' ||
         catLower == 'botanical-living';
 
+    final isAloeCategory = catLower.contains('aloe') || catLower == 'pure-aloe-botanicals';
+
     final isAllNutrition = catLower == 'animal nutrition' ||
         catLower == 'cattle nutrition' ||
         catLower == 'milterra cattle nutrition solutions' ||
@@ -1882,6 +1887,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         matchesCategory = isMicrogreenCategory ||
             isBalconyCategory ||
             isEarthCategory ||
+            isAloeCategory ||
             pTitle.contains('microgreen') ||
             pTitle.contains('vermicompost') ||
             pTitle.contains('potting') ||
@@ -1891,7 +1897,12 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             pTitle.contains('soap') ||
             pTitle.contains('ghrita') ||
             pTitle.contains('ubtan') ||
-            pTitle.contains('skin');
+            pTitle.contains('skin') ||
+            pTitle.contains('aloe');
+      } else if (isAloeCategory) {
+        matchesCategory = pTitle.contains('aloe') ||
+            pCategory.toLowerCase().contains('aloe') ||
+            (p.taxonomy?['category_name']?.toString().toLowerCase().contains('aloe') ?? false);
       } else if (isEquipmentCategory) {
         matchesCategory = pCategory == 'Equipment' ||
             p.category == ProductCategory.equipment;

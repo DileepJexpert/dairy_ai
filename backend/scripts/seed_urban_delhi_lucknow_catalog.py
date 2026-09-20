@@ -60,6 +60,7 @@ TAXONOMY_TREE = [
     # Categories under living-balcony-soil
     ("balcony-fertilizers", "category", "Odorless Soil Boosters", "living-balcony-soil", "Apartment-friendly, elevator-safe vermicompost and potting mix"),
     ("bio-plant-defense", "category", "Organic Plant Defense & Seeds", "living-balcony-soil", "Fermented copper buttermilk spray and 5-in-1 heirloom seeds"),
+    ("pure-aloe-botanicals", "category", "Pure Aloe Vera & Living Botanicals", "living-balcony-soil", "Cold-stabilized 99% inner-leaf aloe gel, fibrous digestive juice, and live potted balcony aloe plants"),
 
     # Categories under curated-combos
     ("pantry-combos", "category", "Kitchen Starter & Upgrade Boxes", "curated-combos", "Curated high-AOV bundles for complete kitchen detox"),
@@ -986,6 +987,101 @@ PRODUCTS_DATA = [
         "badge": "5-IN-1 KITCHEN HERBS",
     },
 
+    # --- Category: Pure Aloe Vera Botanicals & Living Succulents ---
+    {
+        "sku": "MIL-ALOE-GEL-250",
+        "title": "Pure Inner-Leaf Aloe Vera Gel (99% Cold-Stabilized)",
+        "pack": "250 ml Pump",
+        "price": "240",
+        "compare_at": "290",
+        "stock": 50,
+        "category_slug": "pure-aloe-botanicals",
+        "department": "Apartment Balcony & Living Soil",
+        "description": "Harvested from organically grown mature Aloe barbadensis Miller. Hand-filleted inner leaf gel cold-stabilized with natural Vitamin C & E. 0% green dyes, 0% parabens, and 0% synthetic perfumes. Pure, clear, soothing multi-use hydration for face, skin, and hair.",
+        "specs": {
+            "Plant Cultivar": "100% Organically Grown Aloe Barbadensis Miller (Mature 3-Year Leaves)",
+            "Purity": "99% Pure Hand-Filleted Clear Inner-Leaf Gel (Zero Aloin/Latex)",
+            "Color & Scent": "Natural Crystal Clear Translucent Gel (Zero Green Pigment, Zero Artificial Fragrance)",
+            "Free From": "Zero Alcohol, Zero Parabens, Zero Sulfates, Zero Mineral Oil",
+            "Multi-Use": "Daily Facial Hydrator, Calming Sunburn/Pollution Gel, Hair & Scalp Moisture Mask",
+            "Packaging": "UV-Protective Amber Bottle with Ergonomic Treatment Pump",
+        },
+        "badge": "99% COLD-STABILIZED · ZERO DYES",
+    },
+    {
+        "sku": "MIL-ALOE-JUICE-500",
+        "title": "Cold-Pressed Raw Aloe Vera Digestive Juice (Pulp-Rich)",
+        "pack": "500 ml Glass",
+        "price": "180",
+        "compare_at": "220",
+        "stock": 45,
+        "category_slug": "pure-aloe-botanicals",
+        "department": "Apartment Balcony & Living Soil",
+        "description": "100% pure cold-pressed inner fillet aloe juice with real suspended dietary pulp. Naturally alkaline; relieves acidity, acid reflux (GERD), and supports daily bowel regularity. Non-diluted, non-pasteurized cold processing.",
+        "specs": {
+            "Active Formulation": "Cold-Pressed Inner Leaf Fillet with Intact Acemannan Polysaccharides & Soluble Fiber",
+            "Aloin Removal": "Debittered & Micro-Filtered (<1 ppm Aloin, Non-Laxative, Safe for Daily Use)",
+            "Serving Suggestion": "20–30 ml with equal warm water first thing on an empty stomach",
+            "Packaging": "Food-Grade Heavy Amber Glass Bottle (Prevents Nutrient Degradation)",
+            "Target Benefit": "Soothes Hyperacidity, Strengthens Gut Lining & Daily Digestion",
+        },
+        "badge": "FIBROUS RAW PULP · GUT HEALTH",
+    },
+    {
+        "sku": "MIL-ALOE-AMLA-500",
+        "title": "Aloe Vera & Wild Amla Detox Immunity Tonic",
+        "pack": "500 ml Glass",
+        "price": "210",
+        "compare_at": "250",
+        "stock": 40,
+        "category_slug": "pure-aloe-botanicals",
+        "department": "Apartment Balcony & Living Soil",
+        "description": "Synergistic Ayurvedic wellness tonic blending 70% cold-pressed aloe vera inner fillet juice with 30% wild forest amla (Indian gooseberry) juice. High bio-available Vitamin C; enhances iron absorption and liver detox.",
+        "specs": {
+            "Ingredients": "70% Cold-Pressed Aloe Vera Gel, 30% Cold-Extracted Pratapgarh Wild Amla Juice",
+            "Natural Actives": "Naturally High in Ascorbic Acid (Vitamin C), Polyphenols, and Enzymes",
+            "Zero Adulteration": "Zero Added Sugar, Zero Citric Acid Crystals, Zero Reconstituted Powder",
+            "Packaging": "500 ml Recyclable Glass Bottle",
+        },
+        "badge": "ALOE + WILD AMLA TONIC",
+    },
+    {
+        "sku": "MIL-ALOE-PLANT-POT",
+        "title": "Live Potted Aloe Vera Plant (Balcony Living Soil Pot)",
+        "pack": "5-inch Bio-Pot",
+        "price": "149",
+        "compare_at": "199",
+        "stock": 35,
+        "category_slug": "pure-aloe-botanicals",
+        "department": "Apartment Balcony & Living Soil",
+        "description": "Healthy, vigorous rooted Aloe barbadensis Miller succulent potted in our elevator-safe odorless vermicompost potting booster. NASA-approved indoor oxygen purifier that thrives on apartment window sills with minimal watering. Snip fresh organic gel right at home.",
+        "specs": {
+            "Plant": "Live Rooted Medicinal Aloe Barbadensis Miller (10–12 inches height)",
+            "Potting Soil": "Potted in Enriched Living Vermicompost, Perlite & Cocopeat",
+            "Container": "5-inch Breathable Eco Terra-cotta Bio-Planter with Drainage Base",
+            "Care Requirement": "Low Maintenance; water once every 7–10 days; indirect sunlight",
+            "Benefits": "Night-time Oxygen Release (Crassulacean Acid Metabolism), Instant Home First-Aid Gel",
+        },
+        "badge": "NASA AIR-PURIFIER · ROOTED LIVE",
+    },
+    {
+        "sku": "MIL-COMBO-ALOE-WELLNESS",
+        "title": "'Pure Aloe Vitality' Skin & Gut Trio",
+        "pack": "Curated Botanical Trio",
+        "price": "499",
+        "compare_at": "569",
+        "stock": 25,
+        "category_slug": "pure-aloe-botanicals",
+        "department": "Apartment Balcony & Living Soil",
+        "description": "The complete inside-and-out Aloe wellness kit: 1x 250ml Pure Aloe Inner-Leaf Gel + 1x 500ml Fibrous Raw Digestive Juice + 1x Live Potted Balcony Aloe Succulent. Save ₹70.",
+        "specs": {
+            "Trio Contents": "1x Aloe Inner Gel (250ml), 1x Cold-Pressed Aloe Juice (500ml), 1x Live Potted Aloe Succulent",
+            "Lifestyle Impact": "Topical barrier hydration, morning gut acidity relief & apartment air purification",
+            "Packaging": "Custom Reinforced Milterra Green Crate with Care Card",
+        },
+        "badge": "COMPLETE ALOE TRIO · SAVE ₹70",
+    },
+
     # --- Category 8: Curated Website Combos (High AOV Bundles) ---
     {
         "sku": "MIL-COMBO-KITCHEN-BOX",
@@ -1308,6 +1404,26 @@ async def seed_urban_catalog():
                         headline="The complete high-rise apartment wellness crate",
                         content="Everything from the bilona ghee and mustard oil to the goat milk soap and balcony copper spray arrived in pristine condition. Superb curation!",
                         source_label="Verified Buyer · Gurugram",
+                        is_approved=True,
+                    ))
+                elif "ALOE-GEL" in item["sku"]:
+                    db.add(ProductReview(
+                        product_id=prod.id,
+                        author_name="Kavita Saxena (Noida Expressway)",
+                        rating=5,
+                        headline="Completely clear and translucent - no fake green color!",
+                        content="Finally an aloe gel that isn't dyed neon green with artificial perfume. Absorbs completely into the skin within seconds without any sticky residue. Perfect after a day out in Delhi pollution.",
+                        source_label="Verified Buyer · Jaypee Greens",
+                        is_approved=True,
+                    ))
+                elif "ALOE-JUICE" in item["sku"]:
+                    db.add(ProductReview(
+                        product_id=prod.id,
+                        author_name="Harish Chandra (Gomti Nagar Extension)",
+                        rating=5,
+                        headline="Real fibrous pulp that calmed my morning hyperacidity",
+                        content="You can actually see and taste the natural inner leaf pulp. Taking 30ml every morning with warm water has completely eliminated my acidity without taking antacid tablets.",
+                        source_label="Verified Buyer · Lucknow",
                         is_approved=True,
                     ))
 

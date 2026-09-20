@@ -183,15 +183,18 @@ class _CommerceProductsScreenState
                 });
                 ref.invalidate(productsProvider);
                 ref.invalidate(productDetailProvider);
-                await _fetchBackendData();
-                if (ctx.mounted) Navigator.pop(ctx);
-                if (mounted)
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                }
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                       content: Text('Price and stock saved to backend.')));
+                }
               } catch (error) {
-                if (mounted)
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(commerceError(error))));
+                }
               }
             },
             child: const Text('Save Changes',
@@ -508,6 +511,30 @@ class _CommerceProductsScreenState
                                 ),
                                 items: const [
                                   DropdownMenuItem(
+                                      value: 'Artisanal Dairy & Cultured',
+                                      child: Text('🧈 Artisanal Dairy & Cultured')),
+                                  DropdownMenuItem(
+                                      value: 'Fresh Living Harvest (Microgreens)',
+                                      child: Text('🌱 Fresh Living Harvest (Microgreens)')),
+                                  DropdownMenuItem(
+                                      value: 'Wood-Pressed Oils & Pure Sweeteners',
+                                      child: Text('🌻 Wood-Pressed Oils & Pure Sweeteners')),
+                                  DropdownMenuItem(
+                                      value: 'Stone-Ground Chakki Atta & Flours',
+                                      child: Text('🌾 Stone-Ground Chakki Atta & Flours')),
+                                  DropdownMenuItem(
+                                      value: 'Terroir Salts & Native Spices',
+                                      child: Text('🧂 Terroir Salts & Native Spices')),
+                                  DropdownMenuItem(
+                                      value: 'Apartment Balcony & Living Soil',
+                                      child: Text('🪴 Apartment Balcony & Living Soil')),
+                                  DropdownMenuItem(
+                                      value: 'Curated Kitchen & Wellness Boxes',
+                                      child: Text('🎁 Curated Kitchen & Wellness Boxes')),
+                                  DropdownMenuItem(
+                                      value: 'Puja & Hawan Samagri',
+                                      child: Text('🪔 Puja & Hawan: Sacred Essentials')),
+                                  DropdownMenuItem(
                                       value: 'Dairy Foods',
                                       child: Text('🥛 Dairy Foods')),
                                   DropdownMenuItem(
@@ -518,8 +545,9 @@ class _CommerceProductsScreenState
                                       child: Text('⚙️ Farm Machinery')),
                                 ],
                                 onChanged: (val) {
-                                  if (val != null)
+                                  if (val != null) {
                                     setModalState(() => department = val);
+                                  }
                                 },
                               ),
                             ],
@@ -973,15 +1001,9 @@ class _CommerceProductsScreenState
     var filteredFamilies = _families;
     if (_selectedDepartment != 'All') {
       filteredFamilies = filteredFamilies.where((f) {
-        if (_selectedDepartment == 'Dairy Foods')
-          return f.department.contains('Dairy');
-        if (_selectedDepartment == 'Cattle Feed')
-          return f.department.contains('Nutrition') ||
-              f.department.contains('Feed');
-        if (_selectedDepartment == 'Machinery')
-          return f.department.contains('Machinery') ||
-              f.department.contains('Equipment');
-        return true;
+        final d = f.department.toLowerCase();
+        final sel = _selectedDepartment.toLowerCase();
+        return d.contains(sel) || sel.contains(d);
       }).toList();
     }
 
@@ -996,24 +1018,16 @@ class _CommerceProductsScreenState
 
     // Filter flat products
     var filteredProducts = _products;
-    if (_selectedDepartment == 'Dairy Foods') {
+    if (_selectedDepartment != 'All') {
       filteredProducts = filteredProducts.where((p) {
-        final dept = p.taxonomy?['department_name']?.toString() ?? '';
-        return dept.contains('Dairy') ||
-            p.category == ProductCategory.feedNutrition && p.price < 1000;
+        final dept = (p.taxonomy?['department_name']?.toString() ??
+                p.taxonomy?['subcategory_name']?.toString() ??
+                '')
+            .toLowerCase();
+        final cat = storeCategory(p).toLowerCase();
+        final sel = _selectedDepartment.toLowerCase();
+        return dept.contains(sel) || cat.contains(sel) || sel.contains(dept);
       }).toList();
-    } else if (_selectedDepartment == 'Cattle Feed') {
-      filteredProducts = filteredProducts.where((p) {
-        final dept = p.taxonomy?['department_name']?.toString() ?? '';
-        return dept.contains('Cattle') ||
-            dept.contains('Feed') ||
-            p.title.contains('Feed') ||
-            p.title.contains('Mineral');
-      }).toList();
-    } else if (_selectedDepartment == 'Machinery') {
-      filteredProducts = filteredProducts
-          .where((p) => p.category == ProductCategory.equipment)
-          .toList();
     }
 
     if (_searchQuery.isNotEmpty) {
@@ -1198,7 +1212,14 @@ class _CommerceProductsScreenState
                               children: [
                                 for (final d in [
                                   'All',
-                                  'Dairy Foods',
+                                  'Artisanal Dairy',
+                                  'Living Microgreens',
+                                  'Wood-Pressed Oils',
+                                  'Chakki Atta',
+                                  'Terroir Salts',
+                                  'Balcony Soil',
+                                  'Combos & Boxes',
+                                  'Puja & Sacred',
                                   'Cattle Feed',
                                   'Machinery'
                                 ])
@@ -1864,14 +1885,19 @@ class _CommerceProductsScreenState
                               ref.invalidate(productsProvider);
                               ref.invalidate(productDetailProvider);
                               await _fetchBackendData();
-                              if (ctx.mounted) Navigator.pop(ctx);
+                              if (ctx.mounted) {
+                                Navigator.pop(ctx);
+                              }
                             } catch (error) {
-                              if (mounted)
+                              if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                         content: Text(commerceError(error))));
+                              }
                             } finally {
-                              if (ctx.mounted) update(() => saving = false);
+                              if (ctx.mounted) {
+                                update(() => saving = false);
+                              }
                             }
                           },
                     child: const Text('Save Price & Stock',

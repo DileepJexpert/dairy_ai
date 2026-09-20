@@ -265,7 +265,6 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    final taxonomy = ref.watch(taxonomyProvider).valueOrNull;
 
     return Align(
       alignment: Alignment.centerLeft,
@@ -352,30 +351,105 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                         () => storeBrowse(context, sort: 'Newest Arrivals')),
                     _drawerTile(context, 'Movers & Shakers',
                         () => storeBrowse(context, sort: 'Trending')),
-                    const Divider(height: 16),
-                    _sectionHeader('🧈 Vedic Bilona Ghee'),
-                      _drawerTile(context, 'All Vedic Ghee',
-                          () => storeBrowse(context, category: 'Vedic Bilona Ghee')),
-                      _drawerTile(context, 'A2 Desi Gir Cow Ghee',
-                          () => storeBrowse(context, category: 'Cow ghee')),
-                      _drawerTile(context, 'Rich Murrah Buffalo Ghee',
-                          () => storeBrowse(context, category: 'Buffalo ghee')),
-                      _drawerTile(context, 'Herbal Infused Ghee (Brahmi/Tulsi)',
-                          () => storeBrowse(context, category: 'Herbal Ghee')),
                       const Divider(height: 16),
-                      _sectionHeader('🥛 Fresh Milk & Dairy'),
-                      _drawerTile(context, 'All Fresh Dairy Foods',
-                          () => storeBrowse(context, category: 'Fresh Milk & Dairy')),
-                      _drawerTile(context, 'A2 Gir Cow Raw Chilled Milk',
-                          () => storeBrowse(context,
-                              category: 'Fresh Milk & Dairy', query: 'milk')),
-                      _drawerTile(context, 'Traditional Masala Chhachh / Chaas',
-                          () => storeBrowse(context,
-                              category: 'Fresh Milk & Dairy', query: 'chhachh')),
-                      _drawerTile(context, 'Fresh Malai Paneer',
-                          () => storeBrowse(context, category: 'Paneer')),
-                      _drawerTile(context, 'Cultured White Butter (Makhan)',
-                          () => storeBrowse(context, category: 'Other products')),
+                      _sectionHeader('🧈 Artisanal Dairy & Cultured'),
+                      _drawerTile(context, 'All Artisanal Dairy',
+                          () => storeBrowse(context, category: 'Artisanal Dairy & Cultured')),
+                      _drawerTile(context, 'Vedic Bilona Cow Ghee (Amber Glass)',
+                          () => storeBrowse(context, category: 'Artisanal Dairy & Cultured', query: 'bilona')),
+                      _drawerTile(context, 'Spiced Probiotic Mattha (Live Buttermilk)',
+                          () => storeBrowse(context, category: 'Artisanal Dairy & Cultured', query: 'mattha')),
+                      _drawerTile(context, 'Traditional Curd Chillies (Mor Milagai)',
+                          () => storeBrowse(context, category: 'Artisanal Dairy & Cultured', query: 'chilli')),
+                      _drawerTile(context, 'Shata Dhauta Ghrita (100x Washed Ghee Cream)',
+                          () => storeBrowse(context, category: 'Artisanal Dairy & Cultured', query: 'shata dhauta')),
+                      _drawerTile(context, 'A2 Gir Cow Chilled Raw Milk',
+                          () => storeBrowse(context, category: 'Artisanal Dairy & Cultured', query: 'milk')),
+                      _drawerTile(context, 'Fresh Malai Paneer & Makhan',
+                          () => storeBrowse(context, category: 'Artisanal Dairy & Cultured', query: 'paneer')),
+
+                      const Divider(height: 16),
+                      _sectionHeader('🌱 Fresh Living Harvest (Microgreens)'),
+                      _drawerTile(context, 'All Living Microgreen Punnets',
+                          () => storeBrowse(context, category: 'Fresh Living Harvest (Microgreens)')),
+                      _drawerTile(context, 'Live Radish Microgreens (Mooli)',
+                          () => storeBrowse(context, category: 'Fresh Living Harvest (Microgreens)', query: 'radish')),
+                      _drawerTile(context, 'Live Sunflower Protein Crunch Trays',
+                          () => storeBrowse(context, category: 'Fresh Living Harvest (Microgreens)', query: 'sunflower')),
+                      _drawerTile(context, 'Live Sweet Pea Shoots (Kids Favorite)',
+                          () => storeBrowse(context, category: 'Fresh Living Harvest (Microgreens)', query: 'pea')),
+                      _drawerTile(context, 'Live Broccoli & Mustard Sulforaphane Detox',
+                          () => storeBrowse(context, category: 'Fresh Living Harvest (Microgreens)', query: 'broccoli')),
+
+                      const Divider(height: 16),
+                      _sectionHeader('🌻 Wood-Pressed Oils & Pure Sweeteners'),
+                      _drawerTile(context, 'All Oils & Heritage Sweeteners',
+                          () => storeBrowse(context, category: 'Wood-Pressed Oils & Pure Sweeteners')),
+                      _drawerTile(context, 'Lakdi Ghani Black Mustard Oil (1L & 5L)',
+                          () => storeBrowse(context, category: 'Wood-Pressed Oils & Pure Sweeteners', query: 'mustard')),
+                      _drawerTile(context, 'Cold-Pressed Yellow Mustard Oil (Mild)',
+                          () => storeBrowse(context, category: 'Wood-Pressed Oils & Pure Sweeteners', query: 'yellow')),
+                      _drawerTile(context, 'Cold-Pressed Black Til (Sesame) Oil',
+                          () => storeBrowse(context, category: 'Wood-Pressed Oils & Pure Sweeteners', query: 'til')),
+                      _drawerTile(context, 'Cold-Pressed Groundnut Frying Oil',
+                          () => storeBrowse(context, category: 'Wood-Pressed Oils & Pure Sweeteners', query: 'groundnut')),
+                      _drawerTile(context, 'Raw Unpasteurized Mustard Honey (NMR-Tested)',
+                          () => storeBrowse(context, category: 'Wood-Pressed Oils & Pure Sweeteners', query: 'honey')),
+                      _drawerTile(context, 'Unbleached Organic Gur (Zero Hydros)',
+                          () => storeBrowse(context, category: 'Wood-Pressed Oils & Pure Sweeteners', query: 'gur')),
+                      _drawerTile(context, 'Artisanal Desi Khand (Bone-Char Free)',
+                          () => storeBrowse(context, category: 'Wood-Pressed Oils & Pure Sweeteners', query: 'khand')),
+                      _drawerTile(context, 'Dhage Wali Mishri (Rock Sugar Crystals)',
+                          () => storeBrowse(context, category: 'Wood-Pressed Oils & Pure Sweeteners', query: 'mishri')),
+
+                      const Divider(height: 16),
+                      _sectionHeader('🌾 Stone-Ground Chakki Atta & Flours'),
+                      _drawerTile(context, 'All Fresh Chakki Atta & Flours',
+                          () => storeBrowse(context, category: 'Stone-Ground Chakki Atta & Flours')),
+                      _drawerTile(context, 'Khapli Emmer Stone-Ground Atta (Low GI)',
+                          () => storeBrowse(context, category: 'Stone-Ground Chakki Atta & Flours', query: 'khapli')),
+                      _drawerTile(context, 'Sharbati Whole Wheat (Milled-On-Demand 72h)',
+                          () => storeBrowse(context, category: 'Stone-Ground Chakki Atta & Flours', query: 'sharbati')),
+                      _drawerTile(context, 'Multi-Millet Diabetic Flour Superblend',
+                          () => storeBrowse(context, category: 'Stone-Ground Chakki Atta & Flours', query: 'millet')),
+                      _drawerTile(context, 'Chana Sattu (Clay-Oven Roasted)',
+                          () => storeBrowse(context, category: 'Stone-Ground Chakki Atta & Flours', query: 'sattu')),
+
+                      const Divider(height: 16),
+                      _sectionHeader('🧂 Terroir Salts & Native Spices'),
+                      _drawerTile(context, 'All Terroir Salts & Spices',
+                          () => storeBrowse(context, category: 'Terroir Salts & Native Spices')),
+                      _drawerTile(context, 'Crushed Himalayan Pink Salt (Sendha Namak)',
+                          () => storeBrowse(context, category: 'Terroir Salts & Native Spices', query: 'pink salt')),
+                      _drawerTile(context, 'Natural Black Salt Powder (Wild Harad Kala Namak)',
+                          () => storeBrowse(context, category: 'Terroir Salts & Native Spices', query: 'black salt')),
+                      _drawerTile(context, 'High-Curcumin Turmeric (>5% Curcumin Haldi)',
+                          () => storeBrowse(context, category: 'Terroir Salts & Native Spices', query: 'turmeric')),
+
+                      const Divider(height: 16),
+                      _sectionHeader('🪴 Apartment Balcony & Living Soil'),
+                      _drawerTile(context, 'All Balcony Soil & Bio-Inputs',
+                          () => storeBrowse(context, category: 'Apartment Balcony & Living Soil')),
+                      _drawerTile(context, 'Odorless Granular Vermicompost (Elevator-Safe)',
+                          () => storeBrowse(context, category: 'Apartment Balcony & Living Soil', query: 'vermicompost')),
+                      _drawerTile(context, 'Balcony Potting Booster Mix (Lightweight)',
+                          () => storeBrowse(context, category: 'Apartment Balcony & Living Soil', query: 'potting')),
+                      _drawerTile(context, 'Tamba Chhachh Copper Bio-Fungicide Spray',
+                          () => storeBrowse(context, category: 'Apartment Balcony & Living Soil', query: 'spray')),
+                      _drawerTile(context, 'Heirloom Balcony Kitchen Seeds (5-in-1 Kit)',
+                          () => storeBrowse(context, category: 'Apartment Balcony & Living Soil', query: 'seeds')),
+
+                      const Divider(height: 16),
+                      _sectionHeader('🎁 Curated Kitchen & Wellness Boxes'),
+                      _drawerTile(context, 'All Curated Bundles',
+                          () => storeBrowse(context, category: 'Curated Kitchen & Wellness Boxes')),
+                      _drawerTile(context, "★ 'The Clean Kitchen' Starter Box (₹1,499)",
+                          () => storeBrowse(context, category: 'Curated Kitchen & Wellness Boxes', query: 'kitchen')),
+                      _drawerTile(context, "★ 'Living Balcony' Herb & Salad Kit (₹399)",
+                          () => storeBrowse(context, category: 'Curated Kitchen & Wellness Boxes', query: 'balcony')),
+                      _drawerTile(context, "★ 'Daily Gut Health' Duo (₹499)",
+                          () => storeBrowse(context, category: 'Curated Kitchen & Wellness Boxes', query: 'gut health')),
+
                       const Divider(height: 16),
                       _sectionHeader('🪔 Puja & Hawan: Sacred Essentials'),
                       _drawerTile(context, 'All Puja & Hawan Samagri',
@@ -405,41 +479,6 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                       _drawerTile(context, 'Guggal & Loban Sacred Sambrani Cups',
                           () => storeBrowse(context,
                               category: 'Natural Agarbatti & Dhoop', query: 'loban')),
-                      const Divider(height: 16),
-                      _sectionHeader('🌱 Vermicompost & Living Soil'),
-                      _drawerTile(
-                          context, 'From Farm Waste to Living Soil (Overview)',
-                          () {
-                        Navigator.pop(context);
-                        context.push('/earth');
-                      }),
-                      _drawerTile(context, 'All Living Soil Products',
-                          () => storeBrowse(context, category: 'Vermicompost & Living Soil')),
-                      _drawerTile(context, 'MILTERRA Bio-Vermicompost',
-                          () => storeBrowse(context,
-                              category: 'Vermicompost & Living Soil', query: 'vermicompost')),
-                      _drawerTile(context, 'Composted Cow Farm Manure',
-                          () => storeBrowse(context,
-                              category: 'Vermicompost & Living Soil', query: 'manure')),
-                      _drawerTile(context, 'Enriched Organic Compost',
-                          () => storeBrowse(context,
-                              category: 'Vermicompost & Living Soil', query: 'compost')),
-                      _drawerTile(context, 'Sun-Dried Cow Dung Cakes',
-                          () => storeBrowse(context,
-                              category: 'Vermicompost & Living Soil', query: 'cakes')),
-                      _drawerTile(context, 'Living Garden Potting Soil Mix',
-                          () => storeBrowse(context,
-                              category: 'Vermicompost & Living Soil', query: 'soil')),
-                      const Divider(height: 16),
-                      _sectionHeader('🌻 Cold-Pressed Sarso (Mustard) Oil'),
-                      _drawerTile(context, 'All Cold-Pressed Oils',
-                          () => storeBrowse(context, category: 'Cold-Pressed Sarso (Mustard) Oil')),
-                      _drawerTile(context, 'Wood-Pressed Kachi Ghani Sarso Oil (1L & 5L)',
-                          () => storeBrowse(context,
-                              category: 'Cold-Pressed Sarso (Mustard) Oil', query: 'sarso')),
-                      _drawerTile(context, 'Traditional Cold-Pressed Sesame (Til) Oil',
-                          () => storeBrowse(context,
-                              category: 'Cold-Pressed Sarso (Mustard) Oil', query: 'til')),
                       const Divider(height: 16),
                       _sectionHeader('🚜 Katixo Farmer Hub (Machinery & Feed)'),
                       _drawerTile(context, 'Visit Katixo Farmer Marketplace →', () {
@@ -1246,12 +1285,28 @@ class StoreCategoryNavigation extends ConsumerWidget {
         }
       }
     } else {
-      entries['Vedic Bilona Ghee'] = 'Vedic Bilona Ghee';
-      entries['Fresh Milk & Dairy'] = 'Fresh Milk & Dairy';
-      entries['Puja & Hawan Samagri'] = 'Puja & Hawan Samagri';
-      entries['Natural Agarbatti & Dhoop'] = 'Natural Agarbatti & Dhoop';
-      entries['Vermicompost & Living Soil'] = 'Vermicompost & Living Soil';
-      entries['Cold-Pressed Sarso (Mustard) Oil'] = 'Cold-Pressed Sarso Oil';
+      if (taxonomy?.enabled == true && taxonomy!.departments.isNotEmpty) {
+        for (final dept in taxonomy.departments) {
+          final dName = dept.name.toLowerCase();
+          if (dName.contains('farm essential') ||
+              dName.contains('equipment') ||
+              dName.contains('machinery') ||
+              dName.contains('animal nutrition') ||
+              dName.contains('feed')) {
+            continue;
+          }
+          entries[dept.id] = dept.name;
+        }
+      } else {
+        entries['Artisanal Dairy & Cultured'] = 'Artisanal Dairy';
+        entries['Fresh Living Harvest (Microgreens)'] = 'Living Microgreens';
+        entries['Wood-Pressed Oils & Pure Sweeteners'] = 'Cold-Pressed Oils & Honey';
+        entries['Stone-Ground Chakki Atta & Flours'] = 'Chakki Atta & Flours';
+        entries['Terroir Salts & Native Spices'] = 'Native Salts & Spices';
+        entries['Apartment Balcony & Living Soil'] = 'Living Balcony & Soil';
+        entries['Curated Kitchen & Wellness Boxes'] = 'Starter Boxes & Combos';
+        entries['Puja & Hawan Samagri'] = 'Puja & Hawan';
+      }
     }
 
     return Container(
@@ -1771,8 +1826,64 @@ abstract final class StoreImages {
     if (title.contains('paneer')) return 'assets/store/paneer.png';
     if (title.contains('sarso') ||
         title.contains('mustard') ||
+        title.contains('til') ||
+        title.contains('sesame') ||
+        title.contains('groundnut') ||
+        title.contains('peanut') ||
         (title.contains('oil') && !title.contains('soil'))) {
       return 'assets/store/sarso-oil.jpg';
+    }
+    if (title.contains('microgreen') ||
+        title.contains('punnet') ||
+        title.contains('shoots') ||
+        title.contains('radish') ||
+        title.contains('sunflower') ||
+        title.contains('broccoli')) {
+      return 'assets/store/farm-pasture.jpg';
+    }
+    if (title.contains('atta') ||
+        title.contains('khapli') ||
+        title.contains('sharbati') ||
+        title.contains('millet') ||
+        title.contains('sattu') ||
+        title.contains('flour')) {
+      return 'assets/store/nutrition-lineup.jpg';
+    }
+    if (title.contains('honey') ||
+        title.contains('gur') ||
+        title.contains('khand') ||
+        title.contains('mishri') ||
+        title.contains('sugar')) {
+      return 'assets/store/milterra-tulsi-ghee.webp';
+    }
+    if (title.contains('salt') ||
+        title.contains('sendha') ||
+        title.contains('namak') ||
+        title.contains('haldi') ||
+        title.contains('turmeric')) {
+      return 'assets/store/minera-360-jar.jpg';
+    }
+    if (title.contains('balcony') ||
+        title.contains('spray') ||
+        title.contains('seed')) {
+      return 'assets/store/earth-soil-mix.jpg';
+    }
+    if (title.contains('box') ||
+        title.contains('kit') ||
+        title.contains('combo') ||
+        title.contains('duo') ||
+        title.contains('starter')) {
+      return 'assets/store/hero.png';
+    }
+    if (title.contains('mattha') ||
+        title.contains('chaas') ||
+        title.contains('chhachh') ||
+        title.contains('milk') ||
+        title.contains('doodh')) {
+      return 'assets/store/farm-milking.jpg';
+    }
+    if (title.contains('chilli') || title.contains('shata dhauta')) {
+      return 'assets/store/farm-bilona.jpg';
     }
     return null;
   }

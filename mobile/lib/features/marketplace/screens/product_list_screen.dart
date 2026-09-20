@@ -53,11 +53,65 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         return node.name;
       }
     }
-    final lower = value.toLowerCase();
+    final lower = value.toLowerCase().trim();
+    if (lower.contains('pure pantry') || lower == 'pantry' || lower == 'pure-pantry') {
+      return '🌾 The Pure Pantry (Adulteration-Free Staples)';
+    }
+    if (lower.contains('botanical living') || lower == 'botanical' || lower == 'botanical-living') {
+      return '🌿 The Botanical Living (Living Greens & Bio-Soil)';
+    }
+    if (lower.contains('microgreen') ||
+        lower.contains('living-harvest') ||
+        lower.contains('living harvest') ||
+        lower.contains('punnet') ||
+        lower.contains('shoots')) {
+      return '🌱 Fresh Living Harvest (Microgreens)';
+    }
+    if (lower.contains('chakki') ||
+        lower.contains('flour') ||
+        lower.contains('atta') ||
+        lower.contains('sattu') ||
+        lower.contains('khapli') ||
+        lower.contains('sharbati') ||
+        lower.contains('millet')) {
+      return '🌾 Stone-Ground Chakki Atta & Flours';
+    }
+    if (lower.contains('honey') ||
+        lower.contains('sweetener') ||
+        lower.contains('gur') ||
+        lower.contains('khand') ||
+        lower.contains('mishri') ||
+        lower.contains('shakkar')) {
+      return '🍯 Wood-Pressed Oils & Pure Sweeteners';
+    }
+    if (lower.contains('salt') ||
+        lower.contains('sendha') ||
+        lower.contains('haldi') ||
+        lower.contains('turmeric') ||
+        lower.contains('spices') ||
+        lower.contains('terroir')) {
+      return '🧂 Terroir Salts & Native Spices';
+    }
+    if (lower.contains('balcony') ||
+        lower.contains('booster') ||
+        lower.contains('potting') ||
+        lower.contains('fungicide') ||
+        lower.contains('seeds')) {
+      return '🪴 Apartment Balcony & Living Soil';
+    }
+    if (lower.contains('combo') ||
+        lower.contains('curated') ||
+        lower.contains('starter box') ||
+        lower.contains('starter') ||
+        lower.contains('box') ||
+        lower.contains('duo') ||
+        lower.contains('kit')) {
+      return '🎁 Curated Kitchen & Wellness Boxes';
+    }
     if (lower.contains('sarso') ||
         lower.contains('mustard') ||
         (lower.contains('oil') && !lower.contains('soil'))) {
-      return '🌻 Cold-Pressed Sarso (Mustard) Oil';
+      return '🌻 Wood-Pressed Oils & Pure Sweeteners';
     }
     if (lower.contains('agarbatti') || lower.contains('dhoop')) {
       return '🌸 Natural Agarbatti & Dhoop';
@@ -83,8 +137,13 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         lower.contains('chaas') ||
         lower.contains('paneer') ||
         lower.contains('makhan') ||
-        lower.contains('dairy foods')) {
-      return '🥛 Fresh Milk & Dairy (Chhachh & Paneer)';
+        lower.contains('mattha') ||
+        lower.contains('curd chilli') ||
+        lower.contains('mor milagai') ||
+        lower.contains('shata dhauta') ||
+        lower.contains('dairy foods') ||
+        lower.contains('artisanal dairy')) {
+      return '🧈 Artisanal Dairy & Cultured';
     }
     if (lower.contains('ghee')) {
       return '🧈 Vedic Bilona Ghee';
@@ -285,6 +344,13 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                       _category == 'All Organic Essentials')) ...[
                                 _hero(size.maxWidth),
                                 const SizedBox(height: 24),
+                              ],
+
+                              // Two Primary Lifestyle Hubs: The Pure Pantry & The Botanical Living
+                              if (widget.category != ProductCategory.equipment &&
+                                  widget.category != ProductCategory.feedNutrition) ...[
+                                _buildLifestyleHubsSwitcher(isMobile),
+                                const SizedBox(height: 20),
                               ],
 
                               // IndiaMART-Style RFQ Banner & Live Demand (exclusive to Farmer Hub)
@@ -594,6 +660,260 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 p.media.firstOrNull ?? StoreImages.productArtwork(p) ?? '',
             targetRoute: '/shop/product/${p.id}');
       }).toList(),
+    );
+  }
+
+  Widget _buildLifestyleHubsSwitcher(bool isMobile) {
+    final isPantrySelected = _category == 'The Pure Pantry';
+    final isBotanicalSelected = _category == 'The Botanical Living';
+
+    Widget buildHubCard({
+      required String badge,
+      required String title,
+      required String subtitle,
+      required List<String> tags,
+      required bool isSelected,
+      required Color activeBorderColor,
+      required List<Color> gradientColors,
+      required Color badgeBg,
+      required Color badgeText,
+      required VoidCallback onTap,
+    }) {
+      final cardContent = Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isSelected
+                    ? gradientColors
+                    : const [Color(0xffffffff), Color(0xfffbfbfb)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSelected ? activeBorderColor : const Color(0xffe5e7eb),
+                width: isSelected ? 2.0 : 1.0,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: isSelected
+                      ? activeBorderColor.withValues(alpha: 0.18)
+                      : const Color(0x0a000000),
+                  blurRadius: isSelected ? 12 : 6,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: badgeBg,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        badge,
+                        style: TextStyle(
+                          color: badgeText,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    if (isSelected)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: activeBorderColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_circle_rounded,
+                                color: Colors.white, size: 12),
+                            SizedBox(width: 4),
+                            Text(
+                              'ACTIVE HUB',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Filter Hub',
+                            style: TextStyle(
+                              color: Color(0xff6b7280),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(width: 2),
+                          Icon(Icons.arrow_forward_ios_rounded,
+                              size: 10, color: Color(0xff9ca3af)),
+                        ],
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: isMobile ? 16 : 18,
+                    fontWeight: FontWeight.w800,
+                    color: isSelected
+                        ? const Color(0xff0f172a)
+                        : const Color(0xff1e293b),
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.4,
+                    color: Color(0xff4b5563),
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: tags.map((t) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? Colors.white.withValues(alpha: 0.85)
+                            : const Color(0xfff3f4f6),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: isSelected
+                              ? activeBorderColor.withValues(alpha: 0.3)
+                              : const Color(0xffe5e7eb),
+                        ),
+                      ),
+                      child: Text(
+                        t,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected
+                              ? activeBorderColor
+                              : const Color(0xff374151),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      if (isMobile) {
+        return cardContent;
+      }
+      return Expanded(child: cardContent);
+    }
+
+    final pantryCard = buildHubCard(
+      badge: '🌾 KITCHEN PURITY PILLAR',
+      title: 'The Pure Pantry',
+      subtitle:
+          'Adulteration-free daily nutrition: Vedic Bilona Ghee, Wood-Pressed Oils, Stone-Ground Khapli Atta & Single-Origin Spices.',
+      tags: const [
+        '🧈 Bilona Ghee',
+        '🌻 Lakdi Ghani Oils',
+        '🌾 Chakki Atta',
+        '🧂 Terroir Spices'
+      ],
+      isSelected: isPantrySelected,
+      activeBorderColor: const Color(0xff065f46),
+      gradientColors: const [Color(0xfff0fdf4), Color(0xffecfdf5)],
+      badgeBg: const Color(0xffdcfce7),
+      badgeText: const Color(0xff166534),
+      onTap: () {
+        if (isPantrySelected) {
+          _browse('All products');
+        } else {
+          _browse('The Pure Pantry');
+        }
+      },
+    );
+
+    final botanicalCard = buildHubCard(
+      badge: '🌿 CLEAN APARTMENT LIVING',
+      title: 'The Botanical Living',
+      subtitle:
+          'Urban balcony vitality & clean personal care: Living Microgreen Trays, Odorless Soil, Copper Fungicide & Goat Milk Soaps.',
+      tags: const [
+        '🌱 Live Microgreens',
+        '🪴 Elevator-Safe Soil',
+        '🛡️ Copper Bio-Spray',
+        '🧼 Goat Milk Skincare'
+      ],
+      isSelected: isBotanicalSelected,
+      activeBorderColor: const Color(0xff15803d),
+      gradientColors: const [Color(0xfff7fee7), Color(0xfff0fdf4)],
+      badgeBg: const Color(0xffecfccb),
+      badgeText: const Color(0xff3f6212),
+      onTap: () {
+        if (isBotanicalSelected) {
+          _browse('All products');
+        } else {
+          _browse('The Botanical Living');
+        }
+      },
+    );
+
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          pantryCard,
+          const SizedBox(height: 12),
+          botanicalCard,
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        pantryCard,
+        const SizedBox(width: 16),
+        botanicalCard,
+      ],
     );
   }
 
@@ -1290,7 +1610,61 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     final isSarsoOilCategory = catLower.contains('sarso') ||
         catLower.contains('mustard') ||
         (catLower.contains('oil') && !catLower.contains('soil')) ||
-        catLower.contains('til');
+        catLower.contains('til') ||
+        catLower.contains('groundnut') ||
+        catLower.contains('peanut');
+
+    final isMicrogreenCategory = catLower.contains('microgreen') ||
+        catLower.contains('living harvest') ||
+        catLower.contains('living-harvest') ||
+        catLower.contains('punnet') ||
+        catLower.contains('shoots');
+
+    final isFlourCategory = catLower.contains('flour') ||
+        catLower.contains('atta') ||
+        catLower.contains('chakki') ||
+        catLower.contains('khapli') ||
+        catLower.contains('sharbati') ||
+        catLower.contains('sattu') ||
+        catLower.contains('millet');
+
+    final isSaltSpiceCategory = catLower.contains('salt') ||
+        catLower.contains('sendha') ||
+        catLower.contains('haldi') ||
+        catLower.contains('turmeric') ||
+        catLower.contains('spice') ||
+        catLower.contains('terroir');
+
+    final isBalconyCategory = catLower.contains('balcony') ||
+        catLower.contains('booster') ||
+        catLower.contains('potting') ||
+        catLower.contains('fungicide') ||
+        catLower.contains('seeds') ||
+        catLower.contains('bio-defense');
+
+    final isComboCategory = catLower.contains('combo') ||
+        catLower.contains('curated') ||
+        catLower.contains('starter box') ||
+        catLower.contains('starter') ||
+        catLower.contains('duo') ||
+        catLower.contains('kit');
+
+    final isSweetenerCategory = catLower.contains('honey') ||
+        catLower.contains('sweetener') ||
+        catLower.contains('gur') ||
+        catLower.contains('khand') ||
+        catLower.contains('mishri') ||
+        catLower.contains('shakkar');
+
+    final isPurePantryHub = catLower.contains('pure pantry') ||
+        catLower == 'pantry' ||
+        catLower == 'the pure pantry' ||
+        catLower == 'pure-pantry';
+
+    final isBotanicalHub = catLower.contains('botanical living') ||
+        catLower == 'botanical' ||
+        catLower == 'the botanical living' ||
+        catLower == 'botanical-living';
 
     final isAllNutrition = catLower == 'animal nutrition' ||
         catLower == 'cattle nutrition' ||
@@ -1434,6 +1808,90 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
               pTitle.contains('sesame') ||
               (pTitle.contains('oil') && !pTitle.contains('soil'));
         }
+      } else if (isMicrogreenCategory) {
+        matchesCategory = pTitle.contains('microgreen') ||
+            pTitle.contains('punnet') ||
+            pTitle.contains('radish') ||
+            pTitle.contains('sunflower') ||
+            pTitle.contains('pea') ||
+            pTitle.contains('broccoli') ||
+            pCategory.toLowerCase().contains('microgreen');
+      } else if (isFlourCategory) {
+        matchesCategory = pTitle.contains('atta') ||
+            pTitle.contains('flour') ||
+            pTitle.contains('khapli') ||
+            pTitle.contains('sharbati') ||
+            pTitle.contains('sattu') ||
+            pTitle.contains('millet') ||
+            pCategory.toLowerCase().contains('flour') ||
+            pCategory.toLowerCase().contains('atta');
+      } else if (isSaltSpiceCategory) {
+        matchesCategory = pTitle.contains('salt') ||
+            pTitle.contains('sendha') ||
+            pTitle.contains('namak') ||
+            pTitle.contains('haldi') ||
+            pTitle.contains('turmeric') ||
+            pCategory.toLowerCase().contains('salt') ||
+            pCategory.toLowerCase().contains('spice');
+      } else if (isBalconyCategory) {
+        matchesCategory = pTitle.contains('balcony') ||
+            pTitle.contains('potting') ||
+            pTitle.contains('booster') ||
+            pTitle.contains('spray') ||
+            pTitle.contains('fungicide') ||
+            pTitle.contains('seed') ||
+            pTitle.contains('odorless') ||
+            pCategory.toLowerCase().contains('balcony') ||
+            pCategory.toLowerCase().contains('soil');
+      } else if (isComboCategory) {
+        matchesCategory = pTitle.contains('box') ||
+            pTitle.contains('kit') ||
+            pTitle.contains('duo') ||
+            pTitle.contains('combo') ||
+            pTitle.contains('starter') ||
+            pCategory.toLowerCase().contains('combo') ||
+            pCategory.toLowerCase().contains('box');
+      } else if (isSweetenerCategory) {
+        matchesCategory = pTitle.contains('honey') ||
+            pTitle.contains('gur') ||
+            pTitle.contains('khand') ||
+            pTitle.contains('mishri') ||
+            pTitle.contains('sweetener') ||
+            pCategory.toLowerCase().contains('honey') ||
+            pCategory.toLowerCase().contains('sweetener');
+      } else if (isPurePantryHub) {
+        matchesCategory = isGheeCategory ||
+            isMilkDairyCategory ||
+            isSarsoOilCategory ||
+            isFlourCategory ||
+            isSaltSpiceCategory ||
+            isSweetenerCategory ||
+            pTitle.contains('ghee') ||
+            pTitle.contains('oil') ||
+            pTitle.contains('atta') ||
+            pTitle.contains('flour') ||
+            pTitle.contains('salt') ||
+            pTitle.contains('haldi') ||
+            pTitle.contains('honey') ||
+            pTitle.contains('mattha') ||
+            pTitle.contains('sattu') ||
+            pTitle.contains('jeera') ||
+            pTitle.contains('dhania') ||
+            pTitle.contains('chilli');
+      } else if (isBotanicalHub) {
+        matchesCategory = isMicrogreenCategory ||
+            isBalconyCategory ||
+            isEarthCategory ||
+            pTitle.contains('microgreen') ||
+            pTitle.contains('vermicompost') ||
+            pTitle.contains('potting') ||
+            pTitle.contains('spray') ||
+            pTitle.contains('seed') ||
+            pTitle.contains('fungicide') ||
+            pTitle.contains('soap') ||
+            pTitle.contains('ghrita') ||
+            pTitle.contains('ubtan') ||
+            pTitle.contains('skin');
       } else if (isEquipmentCategory) {
         matchesCategory = pCategory == 'Equipment' ||
             p.category == ProductCategory.equipment;

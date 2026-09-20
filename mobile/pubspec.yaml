@@ -63,6 +63,21 @@ flutter:
     - assets/store/equipment-chaff-cutter.jpg
     - assets/store/equipment-milk-can.jpg
     - assets/store/equipment-cow-mat.jpg
+    - assets/store/bilona-cow-ghee.jpg
+    - assets/store/milterra-heritage-badge.jpg
+    - assets/store/live-microgreens.jpg
+    - assets/store/himalayan-pink-salt.jpg
+    - assets/store/lakadong-turmeric.jpg
+    - assets/store/jeera-seeds.jpg
+    - assets/store/dhania-seeds.jpg
+    - assets/store/mathania-chilli.jpg
+    - assets/store/raw-mustard-honey.jpg
+    - assets/store/organic-gur.jpg
+    - assets/store/khapli-atta.jpg
+    - assets/store/aloe-vera-gel.jpg
+    - assets/store/aloe-vera-juice.jpg
+    - assets/store/goat-milk-soap.jpg
+    - assets/store/shata-dhauta-ghrita.jpg
 
   fonts:
     - family: CormorantGaramond

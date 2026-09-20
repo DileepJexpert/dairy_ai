@@ -1829,18 +1829,21 @@ abstract final class StoreImages {
     if (title.contains('ashwagandha')) {
       return 'assets/store/milterra-ashwagandha-ghee.webp';
     }
+    if (title.contains('bilona') || title.contains('sahiwal')) {
+      return 'assets/store/bilona-cow-ghee.jpg';
+    }
     if (title.contains('buffalo')) return 'assets/store/buffalo-ghee.png';
     if (title.contains('ghee')) return 'assets/store/cow-ghee.png';
     if (title.contains('paneer')) return 'assets/store/paneer.png';
 
-    // 1. Fresh Living Microgreens (MUST precede oil/mustard check)
+    // 1. Fresh Living Microgreens
     if (title.contains('microgreen') ||
         title.contains('punnet') ||
         title.contains('shoots') ||
         title.contains('radish micro') ||
         title.contains('sunflower micro') ||
         title.contains('broccoli')) {
-      return 'assets/store/farm-pasture.jpg';
+      return 'assets/store/live-microgreens.jpg';
     }
 
     // 2. Wood-Pressed Cooking Oils
@@ -1858,48 +1861,87 @@ abstract final class StoreImages {
     }
 
     // 3. Ancient Grains, Flours & Sattu
-    if (title.contains('atta') ||
-        title.contains('khapli') ||
+    if (title.contains('khapli') ||
         title.contains('sharbati') ||
-        title.contains('millet') ||
+        title.contains('atta')) {
+      return 'assets/store/khapli-atta.jpg';
+    }
+    if (title.contains('millet') ||
         title.contains('sattu') ||
         title.contains('flour')) {
       return 'assets/store/nutrition-lineup.jpg';
     }
 
     // 4. Raw Honey & Heritage Sweeteners
-    if (title.contains('honey') ||
-        title.contains('gur') ||
+    if (title.contains('honey')) {
+      return 'assets/store/raw-mustard-honey.jpg';
+    }
+    if (title.contains('gur') ||
+        title.contains('jaggery') ||
         title.contains('khand') ||
         title.contains('mishri') ||
         title.contains('sugar')) {
-      return 'assets/store/milterra-tulsi-ghee.webp';
+      return 'assets/store/organic-gur.jpg';
     }
 
-    // 5. Mineral Salts & Terroir Spices (Jeera, Dhania, Haldi, Mathania Chilli)
+    // 5. Mineral Salts & Native Spices
     if (title.contains('salt') ||
         title.contains('sendha') ||
-        title.contains('namak') ||
-        title.contains('haldi') ||
+        title.contains('namak')) {
+      return 'assets/store/himalayan-pink-salt.jpg';
+    }
+    if (title.contains('haldi') ||
         title.contains('turmeric') ||
-        title.contains('jeera') ||
-        title.contains('cumin') ||
-        title.contains('dhania') ||
-        title.contains('coriander') ||
-        title.contains('mathania') ||
-        title.contains('chilli') ||
-        title.contains('spice')) {
-      return 'assets/store/minera-360-jar.jpg';
+        title.contains('curcumin') ||
+        title.contains('lakadong') ||
+        title.contains('ubtan')) {
+      return 'assets/store/lakadong-turmeric.jpg';
+    }
+    if (title.contains('jeera') || title.contains('cumin')) {
+      return 'assets/store/jeera-seeds.jpg';
+    }
+    if (title.contains('dhania') || title.contains('coriander')) {
+      return 'assets/store/dhania-seeds.jpg';
+    }
+    if (title.contains('mathania') || title.contains('chilli')) {
+      return 'assets/store/mathania-chilli.jpg';
+    }
+    if (title.contains('spice')) {
+      return 'assets/store/lakadong-turmeric.jpg';
     }
 
-    // 6. Balcony Soil, Potting Mix & Garden Seed Kits
-    if (title.contains('vermicompost') ||
-        title.contains('potting') ||
+    // 6. Vedic Skincare & Soaps
+    if (title.contains('soap') || title.contains('goat milk')) {
+      return 'assets/store/goat-milk-soap.jpg';
+    }
+    if (title.contains('shata dhauta') ||
+        title.contains('washed ghee') ||
+        title.contains('moisturizer')) {
+      return 'assets/store/shata-dhauta-ghrita.jpg';
+    }
+
+    // 7. Pure Aloe Vera Botanicals
+    if (title.contains('aloe gel') || title.contains('aloe vera gel')) {
+      return 'assets/store/aloe-vera-gel.jpg';
+    }
+    if (title.contains('aloe juice') ||
+        title.contains('aloe amla') ||
+        title.contains('aloe tonic')) {
+      return 'assets/store/aloe-vera-juice.jpg';
+    }
+
+    // 8. Balcony Soil, Potting Mix & Garden Seed Kits
+    if (title.contains('vermicompost')) {
+      return 'assets/store/earth-vermicompost.jpg';
+    }
+    if (title.contains('spray') ||
+        title.contains('bio-fungicide') ||
+        title.contains('tamba chhachh')) {
+      return 'assets/store/earth-cakes.jpg';
+    }
+    if (title.contains('potting') ||
         title.contains('booster') ||
         title.contains('balcony') ||
-        title.contains('bio-fungicide') ||
-        title.contains('tamba chhachh') ||
-        title.contains('spray') ||
         title.contains('heirloom') ||
         title.contains('seed kit') ||
         title.contains('5-in-1') ||
@@ -1909,26 +1951,22 @@ abstract final class StoreImages {
       return 'assets/store/earth-soil-mix.jpg';
     }
 
-    // 7. Aloe Vera Botanicals
-    if (title.contains('aloe gel') || title.contains('aloe vera gel')) {
-      return 'assets/store/milterra-tulsi-ghee.webp';
-    }
-    if (title.contains('aloe juice') || title.contains('aloe tonic')) {
-      return 'assets/store/farm-pasture.jpg';
-    }
-
-    // 8. Combos & Starter Boxes
+    // 9. Combos & Starter Boxes
     if (title.contains('box') ||
         title.contains('kit') ||
         title.contains('combo') ||
         title.contains('duo') ||
         title.contains('starter') ||
-        title.contains('wellness')) {
+        title.contains('wellness') ||
+        title.contains('trio')) {
       return 'assets/store/hero.png';
     }
     if (title.contains('mattha') ||
         title.contains('chaas') ||
-        title.contains('chhachh') ||
+        title.contains('buttermilk')) {
+      return 'assets/store/farm-pasture.jpg';
+    }
+    if (title.contains('chhachh') ||
         title.contains('milk') ||
         title.contains('doodh')) {
       return 'assets/store/farm-milking.jpg';

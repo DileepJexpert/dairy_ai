@@ -16,7 +16,7 @@ from app.models.commerce_taxonomy import (
     TaxonomyLock,
     TaxonomyNode,
 )
-from app.models.product import MerchandisingPlacement, Product, ProductCategory, ProductInventory, ProductReview
+from app.models.product import MerchandisingPlacement, Product, ProductCategory, ProductInventory, ProductReview, ProductMedia, MediaType
 from app.models.user import User, UserRole
 from app.models.vendor import Vendor, VendorType
 
@@ -71,6 +71,7 @@ PRODUCTS_DATA = [
     # --- Category 1: Artisanal Dairy & Cultured By-Products ---
     {
         "sku": "MIL-GHEE-BILONA-500",
+        "image": "assets/store/bilona-cow-ghee.jpg",
         "title": "Vedic Bilona Cow Ghee (Amber Glass Jar)",
         "pack": "500 ml",
         "price": "1100",
@@ -92,6 +93,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-GHEE-BILONA-1000",
+        "image": "assets/store/bilona-cow-ghee.jpg",
         "title": "Vedic Bilona Cow Ghee (Kitchen Amber Jar)",
         "pack": "1000 ml",
         "price": "2100",
@@ -111,6 +113,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-MATTHA-300",
+        "image": "assets/store/farm-pasture.jpg",
         "title": "Spiced Probiotic Mattha (Live Buttermilk)",
         "pack": "300 ml",
         "price": "25",
@@ -131,6 +134,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-MATTHA-500",
+        "image": "assets/store/farm-pasture.jpg",
         "title": "Spiced Probiotic Mattha (Family Bottle)",
         "pack": "500 ml",
         "price": "40",
@@ -148,6 +152,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-CURD-CHILLI-200",
+        "image": "assets/store/white-butter-concept.png",
         "title": "Traditional Curd Chillies (Mor Milagai)",
         "pack": "200 g",
         "price": "180",
@@ -166,6 +171,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-CURD-CHILLI-400",
+        "image": "assets/store/white-butter-concept.png",
         "title": "Traditional Curd Chillies (Mor Milagai - Pantry Pack)",
         "pack": "400 g",
         "price": "340",
@@ -183,6 +189,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-SDG-50",
+        "image": "assets/store/shata-dhauta-ghrita.jpg",
         "title": "Shata Dhauta Ghrita (100x Washed Ghee Moisturizer)",
         "pack": "50 g",
         "price": "450",
@@ -203,6 +210,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-SDG-100",
+        "image": "assets/store/shata-dhauta-ghrita.jpg",
         "title": "Shata Dhauta Ghrita (100x Washed Ghee - Grand Jar)",
         "pack": "100 g",
         "price": "850",
@@ -220,6 +228,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-SOAP-GOAT-HONEY-100",
+        "image": "assets/store/goat-milk-soap.jpg",
         "title": "Cold-Process Goat Milk & Raw Honey Artisanal Soap",
         "pack": "100 g Bar",
         "price": "220",
@@ -240,6 +249,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-UBTAN-GOAT-HALDI-100",
+        "image": "assets/store/lakadong-turmeric.jpg",
         "title": "Goat Milk & Lakadong Turmeric Radiance Ubtan",
         "pack": "100 g Glass Jar",
         "price": "380",
@@ -261,6 +271,7 @@ PRODUCTS_DATA = [
     # --- Category 2: Fresh Living Microgreens (Weekly Harvest) ---
     {
         "sku": "MIL-MICRO-RADISH",
+        "image": "assets/store/live-microgreens.jpg",
         "title": "Live Radish Microgreens (Mooli) - Living Tray",
         "pack": "1 Live Punnet",
         "price": "85",
@@ -281,6 +292,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-MICRO-SUNFLOWER",
+        "image": "assets/store/live-microgreens.jpg",
         "title": "Live Sunflower Microgreens - Living Tray",
         "pack": "1 Live Punnet",
         "price": "95",
@@ -300,6 +312,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-MICRO-PEA",
+        "image": "assets/store/live-microgreens.jpg",
         "title": "Live Sweet Pea Shoots - Living Tray",
         "pack": "1 Live Punnet",
         "price": "95",
@@ -318,6 +331,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-MICRO-BROCCOLI",
+        "image": "assets/store/live-microgreens.jpg",
         "title": "Live Broccoli & Mustard Microgreens - Detox Tray",
         "pack": "1 Live Punnet",
         "price": "110",
@@ -338,6 +352,7 @@ PRODUCTS_DATA = [
     # --- Category 3: Wood-Pressed / Cold-Pressed Cooking Oils (Kacchi Ghani) ---
     {
         "sku": "MIL-OIL-MUSTARD-1L",
+        "image": "assets/store/sarso-oil.jpg",
         "title": "Kacchi Ghani Black Mustard Oil (Lakdi Ghani)",
         "pack": "1 Litre",
         "price": "220",
@@ -358,6 +373,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-OIL-MUSTARD-5L",
+        "image": "assets/store/sarso-oil.jpg",
         "title": "Kacchi Ghani Black Mustard Oil (Heritage Tin)",
         "pack": "5 Litre",
         "price": "1050",
@@ -375,6 +391,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-OIL-YEL-MUSTARD-1L",
+        "image": "assets/store/sarso-oil.jpg",
         "title": "Cold-Pressed Yellow Mustard Oil (Mild Pungency)",
         "pack": "1 Litre",
         "price": "240",
@@ -393,6 +410,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-OIL-TIL-500",
+        "image": "assets/store/sarso-oil.jpg",
         "title": "Cold-Pressed Black Sesame (Til) Oil",
         "pack": "500 ml",
         "price": "260",
@@ -410,6 +428,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-OIL-TIL-1L",
+        "image": "assets/store/sarso-oil.jpg",
         "title": "Cold-Pressed Black Sesame (Til) Oil (1 Litre Jar)",
         "pack": "1 Litre",
         "price": "490",
@@ -426,6 +445,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-OIL-PEANUT-1L",
+        "image": "assets/store/sarso-oil.jpg",
         "title": "Cold-Pressed Groundnut Oil (Wood-Pressed Peanut)",
         "pack": "1 Litre",
         "price": "250",
@@ -443,6 +463,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-OIL-PEANUT-5L",
+        "image": "assets/store/sarso-oil.jpg",
         "title": "Cold-Pressed Groundnut Oil (5L Kitchen Tin)",
         "pack": "5 Litre",
         "price": "1200",
@@ -461,6 +482,7 @@ PRODUCTS_DATA = [
     # --- Category 4: Traditional Sweeteners & Raw Honey ---
     {
         "sku": "MIL-HONEY-500",
+        "image": "assets/store/raw-mustard-honey.jpg",
         "title": "Raw Unpasteurized Mustard Honey (NMR Tested)",
         "pack": "500 g",
         "price": "350",
@@ -480,6 +502,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-HONEY-1000",
+        "image": "assets/store/raw-mustard-honey.jpg",
         "title": "Raw Unpasteurized Mustard Honey (1kg Glass Jar)",
         "pack": "1 kg",
         "price": "650",
@@ -496,6 +519,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-GUR-1KG",
+        "image": "assets/store/organic-gur.jpg",
         "title": "Unbleached Organic Gur (Jaggery Cubes)",
         "pack": "1 kg",
         "price": "105",
@@ -515,6 +539,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-KHAND-1KG",
+        "image": "assets/store/organic-gur.jpg",
         "title": "Artisanal Desi Khand / Shakkar (Bone-Char Free)",
         "pack": "1 kg",
         "price": "120",
@@ -533,6 +558,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-MISHRI-500",
+        "image": "assets/store/organic-gur.jpg",
         "title": "Dhage Wali Mishri (Threaded Rock Sugar Crystals)",
         "pack": "500 g",
         "price": "120",
@@ -550,6 +576,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-MISHRI-1KG",
+        "image": "assets/store/organic-gur.jpg",
         "title": "Dhage Wali Mishri (Pantry Pack - 1kg)",
         "pack": "1 kg",
         "price": "220",
@@ -568,6 +595,7 @@ PRODUCTS_DATA = [
     # --- Category 5: Fresh Stone-Ground Grains & Specialty Flours (Chakki Atta) ---
     {
         "sku": "MIL-ATTA-KHAPLI-2KG",
+        "image": "assets/store/khapli-atta.jpg",
         "title": "Khapli (Emmer) Stone-Ground Atta (Low GI)",
         "pack": "2 kg",
         "price": "220",
@@ -587,6 +615,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-ATTA-KHAPLI-5KG",
+        "image": "assets/store/khapli-atta.jpg",
         "title": "Khapli (Emmer) Stone-Ground Atta (5kg Bag)",
         "pack": "5 kg",
         "price": "520",
@@ -603,6 +632,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-ATTA-SHARBATI-5KG",
+        "image": "assets/store/khapli-atta.jpg",
         "title": "Sharbati Whole Wheat Atta (Milled-On-Demand)",
         "pack": "5 kg",
         "price": "320",
@@ -621,6 +651,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-ATTA-SHARBATI-10KG",
+        "image": "assets/store/khapli-atta.jpg",
         "title": "Sharbati Whole Wheat Atta (10kg Monthly Pack)",
         "pack": "10 kg",
         "price": "620",
@@ -638,6 +669,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-ATTA-MILLET-1KG",
+        "image": "assets/store/nutrition-lineup.jpg",
         "title": "Multi-Millet Diabetic Flour Mix (4-Grain Superblend)",
         "pack": "1 kg",
         "price": "140",
@@ -655,6 +687,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-ATTA-MILLET-2KG",
+        "image": "assets/store/nutrition-lineup.jpg",
         "title": "Multi-Millet Diabetic Flour Mix (2kg Value Pack)",
         "pack": "2 kg",
         "price": "260",
@@ -671,6 +704,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-SATTU-500",
+        "image": "assets/store/nutrition-lineup.jpg",
         "title": "Chana Sattu (Clay-Oven Roasted Gram Flour)",
         "pack": "500 g",
         "price": "110",
@@ -689,6 +723,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-SATTU-1KG",
+        "image": "assets/store/nutrition-lineup.jpg",
         "title": "Chana Sattu (1kg Kitchen Pouch)",
         "pack": "1 kg",
         "price": "200",
@@ -707,6 +742,7 @@ PRODUCTS_DATA = [
     # --- Category 6: Unrefined Salts & Whole Terroir Spices ---
     {
         "sku": "MIL-SALT-PINK-1KG",
+        "image": "assets/store/himalayan-pink-salt.jpg",
         "title": "Crushed Himalayan Pink Salt (Sendha Namak)",
         "pack": "1 kg",
         "price": "105",
@@ -726,6 +762,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-SALT-BLACK-500",
+        "image": "assets/store/himalayan-pink-salt.jpg",
         "title": "Natural Black Salt Powder (Kala Namak)",
         "pack": "500 g",
         "price": "75",
@@ -743,6 +780,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-SPICE-HALDI-250",
+        "image": "assets/store/lakadong-turmeric.jpg",
         "title": "High-Curcumin Turmeric Powder (>5% Curcumin)",
         "pack": "250 g",
         "price": "120",
@@ -761,6 +799,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-SPICE-HALDI-500",
+        "image": "assets/store/lakadong-turmeric.jpg",
         "title": "High-Curcumin Turmeric Powder (500g Refill)",
         "pack": "500 g",
         "price": "220",
@@ -777,6 +816,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-SPICE-LAKADONG-200",
+        "image": "assets/store/lakadong-turmeric.jpg",
         "title": "Single-Origin Lakadong Turmeric Powder (>7% Curcumin)",
         "pack": "200 g Tin",
         "price": "180",
@@ -796,6 +836,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-SPICE-JEERA-200",
+        "image": "assets/store/jeera-seeds.jpg",
         "title": "Unpolished Whole Cumin (Jeera) Seeds",
         "pack": "200 g Pouch",
         "price": "140",
@@ -814,6 +855,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-SPICE-JEERA-500",
+        "image": "assets/store/jeera-seeds.jpg",
         "title": "Unpolished Whole Cumin (Jeera) Pantry Pack",
         "pack": "500 g Pouch",
         "price": "320",
@@ -830,6 +872,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-SPICE-DHANIA-250",
+        "image": "assets/store/dhania-seeds.jpg",
         "title": "Whole Coriander (Dhania) Seeds (High Aroma)",
         "pack": "250 g Pouch",
         "price": "95",
@@ -848,6 +891,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-SPICE-DHANIA-500",
+        "image": "assets/store/dhania-seeds.jpg",
         "title": "Whole Coriander (Dhania) Pantry Pack",
         "pack": "500 g Pouch",
         "price": "180",
@@ -864,6 +908,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-SPICE-CHILLI-MATHANIA-200",
+        "image": "assets/store/mathania-chilli.jpg",
         "title": "Mathania Whole Red Chillies (Rajasthani Heirloom)",
         "pack": "200 g Kraft Pouch",
         "price": "160",
@@ -885,6 +930,7 @@ PRODUCTS_DATA = [
     # --- Category 7: Balcony Gardening & Bio-Inputs (Apartment-Friendly Mini Packs) ---
     {
         "sku": "MIL-BALCONY-VERMI-1KG",
+        "image": "assets/store/earth-vermicompost.jpg",
         "title": "Odorless Granular Vermicompost (Elevator-Safe)",
         "pack": "1 kg",
         "price": "60",
@@ -904,6 +950,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-BALCONY-VERMI-2KG",
+        "image": "assets/store/earth-vermicompost.jpg",
         "title": "Odorless Granular Vermicompost (2kg Balcony Pack)",
         "pack": "2 kg",
         "price": "110",
@@ -920,6 +967,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-BALCONY-SOIL-2KG",
+        "image": "assets/store/earth-soil-mix.jpg",
         "title": "Balcony Potting Booster Mix (Lightweight)",
         "pack": "2 kg",
         "price": "140",
@@ -937,6 +985,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-BALCONY-SOIL-5KG",
+        "image": "assets/store/earth-soil-mix.jpg",
         "title": "Balcony Potting Booster Mix (5kg Sacked Mix)",
         "pack": "5 kg",
         "price": "320",
@@ -953,6 +1002,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-BALCONY-SPRAY-500",
+        "image": "assets/store/earth-cakes.jpg",
         "title": "Tamba Chhachh Bio-Fungicide Spray",
         "pack": "500 ml",
         "price": "165",
@@ -971,6 +1021,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-BALCONY-SEEDS-5IN1",
+        "image": "assets/store/earth-soil-mix.jpg",
         "title": "Heirloom Balcony Kitchen Garden Seeds (5-in-1 Kit)",
         "pack": "5-in-1 Seed Kit",
         "price": "199",
@@ -990,6 +1041,7 @@ PRODUCTS_DATA = [
     # --- Category: Pure Aloe Vera Botanicals & Living Succulents ---
     {
         "sku": "MIL-ALOE-GEL-250",
+        "image": "assets/store/aloe-vera-gel.jpg",
         "title": "Pure Inner-Leaf Aloe Vera Gel (99% Cold-Stabilized)",
         "pack": "250 ml Pump",
         "price": "240",
@@ -1010,6 +1062,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-ALOE-JUICE-500",
+        "image": "assets/store/aloe-vera-juice.jpg",
         "title": "Cold-Pressed Raw Aloe Vera Digestive Juice (Pulp-Rich)",
         "pack": "500 ml Glass",
         "price": "180",
@@ -1029,6 +1082,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-ALOE-AMLA-500",
+        "image": "assets/store/aloe-vera-juice.jpg",
         "title": "Aloe Vera & Wild Amla Detox Immunity Tonic",
         "pack": "500 ml Glass",
         "price": "210",
@@ -1047,6 +1101,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-ALOE-PLANT-POT",
+        "image": "assets/store/earth-soil-mix.jpg",
         "title": "Live Potted Aloe Vera Plant (Balcony Living Soil Pot)",
         "pack": "5-inch Bio-Pot",
         "price": "149",
@@ -1066,6 +1121,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-COMBO-ALOE-WELLNESS",
+        "image": "assets/store/hero.png",
         "title": "'Pure Aloe Vitality' Skin & Gut Trio",
         "pack": "Curated Botanical Trio",
         "price": "499",
@@ -1085,6 +1141,7 @@ PRODUCTS_DATA = [
     # --- Category 8: Curated Website Combos (High AOV Bundles) ---
     {
         "sku": "MIL-COMBO-KITCHEN-BOX",
+        "image": "assets/store/hero.png",
         "title": "'The Clean Kitchen' Starter Box",
         "pack": "Curated Pantry Box",
         "price": "1499",
@@ -1102,6 +1159,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-COMBO-BALCONY-KIT",
+        "image": "assets/store/hero.png",
         "title": "'Living Balcony' Herb & Salad Kit",
         "pack": "Complete Balcony Kit",
         "price": "399",
@@ -1118,6 +1176,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-COMBO-GUT-HEALTH",
+        "image": "assets/store/hero.png",
         "title": "'Daily Gut Health' Duo",
         "pack": "Wellness Duo",
         "price": "499",
@@ -1134,6 +1193,7 @@ PRODUCTS_DATA = [
     },
     {
         "sku": "MIL-COMBO-WELLNESS-MONTHLY",
+        "image": "assets/store/hero.png",
         "title": "'Pantry & Botanical' Monthly Wellness Restock Box",
         "pack": "Deluxe Family Restock Box",
         "price": "2799",
@@ -1276,6 +1336,7 @@ async def seed_urban_catalog():
                 existing.base_price = Decimal(item["price"])
                 existing.compare_at_price = Decimal(item["compare_at"])
                 existing.specifications = item["specs"]
+                existing.subcategory = item["department"]
                 existing.is_active = True
                 existing.is_featured = True
                 await db.flush()
@@ -1324,23 +1385,55 @@ async def seed_urban_catalog():
                 # Classification
                 db.add(ProductClassification(product_id=prod.id, category_id=cat_id, version=1))
 
-                # Merchandising Placement for Key Items
-                if item.get("badge") and admin_user:
+            target_id = existing.id if existing else prod.id
+
+            # Ensure ProductMedia is seeded with the exact correct image
+            img_url = item.get("image")
+            if img_url:
+                media_list = (await db.scalars(select(ProductMedia).where(ProductMedia.product_id == target_id))).all()
+                if media_list:
+                    for idx, m in enumerate(media_list):
+                        if idx == 0:
+                            m.url = img_url
+                            m.is_primary = True
+                        else:
+                            m.is_primary = False
+                else:
+                    db.add(ProductMedia(
+                        product_id=target_id,
+                        url=img_url,
+                        media_type=MediaType.image,
+                        sort_order=0,
+                        is_primary=True,
+                    ))
+
+            # Merchandising Placement for Key Items
+            if item.get("badge") and admin_user:
+                mp = (await db.scalars(select(MerchandisingPlacement).where(MerchandisingPlacement.product_id == target_id))).first()
+                subhead = item.get("subheadline") or item["description"][:120]
+                if not mp:
                     db.add(MerchandisingPlacement(
-                        product_id=prod.id,
+                        product_id=target_id,
                         placement_type="highlight" if "BESTSELLER" in item["badge"] else "new_launch",
                         headline=item["title"],
-                        subheadline=item.get("subheadline") or item["description"][:120],
+                        subheadline=subhead,
                         badge=item["badge"],
                         priority=300 if "COMBO" in item["sku"] or "BILONA" in item["sku"] else 200,
                         is_active=True,
                         created_by_user_id=admin_user.id,
                     ))
+                else:
+                    mp.headline = item["title"]
+                    mp.subheadline = subhead
+                    mp.badge = item["badge"]
+                    mp.is_active = True
 
-                # Seed high-credibility verified reviews
+            # Seed high-credibility verified reviews
+            has_rev = (await db.scalars(select(ProductReview).where(ProductReview.product_id == target_id))).first()
+            if not has_rev:
                 if "BILONA" in item["sku"]:
                     db.add(ProductReview(
-                        product_id=prod.id,
+                        product_id=target_id,
                         author_name="Ananya Sharma (Gurugram)",
                         rating=5,
                         headline="Real Danedaar Bilona Ghee - No comparison with commercial brands",
@@ -1350,7 +1443,7 @@ async def seed_urban_catalog():
                     ))
                 elif "KHAPLI" in item["sku"]:
                     db.add(ProductReview(
-                        product_id=prod.id,
+                        product_id=target_id,
                         author_name="Dr. R. K. Srivastava (Lucknow)",
                         rating=5,
                         headline="Remarkable difference in post-prandial blood sugar",
@@ -1360,7 +1453,7 @@ async def seed_urban_catalog():
                     ))
                 elif "MICRO" in item["sku"]:
                     db.add(ProductReview(
-                        product_id=prod.id,
+                        product_id=target_id,
                         author_name="Pooja Mehta (Noida Sector 50)",
                         rating=5,
                         headline="Arrived fresh and living in the bio-tray!",
@@ -1370,7 +1463,7 @@ async def seed_urban_catalog():
                     ))
                 elif "MUSTARD-1L" in item["sku"]:
                     db.add(ProductReview(
-                        product_id=prod.id,
+                        product_id=target_id,
                         author_name="Sanjay Verma (Vasant Kunj)",
                         rating=5,
                         headline="Authentic wooden ghani jhanjh (pungency)",
@@ -1380,7 +1473,7 @@ async def seed_urban_catalog():
                     ))
                 elif "SOAP" in item["sku"]:
                     db.add(ProductReview(
-                        product_id=prod.id,
+                        product_id=target_id,
                         author_name="Meenakshi Sundaram (Indirapuram)",
                         rating=5,
                         headline="Gentle on sensitive eczema skin - no post-shower tightness",
@@ -1390,7 +1483,7 @@ async def seed_urban_catalog():
                     ))
                 elif "LAKADONG" in item["sku"]:
                     db.add(ProductReview(
-                        product_id=prod.id,
+                        product_id=target_id,
                         author_name="Dr. Pratibha Mishra (Hazratganj)",
                         rating=5,
                         headline="Real >7% Curcumin - you only need a pinch!",
@@ -1400,7 +1493,7 @@ async def seed_urban_catalog():
                     ))
                 elif "WELLNESS-MONTHLY" in item["sku"]:
                     db.add(ProductReview(
-                        product_id=prod.id,
+                        product_id=target_id,
                         author_name="Vikramaditya Rao (DLF Cyber City)",
                         rating=5,
                         headline="The complete high-rise apartment wellness crate",
@@ -1410,7 +1503,7 @@ async def seed_urban_catalog():
                     ))
                 elif "ALOE-GEL" in item["sku"]:
                     db.add(ProductReview(
-                        product_id=prod.id,
+                        product_id=target_id,
                         author_name="Kavita Saxena (Noida Expressway)",
                         rating=5,
                         headline="Completely clear and translucent - no fake green color!",
@@ -1420,7 +1513,7 @@ async def seed_urban_catalog():
                     ))
                 elif "ALOE-JUICE" in item["sku"]:
                     db.add(ProductReview(
-                        product_id=prod.id,
+                        product_id=target_id,
                         author_name="Harish Chandra (Gomti Nagar Extension)",
                         rating=5,
                         headline="Real fibrous pulp that calmed my morning hyperacidity",

@@ -125,3 +125,67 @@ class ClickstreamTimelineResponse(BaseModel):
     data: list[ClickstreamTimelineEvent]
     total: int
     message: str = "Clickstream events retrieved successfully"
+
+
+class SessionCartItemView(BaseModel):
+    product_id: str
+    title: str
+    primary_image: str | None = None
+    quantity: int
+    unit_price: str
+    line_total: str
+
+
+class CustomerSessionJourneyView(BaseModel):
+    session_id: str
+    user_id: str | None = None
+    customer_name: str | None = None
+    customer_phone: str | None = None
+    city: str = "Unknown"
+    state: str = "Unknown"
+    country: str = "India"
+    ip_address: str | None = None
+    device_type: str = "mobile"
+    browser: str | None = None
+    os: str | None = None
+    referrer: str | None = None
+    referrer_type: str = "direct"
+    started_at: str
+    last_seen_at: str
+    duration_minutes: int = 1
+    inactive_minutes: int = 0
+    is_live: bool = False
+    page_views_count: int = 1
+    farthest_stage: str = "LANDED"  # LANDED, PRODUCT_VIEW, CART_ADDED, CHECKOUT_INITIATED, ADDRESS_ENTERED, PAYMENT_PENDING, ORDER_COMPLETED
+    farthest_stage_label: str = "1. Landed on Store"
+    stuck_status: str = "ACTIVE_BROWSING"  # ACTIVE_BROWSING, STUCK_PRODUCT, STUCK_CART, STUCK_CHECKOUT, STUCK_PAYMENT, CONVERTED, BOUNCED
+    stuck_status_label: str = "Active Browsing"
+    stuck_diagnosis: str = "Visitor currently browsing catalogue"
+    last_page_url: str = "/shop"
+    last_action_text: str = "Browsing Storefront"
+    cart_id: str | None = None
+    cart_item_count: int = 0
+    cart_subtotal: str = "0.00"
+    cart_items: list[SessionCartItemView] = Field(default_factory=list)
+    journey_steps: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class FunnelStepSummary(BaseModel):
+    stage_key: str
+    stage_name: str
+    visitor_count: int
+    conversion_percent: float
+    drop_off_count: int
+    drop_off_percent: float
+
+
+class CustomerSessionsResponse(BaseModel):
+    total_visitors: int
+    live_visitors_count: int
+    stuck_visitors_count: int
+    cart_abandoned_count: int
+    checkout_stuck_count: int
+    converted_count: int
+    funnel_steps: list[FunnelStepSummary]
+    sessions: list[CustomerSessionJourneyView]
+

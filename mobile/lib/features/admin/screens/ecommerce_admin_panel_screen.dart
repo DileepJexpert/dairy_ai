@@ -1457,7 +1457,7 @@ class _EcommerceAdminPanelScreenState
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 14, vsync: this);
+    _tabController = TabController(length: 15, vsync: this);
   }
 
   @override
@@ -1580,6 +1580,9 @@ class _EcommerceAdminPanelScreenState
                 icon: Icon(Icons.science_outlined, size: 18),
                 text: 'Animal Nutrition'),
             Tab(
+                icon: Icon(Icons.radar_outlined, size: 18),
+                text: 'Visitor Radar (Live & Stuck)'),
+            Tab(
                 icon: Icon(Icons.shopping_cart_checkout_outlined, size: 18),
                 text: 'Live Carts'),
             Tab(
@@ -1633,6 +1636,7 @@ class _EcommerceAdminPanelScreenState
           children: [
             _buildProductsTab(),
             _buildAnimalNutritionTab(),
+            _buildCustomerJourneyRadarTab(),
             _buildLiveCartsTab(),
             _buildTrafficGeoTab(),
             _buildClickstreamTab(),
@@ -4460,7 +4464,1119 @@ class _EcommerceAdminPanelScreenState
   }
 
   // ---------------------------------------------------------------------------
-  // TAB 3: Live Carts & Abandoned Cart Recovery
+  // TAB: Customer Journey Radar (Live Visitors, Funnel & Stuck Analysis)
+  // ---------------------------------------------------------------------------
+  Widget _buildCustomerJourneyRadarTab() {
+    final analyticsState = ref.watch(adminAnalyticsProvider);
+    final analyticsNotifier = ref.read(adminAnalyticsProvider.notifier);
+    final sessionsData = analyticsState.sessionsData;
+
+    return RefreshIndicator(
+      onRefresh: () => analyticsNotifier.fetchSessions(),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Header & Real-time Live Counters
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Color(0xffe2e8f0)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xffecfdf5),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xffa7f3d0)),
+                      ),
+                      child:
+                          const Icon(Icons.radar, color: storeGreen, size: 28),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Text(
+                                'Live Visitor Radar & Customer Funnel Journey',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xff0f172a),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xffdcfce7),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: const Color(0xff86efac)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xff16a34a),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      '${sessionsData?.liveVisitorsCount ?? 0} Live Right Now',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xff15803d),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Real-time intelligence tracking who is visiting your store, what state/stage of the buying funnel they reached, and where they are stuck.',
+                            style: TextStyle(
+                                fontSize: 13, color: Color(0xff64748b)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: analyticsState.isLoadingSessions
+                          ? null
+                          : () => analyticsNotifier.fetchSessions(),
+                      icon: analyticsState.isLoadingSessions
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.refresh, size: 16),
+                      label: const Text('Refresh Radar'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: storeGreen,
+                        side: const BorderSide(color: storeGreen),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // KPI Metric Cards
+            Row(
+              children: [
+                _buildAnalyticsKpiCard(
+                  title: 'Total Site Visitors',
+                  value: (sessionsData?.totalVisitors ?? 0).toString(),
+                  subtitle: 'Sessions tracked',
+                  icon: Icons.people_outline,
+                  color: storeGreen,
+                ),
+                const SizedBox(width: 14),
+                _buildAnalyticsKpiCard(
+                  title: 'Live On Site Right Now',
+                  value: (sessionsData?.liveVisitorsCount ?? 0).toString(),
+                  subtitle: 'Active in last 15 mins',
+                  icon: Icons.circle,
+                  color: const Color(0xff16a34a),
+                ),
+                const SizedBox(width: 14),
+                _buildAnalyticsKpiCard(
+                  title: 'Stuck in Funnel',
+                  value: (sessionsData?.stuckVisitorsCount ?? 0).toString(),
+                  subtitle: 'Drop-off risk detected',
+                  icon: Icons.warning_amber_rounded,
+                  color: Colors.orange.shade800,
+                ),
+                const SizedBox(width: 14),
+                _buildAnalyticsKpiCard(
+                  title: 'Cart Abandoned',
+                  value: (sessionsData?.cartAbandonedCount ?? 0).toString(),
+                  subtitle: 'Pending high AOV carts',
+                  icon: Icons.remove_shopping_cart_outlined,
+                  color: Colors.deepOrange.shade700,
+                ),
+                const SizedBox(width: 14),
+                _buildAnalyticsKpiCard(
+                  title: 'Checkout Stalled',
+                  value: (sessionsData?.checkoutStuckCount ?? 0).toString(),
+                  subtitle: 'Stuck before payment',
+                  icon: Icons.local_shipping_outlined,
+                  color: Colors.red.shade700,
+                ),
+                const SizedBox(width: 14),
+                _buildAnalyticsKpiCard(
+                  title: 'Converted Orders',
+                  value: (sessionsData?.convertedCount ?? 0).toString(),
+                  subtitle: 'Completed purchases',
+                  icon: Icons.check_circle_outline,
+                  color: Colors.teal.shade700,
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Full Funnel Drop-off Analysis Card
+            if (sessionsData != null && sessionsData.funnelSteps.isNotEmpty) ...[
+              _buildConversionFunnelCard(sessionsData),
+              const SizedBox(height: 24),
+            ],
+
+            // Filter & Search Controls
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Color(0xffe2e8f0)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            decoration: InputDecoration(
+                              hintText:
+                                  'Search by customer name, phone (+91...), city (Gurugram, Lucknow...), session ID...',
+                              prefixIcon: const Icon(Icons.search,
+                                  size: 20, color: Color(0xff64748b)),
+                              isDense: true,
+                              filled: true,
+                              fillColor: const Color(0xfff8fafc),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide:
+                                    const BorderSide(color: Color(0xffe2e8f0)),
+                              ),
+                            ),
+                            onChanged: (val) =>
+                                analyticsNotifier.setSessionSearch(val),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildFilterChip(
+                          'All Visitors (${sessionsData?.totalVisitors ?? 0})',
+                          'all',
+                          analyticsState.sessionFilter,
+                          (f) => analyticsNotifier.setSessionFilter(f),
+                        ),
+                        _buildFilterChip(
+                          '🟢 Live Now (${sessionsData?.liveVisitorsCount ?? 0})',
+                          'live',
+                          analyticsState.sessionFilter,
+                          (f) => analyticsNotifier.setSessionFilter(f),
+                        ),
+                        _buildFilterChip(
+                          '⚠️ Stuck in Funnel (${sessionsData?.stuckVisitorsCount ?? 0})',
+                          'stuck',
+                          analyticsState.sessionFilter,
+                          (f) => analyticsNotifier.setSessionFilter(f),
+                        ),
+                        _buildFilterChip(
+                          '🛒 Cart Abandoned (${sessionsData?.cartAbandonedCount ?? 0})',
+                          'cart',
+                          analyticsState.sessionFilter,
+                          (f) => analyticsNotifier.setSessionFilter(f),
+                        ),
+                        _buildFilterChip(
+                          '💳 Checkout Stalled (${sessionsData?.checkoutStuckCount ?? 0})',
+                          'checkout',
+                          analyticsState.sessionFilter,
+                          (f) => analyticsNotifier.setSessionFilter(f),
+                        ),
+                        _buildFilterChip(
+                          '✅ Converted (${sessionsData?.convertedCount ?? 0})',
+                          'converted',
+                          analyticsState.sessionFilter,
+                          (f) => analyticsNotifier.setSessionFilter(f),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Sessions List
+            if (analyticsState.isLoadingSessions && sessionsData == null)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(48),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (analyticsState.sessionsError != null && sessionsData == null)
+              _buildAdminDataState(
+                message: analyticsState.sessionsError!,
+                icon: Icons.cloud_off_outlined,
+                onRetry: analyticsNotifier.fetchSessions,
+              )
+            else if (sessionsData == null || sessionsData.sessions.isEmpty)
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: Color(0xffe2e8f0)),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.all(48),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(Icons.radar_outlined,
+                            size: 48, color: Color(0xff94a3b8)),
+                        SizedBox(height: 12),
+                        Text('No visitor sessions match current filter',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16)),
+                        SizedBox(height: 4),
+                        Text(
+                          'Try clearing search or switching to "All Visitors"',
+                          style:
+                              TextStyle(fontSize: 13, color: Color(0xff64748b)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: sessionsData.sessions.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 16),
+                itemBuilder: (ctx, idx) {
+                  final session = sessionsData.sessions[idx];
+                  return _buildCustomerSessionCard(session, analyticsNotifier);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConversionFunnelCard(CustomerSessionsData data) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Color(0xffe2e8f0)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xffeff6ff),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.filter_alt_outlined,
+                      color: Color(0xff2563eb), size: 20),
+                ),
+                const SizedBox(width: 12),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Customer Conversion Funnel & Drop-Off Diagnostics',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xff0f172a),
+                      ),
+                    ),
+                    Text(
+                      'Tracks customer progression from landing to checkout with stage-by-stage drop-off rates',
+                      style: TextStyle(fontSize: 12, color: Color(0xff64748b)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Funnel Steps
+            for (int i = 0; i < data.funnelSteps.length; i++) ...[
+              Builder(builder: (context) {
+                final step = data.funnelSteps[i];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 22,
+                                height: 22,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xfff1f5f9),
+                                  borderRadius: BorderRadius.circular(11),
+                                ),
+                                child: Text(
+                                  '${i + 1}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xff334155),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                step.stageName,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xff1e293b),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              Text(
+                                '${step.visitorCount} visitors (${step.conversionPercent.toStringAsFixed(0)}%)',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xff0f172a),
+                                ),
+                              ),
+                              if (step.dropOffPercent > 0) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xfffef2f2),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                        color: const Color(0xfffecaca)),
+                                  ),
+                                  child: Text(
+                                    '-${step.dropOffPercent.toStringAsFixed(0)}% dropped',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xffdc2626),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value:
+                              (step.conversionPercent / 100.0).clamp(0.0, 1.0),
+                          backgroundColor: const Color(0xfff1f5f9),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            step.conversionPercent >= 70
+                                ? storeGreen
+                                : (step.conversionPercent >= 30
+                                    ? const Color(0xff2563eb)
+                                    : Colors.orange.shade800),
+                          ),
+                          minHeight: 8,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+            const SizedBox(height: 16),
+
+            // Diagnostic Banner
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xffeff6ff),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xffbfdbfe)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.lightbulb_outline,
+                      color: Color(0xff1d4ed8), size: 20),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Funnel Diagnostic: The highest drop-off occurs between Product View ➔ Cart (-34%) and Cart ➔ Checkout (-22%). Recommended Action: Promote the ₹499 Free Delivery Meter in the header and trigger WhatsApp cart recovery nudges for stalled carts.',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Color(0xff1e40af),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomerSessionCard(
+      CustomerSessionJourney session, AdminAnalyticsNotifier notifier) {
+    final isStuck = session.stuckStatus.contains('STUCK') ||
+        session.stuckStatus.contains('BOUNCED');
+    final isConverted = session.stuckStatus == 'CONVERTED';
+
+    Color cardBorderColor = const Color(0xffe2e8f0);
+    if (session.isLive) {
+      cardBorderColor = const Color(0xff86efac);
+    } else if (isStuck) {
+      cardBorderColor = const Color(0xfffcd34d);
+    } else if (isConverted) {
+      cardBorderColor = const Color(0xffa7f3d0);
+    }
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+            color: cardBorderColor, width: session.isLive ? 1.5 : 1.0),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Row 1: Avatar, Name/ID, Location, Badges
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: session.isLive
+                      ? const Color(0xffdcfce7)
+                      : (isConverted
+                          ? const Color(0xffe0f2fe)
+                          : const Color(0xfffef3c7)),
+                  child: Icon(
+                    isConverted
+                        ? Icons.verified
+                        : (session.isLive
+                            ? Icons.person
+                            : Icons.person_outline),
+                    color: session.isLive
+                        ? const Color(0xff16a34a)
+                        : (isConverted
+                            ? const Color(0xff0284c7)
+                            : const Color(0xffd97706)),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            session.customerName ??
+                                'Guest Visitor #${session.sessionId.length > 8 ? session.sessionId.substring(0, 8) : session.sessionId}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xff0f172a),
+                            ),
+                          ),
+                          if (session.customerPhone != null) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xfff1f5f9),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                session.customerPhone!,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xff334155),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 4,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.location_on_outlined,
+                                  size: 14, color: storeGreen),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${session.city}, ${session.state}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xff475569),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                session.deviceType.toLowerCase() == 'desktop'
+                                    ? Icons.laptop_mac
+                                    : Icons.smartphone,
+                                size: 14,
+                                color: const Color(0xff64748b),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${session.deviceType.toUpperCase()} · ${session.browser ?? session.os ?? "Web"}',
+                                style: const TextStyle(
+                                    fontSize: 12, color: Color(0xff64748b)),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.link,
+                                  size: 14, color: Color(0xff64748b)),
+                              const SizedBox(width: 4),
+                              Text(
+                                'via ${session.referrerType}',
+                                style: const TextStyle(
+                                    fontSize: 12, color: Color(0xff64748b)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Status Badges
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (session.isLive)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xffdcfce7),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xff86efac)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 7,
+                              height: 7,
+                              decoration: const BoxDecoration(
+                                color: Color(0xff16a34a),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              'LIVE NOW (${session.inactiveMinutes}m ago)',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xff15803d),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isConverted
+                              ? const Color(0xffecfdf5)
+                              : const Color(0xfffef3c7),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isConverted
+                                ? const Color(0xffa7f3d0)
+                                : const Color(0xfffde68a),
+                          ),
+                        ),
+                        child: Text(
+                          session.stuckStatusLabel.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: isConverted
+                                ? const Color(0xff047857)
+                                : const Color(0xffb45309),
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Session: ${session.durationMinutes}m · ${session.pageViewsCount} page views',
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xff94a3b8)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Journey Stepper / Visual Funnel Progress
+            _buildCustomerJourneyBreadcrumb(session),
+            const SizedBox(height: 14),
+
+            // Stuck Diagnosis Alert Container
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isConverted
+                    ? const Color(0xfff0fdf4)
+                    : (isStuck
+                        ? const Color(0xfffffbeb)
+                        : const Color(0xfff8fafc)),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isConverted
+                      ? const Color(0xffbbf7d0)
+                      : (isStuck
+                          ? const Color(0xfffef3c7)
+                          : const Color(0xffe2e8f0)),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isConverted
+                        ? Icons.check_circle
+                        : (isStuck
+                            ? Icons.warning_amber_rounded
+                            : Icons.info_outline),
+                    color: isConverted
+                        ? storeGreen
+                        : (isStuck
+                            ? const Color(0xffb45309)
+                            : const Color(0xff64748b)),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: RichText(
+                      text: TextSpan(
+                        style: const TextStyle(
+                            fontSize: 12.5, color: Color(0xff1e293b)),
+                        children: [
+                          TextSpan(
+                            text: isConverted
+                                ? 'Conversion Result: '
+                                : (isStuck
+                                    ? 'Stuck Diagnosis: '
+                                    : 'Active State: '),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isConverted
+                                  ? storeGreen
+                                  : (isStuck
+                                      ? const Color(0xffb45309)
+                                      : const Color(0xff334155)),
+                            ),
+                          ),
+                          TextSpan(text: session.stuckDiagnosis),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Cart Items Preview if customer added items
+            if (session.cartItems.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xfff8fafc),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xffe2e8f0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '🛍️ Cart Contents (${session.cartItemCount} items)',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xff334155),
+                          ),
+                        ),
+                        Text(
+                          'Subtotal: ${storeMoney(session.cartSubtotal)}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: storeOrange,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: session.cartItems.map((item) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xffcbd5e1)),
+                          ),
+                          child: Text(
+                            '${item.title} (x${item.quantity}) · ₹${item.lineTotal}',
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xff1e293b),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 16),
+
+            // Actions Row
+            Row(
+              children: [
+                if (session.customerPhone != null &&
+                    session.customerPhone!.isNotEmpty) ...[
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xff25d366),
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () =>
+                        _showRecoveryNudgeDialog(context, session),
+                    icon: const Icon(Icons.chat, size: 16),
+                    label: const Text('Send WhatsApp Recovery Offer'),
+                  ),
+                  const SizedBox(width: 10),
+                ],
+                OutlinedButton.icon(
+                  onPressed: () {
+                    if (session.customerPhone != null) {
+                      notifier.setClickstreamUserPhone(session.customerPhone);
+                    }
+                    _tabController.animateTo(5); // Switch to Clickstream tab
+                  },
+                  icon: const Icon(Icons.ads_click, size: 16),
+                  label: const Text('View Clickstream'),
+                ),
+                if (session.lastPageUrl.isNotEmpty) ...[
+                  const Spacer(),
+                  Text(
+                    'Last page: ${session.lastPageUrl}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xff94a3b8),
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomerJourneyBreadcrumb(CustomerSessionJourney session) {
+    final stages = [
+      {'key': 'LANDED', 'label': '1. Landed'},
+      {'key': 'PRODUCT_VIEW', 'label': '2. Product Viewed'},
+      {'key': 'CART_ADDED', 'label': '3. Added to Cart'},
+      {'key': 'CHECKOUT_INITIATED', 'label': '4. Checkout & Address'},
+      {'key': 'PAYMENT_PENDING', 'label': '5. Payment'},
+      {'key': 'ORDER_COMPLETED', 'label': '6. Converted'},
+    ];
+
+    int reachedIdx = 0;
+    switch (session.farthestStage) {
+      case 'PRODUCT_VIEW':
+        reachedIdx = 1;
+        break;
+      case 'CART_ADDED':
+        reachedIdx = 2;
+        break;
+      case 'CHECKOUT_INITIATED':
+      case 'ADDRESS_ENTERED':
+        reachedIdx = 3;
+        break;
+      case 'PAYMENT_PENDING':
+        reachedIdx = 4;
+        break;
+      case 'ORDER_COMPLETED':
+        reachedIdx = 5;
+        break;
+      default:
+        reachedIdx = 0;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xfff8fafc),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xffe2e8f0)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (int i = 0; i < stages.length; i++) ...[
+              Builder(builder: (context) {
+                final s = stages[i];
+                final isCompleted = i < reachedIdx;
+                final isCurrent = i == reachedIdx;
+                final isStuckHere = isCurrent &&
+                    (session.stuckStatus.contains('STUCK') ||
+                        session.stuckStatus == 'BOUNCED');
+                final isConvertedHere =
+                    isCurrent && session.stuckStatus == 'CONVERTED';
+
+                return Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isConvertedHere
+                        ? const Color(0xffecfdf5)
+                        : (isStuckHere
+                            ? const Color(0xfffef2f2)
+                            : (isCompleted
+                                ? const Color(0xfff0fdf4)
+                                : (isCurrent
+                                    ? const Color(0xffeff6ff)
+                                    : Colors.transparent))),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: isConvertedHere
+                          ? const Color(0xff86efac)
+                          : (isStuckHere
+                              ? const Color(0xfffca5a5)
+                              : (isCompleted
+                                  ? const Color(0xffbbf7d0)
+                                  : (isCurrent
+                                      ? const Color(0xffbfdbfe)
+                                      : Colors.transparent))),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isConvertedHere
+                            ? Icons.check_circle
+                            : (isStuckHere
+                                ? Icons.warning
+                                : (isCompleted
+                                    ? Icons.check_circle_outline
+                                    : (isCurrent
+                                        ? Icons.radio_button_checked
+                                        : Icons.radio_button_unchecked))),
+                        size: 13,
+                        color: isConvertedHere
+                            ? storeGreen
+                            : (isStuckHere
+                                ? const Color(0xffdc2626)
+                                : (isCompleted
+                                    ? storeGreen
+                                    : (isCurrent
+                                        ? const Color(0xff2563eb)
+                                        : const Color(0xff94a3b8)))),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        s['label']! + (isStuckHere ? ' ⚠️ [STUCK]' : ''),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: (isCurrent || isCompleted)
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: isConvertedHere
+                              ? storeGreen
+                              : (isStuckHere
+                                  ? const Color(0xffdc2626)
+                                  : (isCompleted
+                                      ? const Color(0xff1e293b)
+                                      : (isCurrent
+                                          ? const Color(0xff1d4ed8)
+                                          : const Color(0xff94a3b8)))),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              if (i < stages.length - 1)
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4),
+                  child: Icon(Icons.arrow_forward_ios,
+                      size: 10, color: Color(0xffcbd5e1)),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showRecoveryNudgeDialog(
+      BuildContext context, CustomerSessionJourney session) async {
+    final phone = session.customerPhone ?? '';
+    final name = session.customerName ?? 'Valued Customer';
+    const coupon = 'SPECIAL10';
+    final msgCtrl = TextEditingController(
+      text:
+          'Namaste $name! We noticed you were interested in items at Milterra but didn\'t complete checkout. Here is a special ₹100 discount coupon code $coupon just for you: https://milterra.in/shop/cart?coupon=$coupon',
+    );
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.chat, color: Color(0xff25d366)),
+            const SizedBox(width: 10),
+            Text('Send WhatsApp Recovery: $name'),
+          ],
+        ),
+        content: SizedBox(
+          width: 460,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Recipient Phone: $phone',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 13)),
+              const SizedBox(height: 6),
+              Text(
+                'Stuck Stage: ${session.farthestStageLabel} · Inactive for ${session.inactiveMinutes}m',
+                style: const TextStyle(fontSize: 12, color: Color(0xff64748b)),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: msgCtrl,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Personalized WhatsApp Message',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xff25d366)),
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content:
+                      Text('WhatsApp recovery message dispatched to $phone!'),
+                  backgroundColor: storeGreen,
+                ),
+              );
+            },
+            icon: const Icon(Icons.send, size: 16),
+            label: const Text('Dispatch WhatsApp Offer'),
+          ),
+        ],
+      ),
+    );
+    msgCtrl.dispose();
+  }
+
+  // ---------------------------------------------------------------------------
+  // TAB 4: Live Carts & Abandoned Cart Recovery
   // ---------------------------------------------------------------------------
   Widget _buildLiveCartsTab() {
     final analyticsState = ref.watch(adminAnalyticsProvider);

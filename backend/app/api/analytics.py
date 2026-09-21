@@ -200,3 +200,28 @@ async def get_clickstream_timeline(
         "total": total,
         "message": "Clickstream events retrieved successfully",
     }
+
+
+@router.get("/admin/ecommerce/analytics/sessions")
+async def get_customer_sessions_analytics(
+    status: str = Query("all", description="all, live, stuck, cart, checkout, converted"),
+    search: str | None = Query(None, description="Search phone, name, session ID, city, or status"),
+    limit: int = Query(50, le=100),
+    offset: int = Query(0, ge=0),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.super_admin)),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Customer sessions radar: who is visiting, what stage they reached, and where they are stuck."""
+    res = await analytics_service.get_customer_sessions_journey(
+        db,
+        filter_type=status,
+        search_query=search,
+        limit=limit,
+        offset=offset,
+    )
+    return {
+        "success": True,
+        "data": res.model_dump(),
+        "message": "Customer sessions journey retrieved successfully",
+    }
+

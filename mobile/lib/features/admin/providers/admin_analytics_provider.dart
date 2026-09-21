@@ -15,62 +15,83 @@ class AdminAnalyticsState {
     this.isLoadingCarts = false,
     this.isLoadingTraffic = false,
     this.isLoadingClickstream = false,
+    this.isLoadingSessions = false,
     this.cartFilter = 'all',
     this.cartSearch = '',
+    this.sessionFilter = 'all',
+    this.sessionSearch = '',
     this.carts = const [],
     this.traffic,
     this.clickstreamEvents = const [],
+    this.sessionsData,
     this.selectedUserPhone,
     this.selectedEventType,
     this.cartsError,
     this.trafficError,
     this.clickstreamError,
+    this.sessionsError,
   });
 
   final bool isLoadingCarts;
   final bool isLoadingTraffic;
   final bool isLoadingClickstream;
+  final bool isLoadingSessions;
   final String cartFilter;
   final String cartSearch;
+  final String sessionFilter;
+  final String sessionSearch;
   final List<AdminCartSummary> carts;
   final TrafficAnalyticsData? traffic;
   final List<ClickstreamEventItem> clickstreamEvents;
+  final CustomerSessionsData? sessionsData;
   final String? selectedUserPhone;
   final String? selectedEventType;
   final String? cartsError;
   final String? trafficError;
   final String? clickstreamError;
+  final String? sessionsError;
 
   AdminAnalyticsState copyWith({
     bool? isLoadingCarts,
     bool? isLoadingTraffic,
     bool? isLoadingClickstream,
+    bool? isLoadingSessions,
     String? cartFilter,
     String? cartSearch,
+    String? sessionFilter,
+    String? sessionSearch,
     List<AdminCartSummary>? carts,
     TrafficAnalyticsData? traffic,
     List<ClickstreamEventItem>? clickstreamEvents,
+    CustomerSessionsData? sessionsData,
     String? selectedUserPhone,
     String? selectedEventType,
     String? cartsError,
     String? trafficError,
     String? clickstreamError,
+    String? sessionsError,
     bool clearTraffic = false,
+    bool clearSessionsData = false,
     bool clearSelectedUserPhone = false,
     bool clearSelectedEventType = false,
     bool clearCartsError = false,
     bool clearTrafficError = false,
     bool clearClickstreamError = false,
+    bool clearSessionsError = false,
   }) {
     return AdminAnalyticsState(
       isLoadingCarts: isLoadingCarts ?? this.isLoadingCarts,
       isLoadingTraffic: isLoadingTraffic ?? this.isLoadingTraffic,
       isLoadingClickstream: isLoadingClickstream ?? this.isLoadingClickstream,
+      isLoadingSessions: isLoadingSessions ?? this.isLoadingSessions,
       cartFilter: cartFilter ?? this.cartFilter,
       cartSearch: cartSearch ?? this.cartSearch,
+      sessionFilter: sessionFilter ?? this.sessionFilter,
+      sessionSearch: sessionSearch ?? this.sessionSearch,
       carts: carts ?? this.carts,
       traffic: clearTraffic ? null : traffic ?? this.traffic,
       clickstreamEvents: clickstreamEvents ?? this.clickstreamEvents,
+      sessionsData: clearSessionsData ? null : sessionsData ?? this.sessionsData,
       selectedUserPhone: clearSelectedUserPhone
           ? null
           : selectedUserPhone ?? this.selectedUserPhone,
@@ -83,6 +104,8 @@ class AdminAnalyticsState {
       clickstreamError: clearClickstreamError
           ? null
           : clickstreamError ?? this.clickstreamError,
+      sessionsError:
+          clearSessionsError ? null : sessionsError ?? this.sessionsError,
     );
   }
 }
@@ -95,7 +118,49 @@ class AdminAnalyticsNotifier extends StateNotifier<AdminAnalyticsState> {
   final Dio _dio;
 
   Future<void> refreshAll() async {
-    await Future.wait([fetchCarts(), fetchTraffic(), fetchClickstream()]);
+    await Future.wait(
+        [fetchCarts(), fetchTraffic(), fetchClickstream(), fetchSessions()]);
+  }
+
+  void setSessionFilter(String filter) {
+    state = state.copyWith(sessionFilter: filter);
+    fetchSessions();
+  }
+
+  void setSessionSearch(String search) {
+    state = state.copyWith(sessionSearch: search);
+    fetchSessions();
+  }
+
+  Future<void> fetchSessions() async {
+    state = state.copyWith(isLoadingSessions: true, clearSessionsError: true);
+    try {
+      final query = <String, dynamic>{
+        'status': state.sessionFilter,
+      };
+      if (state.sessionSearch.trim().isNotEmpty) {
+        query['search'] = state.sessionSearch.trim();
+      }
+      final response = await _dio.get(
+        '/admin/ecommerce/analytics/sessions',
+        queryParameters: query,
+      );
+      final data = CustomerSessionsData.fromJson(
+        Map<String, dynamic>.from(response.data['data'] as Map),
+      );
+      state = state.copyWith(
+        sessionsData: data,
+        isLoadingSessions: false,
+        clearSessionsError: true,
+      );
+    } catch (error) {
+      debugPrint('[AdminAnalytics] Fetch sessions error: $error');
+      state = state.copyWith(
+        isLoadingSessions: false,
+        sessionsError:
+            'Customer sessions radar could not be loaded from server.',
+      );
+    }
   }
 
   void setCartFilter(String filter) {

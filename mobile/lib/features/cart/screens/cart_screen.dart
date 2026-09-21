@@ -631,6 +631,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final appliedCoupon = ref.watch(appliedCouponProvider);
     final discount = appliedCoupon?.calculateDiscount(cart.subtotal) ?? 0.0;
     final finalTotal = (cart.subtotal - discount).clamp(0.0, double.infinity);
+    final isFreeDelivery = cart.subtotal >= 499;
+    final shortfall = (499 - cart.subtotal).clamp(0, 499);
+    final progress = (cart.subtotal / 499).clamp(0.0, 1.0);
 
     return Container(
       decoration: BoxDecoration(
@@ -642,28 +645,68 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Free Delivery Indicator
+          // Free Delivery Indicator & Meter
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.check_circle,
-                  size: 18, color: Color(0xff067d62)),
+              Icon(
+                isFreeDelivery
+                    ? Icons.check_circle
+                    : Icons.local_shipping_outlined,
+                size: 18,
+                color: isFreeDelivery
+                    ? const Color(0xff067d62)
+                    : storeOrange,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: RichText(
-                  text: const TextSpan(
-                    style: TextStyle(fontSize: 12, color: Color(0xff067d62)),
+                  text: TextSpan(
+                    style: const TextStyle(
+                        fontSize: 12.5, color: Color(0xff0f1111)),
                     children: [
-                      TextSpan(
-                        text: 'Your order qualifies for FREE Delivery. ',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      TextSpan(text: 'Select this option at checkout.'),
+                      if (isFreeDelivery) ...[
+                        const TextSpan(
+                          text: 'Your order qualifies for FREE Delivery. ',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xff067d62)),
+                        ),
+                        const TextSpan(text: 'Select this option at checkout.'),
+                      ] else ...[
+                        const TextSpan(text: 'Add '),
+                        TextSpan(
+                          text: storeMoney(shortfall.toDouble()),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: storeOrange),
+                        ),
+                        const TextSpan(
+                            text: ' of eligible items to qualify for '),
+                        const TextSpan(
+                          text: 'FREE Delivery',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xff067d62)),
+                        ),
+                      ],
                     ],
                   ),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor: const Color(0xffe2e8f0),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isFreeDelivery ? const Color(0xff067d62) : storeAmber,
+              ),
+            ),
           ),
           const SizedBox(height: 14),
 

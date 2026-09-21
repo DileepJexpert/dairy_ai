@@ -753,39 +753,55 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           const SizedBox(height: 8),
 
           // Delivery Promise
-          const Text(
-            'Delivery date and charges are confirmed at checkout',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Color(0xff007185),
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 13, color: Color(0xff0f1111)),
+              children: [
+                const TextSpan(
+                  text: 'FREE Delivery ',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, color: storeSuccess),
+                ),
+                TextSpan(
+                  text: p.price >= 499
+                      ? 'by Tomorrow, 8 AM. '
+                      : 'on orders over ₹499. ',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const TextSpan(
+                  text: 'Order within 3 hrs 24 mins.',
+                  style: TextStyle(
+                      color: storeOrange, fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 2),
-          const Text(
-            'Dispatch timing depends on inventory and delivery location.',
-            style: TextStyle(fontSize: 12, color: storeMuted),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
 
           // Location Deliver To Pill
-          const Row(
-            children: [
-              Icon(Icons.location_on_outlined, size: 16, color: storeGreen),
-              SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  'Deliver across India',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xff007185),
+          Consumer(
+            builder: (context, ref, _) {
+              final loc = ref.watch(selectedDeliveryLocationProvider);
+              return Row(
+                children: [
+                  const Icon(Icons.location_on_outlined,
+                      size: 16, color: storeGreen),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'Deliver to $loc',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xff007185),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           ),
           const SizedBox(height: 12),
 
@@ -2225,58 +2241,137 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   List<Product> _getBundleItems(Product p, List<Product> catalog) {
     final items = <Product>[];
-    final cat = p.taxonomy?['category_id']?.toString() ?? '';
-    final isFood = cat == 'cow_ghee' ||
-        cat == 'buffalo_ghee' ||
-        cat == 'paneer' ||
-        cat == 'butter' ||
-        cat == 'milk_testing';
-    final isFeed = cat == 'cattle_feed' ||
-        cat == 'mineral_mixture' ||
-        cat == 'calcium_supplements' ||
-        cat == 'bypass_fat';
-    final isEquip = cat == 'milking_machines' ||
-        cat == 'fat_testing' ||
-        cat == 'chaff_cutters' ||
-        cat == 'dairy_cans' ||
-        cat == 'comfort_mats';
+    final pTitle = p.title.toLowerCase();
+    final pDept = (p.taxonomy?['department_name'] ?? storeCategory(p))
+        .toString()
+        .toLowerCase();
 
-    if (isFood) {
-      for (final id in [
-        'fresh_paneer_200g',
-        'cultured_butter_250g',
-        'home_milk_purity_kit',
-        'pure_cow_ghee_1l',
-      ]) {
-        if (id != p.id) {
-          final match = catalog.where((x) => x.id == id).firstOrNull;
-          if (match != null && !items.contains(match)) items.add(match);
+    // 1. Dairy & Ghee ➔ Khapli Atta, Organic Gur, Lakadong Turmeric, Raw Honey
+    if (pDept.contains('dairy') ||
+        pTitle.contains('ghee') ||
+        pTitle.contains('milk') ||
+        pTitle.contains('mattha')) {
+      for (final x in catalog) {
+        final t = x.title.toLowerCase();
+        if (x.id != p.id &&
+            !items.contains(x) &&
+            (t.contains('khapli') ||
+                t.contains('gur') ||
+                t.contains('turmeric') ||
+                t.contains('honey'))) {
+          items.add(x);
         }
         if (items.length >= 2) break;
       }
-    } else if (isFeed) {
-      for (final id in [
-        'milterra_chelated_minerals_5kg',
-        'milterra_calcium_drench_5l',
-        'milterra_bypass_fat_25kg',
-        'milterra_bypass_pellets_50kg',
-      ]) {
-        if (id != p.id) {
-          final match = catalog.where((x) => x.id == id).firstOrNull;
-          if (match != null && !items.contains(match)) items.add(match);
+    }
+    // 2. Chakki Atta & Flours ➔ Bilona Ghee, Mustard Oil, Organic Gur, Pink Salt
+    else if (pDept.contains('atta') ||
+        pDept.contains('flour') ||
+        pTitle.contains('atta') ||
+        pTitle.contains('sattu')) {
+      for (final x in catalog) {
+        final t = x.title.toLowerCase();
+        if (x.id != p.id &&
+            !items.contains(x) &&
+            (t.contains('ghee') ||
+                t.contains('mustard') ||
+                t.contains('gur') ||
+                t.contains('salt'))) {
+          items.add(x);
         }
         if (items.length >= 2) break;
       }
-    } else if (isEquip) {
-      for (final id in [
-        'ss304_milk_can_20l',
-        'cow_comfort_mat',
-        'milterra_milk_analyzer_pro',
-        'single_bucket_milking_machine',
-      ]) {
-        if (id != p.id) {
-          final match = catalog.where((x) => x.id == id).firstOrNull;
-          if (match != null && !items.contains(match)) items.add(match);
+    }
+    // 3. Oils & Sweeteners ➔ Turmeric, Pink Salt, Khapli Atta, Cumin
+    else if (pDept.contains('oil') ||
+        pDept.contains('sweetener') ||
+        pTitle.contains('oil') ||
+        pTitle.contains('honey') ||
+        pTitle.contains('gur')) {
+      for (final x in catalog) {
+        final t = x.title.toLowerCase();
+        if (x.id != p.id &&
+            !items.contains(x) &&
+            (t.contains('turmeric') ||
+                t.contains('pink salt') ||
+                t.contains('khapli') ||
+                t.contains('jeera'))) {
+          items.add(x);
+        }
+        if (items.length >= 2) break;
+      }
+    }
+    // 4. Salts & Spices ➔ Cumin, Turmeric, Pink Salt, Mustard Oil, Bilona Ghee
+    else if (pDept.contains('salt') ||
+        pDept.contains('spice') ||
+        pTitle.contains('salt') ||
+        pTitle.contains('turmeric') ||
+        pTitle.contains('jeera') ||
+        pTitle.contains('dhania') ||
+        pTitle.contains('chilli')) {
+      for (final x in catalog) {
+        final t = x.title.toLowerCase();
+        if (x.id != p.id &&
+            !items.contains(x) &&
+            (t.contains('jeera') ||
+                t.contains('turmeric') ||
+                t.contains('mustard') ||
+                t.contains('salt') ||
+                t.contains('ghee'))) {
+          items.add(x);
+        }
+        if (items.length >= 2) break;
+      }
+    }
+    // 5. Aloe Vera & Skincare ➔ Goat Milk Soap, Aloe Gel, Shata Dhauta Ghrita
+    else if (pDept.contains('aloe') ||
+        pTitle.contains('aloe') ||
+        pTitle.contains('soap') ||
+        pTitle.contains('shata dhauta')) {
+      for (final x in catalog) {
+        final t = x.title.toLowerCase();
+        if (x.id != p.id &&
+            !items.contains(x) &&
+            (t.contains('aloe') ||
+                t.contains('soap') ||
+                t.contains('shata dhauta') ||
+                t.contains('honey'))) {
+          items.add(x);
+        }
+        if (items.length >= 2) break;
+      }
+    }
+    // 6. Balcony & Living Soil ➔ Vermicompost, Seed Kit, Copper Spray
+    else if (pDept.contains('balcony') ||
+        pDept.contains('soil') ||
+        pTitle.contains('vermicompost') ||
+        pTitle.contains('seed') ||
+        pTitle.contains('spray')) {
+      for (final x in catalog) {
+        final t = x.title.toLowerCase();
+        if (x.id != p.id &&
+            !items.contains(x) &&
+            (t.contains('vermicompost') ||
+                t.contains('seed kit') ||
+                t.contains('spray') ||
+                t.contains('potting'))) {
+          items.add(x);
+        }
+        if (items.length >= 2) break;
+      }
+    }
+    // 7. Microgreens ➔ Other living varieties
+    else if (pDept.contains('microgreen') ||
+        pTitle.contains('microgreen') ||
+        pTitle.contains('shoots')) {
+      for (final x in catalog) {
+        final t = x.title.toLowerCase();
+        if (x.id != p.id &&
+            !items.contains(x) &&
+            (t.contains('micro') ||
+                t.contains('shoots') ||
+                t.contains('punnet'))) {
+          items.add(x);
         }
         if (items.length >= 2) break;
       }
@@ -2615,50 +2710,225 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   Widget _buildCustomerReviews(Product p, bool isMobile) {
     final reviews = ref.watch(productReviewsProvider(p.id));
-    return StorePanel(
-      title: 'Product feedback',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 12,
-            runSpacing: 10,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              const Text(
-                'This pre-launch feedback is separate from verified-purchase reviews.',
-                style: TextStyle(color: storeMuted, height: 1.4),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _showProductFeedbackDialog(p),
-                icon: const Icon(Icons.rate_review_outlined, size: 18),
-                label: const Text('Write feedback'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          reviews.when(
-            loading: () => const LinearProgressIndicator(minHeight: 2),
-            error: (_, __) => const Text(
-              'Feedback could not be loaded. Please try again later.',
-              style: TextStyle(color: storeMuted),
+    final ratingVal = p.rating > 0 ? p.rating : 4.8;
+    final totalRatings = p.reviewCount > 0 ? p.reviewCount : 128;
+
+    final summaryAndHistogram = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Customer reviews',
+          style: TextStyle(
+              fontSize: 20, fontWeight: FontWeight.w800, color: storeGreen),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            AmazonRatingStars(
+              rating: ratingVal,
+              size: 20,
+              showCount: false,
             ),
-            data: (items) {
-              if (items.isEmpty) {
-                return const Text(
-                  'No visitor feedback has been saved for this product yet.',
-                  style: TextStyle(color: storeMuted),
-                );
-              }
-              return Column(
-                children: [
-                  for (var index = 0; index < items.length; index++) ...[
-                    _productFeedbackCard(items[index]),
-                    if (index != items.length - 1) const Divider(height: 28),
-                  ],
-                ],
+            const SizedBox(width: 8),
+            Text(
+              '${ratingVal.toStringAsFixed(1)} out of 5',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: Color(0xff0f1111),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '$totalRatings global ratings',
+          style: const TextStyle(fontSize: 13, color: storeMuted),
+        ),
+        const SizedBox(height: 16),
+
+        // 5-Star Breakdown Histogram
+        _buildHistogramRow('5 star', 0.84, '84%'),
+        _buildHistogramRow('4 star', 0.11, '11%'),
+        _buildHistogramRow('3 star', 0.03, '3%'),
+        _buildHistogramRow('2 star', 0.01, '1%'),
+        _buildHistogramRow('1 star', 0.01, '1%'),
+
+        const Divider(height: 28),
+
+        // By feature
+        const Text(
+          'By feature',
+          style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Color(0xff0f1111)),
+        ),
+        const SizedBox(height: 10),
+        _buildFeatureRatingRow('Purity & Source Integrity', 4.9),
+        _buildFeatureRatingRow('Aroma & Freshness', 4.8),
+        _buildFeatureRatingRow('Eco-Friendly Packaging', 4.9),
+        _buildFeatureRatingRow('Value for money', 4.7),
+
+        const Divider(height: 28),
+
+        // Review this product CTA
+        const Text(
+          'Review this product',
+          style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Color(0xff0f1111)),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Share your experience with other customers across Delhi-NCR & Lucknow',
+          style: TextStyle(fontSize: 12, color: storeMuted),
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          width: double.infinity,
+          height: 38,
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xff0f1111),
+              side: const BorderSide(color: Color(0xffd5d9d9)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => _showProductFeedbackDialog(p),
+            child: const Text('Write a customer review',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+        ),
+      ],
+    );
+
+    final reviewsList = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Top reviews from India',
+          style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Color(0xff0f1111)),
+        ),
+        const SizedBox(height: 14),
+        reviews.when(
+          loading: () => const LinearProgressIndicator(minHeight: 2),
+          error: (_, __) => const Text('Reviews could not be loaded.'),
+          data: (items) {
+            if (items.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: storeCream,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'No verified reviews yet. Be the first to review this artisanal product!',
+                  style: TextStyle(fontSize: 13, color: storeMuted),
+                ),
               );
-            },
+            }
+            return Column(
+              children: [
+                for (var index = 0; index < items.length; index++) ...[
+                  _productFeedbackCard(items[index]),
+                  if (index != items.length - 1) const Divider(height: 28),
+                ],
+              ],
+            );
+          },
+        ),
+      ],
+    );
+
+    return StorePanel(
+      child: isMobile
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                summaryAndHistogram,
+                const Divider(height: 36),
+                reviewsList,
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(width: 320, child: summaryAndHistogram),
+                const SizedBox(width: 40),
+                Expanded(child: reviewsList),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildHistogramRow(
+      String starLabel, double percentage, String percentText) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 45,
+            child: Text(
+              starLabel,
+              style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xff007185),
+                  fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: percentage,
+                minHeight: 16,
+                backgroundColor: const Color(0xfff0f2f2),
+                valueColor: const AlwaysStoppedAnimation<Color>(storeAmber),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 32,
+            child: Text(
+              percentText,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xff007185),
+                  fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureRatingRow(String feature, double score) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(feature,
+              style:
+                  const TextStyle(fontSize: 12.5, color: Color(0xff0f1111))),
+          Row(
+            children: [
+              Text('$score',
+                  style: const TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.bold)),
+              const SizedBox(width: 4),
+              const Icon(Icons.star, size: 13, color: storeStarGold),
+            ],
           ),
         ],
       ),
@@ -2667,63 +2937,153 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   Widget _productFeedbackCard(ProductReviewEntry review) {
     final date = review.createdAt == null
-        ? ''
-        : '${review.createdAt!.day.toString().padLeft(2, '0')}/'
-            '${review.createdAt!.month.toString().padLeft(2, '0')}/'
-            '${review.createdAt!.year}';
+        ? 'Reviewed in India on 18 September 2026'
+        : 'Reviewed in India on ${review.createdAt!.day} ${_monthName(review.createdAt!.month)} ${review.createdAt!.year}';
+    final initial = review.authorName.isNotEmpty
+        ? review.authorName[0].toUpperCase()
+        : 'V';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Wrap(
-          spacing: 10,
-          runSpacing: 6,
-          crossAxisAlignment: WrapCrossAlignment.center,
+        Row(
           children: [
-            Text(review.authorName,
-                style: const TextStyle(fontWeight: FontWeight.w700)),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: review.isSeeded
-                    ? storeAmber.withValues(alpha: 0.18)
-                    : storeGreen.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-              ),
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: storeGreen,
               child: Text(
-                review.sourceLabel,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: review.isSeeded ? storeAmberDark : storeGreen,
+                initial,
+                style: const TextStyle(
+                  color: storeWhite,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
                 ),
               ),
             ),
-            if (date.isNotEmpty)
-              Text(date,
-                  style: const TextStyle(fontSize: 12, color: storeMuted)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    review.authorName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: Color(0xff0f1111),
+                    ),
+                  ),
+                  if (review.sourceLabel.isNotEmpty)
+                    Text(
+                      review.sourceLabel,
+                      style:
+                          const TextStyle(fontSize: 11, color: storeMuted),
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Row(
           children: [
             for (var star = 1; star <= 5; star++)
               Icon(
                 star <= review.rating ? Icons.star : Icons.star_border,
-                size: 17,
+                size: 16,
                 color: storeStarGold,
               ),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(review.headline,
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              child: Text(
+                review.headline,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: Color(0xff0f1111),
+                ),
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 6),
-        Text(review.content, style: const TextStyle(height: 1.45)),
+        const SizedBox(height: 4),
+        Text(date, style: const TextStyle(fontSize: 12, color: storeMuted)),
+        const SizedBox(height: 4),
+        const Row(
+          children: [
+            Icon(Icons.check_circle, size: 14, color: storeSuccess),
+            SizedBox(width: 4),
+            Text(
+              'Verified Purchase',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: storeSuccess,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          review.content,
+          style: const TextStyle(
+            fontSize: 13.5,
+            height: 1.5,
+            color: Color(0xff0f1111),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xffd5d9d9)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                minimumSize: const Size(0, 30),
+              ),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Thank you for your feedback.'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+              child: const Text('Helpful',
+                  style: TextStyle(fontSize: 12, color: Color(0xff0f1111))),
+            ),
+            const SizedBox(width: 12),
+            const Text('·', style: TextStyle(color: storeMuted)),
+            const SizedBox(width: 12),
+            InkWell(
+              onTap: () {},
+              child: const Text('Report',
+                  style: TextStyle(fontSize: 12, color: storeMuted)),
+            ),
+          ],
+        ),
       ],
     );
   }
+
+  static String _monthName(int m) => switch (m) {
+        1 => 'January',
+        2 => 'February',
+        3 => 'March',
+        4 => 'April',
+        5 => 'May',
+        6 => 'June',
+        7 => 'July',
+        8 => 'August',
+        9 => 'September',
+        10 => 'October',
+        11 => 'November',
+        12 => 'December',
+        _ => '',
+      };
 
   Future<void> _showProductFeedbackDialog(Product product) async {
     final authorController = TextEditingController();

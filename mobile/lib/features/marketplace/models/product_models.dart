@@ -309,6 +309,22 @@ class Product {
   bool get isFeatured =>
       specifications['is_featured'] == true ||
       specifications['featured'] == true;
+  String? get badge {
+    if (specifications['badge'] != null &&
+        specifications['badge'].toString().isNotEmpty) {
+      return specifications['badge'].toString();
+    }
+    if (isFeatured) return "Milterra's Choice";
+    if (specifications['is_best_seller'] == true ||
+        specifications['best_seller'] == true) {
+      return '#1 Best Seller';
+    }
+    if (compareAtPrice != null && compareAtPrice! > price) {
+      final off = ((compareAtPrice! - price) / compareAtPrice! * 100).round();
+      if (off >= 15) return 'Limited time deal';
+    }
+    return null;
+  }
   double get rating =>
       double.tryParse(specifications['rating']?.toString() ?? '4.5') ?? 4.5;
   int get reviewCount =>

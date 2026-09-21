@@ -590,6 +590,10 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
       );
 }
 
+/// Global state provider for user-selected delivery location
+final selectedDeliveryLocationProvider =
+    StateProvider<String>((ref) => 'New Delhi 110001');
+
 /// Amazon-style Comprehensive Header
 class StoreHeader extends ConsumerStatefulWidget {
   const StoreHeader({
@@ -673,6 +677,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
     final user = ref.watch(currentUserProvider);
     final count = ref.watch(cartItemCountProvider);
     final wishlistCount = ref.watch(wishlistItemCountProvider);
+    final location = ref.watch(selectedDeliveryLocationProvider);
     final canAdmin = user != null &&
         ref.watch(commerceAccessProvider).valueOrNull?['can_manage_taxonomy'] ==
             true;
@@ -750,22 +755,22 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                       InkWell(
                         onTap: () => _showLocationSelector(context),
                         borderRadius: BorderRadius.circular(4),
-                        child: const Padding(
+                        child: Padding(
                           padding:
-                              EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.location_on_outlined,
+                              const Icon(Icons.location_on_outlined,
                                   color: storeWhite, size: 20),
-                              SizedBox(width: 4),
+                              const SizedBox(width: 4),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text('Deliver to',
+                                  const Text('Deliver to',
                                       style: StoreType.amazonTopLine),
-                                  Text('Across India',
+                                  Text(location,
                                       style: StoreType.amazonBottomLine),
                                 ],
                               ),
@@ -946,12 +951,40 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                 ),
               ),
 
-              // Mobile Search Bar (Below Logo row on small screens)
+              // Mobile Search Bar & Location Strip (Below Logo row on small screens)
               if (isMobile) ...[
                 Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   child: widget.search ?? _buildAmazonSearchBar(),
+                ),
+                InkWell(
+                  onTap: () => _showLocationSelector(context),
+                  child: Container(
+                    color: storeDarkGreenNav,
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.location_on_outlined,
+                            color: storeWhite, size: 15),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Deliver to $location ▾',
+                            style: const TextStyle(
+                              color: storeWhite,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ],
@@ -962,6 +995,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
   }
 
   void _showLocationSelector(BuildContext context) {
+    final location = ref.read(selectedDeliveryLocationProvider);
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: storeWhite,
@@ -1021,7 +1055,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
             ),
             const SizedBox(height: 14),
             const Text(
-              'Filter Classifieds & Deliveries by Location / Radius:',
+              'Select Delivery City / PIN Code:',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
@@ -1033,36 +1067,36 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                ActionChip(
-                  avatar: const Icon(Icons.my_location, size: 14, color: Color(0xff064e3b)),
-                  label: const Text('Near Me (Within 25 km)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  backgroundColor: const Color(0xffdcfce7),
-                  onPressed: () => Navigator.pop(ctx),
-                ),
-                ActionChip(
-                  avatar: const Icon(Icons.location_city, size: 14, color: Color(0xff064e3b)),
-                  label: const Text('Anand & Kheda (GJ)', style: TextStyle(fontSize: 12)),
-                  backgroundColor: const Color(0xfff1f5f9),
-                  onPressed: () => Navigator.pop(ctx),
-                ),
-                ActionChip(
-                  avatar: const Icon(Icons.location_city, size: 14, color: Color(0xff064e3b)),
-                  label: const Text('Kolhapur & Sangli (MH)', style: TextStyle(fontSize: 12)),
-                  backgroundColor: const Color(0xfff1f5f9),
-                  onPressed: () => Navigator.pop(ctx),
-                ),
-                ActionChip(
-                  avatar: const Icon(Icons.location_city, size: 14, color: Color(0xff064e3b)),
-                  label: const Text('Karnal & Rohtak (HR)', style: TextStyle(fontSize: 12)),
-                  backgroundColor: const Color(0xfff1f5f9),
-                  onPressed: () => Navigator.pop(ctx),
-                ),
-                ActionChip(
-                  avatar: const Icon(Icons.public, size: 14, color: Color(0xff064e3b)),
-                  label: const Text('All India (Nationwide)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  backgroundColor: const Color(0xfffef08a),
-                  onPressed: () => Navigator.pop(ctx),
-                ),
+                for (final hub in [
+                  'New Delhi 110001',
+                  'Gurugram 122002',
+                  'Noida 201301',
+                  'Lucknow 226010',
+                  'Bengaluru 560001',
+                  'Mumbai 400001',
+                  'All India (Nationwide)',
+                ])
+                  ActionChip(
+                    avatar: Icon(
+                      hub.contains('India') ? Icons.public : Icons.location_city,
+                      size: 14,
+                      color: const Color(0xff064e3b),
+                    ),
+                    label: Text(hub,
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: location == hub
+                                ? FontWeight.bold
+                                : FontWeight.normal)),
+                    backgroundColor: location == hub
+                        ? storeAmber
+                        : const Color(0xfff1f5f9),
+                    onPressed: () {
+                      ref.read(selectedDeliveryLocationProvider.notifier).state =
+                          hub;
+                      Navigator.pop(ctx);
+                    },
+                  ),
               ],
             ),
             const SizedBox(height: 18),
@@ -1108,13 +1142,16 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
     final taxonomy = ref.watch(taxonomyProvider).valueOrNull;
 
     final baseCategories = <String, String>{
-      'All': 'All Organic Essentials',
-      'Vedic Bilona Ghee': '🧈 Vedic Bilona Ghee',
-      'Fresh Milk & Dairy': '🥛 Fresh Milk & Dairy',
-      'Puja & Hawan Samagri': '🪔 Puja & Hawan Samagri',
-      'Natural Agarbatti & Dhoop': '🌸 Agarbatti & Dhoop',
-      'Vermicompost & Living Soil': '🌱 Vermicompost & Soil',
-      'Cold-Pressed Sarso (Mustard) Oil': '🌻 Cold-Pressed Sarso Oil',
+      'All': 'All Departments',
+      'Artisanal Dairy & Cultured': '🧈 Artisanal Dairy',
+      'Fresh Living Harvest (Microgreens)': '🌱 Living Microgreens',
+      'Wood-Pressed Oils & Pure Sweeteners': '🌻 Cold-Pressed Oils & Honey',
+      'Stone-Ground Chakki Atta & Flours': '🌾 Chakki Atta & Flours',
+      'Terroir Salts & Native Spices': '🧂 Native Salts & Spices',
+      'Apartment Balcony & Living Soil': '🪴 Living Balcony & Soil',
+      'Pure Aloe Vera & Living Botanicals': '🌵 Pure Aloe & Botanicals',
+      'Curated Kitchen & Wellness Boxes': '🎁 Starter Boxes & Combos',
+      'Puja & Hawan Samagri': '🪔 Puja & Hawan Essentials',
     };
     if (widget.isFarmerHub) {
       baseCategories['All'] = 'All Departments';

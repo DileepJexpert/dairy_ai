@@ -529,6 +529,9 @@ class _CommerceProductsScreenState
                                       value: 'Apartment Balcony & Living Soil',
                                       child: Text('🪴 Apartment Balcony & Living Soil')),
                                   DropdownMenuItem(
+                                      value: 'Pure Aloe Vera & Living Botanicals',
+                                      child: Text('🌵 Pure Aloe Vera & Living Botanicals')),
+                                  DropdownMenuItem(
                                       value: 'Curated Kitchen & Wellness Boxes',
                                       child: Text('🎁 Curated Kitchen & Wellness Boxes')),
                                   DropdownMenuItem(
@@ -1218,6 +1221,7 @@ class _CommerceProductsScreenState
                                   'Chakki Atta',
                                   'Terroir Salts',
                                   'Balcony Soil',
+                                  'Pure Aloe Vera',
                                   'Combos & Boxes',
                                   'Puja & Sacred',
                                   'Cattle Feed',

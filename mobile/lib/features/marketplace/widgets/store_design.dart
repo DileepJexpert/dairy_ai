@@ -361,6 +361,8 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                           () => storeBrowse(context, category: 'Artisanal Dairy & Cultured', query: 'mattha')),
                       _drawerTile(context, 'Traditional Curd Chillies (Mor Milagai)',
                           () => storeBrowse(context, category: 'Artisanal Dairy & Cultured', query: 'chilli')),
+                      _drawerTile(context, 'Cold-Process Goat Milk & Honey Soap',
+                          () => storeBrowse(context, category: 'Artisanal Dairy & Cultured', query: 'soap')),
                       _drawerTile(context, 'Shata Dhauta Ghrita (100x Washed Ghee Cream)',
                           () => storeBrowse(context, category: 'Artisanal Dairy & Cultured', query: 'shata dhauta')),
                       _drawerTile(context, 'A2 Gir Cow Chilled Raw Milk',
@@ -425,6 +427,12 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                           () => storeBrowse(context, category: 'Terroir Salts & Native Spices', query: 'black salt')),
                       _drawerTile(context, 'High-Curcumin Turmeric (>5% Curcumin Haldi)',
                           () => storeBrowse(context, category: 'Terroir Salts & Native Spices', query: 'turmeric')),
+                      _drawerTile(context, 'Unpolished Whole Cumin (Patan Jeera)',
+                          () => storeBrowse(context, category: 'Terroir Salts & Native Spices', query: 'jeera')),
+                      _drawerTile(context, 'Whole Coriander Seeds (Guntur Dhania)',
+                          () => storeBrowse(context, category: 'Terroir Salts & Native Spices', query: 'dhania')),
+                      _drawerTile(context, 'Mathania Whole Red Chillies (Sun-Dried)',
+                          () => storeBrowse(context, category: 'Terroir Salts & Native Spices', query: 'mathania')),
 
                       const Divider(height: 16),
                       _sectionHeader('🪴 Apartment Balcony & Living Soil'),
@@ -438,7 +446,10 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                           () => storeBrowse(context, category: 'Apartment Balcony & Living Soil', query: 'spray')),
                       _drawerTile(context, 'Heirloom Balcony Kitchen Seeds (5-in-1 Kit)',
                           () => storeBrowse(context, category: 'Apartment Balcony & Living Soil', query: 'seeds')),
-                      _drawerTile(context, '🌵 Pure Aloe Vera & Living Botanicals',
+
+                      const Divider(height: 16),
+                      _sectionHeader('🌵 Pure Aloe Vera & Living Botanicals'),
+                      _drawerTile(context, 'All Pure Aloe Vera & Botanicals',
                           () => storeBrowse(context, category: 'Pure Aloe Vera & Living Botanicals')),
                       _drawerTile(context, 'Pure Aloe Inner-Leaf Gel (99% Clear)',
                           () => storeBrowse(context, category: 'Pure Aloe Vera & Living Botanicals', query: 'aloe gel')),
@@ -453,6 +464,8 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                           () => storeBrowse(context, category: 'Curated Kitchen & Wellness Boxes')),
                       _drawerTile(context, "★ 'The Clean Kitchen' Starter Box (₹1,499)",
                           () => storeBrowse(context, category: 'Curated Kitchen & Wellness Boxes', query: 'kitchen')),
+                      _drawerTile(context, "★ 'Pantry & Botanical' Restock Box (₹2,799)",
+                          () => storeBrowse(context, category: 'Curated Kitchen & Wellness Boxes', query: 'restock')),
                       _drawerTile(context, "★ 'Living Balcony' Herb & Salad Kit (₹399)",
                           () => storeBrowse(context, category: 'Curated Kitchen & Wellness Boxes', query: 'balcony')),
                       _drawerTile(context, "★ 'Daily Gut Health' Duo (₹499)",
@@ -695,9 +708,22 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(widget.isFarmerHub ? Icons.agriculture : Icons.spa_outlined,
-                                color: storeGold, size: 22),
-                            const SizedBox(width: 4),
+                            widget.isFarmerHub
+                                ? const Icon(Icons.agriculture,
+                                    color: storeGold, size: 22)
+                                : ClipOval(
+                                    child: Image.asset(
+                                      'assets/store/milterra-heritage-badge.jpg',
+                                      width: 24,
+                                      height: 24,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Icon(
+                                          Icons.spa_outlined,
+                                          color: storeGold,
+                                          size: 22),
+                                    ),
+                                  ),
+                            const SizedBox(width: 6),
                             Text(
                               widget.isFarmerHub ? 'katixo' : 'milterra',
                               style: StoreType.logo.copyWith(
@@ -1312,6 +1338,7 @@ class StoreCategoryNavigation extends ConsumerWidget {
         entries['Stone-Ground Chakki Atta & Flours'] = 'Chakki Atta & Flours';
         entries['Terroir Salts & Native Spices'] = 'Native Salts & Spices';
         entries['Apartment Balcony & Living Soil'] = 'Living Balcony & Soil';
+        entries['Pure Aloe Vera & Living Botanicals'] = 'Pure Aloe & Botanicals';
         entries['Curated Kitchen & Wellness Boxes'] = 'Starter Boxes & Combos';
         entries['Puja & Hawan Samagri'] = 'Puja & Hawan';
       }

@@ -201,6 +201,7 @@ class AdminVet {
 // ---------------------------------------------------------------------------
 // Admin consultation list item.
 // ---------------------------------------------------------------------------
+// ignore: constant_identifier_names
 enum ConsultationStatus { requested, in_progress, completed, cancelled }
 
 @immutable

@@ -38,9 +38,10 @@ class SavedForLaterNotifier extends StateNotifier<List<CartItem>> {
           .toList();
       ref.read(savedItemsErrorProvider.notifier).state = null;
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ref.read(savedItemsErrorProvider.notifier).state =
             'Saved items could not be loaded.';
+      }
     }
   }
 

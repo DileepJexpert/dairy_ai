@@ -104,7 +104,7 @@ class AdminConsultationsScreen extends ConsumerWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.assignment_outlined,
+                        const Icon(Icons.assignment_outlined,
                             size: 64, color: DairyTheme.subtleGrey),
                         const SizedBox(height: 12),
                         Text(
@@ -166,7 +166,7 @@ class _StatusFilterChip extends StatelessWidget {
       label: Text(label),
       selected: isSelected,
       onSelected: (_) => onTap(),
-      selectedColor: chipColor.withOpacity(0.15),
+      selectedColor: chipColor.withValues(alpha: 0.15),
       labelStyle: TextStyle(
         color: isSelected ? chipColor : DairyTheme.subtleGrey,
         fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
@@ -258,7 +258,7 @@ class _ConsultationCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Icon(Icons.pets, size: 14, color: DairyTheme.subtleGrey),
+                    const Icon(Icons.pets, size: 14, color: DairyTheme.subtleGrey),
                     const SizedBox(width: 4),
                     Text(
                       consultation.cattleName!,
@@ -334,7 +334,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -410,7 +410,7 @@ class _TypeChip extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             type.replaceAll('_', ' ').toUpperCase(),
-            style: TextStyle(
+            style: const TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
                 color: DairyTheme.subtleGrey),
@@ -446,7 +446,7 @@ class _SeverityChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
@@ -524,9 +524,9 @@ class _ConsultationDetailSheet extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.05),
+                color: Colors.blue.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
               ),
               child: Text(
                 consultation.aiDiagnosis!,
@@ -552,7 +552,7 @@ class _ConsultationDetailSheet extends StatelessWidget {
                   fontWeight: FontWeight.w500, fontSize: 14)),
           Expanded(
             child: Text(value,
-                style: TextStyle(
+                style: const TextStyle(
                     color: DairyTheme.subtleGrey, fontSize: 14)),
           ),
         ],

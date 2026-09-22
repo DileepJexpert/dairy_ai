@@ -41,27 +41,27 @@ class AdminAnalyticsScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             children: [
               // ---------- Registration trends ----------
-              _SectionHeader(title: 'Registration Trends'),
+              const _SectionHeader(title: 'Registration Trends'),
               const SizedBox(height: 12),
               _RegistrationTrendsChart(
                   trends: analytics.registrationTrends),
               const SizedBox(height: 24),
 
               // ---------- Milk production trends ----------
-              _SectionHeader(title: 'Milk Production Trends'),
+              const _SectionHeader(title: 'Milk Production Trends'),
               const SizedBox(height: 12),
               _MilkTrendsChart(trends: analytics.milkTrends),
               const SizedBox(height: 24),
 
               // ---------- Consultation stats ----------
-              _SectionHeader(title: 'Consultation Stats'),
+              const _SectionHeader(title: 'Consultation Stats'),
               const SizedBox(height: 12),
               _ConsultationStatsCard(
                   stats: analytics.consultationStats),
               const SizedBox(height: 24),
 
               // ---------- Revenue summary ----------
-              _SectionHeader(title: 'Revenue Summary'),
+              const _SectionHeader(title: 'Revenue Summary'),
               const SizedBox(height: 12),
               _RevenueSummaryCard(
                 totalRevenue: analytics.totalRevenue,
@@ -102,7 +102,7 @@ class _RegistrationTrendsChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (trends.isEmpty) {
-      return _EmptyChartCard(message: 'No registration data available');
+      return const _EmptyChartCard(message: 'No registration data available');
     }
 
     return Card(
@@ -112,11 +112,11 @@ class _RegistrationTrendsChart extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Legend.
-            Row(
+            const Row(
               children: [
                 _LegendDot(
                     color: DairyTheme.primaryGreen, label: 'Farmers'),
-                const SizedBox(width: 16),
+                SizedBox(width: 16),
                 _LegendDot(
                     color: DairyTheme.accentOrange, label: 'Cattle'),
               ],
@@ -132,7 +132,7 @@ class _RegistrationTrendsChart extends StatelessWidget {
                     trends.map((t) => t.farmerCount.toDouble()).toList(),
                     trends.map((t) => t.cattleCount.toDouble()).toList(),
                   ],
-                  colors: [
+                  colors: const [
                     DairyTheme.primaryGreen,
                     DairyTheme.accentOrange,
                   ],
@@ -157,7 +157,7 @@ class _MilkTrendsChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (trends.isEmpty) {
-      return _EmptyChartCard(message: 'No milk production data available');
+      return const _EmptyChartCard(message: 'No milk production data available');
     }
 
     return Card(
@@ -166,7 +166,7 @@ class _MilkTrendsChart extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 _LegendDot(color: Colors.teal, label: 'Litres'),
               ],
@@ -262,7 +262,7 @@ class _ConsultationStatsCard extends StatelessWidget {
                   return Chip(
                     label: Text('${e.key}: ${e.value}',
                         style: const TextStyle(fontSize: 12)),
-                    backgroundColor: Colors.blue.withOpacity(0.08),
+                    backgroundColor: Colors.blue.withValues(alpha: 0.08),
                     side: BorderSide.none,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     visualDensity: VisualDensity.compact,
@@ -290,7 +290,7 @@ class _ConsultationStatsCard extends StatelessWidget {
                   return Chip(
                     label: Text('${e.key}: ${e.value}',
                         style: TextStyle(fontSize: 12, color: color)),
-                    backgroundColor: color.withOpacity(0.08),
+                    backgroundColor: color.withValues(alpha: 0.08),
                     side: BorderSide.none,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     visualDensity: VisualDensity.compact,

@@ -13,10 +13,12 @@ String _getHsnCode(String title) {
   if (t.contains('makhan') || t.contains('butter')) return '0405 10 00';
   if (t.contains('paneer') || t.contains('cheese')) return '0406 10 00';
   if (t.contains('milk')) return '0401 20 00';
-  if (t.contains('feed') || t.contains('nutrition') || t.contains('mineral'))
+  if (t.contains('feed') || t.contains('nutrition') || t.contains('mineral')) {
     return '2309 90 90';
-  if (t.contains('milking') || t.contains('equipment') || t.contains('machine'))
+  }
+  if (t.contains('milking') || t.contains('equipment') || t.contains('machine')) {
     return '8434 10 00';
+  }
   return '0405 90 20';
 }
 
@@ -806,10 +808,11 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                         ),
                       );
                     } catch (_) {
-                      if (context.mounted)
+                      if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                             content: Text(
                                 'Cancellation could not be saved. Please retry or contact support.')));
+                      }
                     }
                   },
                   child: const Text('Confirm Cancellation'),
@@ -1062,22 +1065,22 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                                 const Icon(Icons.cancel,
                                     color: Color(0xffd32f2f), size: 24),
                                 const SizedBox(width: 14),
-                                Expanded(
+                                const Expanded(
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      const Text(
+                                      Text(
                                         'This order has been cancelled',
                                         style: TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w800,
                                             color: Color(0xffc62828)),
                                       ),
-                                      const SizedBox(height: 2),
+                                      SizedBox(height: 2),
                                       Text(
                                         'Cancellation is saved. No automatic refund or payment was made.',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                             fontSize: 12,
                                             color: Color(0xff5f2120)),
                                       ),
@@ -1357,7 +1360,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                             horizontal: 12, vertical: 8),
                       ),
                       onPressed: () =>
-                          _showReturnRequestDialog(context, order.id),
+                          _showReturnRequestDialog(order.id),
                       child: const Text(
                         'Return / Replace',
                         style: TextStyle(
@@ -1903,8 +1906,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     );
   }
 
-  Future<void> _showReturnRequestDialog(
-      BuildContext context, String orderId) async {
+  Future<void> _showReturnRequestDialog(String orderId) async {
     String selectedReason = 'Damaged on delivery';
     final remarksCtrl = TextEditingController();
     var isSubmitting = false;
@@ -1912,7 +1914,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     await showDialog<void>(
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (dCtx, setDialogState) => AlertDialog(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Row(
@@ -1937,7 +1939,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                 ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
-                  value: selectedReason,
+                  initialValue: selectedReason,
                   decoration: const InputDecoration(
                     labelText: 'Reason for return',
                     border: OutlineInputBorder(),
@@ -1965,7 +1967,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                     ),
                   ],
                   onChanged: (v) {
-                    if (v != null) setDialogState(() => selectedReason = v);
+                    if (v != null) {
+                      setDialogState(() => selectedReason = v);
+                    }
                   },
                 ),
                 const SizedBox(height: 14),
@@ -2003,8 +2007,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                             'remarks': remarksCtrl.text.trim(),
                           },
                         );
+                        if (dialogCtx.mounted) {
+                          Navigator.pop(dialogCtx);
+                        }
                         if (!mounted) return;
-                        Navigator.pop(dialogCtx);
                         ref.invalidate(orderDetailProvider(orderId));
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -2017,6 +2023,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                         );
                       } catch (e) {
                         setDialogState(() => isSubmitting = false);
+                        if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('Failed to submit return: $e'),

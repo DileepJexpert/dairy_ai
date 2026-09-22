@@ -222,7 +222,7 @@ class _EcommerceAdminPanelScreenState
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialog) => AlertDialog(
+        builder: (dCtx, setDialog) => AlertDialog(
           title: Text('Review Cancellation: #$orderNumber'),
           content: SizedBox(
             width: 460,
@@ -325,7 +325,7 @@ class _EcommerceAdminPanelScreenState
           ),
           actions: [
             TextButton(
-              onPressed: saving ? null : () => Navigator.pop(context),
+              onPressed: saving ? null : () => Navigator.pop(dCtx),
               child: const Text('Cancel'),
             ),
             FilledButton(
@@ -338,7 +338,7 @@ class _EcommerceAdminPanelScreenState
                   : () async {
                       if (action == 'reject' &&
                           remarksCtrl.text.trim().isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        ScaffoldMessenger.of(dCtx).showSnackBar(
                           const SnackBar(
                               content: Text(
                                   'Please enter an explanation for rejecting this request.')),
@@ -358,7 +358,7 @@ class _EcommerceAdminPanelScreenState
                         );
                         ref.invalidate(adminCancellationsProvider);
                         ref.read(adminMarketplaceProvider.notifier).refresh();
-                        if (context.mounted) Navigator.pop(context);
+                        if (dCtx.mounted) Navigator.pop(dCtx);
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -371,8 +371,10 @@ class _EcommerceAdminPanelScreenState
                           );
                         }
                       } catch (e) {
-                        if (context.mounted) {
+                        if (dCtx.mounted) {
                           setDialog(() => saving = false);
+                        }
+                        if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                                 content: Text(commerceError(e)),
@@ -409,7 +411,7 @@ class _EcommerceAdminPanelScreenState
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialog) => AlertDialog(
+        builder: (dCtx, setDialog) => AlertDialog(
           title: Text('Process Return #$orderId'),
           content: SizedBox(
             width: 480,
@@ -454,7 +456,7 @@ class _EcommerceAdminPanelScreenState
                           TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
-                    value: action,
+                    initialValue: action,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       contentPadding:
@@ -523,7 +525,7 @@ class _EcommerceAdminPanelScreenState
           ),
           actions: [
             TextButton(
-              onPressed: saving ? null : () => Navigator.pop(context),
+              onPressed: saving ? null : () => Navigator.pop(dCtx),
               child: const Text('Cancel'),
             ),
             FilledButton(
@@ -543,8 +545,8 @@ class _EcommerceAdminPanelScreenState
                             'restock_inventory': restockInventory,
                           },
                         );
+                        if (dCtx.mounted) Navigator.pop(dCtx);
                         if (!mounted) return;
-                        Navigator.pop(context);
                         ref.invalidate(adminReturnsProvider);
                         ref.invalidate(adminCancellationsProvider);
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -555,7 +557,8 @@ class _EcommerceAdminPanelScreenState
                           ),
                         );
                       } catch (e) {
-                        setDialog(() => saving = false);
+                        if (dCtx.mounted) setDialog(() => saving = false);
+                        if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('Failed to process return: $e'),
@@ -692,7 +695,7 @@ class _EcommerceAdminPanelScreenState
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialog) => AlertDialog(
+        builder: (dCtx, setDialog) => AlertDialog(
           title: Text('Disburse Payout: $businessName'),
           content: SizedBox(
             width: 460,
@@ -759,7 +762,7 @@ class _EcommerceAdminPanelScreenState
                     controller: refCtrl,
                     decoration: const InputDecoration(
                       labelText: 'Bank Reference / UTR Number',
-                      hintText: 'e.g. UTR-20260919-897612 or IMPS-9021',
+                      hintText: 'e.g. UTR1234567890 or NEFT-REF',
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -777,7 +780,7 @@ class _EcommerceAdminPanelScreenState
           ),
           actions: [
             TextButton(
-              onPressed: saving ? null : () => Navigator.pop(context),
+              onPressed: saving ? null : () => Navigator.pop(dCtx),
               child: const Text('Cancel'),
             ),
             FilledButton(
@@ -788,7 +791,7 @@ class _EcommerceAdminPanelScreenState
                       final amt =
                           double.tryParse(amountCtrl.text.trim()) ?? 0.0;
                       if (amt <= 0) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        ScaffoldMessenger.of(dCtx).showSnackBar(
                           const SnackBar(
                               content: Text(
                                   'Please enter a valid payout amount greater than 0.')),
@@ -796,7 +799,7 @@ class _EcommerceAdminPanelScreenState
                         return;
                       }
                       if (refCtrl.text.trim().isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        ScaffoldMessenger.of(dCtx).showSnackBar(
                           const SnackBar(
                               content: Text(
                                   'Please enter a bank reference or UTR number.')),
@@ -818,7 +821,7 @@ class _EcommerceAdminPanelScreenState
                           },
                         );
                         ref.invalidate(adminVendorSettlementsProvider);
-                        if (context.mounted) Navigator.pop(context);
+                        if (dCtx.mounted) Navigator.pop(dCtx);
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -829,8 +832,10 @@ class _EcommerceAdminPanelScreenState
                           );
                         }
                       } catch (e) {
-                        if (context.mounted) {
+                        if (dCtx.mounted) {
                           setDialog(() => saving = false);
+                        }
+                        if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                                 content: Text(commerceError(e)),
@@ -858,7 +863,7 @@ class _EcommerceAdminPanelScreenState
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialog) => AlertDialog(
+        builder: (dCtx, setDialog) => AlertDialog(
           title: Text('Platform Commission: ${seller.businessName}'),
           content: SizedBox(
             width: 380,
@@ -885,7 +890,7 @@ class _EcommerceAdminPanelScreenState
           ),
           actions: [
             TextButton(
-              onPressed: saving ? null : () => Navigator.pop(context),
+              onPressed: saving ? null : () => Navigator.pop(dCtx),
               child: const Text('Cancel'),
             ),
             FilledButton(
@@ -895,7 +900,7 @@ class _EcommerceAdminPanelScreenState
                   : () async {
                       final rate = double.tryParse(rateCtrl.text.trim());
                       if (rate == null || rate < 0 || rate > 100) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        ScaffoldMessenger.of(dCtx).showSnackBar(
                           const SnackBar(
                               content: Text(
                                   'Please enter a valid rate between 0% and 100%.')),
@@ -908,7 +913,7 @@ class _EcommerceAdminPanelScreenState
                             .read(adminMarketplaceProvider.notifier)
                             .updateSellerCommission(seller.id, rate);
                         ref.invalidate(adminVendorSettlementsProvider);
-                        if (context.mounted) Navigator.pop(context);
+                        if (dCtx.mounted) Navigator.pop(dCtx);
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -919,8 +924,10 @@ class _EcommerceAdminPanelScreenState
                           );
                         }
                       } catch (e) {
-                        if (context.mounted) {
+                        if (dCtx.mounted) {
                           setDialog(() => saving = false);
+                        }
+                        if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                                 content: Text(commerceError(e)),
@@ -2429,7 +2436,7 @@ class _EcommerceAdminPanelScreenState
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Bank: ${s.bankAccountNumber != null ? "A/C ••••" + (s.bankAccountNumber!.length > 4 ? s.bankAccountNumber!.substring(s.bankAccountNumber!.length - 4) : s.bankAccountNumber!) : "Not Added"} · IFSC: ${s.ifscCode ?? "N/A"} · UPI: ${s.upiId ?? "N/A"}',
+                        'Bank: ${s.bankAccountNumber != null ? "A/C ••••${s.bankAccountNumber!.length > 4 ? s.bankAccountNumber!.substring(s.bankAccountNumber!.length - 4) : s.bankAccountNumber!}" : "Not Added"} · IFSC: ${s.ifscCode ?? "N/A"} · UPI: ${s.upiId ?? "N/A"}',
                         style: const TextStyle(fontSize: 11, color: storeMuted),
                       ),
                     ],
@@ -2767,7 +2774,7 @@ class _EcommerceAdminPanelScreenState
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600)),
                                 subtitle: Text(
-                                    '${p['processed_at'] ?? p['created_at'] ?? ''} ${p['remarks'] != null && p['remarks'].toString().isNotEmpty ? '· ' + p['remarks'].toString() : ''}',
+                                    '${p['processed_at'] ?? p['created_at'] ?? ''} ${p['remarks'] != null && p['remarks'].toString().isNotEmpty ? '· ${p['remarks']}' : ''}',
                                     style: const TextStyle(fontSize: 11)),
                                 trailing: Text(
                                     (p['status'] ?? 'PAID')
@@ -4181,9 +4188,10 @@ class _EcommerceAdminPanelScreenState
     try {
       products = await ref.read(adminCatalogProductsProvider.future);
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(commerceError(error))));
+      }
       return;
     }
     if (!mounted) return;
@@ -4225,7 +4233,7 @@ class _EcommerceAdminPanelScreenState
         builder: (ctx) => StatefulBuilder(
             builder: (ctx, update) => AlertDialog(
                   title: Text(existing == null
-                      ? 'Add Batch Certificate'
+                       ? 'Add Batch Certificate'
                       : 'Edit Batch Certificate'),
                   scrollable: true,
                   content: SizedBox(
@@ -4280,17 +4288,19 @@ class _EcommerceAdminPanelScreenState
                                   ? null
                                   : double.tryParse(purity.text);
                               if (testDate == null ||
-                                  (purity.text.isNotEmpty && percent == null))
+                                  (purity.text.isNotEmpty && percent == null)) {
                                 throw StateError(
                                     'Enter a valid test date and purity value.');
+                              }
                               final values = <String, String>{};
                               for (final line in parameters.text
                                   .split('\n')
                                   .where((v) => v.trim().isNotEmpty)) {
                                 final split = line.indexOf(':');
-                                if (split <= 0 || split == line.length - 1)
+                                if (split <= 0 || split == line.length - 1) {
                                   throw StateError(
                                       'Use Name: Result for each parameter.');
+                                }
                                 values[line.substring(0, split).trim()] =
                                     line.substring(split + 1).trim();
                               }
@@ -6074,8 +6084,8 @@ class _EcommerceAdminPanelScreenState
             label: const Text('Copy reminder link'),
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: link));
-              if (!ctx.mounted) return;
-              Navigator.pop(ctx);
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                     content: Text(

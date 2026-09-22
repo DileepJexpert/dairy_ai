@@ -474,12 +474,14 @@ class OrdersScreen extends ConsumerWidget {
     }
     final title = item.title.toLowerCase();
     if (title.contains('ghee')) return 'mil-ghee-500';
-    if (title.contains('makhan') || title.contains('butter'))
+    if (title.contains('makhan') || title.contains('butter')) {
       return 'mil-butter-250';
+    }
     if (title.contains('paneer')) return 'mil-paneer-500';
     if (title.contains('janam')) return 'feed-janam-42';
-    if (title.contains('minera') || title.contains('mineral'))
+    if (title.contains('minera') || title.contains('mineral')) {
       return 'milterra-min-supp-1';
+    }
     return 'mil-ghee-500';
   }
 }

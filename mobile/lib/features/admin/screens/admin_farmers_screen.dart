@@ -89,7 +89,7 @@ class _AdminFarmersScreenState extends ConsumerState<AdminFarmersScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.people_outline,
+                        const Icon(Icons.people_outline,
                             size: 64, color: DairyTheme.subtleGrey),
                         const SizedBox(height: 12),
                         Text(
@@ -167,10 +167,10 @@ class _FarmerListTile extends StatelessWidget {
 
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor: DairyTheme.primaryGreen.withOpacity(0.1),
+        backgroundColor: DairyTheme.primaryGreen.withValues(alpha: 0.1),
         child: Text(
           farmer.name.isNotEmpty ? farmer.name[0].toUpperCase() : '?',
-          style: TextStyle(
+          style: const TextStyle(
             color: DairyTheme.primaryGreen,
             fontWeight: FontWeight.bold,
           ),
@@ -291,7 +291,7 @@ class _FarmerDetailSheet extends StatelessWidget {
                   fontWeight: FontWeight.w500, fontSize: 14)),
           Expanded(
             child: Text(value,
-                style: TextStyle(color: DairyTheme.subtleGrey, fontSize: 14)),
+                style: const TextStyle(color: DairyTheme.subtleGrey, fontSize: 14)),
           ),
         ],
       ),

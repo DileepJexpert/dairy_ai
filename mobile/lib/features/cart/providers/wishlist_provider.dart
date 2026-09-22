@@ -44,9 +44,10 @@ class WishlistNotifier extends StateNotifier<List<Product>> {
       state = products;
       ref.read(wishlistErrorProvider.notifier).state = null;
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ref.read(wishlistErrorProvider.notifier).state =
             'Wishlist could not be loaded. Please retry.';
+      }
     } finally {
       if (mounted) ref.read(wishlistLoadingProvider.notifier).state = false;
     }
@@ -63,8 +64,9 @@ class WishlistNotifier extends StateNotifier<List<Product>> {
 
   Future<void> add(Product product) async {
     await dio.put('/marketplace/wishlist/${product.id}');
-    if (mounted && !state.any((p) => p.id == product.id))
+    if (mounted && !state.any((p) => p.id == product.id)) {
       state = [...state, product];
+    }
   }
 
   Future<void> remove(String id) async {
@@ -86,8 +88,9 @@ Future<void> toggleWishlist(
         content: Text(
             added ? 'Saved to your wishlist.' : 'Removed from wishlist.')));
   } catch (_) {
-    if (context.mounted)
+    if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Wishlist was not saved. Please retry.')));
+    }
   }
 }

@@ -182,8 +182,9 @@ String commerceError(Object error) {
     final data = error.response?.data;
     final detail = data is Map ? data['detail'] : null;
     if (detail is String) return detail;
-    if (detail is List)
+    if (detail is List) {
       return detail.map((v) => v is Map ? v['msg'] : v).join('; ');
+    }
     return 'Could not reach the backend. No success has been confirmed. Please retry.';
   }
   return error is StateError

@@ -252,8 +252,9 @@ class OrderNotifier extends StateNotifier<List<StoreOrder>> {
           .toList();
       ref.read(orderLoadStateProvider.notifier).state = const AsyncData(null);
     } catch (e, st) {
-      if (mounted)
+      if (mounted) {
         ref.read(orderLoadStateProvider.notifier).state = AsyncError(e, st);
+      }
     }
   }
 

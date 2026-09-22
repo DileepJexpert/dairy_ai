@@ -80,7 +80,7 @@ class AdminVetsScreen extends ConsumerWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.medical_services_outlined,
+                        const Icon(Icons.medical_services_outlined,
                             size: 64, color: DairyTheme.subtleGrey),
                         const SizedBox(height: 12),
                         Text(
@@ -137,7 +137,7 @@ class _FilterChip extends StatelessWidget {
       label: Text(label),
       selected: selected,
       onSelected: (_) => onTap(),
-      selectedColor: chipColor.withOpacity(0.15),
+      selectedColor: chipColor.withValues(alpha: 0.15),
       labelStyle: TextStyle(
         color: selected ? chipColor : DairyTheme.subtleGrey,
         fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
@@ -173,8 +173,8 @@ class _VetCard extends ConsumerWidget {
               children: [
                 CircleAvatar(
                   backgroundColor: vet.isVerified
-                      ? DairyTheme.primaryGreen.withOpacity(0.1)
-                      : DairyTheme.accentOrange.withOpacity(0.1),
+                      ? DairyTheme.primaryGreen.withValues(alpha: 0.1)
+                      : DairyTheme.accentOrange.withValues(alpha: 0.1),
                   child: Icon(
                     Icons.medical_services,
                     color: vet.isVerified
@@ -203,9 +203,9 @@ class _VetCard extends ConsumerWidget {
                             decoration: BoxDecoration(
                               color: vet.isVerified
                                   ? DairyTheme.primaryGreen
-                                      .withOpacity(0.1)
+                                      .withValues(alpha: 0.1)
                                   : DairyTheme.accentOrange
-                                      .withOpacity(0.1),
+                                      .withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -258,7 +258,7 @@ class _VetCard extends ConsumerWidget {
                               MaterialTapTargetSize.shrinkWrap,
                           visualDensity: VisualDensity.compact,
                           backgroundColor:
-                              Colors.blue.withOpacity(0.08),
+                              Colors.blue.withValues(alpha: 0.08),
                           side: BorderSide.none,
                         ))
                     .toList(),
@@ -293,7 +293,7 @@ class _VetCard extends ConsumerWidget {
                 fontSize: 13, fontWeight: FontWeight.w500)),
         Text(value,
             style:
-                TextStyle(fontSize: 13, color: DairyTheme.subtleGrey)),
+                const TextStyle(fontSize: 13, color: DairyTheme.subtleGrey)),
       ],
     );
   }

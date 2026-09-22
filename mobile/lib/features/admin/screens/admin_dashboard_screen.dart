@@ -189,7 +189,7 @@ class AdminDashboardScreen extends ConsumerWidget {
           return ListTile(
             leading: CircleAvatar(
               backgroundColor:
-                  _activityColor(activity.type).withOpacity(0.1),
+                  _activityColor(activity.type).withValues(alpha: 0.1),
               child: Icon(
                 _activityIcon(activity.type),
                 color: _activityColor(activity.type),
@@ -273,7 +273,7 @@ class _QuickActionCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: color.withOpacity(0.2)),
+        side: BorderSide(color: color.withValues(alpha: 0.2)),
       ),
       child: InkWell(
         onTap: onTap,
@@ -286,7 +286,7 @@ class _QuickActionCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: color, size: 24),

@@ -14,6 +14,7 @@ import '../../cart/widgets/store_cart_drawer.dart';
 import '../../commerce/models/taxonomy.dart';
 import '../../commerce/providers/commerce_provider.dart';
 import '../widgets/rfq_quote_dialog.dart';
+import '../../../core/analytics_service.dart';
 
 class ProductListScreen extends ConsumerStatefulWidget {
   const ProductListScreen(
@@ -218,6 +219,11 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   }
 
   void _browse(String category, {String? sort}) {
+    ref.read(analyticsServiceProvider).trackButtonClick(
+          'category_filter',
+          'Category: $category',
+          metadata: {'category': category, if (sort != null) 'sort': sort},
+        );
     setState(() {
       if (_category != category) {
         _priceMin = 0;
@@ -270,6 +276,12 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
 
   Future<void> _add(Product p) async {
     if (p.isConcept) return;
+    ref.read(analyticsServiceProvider).trackAddToCart(
+          p.id,
+          p.title,
+          p.minOrderQuantity,
+          p.price,
+        );
     if (ref.read(currentUserProvider) == null) {
       context.go('/login?next=/shop/product/${p.id}');
       return;
@@ -2115,7 +2127,17 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                     compact: small,
                     busyIds: _adding,
                     onAdd: _add,
-                    onOpen: (p) => context.push('/shop/product/${p.id}'))))
+                    onOpen: (p) {
+                      ref.read(analyticsServiceProvider).trackProductView(
+                            p.id,
+                            p.title,
+                            price: p.price,
+                          );
+                      context.push('/shop/product/${p.id}');
+                    },
+                  ),
+                ),
+              )
             .toList(),
       );
     });

@@ -11,6 +11,11 @@ final analyticsServiceProvider = Provider<AnalyticsService>((ref) {
   final service = AnalyticsService(dio);
   ref.onDispose(service.dispose);
   service.initSession();
+  ref.listen(currentUserProvider, (previous, next) {
+    if (next != null && previous?.id != next.id) {
+      service.initSession(force: true);
+    }
+  });
   return service;
 });
 
@@ -37,8 +42,8 @@ class AnalyticsService {
   }
 
   /// Register or heartbeat session with the backend.
-  Future<void> initSession({String landingPage = '/shop'}) async {
-    if (_sessionRegistered) return;
+  Future<void> initSession({String landingPage = '/shop', bool force = false}) async {
+    if (_sessionRegistered && !force) return;
     try {
       String? utmSource;
       String? utmMedium;
@@ -168,6 +173,20 @@ class AnalyticsService {
       'element_id': 'checkout_step_$step',
       'element_text': 'Checkout Step: $step',
       'metadata': metadata,
+    });
+  }
+
+  /// Track payment gateway/method step.
+  void trackPaymentStep(String paymentMethod, {double? amount, Map<String, dynamic>? metadata}) {
+    _enqueueEvent({
+      'event_type': 'PAYMENT_ATTEMPT',
+      'page_url': '/shop/checkout/payment',
+      'element_id': 'payment_method_$paymentMethod',
+      'element_text': 'Payment Attempt: $paymentMethod',
+      'metadata': {
+        if (amount != null) 'amount': amount,
+        if (metadata != null) ...metadata,
+      },
     });
   }
 

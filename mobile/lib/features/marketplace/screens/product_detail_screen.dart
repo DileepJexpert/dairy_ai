@@ -13,6 +13,7 @@ import '../widgets/store_product_card.dart';
 import '../widgets/product_information.dart';
 import '../widgets/storefront_highlight_strip.dart';
 import '../widgets/rfq_quote_dialog.dart';
+import '../../../core/analytics_service.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   const ProductDetailScreen({super.key, required this.productId});
@@ -27,6 +28,17 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   bool _busy = false;
   bool _bundleItem1Selected = true;
   bool _bundleItem2Selected = true;
+  String? _lastTrackedProductId;
+
+  void _trackProductViewOnce(Product p) {
+    if (_lastTrackedProductId == p.id) return;
+    _lastTrackedProductId = p.id;
+    ref.read(analyticsServiceProvider).trackProductView(
+          p.id,
+          p.title,
+          price: p.price,
+        );
+  }
 
   bool _isConceptProduct(Product p) => p.isConcept;
 
@@ -49,6 +61,17 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final p = ref.read(productDetailProvider(widget.productId)).valueOrNull;
+      if (p != null) {
+        _trackProductViewOnce(p);
+      }
+    });
+  }
+
+  @override
   void didUpdateWidget(covariant ProductDetailScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.productId != widget.productId) {
@@ -56,6 +79,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       _image = 0;
       _bundleItem1Selected = true;
       _bundleItem2Selected = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final p = ref.read(productDetailProvider(widget.productId)).valueOrNull;
+        if (p != null) {
+          _trackProductViewOnce(p);
+        }
+      });
     }
   }
 
@@ -65,6 +94,24 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   Future<void> _purchase(Product p,
       {bool checkout = false, int? quantity}) async {
     if (p.isConcept) return;
+    final qty = quantity ?? _quantity;
+    ref.read(analyticsServiceProvider).trackAddToCart(
+          p.id,
+          p.title,
+          qty,
+          p.price,
+        );
+    if (checkout) {
+      ref.read(analyticsServiceProvider).trackCheckoutStep(
+            'buy_now_initiated',
+            metadata: {
+              'product_id': p.id,
+              'product_title': p.title,
+              'quantity': qty,
+              'price': p.price,
+            },
+          );
+    }
     if (ref.read(currentUserProvider) == null) {
       final destination = checkout
           ? '/marketplace/checkout'
@@ -99,6 +146,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   Widget build(BuildContext context) {
     final result = ref.watch(productDetailProvider(widget.productId));
     final product = result.valueOrNull;
+
+    ref.listen(productDetailProvider(widget.productId), (prev, next) {
+      final p = next.valueOrNull;
+      if (p != null) {
+        _trackProductViewOnce(p);
+      }
+    });
 
     if (product != null && _quantity < product.minOrderQuantity) {
       _quantity = product.minOrderQuantity;
@@ -2395,13 +2449,31 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     }
     setState(() => _busy = true);
     try {
+      ref.read(analyticsServiceProvider).trackAddToCart(
+            p.id,
+            p.title,
+            p.minOrderQuantity,
+            p.price,
+          );
       await ref.read(cartProvider.notifier).add(p.id, p.minOrderQuantity);
       if (companionItems.isNotEmpty && _bundleItem1Selected) {
+        ref.read(analyticsServiceProvider).trackAddToCart(
+              companionItems[0].id,
+              companionItems[0].title,
+              companionItems[0].minOrderQuantity,
+              companionItems[0].price,
+            );
         await ref
             .read(cartProvider.notifier)
             .add(companionItems[0].id, companionItems[0].minOrderQuantity);
       }
       if (companionItems.length > 1 && _bundleItem2Selected) {
+        ref.read(analyticsServiceProvider).trackAddToCart(
+              companionItems[1].id,
+              companionItems[1].title,
+              companionItems[1].minOrderQuantity,
+              companionItems[1].price,
+            );
         await ref
             .read(cartProvider.notifier)
             .add(companionItems[1].id, companionItems[1].minOrderQuantity);

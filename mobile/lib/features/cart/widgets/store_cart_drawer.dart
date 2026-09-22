@@ -7,6 +7,7 @@ import '../providers/cart_provider.dart';
 import '../../marketplace/models/product_models.dart';
 import '../../marketplace/providers/product_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
+import '../../../core/analytics_service.dart';
 
 Future<void> showStoreCart(BuildContext context) async {
   final destination = await showGeneralDialog<String>(
@@ -205,8 +206,19 @@ class _CartDrawer extends ConsumerWidget {
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                   ),
-                                  onPressed: () => Navigator.pop(
-                                      context, '/marketplace/checkout'),
+                                   onPressed: () {
+                                     ref
+                                         .read(analyticsServiceProvider)
+                                         .trackCheckoutStep(
+                                           'proceed_to_checkout_drawer',
+                                           metadata: {
+                                             'item_count': cart.itemCount,
+                                             'subtotal': cart.subtotal,
+                                           },
+                                         );
+                                     Navigator.pop(
+                                         context, '/marketplace/checkout');
+                                   },
                                   child: Text(
                                     'Proceed to Checkout (${cart.itemCount} items)',
                                     style: const TextStyle(
@@ -482,9 +494,15 @@ class _CartItemTile extends ConsumerWidget {
                               ? () => ref
                                   .read(cartProvider.notifier)
                                   .update(item.id, item.quantity - 1)
-                              : () => ref
-                                  .read(cartProvider.notifier)
-                                  .remove(item.id),
+                              : () {
+                                  ref
+                                      .read(analyticsServiceProvider)
+                                      .trackRemoveFromCart(
+                                          item.productId, item.title);
+                                  ref
+                                      .read(cartProvider.notifier)
+                                      .remove(item.id);
+                                },
                           child: Padding(
                             padding: const EdgeInsets.all(4),
                             child: Icon(
@@ -523,8 +541,12 @@ class _CartItemTile extends ConsumerWidget {
                   ),
                   const SizedBox(width: 12),
                   InkWell(
-                    onTap: () =>
-                        ref.read(cartProvider.notifier).remove(item.id),
+                    onTap: () {
+                      ref
+                          .read(analyticsServiceProvider)
+                          .trackRemoveFromCart(item.productId, item.title);
+                      ref.read(cartProvider.notifier).remove(item.id);
+                    },
                     child: const Text(
                       'Delete',
                       style: TextStyle(

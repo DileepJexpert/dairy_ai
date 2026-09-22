@@ -11,6 +11,7 @@ import '../../../app/store_theme.dart';
 import '../../commerce/providers/commerce_provider.dart';
 import 'product_information.dart';
 import '../../admin/providers/admin_marketplace_provider.dart';
+import '../../../core/analytics_service.dart';
 export '../../../app/store_theme.dart';
 
 // Natural Earth Palette for MILTERRA Earth
@@ -661,6 +662,9 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
   void _triggerSearch() {
     final query = _searchCtrl.text.trim();
     final effectiveCat = _normalizeCategory(_selectedCategory);
+    if (query.isNotEmpty) {
+      ref.read(analyticsServiceProvider).trackSearch(query, 0);
+    }
     storeBrowse(
       context,
       category: effectiveCat == 'All' ||
@@ -1094,6 +1098,11 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                     onPressed: () {
                       ref.read(selectedDeliveryLocationProvider.notifier).state =
                           hub;
+                      ref.read(analyticsServiceProvider).trackButtonClick(
+                            'select_delivery_hub',
+                            'Delivery Hub: $hub',
+                            metadata: {'hub': hub},
+                          );
                       Navigator.pop(ctx);
                     },
                   ),
@@ -1985,13 +1994,14 @@ abstract final class StoreImages {
     }
 
     // 7. Pure Aloe Vera Botanicals
-    if (title.contains('aloe gel') || title.contains('aloe vera gel')) {
+    if (title.contains('aloe') || title.contains('ghritkumari')) {
+      if (title.contains('juice') ||
+          title.contains('amla') ||
+          title.contains('tonic') ||
+          title.contains('drink')) {
+        return 'assets/store/aloe-vera-juice.jpg';
+      }
       return 'assets/store/aloe-vera-gel.jpg';
-    }
-    if (title.contains('aloe juice') ||
-        title.contains('aloe amla') ||
-        title.contains('aloe tonic')) {
-      return 'assets/store/aloe-vera-juice.jpg';
     }
 
     // 8. Balcony Soil, Potting Mix & Garden Seed Kits

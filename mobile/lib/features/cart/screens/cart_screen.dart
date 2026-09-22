@@ -8,6 +8,7 @@ import '../../marketplace/models/product_models.dart';
 import '../../marketplace/providers/product_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
 import '../../marketplace/widgets/store_product_card.dart';
+import '../../../core/analytics_service.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -79,9 +80,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         SnackBar(content: Text('Removed ${item.title} from saved items.')),
       );
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Could not remove saved item.')));
+      }
     }
   }
 
@@ -106,6 +108,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   Future<void> _removeItem(String itemId) async {
+    final item = ref
+        .read(cartProvider)
+        .valueOrNull
+        ?.items
+        .where((i) => i.id == itemId)
+        .firstOrNull;
+    if (item != null) {
+      ref
+          .read(analyticsServiceProvider)
+          .trackRemoveFromCart(item.productId, item.title);
+    }
     setState(() => _busyIds.add(itemId));
     try {
       await ref.read(cartProvider.notifier).remove(itemId);
@@ -122,6 +135,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   Future<void> _addRecommendedItem(Product p) async {
+    ref.read(analyticsServiceProvider).trackAddToCart(
+          p.id,
+          p.title,
+          p.minOrderQuantity,
+          p.price,
+        );
     setState(() => _busyIds.add(p.id));
     try {
       await ref.read(cartProvider.notifier).add(p.id, p.minOrderQuantity);
@@ -804,7 +823,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   borderRadius: BorderRadius.circular(21),
                 ),
               ),
-              onPressed: () => context.push('/marketplace/checkout'),
+              onPressed: () {
+                ref.read(analyticsServiceProvider).trackCheckoutStep(
+                      'proceed_to_buy_clicked',
+                      metadata: {
+                        'item_count': cart.itemCount,
+                        'subtotal': cart.subtotal,
+                      },
+                    );
+                context.push('/marketplace/checkout');
+              },
               child: Text(
                 'Proceed to Buy (${cart.itemCount} items)',
                 style: const TextStyle(

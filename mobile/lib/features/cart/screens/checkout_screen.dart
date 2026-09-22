@@ -12,6 +12,7 @@ import '../providers/delivery_address_provider.dart';
 import '../providers/coupon_provider.dart';
 import '../providers/order_repository.dart';
 import '../../marketplace/widgets/store_design.dart';
+import '../../../core/analytics_service.dart';
 
 import 'package:flutter/services.dart';
 
@@ -28,6 +29,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   bool _submitting = false;
   String? _checkoutKey;
   bool _summaryItemsExpanded = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(analyticsServiceProvider)
+          .trackCheckoutStep('checkout_screen_opened');
+    });
+  }
 
   String _getPaymentButtonLabel(double totalAmount) {
     if (_submitting) return 'Saving your interest…';
@@ -86,6 +97,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       'postal_code': selectedAddress.postalCode,
       'phone_number': selectedAddress.phone,
     };
+
+    ref.read(analyticsServiceProvider).trackPaymentStep(
+          _paymentMethod,
+          amount: totalAmount,
+          metadata: {
+            'address_id': _addressId,
+            'city': selectedAddress.villageOrCity,
+            'coupon_code': appliedCoupon?.code,
+          },
+        );
 
     if (_paymentMethod == 'wallet') {
       setState(() => _submitting = true);
@@ -157,6 +178,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         );
       }
       final realOrderId = data['id'].toString();
+      ref.read(analyticsServiceProvider).trackCheckoutStep(
+            'order_completed',
+            metadata: {
+              'order_id': realOrderId,
+              'total_amount': totalAmount,
+              'payment_method': _paymentMethod,
+            },
+          );
       ref
           .read(ordersNotifierProvider.notifier)
           .acceptServerOrder(Map<String, dynamic>.from(data));
@@ -1583,7 +1612,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   ),
                 ),
                 child: InkWell(
-                  onTap: () => setState(() => _addressId = address.id),
+                  onTap: () {
+                    setState(() => _addressId = address.id);
+                    ref
+                        .read(analyticsServiceProvider)
+                        .trackCheckoutStep('address_selected', metadata: {
+                      'address_id': address.id,
+                      'city': address.villageOrCity,
+                      'state': address.state,
+                      'pincode': address.postalCode,
+                    });
+                  },
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
                     padding: const EdgeInsets.all(14),
@@ -1854,7 +1893,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ),
         ),
         child: ListTile(
-          onTap: () => setState(() => _paymentMethod = value),
+          onTap: () {
+            setState(() => _paymentMethod = value);
+            ref
+                .read(analyticsServiceProvider)
+                .trackPaymentStep(value, metadata: {
+              'action': 'select_payment_method',
+            });
+          },
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           leading: Container(

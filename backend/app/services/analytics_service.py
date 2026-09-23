@@ -646,7 +646,7 @@ async def get_customer_sessions_journey(
                 stuck_label = "Dropped on Product"
                 diagnosis = f"Viewed product details and lab certificates but did not add to cart (Idle for {inactive_mins}m)"
 
-        customer_name = (f"{user.first_name or ''} {user.last_name or ''}").strip() if user else None
+        customer_name = (user.display_name or user.username or "").strip() if user else None
         if not customer_name and user and user.email:
             customer_name = user.email.split("@")[0].capitalize()
 

@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings
 
@@ -16,6 +17,21 @@ class Settings(BaseSettings):
     # Demand-validation mode: checkout records intent without charging a
     # customer or consuming sellable inventory.
     PRELAUNCH_MODE: bool = True
+    # Shipping remains manual until an approved courier account is configured.
+    SHIPPING_ORIGIN_PINCODE: str = "201305"
+    SHIPPING_AUTO_BOOK_ENABLED: bool = False
+    SHIPPING_PACKAGING_TARE_GRAMS: int = 0
+    SHIPPING_PACKAGE_LENGTH_CM: int = 0
+    SHIPPING_PACKAGE_WIDTH_CM: int = 0
+    SHIPPING_PACKAGE_HEIGHT_CM: int = 0
+    SHIPPING_MAX_COURIER_COST: float = 0.0  # 0 disables the cost ceiling.
+    SHIPPING_MAX_DELIVERY_DAYS: int = 0  # 0 accepts unknown ETA.
+    SHIPPING_SELECTION_STRATEGY: Literal["lowest_cost", "fastest"] = "lowest_cost"
+    DELHIVERY_ENV: Literal["staging", "production"] = "staging"
+    DELHIVERY_TOKEN: str = ""
+    DELHIVERY_CLIENT_NAME: str = ""
+    DELHIVERY_PICKUP_LOCATION: str = ""
+    DELHIVERY_PICKUP_TIME: str = "15:00:00"
     # Keep this directory on persistent disk and back it up with the database.
     PRODUCT_MEDIA_DIR: str = "storage/product-media"
     # Enable after an explicit local full rebuild (see scripts/rebuild_local_database.py).

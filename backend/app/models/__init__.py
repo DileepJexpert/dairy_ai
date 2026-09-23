@@ -53,3 +53,4 @@ from app.models.customer_commerce import WishlistEntry, SavedCartItem, OrderCont
 from app.models.rfq import RFQInquiry, RFQStatus
 from app.models.storefront_banner import StorefrontBanner
 from app.models.serviceable_pincode import ServiceablePincode
+from app.models.shipping import Shipment, ShipmentEvent

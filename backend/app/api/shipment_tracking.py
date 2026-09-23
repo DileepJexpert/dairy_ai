@@ -3,9 +3,8 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime, timedelta
-from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,15 +13,17 @@ from app.config import settings
 from app.database import async_session_factory, get_db
 from app.dependencies import get_current_user, require_role
 from app.integrations.delhivery_shipping import BookingUncertain, CourierUnavailable, DelhiveryShipping
+from app.integrations.shipping_policy import configured_providers, select_quote
 from app.models.customer_commerce import OrderContact, OrderEvent
 from app.models.order import FulfillmentStatus, Order, OrderItem, OrderStatus, PaymentStatus
 from app.models.product import Product
 from app.models.shipping import Shipment, ShipmentEvent
 from app.models.user import User, UserRole
+from app.repositories import vendor_repo
 
 router = APIRouter(tags=["shipping"])
 logger = logging.getLogger(__name__)
-admin_only = require_role(UserRole.admin, UserRole.super_admin)
+seller_only = require_role(UserRole.admin, UserRole.super_admin, UserRole.vendor)
 
 
 def shipment_data(shipment: Shipment | None) -> dict:
@@ -30,15 +31,25 @@ def shipment_data(shipment: Shipment | None) -> dict:
         return {"status": "NOT_PREPARED", "mode": None, "carrier": None, "awb": None}
     return {
         "status": shipment.status.upper(), "mode": shipment.mode,
-        "carrier": shipment.courier_name, "awb": shipment.awb,
+        "carrier": shipment.courier_name, "courier_code": shipment.courier_code, "awb": shipment.awb,
         "quoted_cost": str(shipment.quoted_cost) if shipment.quoted_cost is not None else None,
         "customer_fee": str(shipment.customer_fee), "last_error": shipment.last_error,
+        "package": shipment.package,
         "label_available": bool(shipment.awb and shipment.courier_code == "delhivery"),
     }
 
 
 async def lines_for(db: AsyncSession, order_id: uuid.UUID) -> list[OrderItem]:
     return list((await db.execute(select(OrderItem).where(OrderItem.order_id == order_id))).scalars())
+
+
+async def require_seller_access(db: AsyncSession, user: User, order_id: uuid.UUID, lines: list[OrderItem] | None = None) -> None:
+    if user.role != UserRole.vendor:
+        return
+    vendor = await vendor_repo.get_by_user_id(db, user.id)
+    items = lines if lines is not None else await lines_for(db, order_id)
+    if not vendor or not vendor.is_active or not items or any(item.vendor_id != vendor.id for item in items):
+        raise HTTPException(404, "Order not found")
 
 
 def require_shippable(order: Order, lines: list[OrderItem]) -> None:
@@ -53,7 +64,8 @@ def require_shippable(order: Order, lines: list[OrderItem]) -> None:
 async def prepare_shipment(db: AsyncSession, order: Order, lines: list[OrderItem], package: dict | None = None) -> Shipment:
     require_shippable(order, lines)
     shipment = (await db.execute(select(Shipment).where(Shipment.order_id == order.id).with_for_update())).scalar_one_or_none()
-    if shipment and shipment.status not in {"needs_package", "ready"}:
+    retry_safe = shipment and shipment.status == "needs_attention" and shipment.courier_code is None
+    if shipment and shipment.status not in {"needs_package", "ready"} and not retry_safe:
         raise HTTPException(409, "Shipment is already booked or requires reconciliation")
     if package is None:
         products = {p.id: p for p in (await db.execute(select(Product).where(Product.id.in_([i.product_id for i in lines])))).scalars()}
@@ -82,7 +94,8 @@ async def record_manual_dispatch(db: AsyncSession, order: Order, carrier: str, a
     shipment = (await db.execute(select(Shipment).where(Shipment.order_id == order.id).with_for_update())).scalar_one_or_none()
     if shipment and shipment.status in {"booked", "in_transit", "out_for_delivery"} and shipment.courier_name == carrier and shipment.awb == awb:
         return shipment
-    if shipment and shipment.status not in {"ready", "needs_package", "manual_shipped"}:
+    manual_safe = shipment and shipment.status == "needs_attention" and shipment.courier_code is None
+    if shipment and shipment.status not in {"ready", "needs_package", "manual_shipped"} and not manual_safe:
         raise HTTPException(409, "An automatic booking exists or needs courier reconciliation")
     if shipment and shipment.status == "manual_shipped" and (shipment.courier_name != carrier or shipment.awb != awb):
         raise HTTPException(409, "This order already has a different shipment")
@@ -91,6 +104,7 @@ async def record_manual_dispatch(db: AsyncSession, order: Order, carrier: str, a
         db.add(shipment)
     shipment.mode, shipment.status = "manual", "manual_shipped"
     shipment.courier_name, shipment.awb = carrier, awb
+    shipment.last_error = None
     shipment.booked_at = shipment.booked_at or datetime.utcnow()
     await db.flush()
     return shipment
@@ -105,11 +119,13 @@ class PackageInput(BaseModel):
 
 
 @router.post("/marketplace/orders/{order_id}/shipping/prepare")
-async def prepare(order_id: uuid.UUID, package: PackageInput, user: User = Depends(admin_only), db: AsyncSession = Depends(get_db)):
+async def prepare(order_id: uuid.UUID, package: PackageInput, user: User = Depends(seller_only), db: AsyncSession = Depends(get_db)):
     order = (await db.execute(select(Order).where(Order.id == order_id).with_for_update())).scalar_one_or_none()
     if not order:
         raise HTTPException(404, "Order not found")
-    shipment = await prepare_shipment(db, order, await lines_for(db, order.id), package.model_dump() | {"quantity": 1})
+    lines = await lines_for(db, order.id)
+    await require_seller_access(db, user, order_id, lines)
+    shipment = await prepare_shipment(db, order, lines, package.model_dump() | {"quantity": sum(line.quantity for line in lines)})
     return {"success": True, "data": shipment_data(shipment)}
 
 
@@ -127,21 +143,22 @@ async def tracking(order_id: uuid.UUID, user: User = Depends(get_current_user), 
     return {"success": True, "data": {"order_id": str(order_id), **shipment_data(shipment), "checkpoints": events}}
 
 
-async def confirm_booking(db: AsyncSession, shipment: Shipment, awb: str) -> None:
+async def confirm_booking(db: AsyncSession, shipment: Shipment, awb: str, courier_code: str = "delhivery", courier_name: str = "Delhivery") -> None:
     shipment.awb, shipment.status = awb, "booked"
     shipment.booked_at, shipment.claimed_at, shipment.last_error = datetime.utcnow(), None, None
-    shipment.courier_code, shipment.courier_name = "delhivery", "Delhivery"
+    shipment.courier_code, shipment.courier_name = courier_code, courier_name
     contact = await db.get(OrderContact, shipment.order_id)
     if not contact:
         contact = OrderContact(order_id=shipment.order_id)
         db.add(contact)
-    contact.carrier, contact.tracking_number = "Delhivery", awb
-    db.add(OrderEvent(order_id=shipment.order_id, title="Courier booked", status="BOOKED", remarks=f"Delhivery AWB {awb}"))
+    contact.carrier, contact.tracking_number = courier_name, awb
+    db.add(OrderEvent(order_id=shipment.order_id, title="Courier booked", status="BOOKED", remarks=f"{courier_name} AWB {awb}"))
     await db.flush()
 
 
 @router.post("/marketplace/orders/{order_id}/shipping/reconcile")
-async def reconcile(order_id: uuid.UUID, user: User = Depends(admin_only), db: AsyncSession = Depends(get_db)):
+async def reconcile(order_id: uuid.UUID, user: User = Depends(seller_only), db: AsyncSession = Depends(get_db)):
+    await require_seller_access(db, user, order_id)
     shipment = (await db.execute(select(Shipment).where(Shipment.order_id == order_id).with_for_update())).scalar_one_or_none()
     if not shipment:
         raise HTTPException(404, "Shipment not found")
@@ -149,6 +166,10 @@ async def reconcile(order_id: uuid.UUID, user: User = Depends(admin_only), db: A
         return {"success": True, "data": shipment_data(shipment)}
     if shipment.status not in {"booking", "needs_attention"}:
         raise HTTPException(409, "No uncertain booking to reconcile")
+    if shipment.courier_code is None:
+        raise HTTPException(409, "No courier booking was attempted; dispatch manually or correct package and coverage")
+    if shipment.courier_code not in {None, "delhivery"}:
+        raise HTTPException(409, "Reconcile this carrier in its portal")
     try:
         awb = await DelhiveryShipping().find_existing(str(order_id))
     except (BookingUncertain, CourierUnavailable) as exc:
@@ -161,12 +182,26 @@ async def reconcile(order_id: uuid.UUID, user: User = Depends(admin_only), db: A
     return {"success": True, "data": shipment_data(shipment)}
 
 
+@router.get("/marketplace/orders/{order_id}/shipping/label")
+async def courier_label(order_id: uuid.UUID, user: User = Depends(seller_only), db: AsyncSession = Depends(get_db)):
+    await require_seller_access(db, user, order_id)
+    shipment = (await db.execute(select(Shipment).where(Shipment.order_id == order_id))).scalar_one_or_none()
+    if not shipment or not shipment.awb or shipment.courier_code != "delhivery":
+        raise HTTPException(404, "No courier-issued label is available")
+    try:
+        content = await DelhiveryShipping().label_pdf(shipment.awb)
+    except Exception as exc:
+        logger.warning("Courier label unavailable for %s: %s", order_id, exc)
+        raise HTTPException(502, "Courier label is unavailable; check the courier portal") from exc
+    return Response(content, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{shipment.awb}.pdf"'})
+
+
 async def process_ready_once(courier: DelhiveryShipping | None = None) -> bool:
     """Claim once; an unknown outcome requires reconciliation instead of retry."""
     if not settings.SHIPPING_AUTO_BOOK_ENABLED or settings.PRELAUNCH_MODE:
         return False
-    courier = courier or DelhiveryShipping()
-    if not courier.configured:
+    providers = [courier] if courier is not None else configured_providers()
+    if not providers:
         return False
     async with async_session_factory() as db:
         shipment = (await db.execute(select(Shipment).where(Shipment.status == "ready")
@@ -193,23 +228,40 @@ async def process_ready_once(courier: DelhiveryShipping | None = None) -> bool:
             package = shipment.package
         if not order or not contact or not package:
             raise CourierUnavailable("Order package or payment method is missing")
-        quote = await courier.quote(str(order.address_snapshot.get("postal_code") or ""), package["weight_grams"], False)
-        if not quote:
+        if contact.payment_method.lower() == "cod":
+            raise CourierUnavailable("COD settlement is not integrated with order payment confirmation")
+        options = []
+        for provider in providers:
+            try:
+                offer = await provider.quote(str(order.address_snapshot.get("postal_code") or ""), package["weight_grams"], False)
+                if offer:
+                    options.append((provider, offer))
+            except Exception:
+                logger.exception("Courier quote failed for %s", provider.code)
+        selected = select_quote(options)
+        if not selected:
             raise CourierUnavailable("No courier rate and serviceability quote available for this pincode")
-        if settings.SHIPPING_MAX_COURIER_COST > 0 and quote.cost > Decimal(str(settings.SHIPPING_MAX_COURIER_COST)):
-            raise CourierUnavailable("Courier price exceeds the configured maximum")
+        courier, quote = selected
+        async with async_session_factory() as db:
+            shipment = (await db.execute(select(Shipment).where(Shipment.id == shipment_id).with_for_update())).scalar_one()
+            shipment.courier_code, shipment.courier_name, shipment.quoted_cost = courier.code, courier.name, quote.cost
+            await db.commit()
         awb = await courier.book(order, order.address_snapshot, [line.title for line in lines], package, contact.payment_method)
         async with async_session_factory() as db:
             shipment = (await db.execute(select(Shipment).where(Shipment.id == shipment_id).with_for_update())).scalar_one()
             if shipment.status != "booking":
                 raise BookingUncertain("Shipment state changed during courier booking")
-            shipment.quoted_cost = quote.cost
-            await confirm_booking(db, shipment, awb)
+            await confirm_booking(db, shipment, awb, courier.code, courier.name)
             await db.commit()
         try:
             await courier.request_pickup(1)
-        except Exception:
+        except Exception as exc:
             logger.exception("Courier booked but pickup request failed for %s", shipment_id)
+            async with async_session_factory() as db:
+                booked = await db.get(Shipment, shipment_id)
+                if booked:
+                    booked.last_error = "Courier booked; arrange or verify pickup in the courier portal"
+                    await db.commit()
         return True
     except Exception as exc:
         logger.warning("Shipping booking needs attention for %s: %s", shipment_id, exc)
@@ -289,8 +341,20 @@ async def advance_order(db: AsyncSession, order_id: uuid.UUID, target: Fulfillme
 async def shipping_loop() -> None:
     while True:
         try:
+            await flag_stale_bookings()
             await process_ready_once()
             await poll_tracking_once()
         except Exception:
             logger.exception("Shipping worker iteration failed")
         await asyncio.sleep(30)
+
+
+async def flag_stale_bookings() -> None:
+    cutoff = datetime.utcnow() - timedelta(minutes=10)
+    async with async_session_factory() as db:
+        rows = (await db.execute(select(Shipment).where(Shipment.status == "booking", Shipment.claimed_at < cutoff)
+                 .with_for_update(skip_locked=True))).scalars()
+        for shipment in rows:
+            shipment.status = "needs_attention"
+            shipment.last_error = "Booking process stopped before AWB confirmation; reconcile in courier portal"
+        await db.commit()

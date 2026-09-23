@@ -28,6 +28,9 @@ from app.models.notification import Notification, NotificationType
 from app.models.order import OrderStatus
 from app.services.commerce_admin_service import audit
 from app.services.commerce_admin_service import validate_coupon
+from app.models.shipping import Shipment, ShipmentEvent
+from app.api.shipment_tracking import prepare_shipment, record_manual_dispatch, shipment_data
+from app.integrations.shipping_policy import configured_providers, select_quote
 
 router = APIRouter(prefix="/marketplace/orders", tags=["orders"])
 
@@ -64,6 +67,13 @@ async def detail(db, order):
     data['carrier'] = contact.carrier if contact else ''
     data['tracking_number'] = contact.tracking_number if contact else ''
     data['timeline'] = [{'time': e.created_at.isoformat() + 'Z', 'title': e.title, 'status': e.status, 'remarks': e.remarks, 'location': ''} for e in events]
+    shipment = (await db.execute(select(Shipment).where(Shipment.order_id == order.id))).scalar_one_or_none()
+    data['shipment'] = shipment_data(shipment)
+    if shipment:
+        scans = (await db.execute(select(ShipmentEvent).where(ShipmentEvent.shipment_id == shipment.id).order_by(ShipmentEvent.occurred_at))).scalars()
+        data['timeline'].extend({'time': scan.occurred_at.isoformat() + 'Z', 'title': scan.description,
+                                 'status': scan.status, 'remarks': scan.location, 'location': scan.location} for scan in scans)
+        data['timeline'].sort(key=lambda item: item['time'])
     return data
 
 
@@ -98,10 +108,28 @@ async def checkout(data: CheckoutRequest, current_user: User = Depends(get_curre
     pincode_row = (await db.execute(select(ServiceablePincode).where(ServiceablePincode.pincode == postal_code))).scalar_one_or_none()
     delivery_fee = Decimal("0")
     if pincode_row:
-        if not pincode_row.is_serviceable:
-            raise HTTPException(422, f"Delivery is not currently available for pincode {postal_code}")
         if pincode_row.delivery_fee:
             delivery_fee = Decimal(str(pincode_row.delivery_fee))
+    courier_quote = None
+    if not settings.PRELAUNCH_MODE and settings.SHIPPING_AUTO_BOOK_ENABLED and data.payment_method != 'cod':
+        providers = configured_providers()
+        if providers:
+            weights_known = all(product.weight_grams and product.weight_grams > 0 for _, product, _ in lines)
+            if weights_known:
+                grams = sum(product.weight_grams * cart_item.quantity for cart_item, product, _ in lines) + settings.SHIPPING_PACKAGING_TARE_GRAMS
+                options = []
+                for provider in providers:
+                    offer = await provider.quote(postal_code, grams, False)
+                    if offer:
+                        options.append((provider, offer))
+                selected = select_quote(options)
+                courier_quote = selected[1] if selected else None
+                if selected:
+                    delivery_fee = courier_quote.cost
+                elif not pincode_row:
+                    raise HTTPException(422, "No courier serves this pincode; contact the store for manual delivery")
+    if pincode_row and not pincode_row.is_serviceable and not courier_quote:
+        raise HTTPException(422, f"Delivery is not currently available for pincode {postal_code}")
 
     coupon = None
     discount = Decimal("0")
@@ -206,6 +234,8 @@ async def update_fulfillment(item_id: str, fulfillment_status: FulfillmentStatus
     order = (await db.execute(select(Order).where(Order.id == item.order_id))).scalar_one()
     if order.payment_status != PaymentStatus.paid or order.is_prelaunch_interest or order.status == OrderStatus.cancelled:
         raise HTTPException(422, "Payment must be confirmed before fulfillment")
+    if fulfillment_status in {FulfillmentStatus.shipped, FulfillmentStatus.delivered}:
+        raise HTTPException(409, "Record dispatch with the actual courier and AWB in order operations")
     allowed = {FulfillmentStatus.pending: {FulfillmentStatus.confirmed, FulfillmentStatus.cancelled}, FulfillmentStatus.confirmed: {FulfillmentStatus.packed, FulfillmentStatus.cancelled}, FulfillmentStatus.packed: {FulfillmentStatus.shipped}, FulfillmentStatus.shipped: {FulfillmentStatus.delivered}}
     if fulfillment_status not in allowed.get(item.fulfillment_status, set()):
         raise HTTPException(422, "Invalid fulfillment transition")
@@ -316,22 +346,31 @@ async def operation_update(order_id: uuid.UUID, data: FulfillmentUpdate, user: U
     allowed = {FulfillmentStatus.pending: FulfillmentStatus.confirmed, FulfillmentStatus.confirmed: FulfillmentStatus.packed, FulfillmentStatus.packed: FulfillmentStatus.shipped, FulfillmentStatus.shipped: FulfillmentStatus.delivered}
     if any(i.fulfillment_status != target and allowed.get(i.fulfillment_status) != target for i in items):
         raise HTTPException(422, 'Invalid fulfillment transition')
-    if all(i.fulfillment_status == target for i in items):
-        if data.status != 'OUT_FOR_DELIVERY' or (await db.execute(select(OrderEvent.id).where(OrderEvent.order_id == order.id, OrderEvent.status == 'OUT_FOR_DELIVERY'))).first():
-            return {'success': True, 'data': {'id': str(order.id), 'fulfillment_status': target.value}}
     contact = await db.get(OrderContact, order.id)
     if not contact:
         contact = OrderContact(order_id=order.id)
         db.add(contact)
+    if data.status == 'OUT_FOR_DELIVERY' and (not contact.carrier or not contact.tracking_number):
+        raise HTTPException(422, 'Record the actual courier and AWB before marking out for delivery')
+    if all(i.fulfillment_status == target for i in items):
+        if target == FulfillmentStatus.shipped and data.status != 'OUT_FOR_DELIVERY' and (data.carrier.strip(), data.tracking_number.strip()) != (contact.carrier, contact.tracking_number):
+            raise HTTPException(409, 'This order already has a different courier reference')
+        if data.status != 'OUT_FOR_DELIVERY' or (await db.execute(select(OrderEvent.id).where(OrderEvent.order_id == order.id, OrderEvent.status == 'OUT_FOR_DELIVERY'))).first():
+            return {'success': True, 'data': {'id': str(order.id), 'fulfillment_status': target.value}}
     if target == FulfillmentStatus.shipped and data.status != 'OUT_FOR_DELIVERY':
         if not data.carrier.strip() or not data.tracking_number.strip():
             raise HTTPException(422, 'Enter the actual courier and tracking reference')
         # Per-seller shipment metadata must not overwrite another seller's shipment.
         if len({i.vendor_id for i in await _items(db, order.id)}) > 1:
             raise HTTPException(409, 'Multi-seller shipment tracking requires separate shipment records')
+        await record_manual_dispatch(db, order, data.carrier.strip(), data.tracking_number.strip())
         contact.carrier, contact.tracking_number = data.carrier.strip(), data.tracking_number.strip()
     for item in items:
         item.fulfillment_status = target
+    if target == FulfillmentStatus.packed:
+        all_items = await _items(db, order.id)
+        if all(item.fulfillment_status == FulfillmentStatus.packed for item in all_items) and len({item.vendor_id for item in all_items}) == 1:
+            await prepare_shipment(db, order, all_items)
     event(db, order, f'Fulfillment: {data.status.lower()}', data.status, ' · '.join(x for x in (data.location, data.remarks) if x))
     audit(db, user, 'order.fulfillment', 'order', order.id, data.model_dump_json())
     await db.flush()
@@ -529,4 +568,3 @@ async def process_return(order_id: uuid.UUID, data: ReturnProcessRequest, user: 
 
     await db.flush()
     return {'success': True, 'data': await detail(db, order), 'message': f'Return status updated to {order.return_status}'}
-

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
+import 'package:file_selector/file_selector.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
 import '../../admin/providers/admin_marketplace_provider.dart';
@@ -115,6 +117,69 @@ class OperationsOrdersScreen extends ConsumerWidget {
     carrier.dispose();
     tracking.dispose();
     note.dispose();
+  }
+
+  Future<void> preparePackage(BuildContext context, WidgetRef ref,
+      Map<String, dynamic> order) async {
+    final existing = order['shipment'] is Map
+        ? Map<String, dynamic>.from(order['shipment'] as Map)
+        : const <String, dynamic>{};
+    final package = existing['package'] is Map
+        ? Map<String, dynamic>.from(existing['package'] as Map)
+        : const <String, dynamic>{};
+    final fields = {
+      'weight_grams': TextEditingController(text: package['weight_grams']?.toString() ?? ''),
+      'length_cm': TextEditingController(text: package['length_cm']?.toString() ?? ''),
+      'width_cm': TextEditingController(text: package['width_cm']?.toString() ?? ''),
+      'height_cm': TextEditingController(text: package['height_cm']?.toString() ?? ''),
+    };
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Measured package'),
+          content: SizedBox(
+            width: 380,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Enter the packed parcel measurements. Automatic booking runs only when the courier account is configured and enabled.'),
+                for (final entry in fields.entries)
+                  TextField(
+                    controller: entry.value,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(labelText: entry.key.replaceAll('_', ' ')),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () async {
+                final values = fields.map((key, value) => MapEntry(key, int.tryParse(value.text.trim()) ?? 0));
+                if (values.values.any((value) => value <= 0)) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('All measurements must be greater than zero.')));
+                  return;
+                }
+                try {
+                  await ref.read(dioProvider).post('/marketplace/orders/${order['id']}/shipping/prepare', data: values);
+                  ref.invalidate(operationsOrdersProvider);
+                  if (dialogContext.mounted) Navigator.pop(dialogContext);
+                } catch (error) {
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(commerceError(error))));
+                }
+              },
+              child: const Text('Save package'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      for (final controller in fields.values) {
+        controller.dispose();
+      }
+    }
   }
 
   void _showPackingSlipDialog(BuildContext context, Map<String, dynamic> order) {
@@ -489,285 +554,64 @@ TOTAL: ${storeMoney(total)}
     );
   }
 
-  void _showShippingLabelDialog(BuildContext context, Map<String, dynamic> order) {
-    final orderId = order['id']?.toString() ?? '';
-    final shortId = orderId.length >= 8 ? orderId.substring(0, 8).toUpperCase() : orderId;
-    final createdAt = order['created_at']?.toString() ?? '';
-    final carrier = (order['carrier']?.toString().isNotEmpty == true) ? order['carrier'].toString() : 'Delhivery Surface';
-    final trackingNumber = (order['tracking_number']?.toString().isNotEmpty == true)
-        ? order['tracking_number'].toString()
-        : 'MLT${shortId}IN';
-
-    final address = order['address'] is Map
-        ? Map<String, dynamic>.from(order['address'] as Map)
-        : const <String, dynamic>{};
-    final recipient = address['recipient_name']?.toString() ?? 'Consignee Customer';
-    final phone = address['phone_number']?.toString() ?? address['phone']?.toString() ?? '9876543210';
-    final street = address['street_address']?.toString() ?? 'Direct Route';
-    final city = address['village_or_city']?.toString() ?? address['city']?.toString() ?? 'City Hub';
-    final district = address['district']?.toString() ?? '';
-    final state = address['state']?.toString() ?? 'India';
-    final pincode = address['pincode']?.toString() ?? '110001';
-
-    final vendor = order['vendor_info'] is Map ? Map<String, dynamic>.from(order['vendor_info'] as Map) : const <String, dynamic>{};
-    final vendorName = vendor['business_name']?.toString() ?? 'Milterra Producer Cooperative';
-    final vendorOrigin = [vendor['district'], vendor['state']].where((s) => s != null && s.toString().isNotEmpty).join(', ');
-    final vendorGst = vendor['gst_number']?.toString() ?? '29AABCM1234F1Z5';
-
-    final items = order['items'] is List ? (order['items'] as List).whereType<Map>().toList() : [];
-    final total = double.tryParse(order['total']?.toString() ?? '') ?? 0.0;
-    final paymentMethod = order['payment_method']?.toString() ?? 'PREPAID';
-
-    showModalBottomSheet<void>(
+  void _showShippingLabelDialog(BuildContext context, WidgetRef ref, Map<String, dynamic> order) {
+    final carrier = order['carrier']?.toString() ?? '';
+    final awb = order['tracking_number']?.toString() ?? '';
+    final shipment = order['shipment'] is Map ? Map<String, dynamic>.from(order['shipment'] as Map) : const <String, dynamic>{};
+    if (carrier.isEmpty || awb.isEmpty) return;
+    showDialog<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.85,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (_, controller) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-          ),
-          padding: const EdgeInsets.all(20),
-          child: ListView(
-            controller: controller,
-            children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.qr_code_2_rounded, size: 24, color: storeGreen),
-                      SizedBox(width: 8),
-                      Text(
-                        'Standard Logistics Waybill (4" × 6")',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: storeGreen),
-                      ),
-                    ],
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.black, width: 2),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: const BoxDecoration(
-                        border: Border(bottom: BorderSide(color: Colors.black, width: 1.5)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(carrier.toUpperCase(),
-                                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1.2)),
-                              Text('ROUTING: ${state.toUpperCase().substring(0, state.length.clamp(0, 3))}/HUB-${pincode.length >= 3 ? pincode.substring(0, 3) : "DEL"}',
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.black, width: 2),
-                            ),
-                            child: Text(
-                              paymentMethod.toUpperCase().contains('COD') ? 'COD : $total' : 'PREPAID',
-                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                            color: const Color(0xfff8fafc),
-                            child: const Text(
-                              '| ||| | || |||| | ||| | ||||| || | ||| || ||| | ||| |||| | ||',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontFamily: 'monospace',
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 3.5,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'AWB: $trackingNumber',
-                            style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.5),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Divider(color: Colors.black, thickness: 1.5, height: 1),
-
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('SHIP TO / CONSIGNEE:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 0.8)),
-                                const SizedBox(height: 4),
-                                Text(recipient, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
-                                const SizedBox(height: 2),
-                                Text('$street, $city', style: const TextStyle(fontSize: 12, height: 1.2)),
-                                Text('$district, $state', style: const TextStyle(fontSize: 12)),
-                                const SizedBox(height: 4),
-                                Text('Contact: +91 $phone', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.black, width: 2),
-                            ),
-                            child: Column(
-                              children: [
-                                const Text('PIN CODE', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 9)),
-                                const SizedBox(height: 2),
-                                Text(
-                                  pincode,
-                                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 1.5),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Divider(color: Colors.black, thickness: 1.5, height: 1),
-
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('RETURN IF UNDELIVERED TO (SHIPPER):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 0.8)),
-                          const SizedBox(height: 2),
-                          Text(vendorName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                          Text(vendorOrigin.isNotEmpty ? vendorOrigin : 'Milterra Central Hub', style: const TextStyle(fontSize: 11)),
-                          Text('GSTIN: $vendorGst', style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
-                        ],
-                      ),
-                    ),
-                    const Divider(color: Colors.black, thickness: 1.5, height: 1),
-
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      color: const Color(0xfff8fafc),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('Order ID: #$shortId', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                              Text('Date: ${createdAt.length >= 10 ? createdAt.substring(0, 10) : createdAt}', style: const TextStyle(fontSize: 11)),
-                              const Text('Weight: 0.85 kg', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Contents: ${items.map((it) => "${it['title']} (×${it['quantity']})").join(", ")}',
-                            style: const TextStyle(fontSize: 11, color: Color(0xff334155)),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.copy, size: 16),
-                    label: const Text('Copy Waybill Text'),
-                    onPressed: () {
-                      final waybillText = '''
-CARRIER: ${carrier.toUpperCase()}
-AWB: $trackingNumber
-SERVICE: $paymentMethod
-PIN CODE: $pincode
-
-CONSIGNEE:
-$recipient
-$street, $city, $district, $state - $pincode
-PHONE: +91 $phone
-
-SHIPPER:
-$vendorName
-$vendorOrigin
-GSTIN: $vendorGst
-
-ORDER: #$shortId | WEIGHT: 0.85 KG
-ITEMS: ${items.map((it) => "${it['title']} ×${it['quantity']}").join(", ")}
-''';
-                      Clipboard.setData(ClipboardData(text: waybillText.trim()));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Waybill text copied to clipboard!'), backgroundColor: storeGreen),
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 12),
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(backgroundColor: storeGreen),
-                    icon: const Icon(Icons.check, size: 16),
-                    label: const Text('Close'),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-            ],
-          ),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Shipment reference'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Courier: $carrier'),
+            const SizedBox(height: 8),
+            SelectableText('AWB: $awb'),
+            const SizedBox(height: 12),
+            Text(shipment['label_available'] == true
+                ? 'The courier-issued PDF label is available for download.'
+                : 'Print the official label from your courier account. This reference is not a courier-issued label.'),
+          ],
         ),
+        actions: [
+          if (shipment['label_available'] == true)
+            TextButton(
+              onPressed: () async {
+                try {
+                  final response = await ref.read(dioProvider).get<List<int>>(
+                    '/marketplace/orders/${order['id']}/shipping/label',
+                    options: Options(responseType: ResponseType.bytes),
+                  );
+                  final bytes = response.data;
+                  if (bytes == null) return;
+                  final location = await getSaveLocation(suggestedName: '$awb.pdf',
+                      acceptedTypeGroups: [const XTypeGroup(label: 'PDF', extensions: ['pdf'])]);
+                  if (location == null) return;
+                  await XFile.fromData(Uint8List.fromList(bytes), mimeType: 'application/pdf', name: '$awb.pdf').saveTo(location.path);
+                } catch (error) {
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(commerceError(error))));
+                }
+              },
+              child: const Text('Download label'),
+            ),
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: awb));
+              Navigator.pop(dialogContext);
+            },
+            child: const Text('Copy AWB'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) => Scaffold(
         backgroundColor: storeCream,
@@ -805,18 +649,24 @@ ITEMS: ${items.map((it) => "${it['title']} ×${it['quantity']}").join(", ")}
                         final createdAt = order['created_at']?.toString() ?? '';
                         final carrier = order['carrier']?.toString() ?? '';
                         final tracking = order['tracking_number']?.toString() ?? '';
+                        final shipment = order['shipment'] is Map
+                            ? Map<String, dynamic>.from(order['shipment'] as Map)
+                            : const <String, dynamic>{};
+                        final shipmentStatus = shipment['status']?.toString() ?? 'NOT_PREPARED';
+                        final shipmentError = shipment['last_error']?.toString() ?? '';
 
                         final address = order['address'] is Map
                             ? Map<String, dynamic>.from(order['address'] as Map)
                             : const <String, dynamic>{};
                         final recipient = address['recipient_name']?.toString() ?? 'Customer';
-                        final phone = address['phone_number']?.toString() ?? address['phone']?.toString() ?? '';
+                        final phone = address['phone']?.toString() ?? '';
                         final fullAddress = [
-                          address['street_address'],
-                          address['village_or_city'] ?? address['city'],
+                          address['address_line1'],
+                          address['address_line2'],
+                          address['village_or_city'],
                           address['district'],
                           address['state'],
-                          address['pincode'] != null ? 'PIN: ${address['pincode']}' : null,
+                          address['postal_code'] != null ? 'PIN: ${address['postal_code']}' : null,
                         ].where((s) => s != null && s.toString().trim().isNotEmpty).join(', ');
 
                         final items = order['items'] is List ? (order['items'] as List).whereType<Map>().toList() : [];
@@ -949,6 +799,12 @@ ITEMS: ${items.map((it) => "${it['title']} ×${it['quantity']}").join(", ")}
 
                                 const Divider(height: 18),
 
+                                Text('Shipment: ${shipmentStatus.replaceAll('_', ' ')}',
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                if (shipmentError.isNotEmpty)
+                                  Text(shipmentError, style: const TextStyle(fontSize: 11, color: storeError)),
+                                const SizedBox(height: 8),
+
                                 // Tracking Box (if dispatched)
                                 if (carrier.isNotEmpty || tracking.isNotEmpty) ...[
                                   Container(
@@ -1058,9 +914,30 @@ ITEMS: ${items.map((it) => "${it['title']} ×${it['quantity']}").join(", ")}
                                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                             ),
                                             icon: const Icon(Icons.qr_code_2_rounded, size: 16),
-                                            label: const Text('Label (4x6)', style: TextStyle(fontSize: 12)),
-                                            onPressed: () => _showShippingLabelDialog(context, order),
+                                            label: const Text('Shipment ref', style: TextStyle(fontSize: 12)),
+                                            onPressed: tracking.isNotEmpty && carrier.isNotEmpty
+                                                ? () => _showShippingLabelDialog(context, ref, order)
+                                                : null,
                                           ),
+                                          if (status == 'PACKED' && (shipmentStatus == 'NEEDS_PACKAGE' || shipmentStatus == 'NOT_PREPARED' || shipmentStatus == 'READY' || (shipmentStatus == 'NEEDS_ATTENTION' && shipment['courier_code'] == null)))
+                                            OutlinedButton.icon(
+                                              icon: const Icon(Icons.inventory_2_outlined, size: 16),
+                                              label: const Text('Package size', style: TextStyle(fontSize: 12)),
+                                              onPressed: () => preparePackage(context, ref, order),
+                                            ),
+                                          if ((shipmentStatus == 'NEEDS_ATTENTION' || shipmentStatus == 'BOOKING') && shipment['courier_code'] != null)
+                                            OutlinedButton.icon(
+                                              icon: const Icon(Icons.sync, size: 16),
+                                              label: const Text('Check courier', style: TextStyle(fontSize: 12)),
+                                              onPressed: () async {
+                                                try {
+                                                  await ref.read(dioProvider).post('/marketplace/orders/$orderId/shipping/reconcile');
+                                                  ref.invalidate(operationsOrdersProvider);
+                                                } catch (error) {
+                                                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(commerceError(error))));
+                                                }
+                                              },
+                                            ),
                                           if (canFulfill)
                                             FilledButton.icon(
                                               style: FilledButton.styleFrom(

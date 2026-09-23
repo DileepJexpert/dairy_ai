@@ -891,18 +891,18 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     final items = order.items;
     final address = order.address;
     final recipient = address['recipient_name']?.toString() ?? 'Customer';
-    final street = address['street_address']?.toString() ?? '';
-    final city = address['city']?.toString() ?? '';
+    final street = address['address_line1']?.toString() ?? '';
+    final city = address['village_or_city']?.toString() ?? '';
     final state = address['state']?.toString() ?? '';
     final postalCode = address['postal_code']?.toString() ?? '';
-    final phone = address['phone_number']?.toString() ?? '';
+    final phone = address['phone']?.toString() ?? '';
     final liveTracking = ref.watch(liveOrderTrackingProvider(order.id)).valueOrNull;
     final trackingNumber = order.trackingNumber.isNotEmpty
         ? order.trackingNumber
-        : (liveTracking?['awb_number']?.toString() ?? '');
+        : (liveTracking?['awb']?.toString() ?? '');
     final carrier = order.carrier.isNotEmpty
         ? order.carrier
-        : (liveTracking?['carrier_name']?.toString() ?? 'Delhivery Express');
+        : (liveTracking?['carrier']?.toString() ?? '');
     final currentStep = order.currentStep;
 
     return LayoutBuilder(
@@ -1213,30 +1213,30 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       {
         'title': 'Packed',
         'subtitle': currentStep >= 1
-            ? 'Packed at Milterra Pure Hub'
+            ? 'Packed for dispatch'
             : 'Pending packaging',
         'date': currentStep >= 1 ? 'Completed' : 'Pending',
       },
       {
         'title': 'Dispatched',
         'subtitle': currentStep >= 2
-            ? 'In transit via $carrier'
-            : 'Courier pickup scheduled',
-        'date': currentStep >= 2 ? 'In Transit' : 'Pending',
+            ? 'Handed to ${carrier.isNotEmpty ? carrier : 'courier'}'
+            : 'Awaiting courier handover',
+        'date': currentStep >= 2 ? 'Dispatched' : 'Pending',
       },
       {
         'title': 'Out for Delivery',
         'subtitle': currentStep >= 3
-            ? 'Local courier executive in route'
-            : 'Local delivery center',
-        'date': currentStep >= 3 ? 'Today' : 'Pending',
+            ? 'Courier marked out for delivery'
+            : 'Awaiting courier update',
+        'date': currentStep >= 3 ? 'Out for delivery' : 'Pending',
       },
       {
         'title': 'Delivered',
         'subtitle': currentStep >= 4
-            ? 'Handed to recipient'
-            : 'Expected: ${order.estimatedDelivery}',
-        'date': currentStep >= 4 ? 'Delivered' : 'Expected Soon',
+            ? 'Delivery confirmed'
+            : 'Awaiting delivery confirmation',
+        'date': currentStep >= 4 ? 'Delivered' : 'Pending',
       },
     ];
 
@@ -1278,8 +1278,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                     children: [
                       Text(
                         currentStep >= 4
-                            ? 'Package Delivered'
-                            : 'Estimated Delivery: ${order.estimatedDelivery}',
+                            ? 'Package delivered'
+                            : trackingNumber.isNotEmpty
+                                ? 'Courier tracking available'
+                                : 'Awaiting courier booking',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -1288,7 +1290,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Carrier: $carrier · Tracking ID: $trackingNumber',
+                        trackingNumber.isNotEmpty
+                            ? 'Carrier: $carrier · Tracking ID: $trackingNumber'
+                            : 'No courier reference has been issued yet',
                         style: const TextStyle(
                             fontSize: 12,
                             color: Color(0xff565959),

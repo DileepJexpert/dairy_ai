@@ -432,7 +432,7 @@ class _CommerceProductsScreenState
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 620),
+              constraints: const BoxConstraints(maxWidth: 680),
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -472,6 +472,7 @@ class _CommerceProductsScreenState
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
                         initialValue: _selectedVendorId,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           border: OutlineInputBorder(),
                           contentPadding: EdgeInsets.symmetric(
@@ -480,7 +481,10 @@ class _CommerceProductsScreenState
                         items: _vendorOptions
                             .map((vendor) => DropdownMenuItem(
                                   value: vendor['id'],
-                                  child: Text(vendor['name'] ?? 'Vendor'),
+                                  child: Text(
+                                    vendor['name'] ?? 'Vendor',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ))
                             .toList(),
                         onChanged: (value) => setModalState(
@@ -504,6 +508,7 @@ class _CommerceProductsScreenState
                               const SizedBox(height: 6),
                               DropdownButtonFormField<String>(
                                 initialValue: department,
+                                isExpanded: true,
                                 decoration: const InputDecoration(
                                   border: OutlineInputBorder(),
                                   contentPadding: EdgeInsets.symmetric(
@@ -512,40 +517,52 @@ class _CommerceProductsScreenState
                                 items: const [
                                   DropdownMenuItem(
                                       value: 'Artisanal Dairy & Cultured',
-                                      child: Text('🧈 Artisanal Dairy & Cultured')),
+                                      child: Text('🧈 Artisanal Dairy & Cultured',
+                                          overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
                                       value: 'Fresh Living Harvest (Microgreens)',
-                                      child: Text('🌱 Fresh Living Harvest (Microgreens)')),
+                                      child: Text('🌱 Fresh Living Harvest (Microgreens)',
+                                          overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
                                       value: 'Wood-Pressed Oils & Pure Sweeteners',
-                                      child: Text('🌻 Wood-Pressed Oils & Pure Sweeteners')),
+                                      child: Text('🌻 Wood-Pressed Oils & Pure Sweeteners',
+                                          overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
                                       value: 'Stone-Ground Chakki Atta & Flours',
-                                      child: Text('🌾 Stone-Ground Chakki Atta & Flours')),
+                                      child: Text('🌾 Stone-Ground Chakki Atta & Flours',
+                                          overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
                                       value: 'Terroir Salts & Native Spices',
-                                      child: Text('🧂 Terroir Salts & Native Spices')),
+                                      child: Text('🧂 Terroir Salts & Native Spices',
+                                          overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
                                       value: 'Apartment Balcony & Living Soil',
-                                      child: Text('🪴 Apartment Balcony & Living Soil')),
+                                      child: Text('🪴 Apartment Balcony & Living Soil',
+                                          overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
                                       value: 'Pure Aloe Vera & Living Botanicals',
-                                      child: Text('🌵 Pure Aloe Vera & Living Botanicals')),
+                                      child: Text('🌵 Pure Aloe Vera & Living Botanicals',
+                                          overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
                                       value: 'Curated Kitchen & Wellness Boxes',
-                                      child: Text('🎁 Curated Kitchen & Wellness Boxes')),
+                                      child: Text('🎁 Curated Kitchen & Wellness Boxes',
+                                          overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
                                       value: 'Puja & Hawan Samagri',
-                                      child: Text('🪔 Puja & Hawan: Sacred Essentials')),
+                                      child: Text('🪔 Puja & Hawan: Sacred Essentials',
+                                          overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
                                       value: 'Dairy Foods',
-                                      child: Text('🥛 Dairy Foods')),
+                                      child: Text('🥛 Dairy Foods',
+                                          overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
                                       value: 'Animal Nutrition',
-                                      child: Text('🌾 Animal Nutrition')),
+                                      child: Text('🌾 Animal Nutrition',
+                                          overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
                                       value: 'Farm Machinery',
-                                      child: Text('⚙️ Farm Machinery')),
+                                      child: Text('⚙️ Farm Machinery',
+                                          overflow: TextOverflow.ellipsis)),
                                 ],
                                 onChanged: (val) {
                                   if (val != null) {

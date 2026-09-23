@@ -24,6 +24,7 @@ from app.schemas.payment import (
 )
 from app.services import payment_service
 from app.repositories import farmer_repo
+from app.services.access_control import ADMIN_ROLES, owned_cooperative_id, owned_farmer_ids
 
 logger = logging.getLogger("dairy_ai.api.payments")
 
@@ -44,7 +45,19 @@ async def create_payment_cycle(
         f"POST /payments/cycles called | user_id={current_user.id} | "
         f"type={data.cycle_type} | period={data.period_start} to {data.period_end}"
     )
-    cycle = await payment_service.create_payment_cycle(db, data.model_dump())
+    values = data.model_dump()
+    try:
+        supplied_id = uuid.UUID(data.cooperative_id) if data.cooperative_id else None
+    except ValueError:
+        raise HTTPException(422, "Invalid cooperative ID")
+    if current_user.role == UserRole.cooperative:
+        own_id = await owned_cooperative_id(db, current_user)
+        if supplied_id is not None and supplied_id != own_id:
+            raise HTTPException(403, "You can create cycles only for your cooperative")
+        values['cooperative_id'] = own_id
+    else:
+        values['cooperative_id'] = supplied_id
+    cycle = await payment_service.create_payment_cycle(db, values)
     logger.info(f"Payment cycle created | cycle_id={cycle.id}")
     return {
         "success": True,
@@ -67,6 +80,11 @@ async def process_payment_cycle(
 ) -> dict:
     logger.info(f"POST /payments/cycles/{cycle_id}/process called | user_id={current_user.id}")
     try:
+        query = select(PaymentCycle.id).where(PaymentCycle.id == uuid.UUID(cycle_id))
+        if current_user.role == UserRole.cooperative:
+            query = query.where(PaymentCycle.cooperative_id == await owned_cooperative_id(db, current_user))
+        if await db.scalar(query) is None:
+            raise HTTPException(404, "Payment cycle not found")
         cycle = await payment_service.process_payment_cycle(db, uuid.UUID(cycle_id))
         logger.info(
             f"Payment cycle processed | cycle_id={cycle.id} | "
@@ -97,9 +115,15 @@ async def list_cycles(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     logger.info(f"GET /payments/cycles called | user_id={current_user.id}")
-    result = await db.execute(
-        select(PaymentCycle).order_by(PaymentCycle.created_at.desc()).limit(20)
-    )
+    query = select(PaymentCycle)
+    if current_user.role == UserRole.cooperative:
+        query = query.where(PaymentCycle.cooperative_id == await owned_cooperative_id(db, current_user))
+    elif current_user.role == UserRole.farmer:
+        query = query.where(PaymentCycle.id.in_(select(FarmerPayment.cycle_id).where(
+            FarmerPayment.farmer_id.in_(owned_farmer_ids(current_user)))))
+    elif current_user.role not in ADMIN_ROLES:
+        raise HTTPException(403, "Payment cycles are not available for this role")
+    result = await db.execute(query.order_by(PaymentCycle.created_at.desc()).limit(20))
     cycles = list(result.scalars().all())
     logger.info(f"Listed {len(cycles)} payment cycles")
     return {

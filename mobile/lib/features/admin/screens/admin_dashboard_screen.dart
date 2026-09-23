@@ -128,33 +128,61 @@ class AdminDashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildQuickActions(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _QuickActionCard(
-            icon: Icons.people,
-            label: 'Manage\nFarmers',
-            color: DairyTheme.primaryGreen,
-            onTap: () => context.go('/admin/farmers'),
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _QuickActionCard(
+                icon: Icons.people,
+                label: 'Manage\nFarmers',
+                color: DairyTheme.primaryGreen,
+                onTap: () => context.go('/admin/farmers'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _QuickActionCard(
+                icon: Icons.medical_services,
+                label: 'Manage\nVets',
+                color: Colors.blue,
+                onTap: () => context.go('/admin/vets'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _QuickActionCard(
+                icon: Icons.assignment,
+                label: 'View\nConsultations',
+                color: Colors.purple,
+                onTap: () => context.push('/admin/consultations'),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _QuickActionCard(
-            icon: Icons.medical_services,
-            label: 'Manage\nVets',
-            color: Colors.blue,
-            onTap: () => context.go('/admin/vets'),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _QuickActionCard(
-            icon: Icons.assignment,
-            label: 'View\nConsultations',
-            color: Colors.purple,
-            onTap: () => context.push('/admin/consultations'),
-          ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _QuickActionCard(
+                icon: Icons.local_shipping_outlined,
+                label: 'Delivery\nPincodes',
+                color: Colors.teal,
+                onTap: () => context.push('/admin/pincodes'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _QuickActionCard(
+                icon: Icons.storefront_outlined,
+                label: 'Ecommerce\nHub',
+                color: DairyTheme.accentOrange,
+                onTap: () => context.push('/admin/ecommerce'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(child: SizedBox.shrink()),
+          ],
         ),
       ],
     );

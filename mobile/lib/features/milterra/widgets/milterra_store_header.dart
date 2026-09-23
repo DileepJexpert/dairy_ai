@@ -73,7 +73,7 @@ class MilterraStoreHeader extends ConsumerWidget {
                             ),
                           ),
                           Text(
-                            'VEDIC BILONA GHEE & PURE DAIRY',
+                            'FARM TO FAMILY — KNOW YOUR SOURCE',
                             style: TextStyle(
                               color: StorePalette.onDark,
                               fontSize: 7.5,
@@ -105,7 +105,7 @@ class MilterraStoreHeader extends ConsumerWidget {
                     onSubmitted: onSearch,
                     style: const TextStyle(fontSize: 13, color: storeText),
                     decoration: const InputDecoration(
-                      hintText: 'Search A2 Gir Cow Ghee, Buffalo Bilona Ghee, Malai Paneer...',
+                      hintText: 'Search Bilona Ghee, Mustard Oil, Agarbatti, Vermicompost...',
                       hintStyle: TextStyle(fontSize: 12, color: storeMuted),
                       prefixIcon: Icon(Icons.search, size: 18, color: storeGreen),
                       border: InputBorder.none,
@@ -285,13 +285,16 @@ class MilterraCategoryNav extends StatelessWidget {
   final ValueChanged<String> onSelectCategory;
 
   static const List<Map<String, dynamic>> categories = [
-    {'name': 'All Organic Essentials', 'icon': Icons.spa},
-    {'name': 'Vedic Bilona Ghee', 'icon': Icons.local_fire_department_outlined},
-    {'name': 'Fresh Milk & Dairy', 'icon': Icons.water_drop_outlined},
-    {'name': 'Puja & Hawan Samagri', 'icon': Icons.wb_sunny_outlined},
-    {'name': 'Natural Agarbatti & Dhoop', 'icon': Icons.grass_outlined},
-    {'name': 'Vermicompost & Living Soil', 'icon': Icons.yard_outlined},
-    {'name': 'Cold-Pressed Sarso (Mustard) Oil', 'icon': Icons.opacity_outlined},
+    // Master — shows everything
+    {'name': 'All Organic Essentials', 'icon': Icons.spa, 'divisionColor': storeGold},
+    // ── MILTERRA FARM FOODS ─────────────────────────────────────────────────
+    {'name': 'Vedic Bilona Ghee',                'icon': Icons.local_fire_department_outlined, 'divisionColor': storeDivisionFarmFoods},
+    {'name': 'Fresh Milk & Dairy',               'icon': Icons.water_drop_outlined,            'divisionColor': storeDivisionFarmFoods},
+    {'name': 'Cold-Pressed Sarso (Mustard) Oil', 'icon': Icons.opacity_outlined,               'divisionColor': storeDivisionFarmFoods},
+    // ── MILTERRA EARTH ──────────────────────────────────────────────────────
+    {'name': 'Puja & Hawan Samagri',             'icon': Icons.wb_sunny_outlined,              'divisionColor': storeDivisionEarth},
+    {'name': 'Natural Agarbatti & Dhoop',        'icon': Icons.grass_outlined,                 'divisionColor': storeDivisionEarth},
+    {'name': 'Vermicompost & Living Soil',       'icon': Icons.yard_outlined,                  'divisionColor': storeDivisionEarth},
   ];
 
   @override
@@ -311,6 +314,9 @@ class MilterraCategoryNav extends StatelessWidget {
               children: categories.map((cat) {
                 final name = cat['name'] as String;
                 final icon = cat['icon'] as IconData;
+                // Division colour dot — visually groups chips by brand division.
+                // Falls back to storeGold when no divisionColor is set.
+                final divisionColor = (cat['divisionColor'] as Color?) ?? storeGold;
                 final isSelected = selectedCategory == name ||
                     ((selectedCategory == 'All products' || selectedCategory == 'All' || selectedCategory == 'All Ghee') && name == 'All Organic Essentials');
 
@@ -322,24 +328,44 @@ class MilterraCategoryNav extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
+                        // When selected: tinted division colour background.
+                        // When unselected: transparent — division dot does the work.
                         color: isSelected
-                            ? storeGold
+                            ? divisionColor.withValues(alpha: 0.85)
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(16),
+                        border: isSelected
+                            ? null
+                            : Border.all(
+                                color: divisionColor.withValues(alpha: 0.35),
+                                width: 1,
+                              ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          // Small division dot — visible when unselected
+                          if (!isSelected) ...[
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: divisionColor,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                          ],
                           Icon(
                             icon,
                             size: 14,
-                            color: isSelected ? storeGreen : StorePalette.onDark,
+                            color: isSelected ? Colors.white : StorePalette.onDark,
                           ),
                           const SizedBox(width: 6),
                           Text(
                             name,
                             style: TextStyle(
-                              color: isSelected ? storeGreen : StorePalette.onDark,
+                              color: isSelected ? Colors.white : StorePalette.onDark,
                               fontSize: 12,
                               fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
                             ),

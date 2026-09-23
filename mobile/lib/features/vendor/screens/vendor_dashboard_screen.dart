@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:dairy_ai/app/theme.dart';
 import 'package:dairy_ai/core/extensions.dart';
+import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import 'package:dairy_ai/features/vendor/models/vendor_models.dart';
 import 'package:dairy_ai/features/vendor/providers/vendor_provider.dart';
 
@@ -13,13 +14,38 @@ class VendorDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboardAsync = ref.watch(vendorDashboardProvider);
+    final currentUser = ref.watch(currentUserProvider);
+    final userRole = (currentUser?.role ?? '').toLowerCase();
+    final isAdmin = userRole == 'admin' || userRole == 'super_admin';
     final currencyFormat =
         NumberFormat.currency(locale: 'en_IN', symbol: '\u20B9');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Vendor Dashboard'), actions: [
-        IconButton(
-          onPressed: () {
+      appBar: AppBar(
+        leading: Navigator.of(context).canPop()
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Back',
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : (isAdmin
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    tooltip: 'Back to Admin Hub',
+                    onPressed: () => context.go('/admin/ecommerce'),
+                  )
+                : null),
+        title: const Text('Vendor Dashboard'),
+        actions: [
+          if (isAdmin)
+            TextButton.icon(
+              onPressed: () => context.go('/admin/ecommerce'),
+              icon: const Icon(Icons.admin_panel_settings, size: 18),
+              label: const Text('Admin Panel'),
+              style: TextButton.styleFrom(foregroundColor: Colors.white),
+            ),
+          IconButton(
+            onPressed: () {
             final profile = ref.read(vendorProfileProvider).valueOrNull;
             if (profile != null && profile.id.isNotEmpty) {
               context.push('/store/vendor/${profile.id}');

@@ -250,9 +250,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
+                constraints: BoxConstraints(
+                  maxWidth: 440,
+                  maxHeight: MediaQuery.of(context).size.height * 0.9,
+                ),
+                child: SingleChildScrollView(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -298,12 +302,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           ),
                         ],
                       ),
-                      const Divider(height: 24),
+                      const Divider(height: 20),
 
                       // Amount Box
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
+                            horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
                           color: const Color(0xfffcf5ee),
                           borderRadius: BorderRadius.circular(8),
@@ -322,7 +326,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             Text(
                               storeMoney(totalAmount),
                               style: const TextStyle(
-                                fontSize: 20,
+                                fontSize: 19,
                                 fontWeight: FontWeight.w900,
                                 color: storeOrange,
                               ),
@@ -330,18 +334,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
 
                       // Dynamic QR Code Simulator Container
                       Center(
                         child: Container(
-                          width: 200,
-                          height: 200,
-                          padding: const EdgeInsets.all(12),
+                          width: 160,
+                          height: 160,
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: storeBorder, width: 2),
+                            border: Border.all(color: storeBorder, width: 1.5),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.06),
@@ -354,11 +358,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             alignment: Alignment.center,
                             children: [
                               CustomPaint(
-                                size: const Size(176, 176),
+                                size: const Size(140, 140),
                                 painter: _SimulatedQrPainter(),
                               ),
                               Container(
-                                padding: const EdgeInsets.all(4),
+                                padding: const EdgeInsets.all(3),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   shape: BoxShape.circle,
@@ -366,13 +370,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                       Border.all(color: storeGreen, width: 1.5),
                                 ),
                                 child: const Icon(Icons.eco,
-                                    size: 20, color: storeGreen),
+                                    size: 18, color: storeGreen),
                               ),
                             ],
                           ),
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       const Center(
                         child: Text(
                           'Scan with Google Pay, PhonePe, Paytm, or BHIM',
@@ -431,7 +435,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 10),
 
                       // Fast Pay Apps selector
                       Row(
@@ -455,12 +459,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                     ? storeGreen
                                     : storeMuted,
                               ),
+                              visualDensity: VisualDensity.compact,
                               onSelected: (_) =>
                                   setDialogState(() => selectedVpaApp = app),
                             ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       TextField(
                         controller: vpaController,
                         decoration: const InputDecoration(
@@ -469,10 +474,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.alternate_email, size: 18),
                           contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 10),
+                              horizontal: 12, vertical: 8),
+                          isDense: true,
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 14),
 
                       // Action Button
                       FilledButton(
@@ -565,9 +571,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
+                constraints: BoxConstraints(
+                  maxWidth: 460,
+                  maxHeight: MediaQuery.of(context).size.height * 0.9,
+                ),
+                child: SingleChildScrollView(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -976,9 +986,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
+                constraints: BoxConstraints(
+                  maxWidth: 440,
+                  maxHeight: MediaQuery.of(context).size.height * 0.9,
+                ),
+                child: SingleChildScrollView(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2192,7 +2206,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
-                                    'Qty: ${item.quantity} × ${storeMoney(item.unitPrice)}',
+                                    'Qty: ${item.quantity} × ${storeMoney(item.currentPrice)}',
                                     style: const TextStyle(
                                         fontSize: 10, color: storeMuted),
                                   ),

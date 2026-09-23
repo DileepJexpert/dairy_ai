@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -13,6 +14,8 @@ import '../widgets/store_product_card.dart';
 import '../widgets/product_information.dart';
 import '../widgets/storefront_highlight_strip.dart';
 import '../widgets/rfq_quote_dialog.dart';
+import '../providers/pincode_provider.dart';
+import '../widgets/pincode_selector_dialog.dart';
 import '../../../core/analytics_service.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
@@ -29,6 +32,18 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   bool _bundleItem1Selected = true;
   bool _bundleItem2Selected = true;
   String? _lastTrackedProductId;
+  final GlobalKey _reviewsSectionKey = GlobalKey();
+
+  void _scrollToReviews() {
+    final ctx = _reviewsSectionKey.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
 
   void _trackProductViewOnce(Product p) {
     if (_lastTrackedProductId == p.id) return;
@@ -358,7 +373,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                   if (!p.isConcept) ...[
                                     _buildCustomerQnA(p, isMobile),
                                     const SizedBox(height: 24),
-                                    _buildCustomerReviews(p, isMobile),
+                                    KeyedSubtree(
+                                      key: _reviewsSectionKey,
+                                      child: _buildCustomerReviews(p, isMobile),
+                                    ),
                                   ],
                                   const SizedBox(
                                       height: StoreLayout.sectionSpace),
@@ -579,43 +597,101 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         ),
         const SizedBox(height: 8),
 
-        // 3. Ratings Bar & Review Count
+        // 3. Ratings Bar & Review Count (Powered by live reviews from backend)
         if (!p.isConcept) ...[
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
-            runSpacing: 4,
-            children: [
-              AmazonRatingStars(
-                rating: p.rating,
-                reviewCount: p.reviewCount,
-                size: 15,
-                showCount: false,
-              ),
-              Text(
-                '${p.rating.toStringAsFixed(1)} out of 5',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xff0f1111),
+          () {
+            final liveReviewsAsync = ref.watch(productReviewsProvider(p.id));
+            final liveReviews = liveReviewsAsync.valueOrNull ?? [];
+            final hasReviews = liveReviews.isNotEmpty;
+            final count = hasReviews ? liveReviews.length : p.reviewCount;
+            final ratingVal = hasReviews
+                ? (liveReviews.map((r) => r.rating).reduce((a, b) => a + b) /
+                    liveReviews.length)
+                : p.rating;
+
+            return Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                InkWell(
+                  onTap: _scrollToReviews,
+                  borderRadius: BorderRadius.circular(4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AmazonRatingStars(
+                        rating: ratingVal,
+                        reviewCount: count,
+                        size: 15,
+                        showCount: false,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        count > 0
+                            ? '${ratingVal.toStringAsFixed(1)} out of 5'
+                            : 'No reviews yet',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xff0f1111),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Text(
-                '|   ${p.reviewCount} ratings',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xff007185),
+                const Text(
+                  '|',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Color(0xff888888),
+                  ),
                 ),
-              ),
-              const Text(
-                '|   142 answered questions',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Color(0xff007185),
+                InkWell(
+                  onTap: _scrollToReviews,
+                  borderRadius: BorderRadius.circular(4),
+                  child: Text(
+                    count > 0 ? '$count ratings' : 'Be first to review',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xff007185),
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: () => _showProductFeedbackDialog(p),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xfff0f4ea),
+                      borderRadius: BorderRadius.circular(4),
+                      border:
+                          Border.all(color: storeGreen.withValues(alpha: 0.3)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.rate_review_outlined,
+                            size: 13, color: storeGreen),
+                        SizedBox(width: 4),
+                        Text(
+                          'Write a review',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: storeGreen,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }(),
           const SizedBox(height: 8),
         ],
 
@@ -806,51 +882,98 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           ),
           const SizedBox(height: 8),
 
-          // Delivery Promise
-          RichText(
-            text: TextSpan(
-              style: const TextStyle(fontSize: 13, color: Color(0xff0f1111)),
-              children: [
-                const TextSpan(
-                  text: 'FREE Delivery ',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold, color: storeSuccess),
-                ),
-                TextSpan(
-                  text: p.price >= 499
-                      ? 'by Tomorrow, 8 AM. '
-                      : 'on orders over ₹499. ',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const TextSpan(
-                  text: 'Order within 3 hrs 24 mins.',
-                  style: TextStyle(
-                      color: storeOrange, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 6),
-
-          // Location Deliver To Pill
+          // Delivery Promise & Interactive Location (Powered by backend master table)
           Consumer(
             builder: (context, ref, _) {
-              final loc = ref.watch(selectedDeliveryLocationProvider);
-              return Row(
+              final pin = ref.watch(currentPincodeProvider);
+              final deliveryAsync = ref.watch(deliveryCheckProvider(pin));
+              final deliveryInfo = deliveryAsync.valueOrNull;
+
+              final isServiceable = deliveryInfo?.isServiceable ?? true;
+              final etaText = deliveryInfo?.expectedDeliveryText ??
+                  (p.price >= 499 ? 'by Tomorrow, 8 AM. ' : 'in 1-2 business days. ');
+              final locText = deliveryInfo?.locationLabel ?? 'New Delhi $pin';
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.location_on_outlined,
-                      size: 16, color: storeGreen),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      'Deliver to $loc',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xff007185),
+                  if (isServiceable) ...[
+                    RichText(
+                      text: TextSpan(
+                        style: const TextStyle(
+                            fontSize: 13, color: Color(0xff0f1111)),
+                        children: [
+                          const TextSpan(
+                            text: 'FREE Delivery ',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: storeSuccess),
+                          ),
+                          TextSpan(
+                            text: '$etaText ',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          const TextSpan(
+                            text: 'Order within 3 hrs 24 mins.',
+                            style: TextStyle(
+                                color: storeOrange, fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ] else ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xfffef2f2),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: const Color(0xfffca5a5)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.error_outline,
+                              size: 15, color: storeError),
+                          SizedBox(width: 5),
+                          Expanded(
+                            child: Text(
+                              'Delivery unavailable for this PIN code',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.bold,
+                                color: storeError,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  InkWell(
+                    onTap: () => showPincodeSelectorDialog(context, ref),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.location_on_outlined,
+                              size: 16, color: storeGreen),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              'Deliver to $locText ▾',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xff007185),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -2782,8 +2905,17 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   Widget _buildCustomerReviews(Product p, bool isMobile) {
     final reviews = ref.watch(productReviewsProvider(p.id));
-    final ratingVal = p.rating > 0 ? p.rating : 4.8;
-    final totalRatings = p.reviewCount > 0 ? p.reviewCount : 128;
+    final reviewItems = reviews.valueOrNull ?? [];
+    final hasRealReviews = reviewItems.isNotEmpty;
+    final totalRatings = hasRealReviews ? reviewItems.length : p.reviewCount;
+    final ratingVal = hasRealReviews
+        ? (reviewItems.map((r) => r.rating).reduce((a, b) => a + b) /
+            reviewItems.length)
+        : p.rating;
+
+    final total = reviewItems.length;
+    double pct(int star) =>
+        total > 0 ? reviewItems.where((r) => r.rating == star).length / total : 0.0;
 
     final summaryAndHistogram = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2804,7 +2936,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             ),
             const SizedBox(width: 8),
             Text(
-              '${ratingVal.toStringAsFixed(1)} out of 5',
+              totalRatings > 0
+                  ? '${ratingVal.toStringAsFixed(1)} out of 5'
+                  : '0.0 out of 5',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
@@ -2815,17 +2949,19 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          '$totalRatings global ratings',
+          totalRatings > 0
+              ? '$totalRatings customer ratings'
+              : 'No customer reviews yet',
           style: const TextStyle(fontSize: 13, color: storeMuted),
         ),
         const SizedBox(height: 16),
 
         // 5-Star Breakdown Histogram
-        _buildHistogramRow('5 star', 0.84, '84%'),
-        _buildHistogramRow('4 star', 0.11, '11%'),
-        _buildHistogramRow('3 star', 0.03, '3%'),
-        _buildHistogramRow('2 star', 0.01, '1%'),
-        _buildHistogramRow('1 star', 0.01, '1%'),
+        _buildHistogramRow('5 star', pct(5), '${(pct(5) * 100).round()}%'),
+        _buildHistogramRow('4 star', pct(4), '${(pct(4) * 100).round()}%'),
+        _buildHistogramRow('3 star', pct(3), '${(pct(3) * 100).round()}%'),
+        _buildHistogramRow('2 star', pct(2), '${(pct(2) * 100).round()}%'),
+        _buildHistogramRow('1 star', pct(1), '${(pct(1) * 100).round()}%'),
 
         const Divider(height: 28),
 
@@ -3168,7 +3304,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Share product feedback'),
+          title: const Text('Write a Customer Review'),
           content: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
             child: SingleChildScrollView(
@@ -3177,14 +3313,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'No purchase is required. Your response helps us measure interest before launch.',
+                    'Share your genuine experience with this product to help other customers.',
                     style: TextStyle(color: storeMuted, height: 1.4),
                   ),
                   const SizedBox(height: 14),
                   TextField(
                     controller: authorController,
                     decoration: const InputDecoration(
-                      labelText: 'Your name',
+                      labelText: 'Your Name',
+                      hintText: 'e.g. Rahul Sharma',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -3192,7 +3329,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   TextField(
                     controller: headlineController,
                     decoration: const InputDecoration(
-                      labelText: 'Feedback headline',
+                      labelText: 'Review Headline',
+                      hintText: 'e.g. Pure authentic aroma, highly recommended',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -3202,7 +3340,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     minLines: 3,
                     maxLines: 5,
                     decoration: const InputDecoration(
-                      labelText: 'What interests you or what should improve?',
+                      labelText: 'Your Review',
+                      hintText: 'What did you like or dislike about this product?',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -3210,7 +3349,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   Wrap(
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      const Text('Interest rating: '),
+                      const Text('Overall rating: '),
                       for (var star = 1; star <= 5; star++)
                         IconButton(
                           tooltip: '$star stars',
@@ -3240,13 +3379,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       final author = authorController.text.trim();
                       final headline = headlineController.text.trim();
                       final content = contentController.text.trim();
-                      if (author.length < 2 ||
-                          headline.length < 3 ||
-                          content.length < 10) {
+                      if (author.isEmpty || headline.isEmpty || content.isEmpty) {
                         ScaffoldMessenger.of(this.context).showSnackBar(
                           const SnackBar(
                             content: Text(
-                              'Please enter your name, a headline and useful feedback.',
+                              'Please fill in your name, headline, and review comment.',
                             ),
                           ),
                         );
@@ -3270,17 +3407,33 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                             const SnackBar(
                               backgroundColor: storeGreen,
                               content: Text(
-                                'Thank you. Your pre-launch feedback was saved.',
+                                'Thank you! Your review has been submitted.',
                               ),
                             ),
                           );
+                          _scrollToReviews();
                         }
-                      } catch (_) {
+                      } catch (e) {
+                        var msg = e.toString();
+                        if (e is DioException) {
+                          final data = e.response?.data;
+                          if (data is Map && data['detail'] != null) {
+                            final detail = data['detail'];
+                            if (detail is String) {
+                              msg = detail;
+                            } else if (detail is List) {
+                              msg = detail
+                                  .map((v) => v is Map ? v['msg'] : v)
+                                  .join('; ');
+                            }
+                          }
+                        }
                         if (mounted) {
                           ScaffoldMessenger.of(this.context).showSnackBar(
-                            const SnackBar(
+                            SnackBar(
+                              backgroundColor: storeError,
                               content: Text(
-                                'Feedback was not saved. Please try again.',
+                                'Could not save review: $msg',
                               ),
                             ),
                           );
@@ -3290,7 +3443,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                         }
                       }
                     },
-              child: Text(saving ? 'Saving…' : 'Save feedback'),
+              child: Text(saving ? 'Submitting…' : 'Submit Review'),
             ),
           ],
         ),

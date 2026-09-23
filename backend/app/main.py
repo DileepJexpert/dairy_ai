@@ -1,3 +1,4 @@
+import os
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -5,6 +6,7 @@ from collections.abc import AsyncIterator
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.auth import router as auth_router
 from app.api.farmers import router as farmer_router
@@ -43,6 +45,8 @@ from app.api.commerce_admin import router as commerce_admin_router
 from app.api.customer_commerce import router as customer_commerce_router
 from app.api.product_media import router as product_media_router
 from app.api.rfq import router as rfq_router
+from app.api.storefront_banner import router as storefront_banner_router
+from app.api.delivery_pincode import router as delivery_pincode_router
 from app.database import init_db
 from app.config import settings
 
@@ -116,6 +120,7 @@ async def log_requests(request: Request, call_next):
         and not path.startswith("/docs")
         and not path.startswith("/redoc")
         and not path.startswith("/openapi.json")
+        and not path.startswith("/static")
         and path != "/health"
     ):
         api_prefixes = (
@@ -177,8 +182,14 @@ app.include_router(commerce_admin_router, prefix="/api/v1")
 app.include_router(customer_commerce_router, prefix="/api/v1")
 app.include_router(product_media_router, prefix="/api/v1")
 app.include_router(rfq_router, prefix="/api/v1")
+app.include_router(storefront_banner_router, prefix="/api/v1")
+app.include_router(delivery_pincode_router, prefix="/api/v1")
 
-logger.info("Registered routers: auth, farmers, cattle, health, milk, feed, breeding, finance, vet, chat, whatsapp, notifications, admin, super-admin, vendor, cooperative, collection, payments, marketplace, outbreak, withdrawal, carbon, vision, schemes, mandi, pashu-aadhaar, milk-purity, products, taxonomy, cart, addresses, orders, analytics, rfq")
+logger.info("Registered routers: auth, farmers, cattle, health, milk, feed, breeding, finance, vet, chat, whatsapp, notifications, admin, super-admin, vendor, cooperative, collection, payments, marketplace, outbreak, withdrawal, carbon, vision, schemes, mandi, pashu-aadhaar, milk-purity, products, taxonomy, cart, addresses, orders, analytics, rfq, storefront_banners, delivery_pincodes")
+
+static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
 @app.get("/health")

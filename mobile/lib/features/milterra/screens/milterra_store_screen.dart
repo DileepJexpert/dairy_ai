@@ -9,12 +9,13 @@ import '../../cart/providers/cart_provider.dart';
 import '../../cart/widgets/store_cart_drawer.dart';
 import '../widgets/milterra_store_header.dart';
 import '../widgets/milterra_store_footer.dart';
+import '../widgets/storefront_carousel.dart';
 
-/// Pure, bare-minimal D2C Storefront for Milterra Vedic Ghee & Pure Dairy.
+/// MILTERRA D2C Storefront — Farm Foods, Earth Essentials & Sacred Living.
 class MilterraStoreScreen extends ConsumerStatefulWidget {
   const MilterraStoreScreen({
     super.key,
-    this.initialCategory = 'All Ghee',
+    this.initialCategory = 'All Organic Essentials',
     this.initialQuery = '',
   });
 
@@ -156,8 +157,10 @@ class _MilterraStoreScreenState extends ConsumerState<MilterraStoreScreen> {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  // Luxury D2C Hero Banner
-                  _buildLuxuryHero(),
+                  // Dynamic Showcase Carousel (Powered by Backend Cards)
+                  StorefrontCarousel(
+                    onSelectCategory: (cat) => setState(() => _selectedCategory = cat),
+                  ),
 
                   // Purity & Vedic Heritage Value Strip
                   _buildVedicValueStrip(),
@@ -313,6 +316,61 @@ class _MilterraStoreScreenState extends ConsumerState<MilterraStoreScreen> {
     );
   }
 
+  final Set<String> _addingIds = {};
+
+  Future<void> _addToCart(Product p, int qty) async {
+    setState(() => _addingIds.add(p.id));
+    try {
+      await ref.read(cartProvider.notifier).add(p.id, qty, p);
+      if (mounted) {
+        showStoreCart(context);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _addingIds.remove(p.id));
+      }
+    }
+  }
+
+  Widget _buildProductGrid(List<Product> products) {
+    final groups = storeProductGroups(products);
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final width = constraints.maxWidth;
+      int columns = 1;
+      if (width >= 1024) {
+        columns = 4;
+      } else if (width >= 680) {
+        columns = 3;
+      } else if (width >= 440) {
+        columns = 2;
+      }
+
+      const gap = 16.0;
+      final cardWidth = ((width - (gap * (columns - 1))) / columns)
+          .clamp(140.0, 320.0);
+
+      return Wrap(
+        spacing: gap,
+        runSpacing: gap,
+        children: groups.map((packs) {
+          return SizedBox(
+            width: cardWidth,
+            child: StoreProductCard(
+              key: ValueKey(packs.first.id),
+              packs: packs,
+              compact: columns > 2,
+              busyIds: _addingIds,
+              onAdd: (p) => _addToCart(p, 1),
+              onOpen: (p) => context.push('/shop/product/${p.id}'),
+            ),
+          );
+        }).toList(),
+      );
+    });
+  }
+
+  // ignore: unused_element
   Widget _buildLuxuryHero() {
     return Container(
       width: double.infinity,
@@ -351,7 +409,7 @@ class _MilterraStoreScreenState extends ConsumerState<MilterraStoreScreen> {
                                   color: storeGold.withValues(alpha: 0.5)),
                             ),
                             child: const Text(
-                              'ANCIENT VEDIC AYURVEDA',
+                              'KNOW YOUR SOURCE — FARM TO FAMILY',
                               style: TextStyle(
                                 color: storeGold,
                                 fontSize: 10,
@@ -362,7 +420,7 @@ class _MilterraStoreScreenState extends ConsumerState<MilterraStoreScreen> {
                           ),
                           const SizedBox(height: 14),
                           const Text(
-                            'Pure A2 Desi Gir Cow & Rich Buffalo Bilona Ghee',
+                            'Pure A2 Bilona Ghee, Cold-Pressed Oils & Earth Essentials',
                             style: TextStyle(
                               fontFamily: 'CormorantGaramond',
                               fontSize: 38,
@@ -373,7 +431,7 @@ class _MilterraStoreScreenState extends ConsumerState<MilterraStoreScreen> {
                           ),
                           const SizedBox(height: 12),
                           const Text(
-                            'Handcrafted by churning whole curd using wooden churners (Bilona) in brass pots. Rich in natural butyric acid, gut-friendly enzymes, and authentic golden aroma.',
+                            'Traceable farm products you can trust — from handcrafted Vedic Bilona Ghee and Kachi Ghani Mustard Oil to pure Vermicompost and sacred Cow Dung essentials. Every batch, every source, verified.',
                             style: TextStyle(
                               color: StorePalette.onDark,
                               fontSize: 14,
@@ -395,8 +453,8 @@ class _MilterraStoreScreenState extends ConsumerState<MilterraStoreScreen> {
                                       borderRadius: BorderRadius.circular(24)),
                                 ),
                                 onPressed: () => setState(() =>
-                                    _selectedCategory = 'A2 Desi Cow Ghee'),
-                                child: const Text('Explore A2 Cow Ghee',
+                                    _selectedCategory = 'Vedic Bilona Ghee'),
+                                child: const Text('Explore Bilona Ghee',
                                     style:
                                         TextStyle(fontWeight: FontWeight.w900)),
                               ),
@@ -410,8 +468,8 @@ class _MilterraStoreScreenState extends ConsumerState<MilterraStoreScreen> {
                                       borderRadius: BorderRadius.circular(24)),
                                 ),
                                 onPressed: () => setState(() =>
-                                    _selectedCategory = 'Rich Buffalo Ghee'),
-                                child: const Text('Rich Buffalo Ghee',
+                                    _selectedCategory = 'All Organic Essentials'),
+                                child: const Text('Explore All Essentials',
                                     style:
                                         TextStyle(fontWeight: FontWeight.w800)),
                               ),
@@ -498,13 +556,13 @@ class _MilterraStoreScreenState extends ConsumerState<MilterraStoreScreen> {
           padding: EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              _ValuePill(icon: Icons.check_circle_outline, text: 'A2 Beta-Casein Certified'),
+              _ValuePill(icon: Icons.qr_code_2_outlined, text: 'QR Traceable — Know Your Source'),
               SizedBox(width: 24),
               _ValuePill(icon: Icons.shield_outlined, text: 'No Preservatives or Chemicals'),
               SizedBox(width: 24),
-              _ValuePill(icon: Icons.wb_sunny_outlined, text: 'Traditional Wooden Churner'),
+              _ValuePill(icon: Icons.agriculture_outlined, text: 'Direct from Our Farms'),
               SizedBox(width: 24),
-              _ValuePill(icon: Icons.local_shipping_outlined, text: 'Fast Nationwide Delivery in Glass Jars'),
+              _ValuePill(icon: Icons.local_shipping_outlined, text: 'Fast Nationwide Delivery'),
             ],
           ),
         ),
@@ -523,7 +581,7 @@ class _MilterraStoreScreenState extends ConsumerState<MilterraStoreScreen> {
           child: Column(
             children: [
               const Text(
-                'WHY MILTERRA BILONA GHEE?',
+                'WHY MILTERRA — KNOW YOUR SOURCE',
                 style: TextStyle(
                   color: storeGold,
                   fontSize: 12,
@@ -533,7 +591,7 @@ class _MilterraStoreScreenState extends ConsumerState<MilterraStoreScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Ancient Wisdom vs Industrial Cream Heating',
+                'Traditional Craft vs Industrial Shortcuts',
                 style: TextStyle(
                   fontFamily: 'CormorantGaramond',
                   fontSize: 32,

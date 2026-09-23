@@ -6,9 +6,54 @@ import '../../marketplace/providers/product_provider.dart';
 import '../../cart/providers/coupon_provider.dart';
 
 double _number(dynamic value) => double.tryParse(value?.toString() ?? '') ?? 0;
-List<Map<String, dynamic>> _rows(Map body, String key) => (body[key] as List)
-    .map((e) => Map<String, dynamic>.from(e as Map))
-    .toList();
+List<Map<String, dynamic>> _rows(Map body, String key) {
+  final val = body[key];
+  if (val is! List) return const [];
+  return val
+      .whereType<Map>()
+      .map((e) => Map<String, dynamic>.from(e))
+      .toList();
+}
+
+SellerStatus _sellerStatus(dynamic val) {
+  final str = (val?.toString() ?? '').toLowerCase();
+  return SellerStatus.values.firstWhere(
+    (e) => e.name.toLowerCase() == str,
+    orElse: () => SellerStatus.approved,
+  );
+}
+
+OfferStatus _offerStatus(dynamic val) {
+  final str = (val?.toString() ?? '').toLowerCase();
+  return OfferStatus.values.firstWhere(
+    (e) => e.name.toLowerCase() == str,
+    orElse: () => OfferStatus.active,
+  );
+}
+
+CouponType _couponType(dynamic val) {
+  final str = (val?.toString() ?? '').toLowerCase();
+  return CouponType.values.firstWhere(
+    (e) => e.name.toLowerCase() == str,
+    orElse: () => CouponType.flat,
+  );
+}
+
+AuditAction _auditAction(dynamic val) {
+  final str = (val?.toString() ?? '').toLowerCase();
+  if (str.contains('image')) return AuditAction.imageUpdate;
+  if (str.contains('price')) return AuditAction.priceChange;
+  if (str.contains('stock')) return AuditAction.stockAdjust;
+  if (str.contains('deal')) return AuditAction.dealCreate;
+  if (str.contains('approval')) return AuditAction.sellerApproval;
+  if (str.contains('suspen')) return AuditAction.sellerSuspension;
+  if (str.contains('catalog') || str.contains('product')) return AuditAction.catalogCreate;
+  return AuditAction.values.firstWhere(
+    (e) => e.name.toLowerCase() == str,
+    orElse: () => AuditAction.statusChange,
+  );
+}
+
 
 class BatchCertificate {
   const BatchCertificate({
@@ -108,8 +153,8 @@ class AdminMarketplaceState {
   factory AdminMarketplaceState.fromJson(Map j) => AdminMarketplaceState(
         sellers: _rows(j, 'sellers')
             .map((s) => SellerAccount(
-                  id: s['id'],
-                  businessName: s['business_name'],
+                  id: s['id']?.toString() ?? '',
+                  businessName: s['business_name']?.toString() ?? '',
                   gstin: s['gstin'],
                   fssaiLicense: s['fssai_license'],
                   contactEmail: s['contact_email'],
@@ -119,44 +164,44 @@ class AdminMarketplaceState {
                   bankAccountNumber: s['account_number'],
                   ifscCode: s['ifsc_code'],
                   upiId: s['upi_id'],
-                  status: SellerStatus.values.byName(s['status']),
+                  status: _sellerStatus(s['status']),
                   ratingScore: _number(s['rating_score']),
                   commissionRatePercent: _number(s['commission_rate'] ?? 5.0),
-                  createdAt: DateTime.parse(s['created_at']),
+                  createdAt: DateTime.tryParse(s['created_at']?.toString() ?? '') ?? DateTime.now(),
                 ))
             .toList(),
         offers: _rows(j, 'offers')
             .map((o) => SellerOffer(
-                  id: o['id'],
-                  productId: o['product_id'],
-                  sellerId: o['seller_id'],
-                  sellerName: o['seller_name'],
-                  sellerSku: o['seller_sku'],
+                  id: o['id']?.toString() ?? '',
+                  productId: o['product_id']?.toString() ?? '',
+                  sellerId: o['seller_id']?.toString() ?? '',
+                  sellerName: o['seller_name']?.toString() ?? '',
+                  sellerSku: o['seller_sku']?.toString() ?? '',
                   mrp: _number(o['mrp']),
                   sellingPrice: _number(o['selling_price']),
                   discountPercent: _number(o['discount_percent']),
-                  availableStock: o['available_stock'],
-                  lowStockThreshold: o['low_stock_threshold'],
+                  availableStock: (o['available_stock'] as num?)?.toInt() ?? 0,
+                  lowStockThreshold: (o['low_stock_threshold'] as num?)?.toInt() ?? 5,
                   deliveryPromise: '',
-                  offerStatus: OfferStatus.values.byName(o['offer_status']),
+                  offerStatus: _offerStatus(o['offer_status']),
                   sellerRating: _number(o['seller_rating']),
                   fulfillmentType: FulfillmentType.sellerDirect,
                 ))
             .toList(),
         coupons: _rows(j, 'coupons')
             .map((c) => PlatformCoupon(
-                  id: c['id'],
-                  code: c['code'],
-                  description: c['description'],
-                  discountType: CouponType.values.byName(c['discount_type']),
+                  id: c['id']?.toString() ?? '',
+                  code: c['code']?.toString() ?? '',
+                  description: c['description']?.toString() ?? '',
+                  discountType: _couponType(c['discount_type']),
                   discountValue: _number(c['discount_value']),
                   minOrderValue: _number(c['min_order_value']),
                   maxDiscountCap: c['max_discount_cap'] == null
                       ? null
                       : _number(c['max_discount_cap']),
-                  validUntil: DateTime.tryParse(c['valid_until'] ?? ''),
-                  usageCount: c['usage_count'],
-                  isActive: c['is_active'],
+                  validUntil: DateTime.tryParse(c['valid_until']?.toString() ?? ''),
+                  usageCount: (c['usage_count'] as num?)?.toInt() ?? 0,
+                  isActive: c['is_active'] == true,
                 ))
             .toList(),
         batchCertificates: _rows(j, 'batch_certificates')
@@ -164,14 +209,14 @@ class AdminMarketplaceState {
             .toList(),
         auditLogs: _rows(j, 'audit_logs')
             .map((a) => MarketplaceAuditLog(
-                  id: a['id'],
-                  userRole: a['user_role'],
-                  userIdentifier: a['user_identifier'],
-                  action: AuditAction.values.byName(a['action']),
-                  entityType: a['entity_type'],
-                  entityId: a['entity_id'],
-                  details: a['details'],
-                  timestamp: DateTime.parse(a['timestamp']),
+                  id: a['id']?.toString() ?? '',
+                  userRole: a['user_role']?.toString() ?? '',
+                  userIdentifier: a['user_identifier']?.toString() ?? '',
+                  action: _auditAction(a['action']),
+                  entityType: a['entity_type']?.toString() ?? '',
+                  entityId: a['entity_id']?.toString() ?? '',
+                  details: a['details']?.toString() ?? '',
+                  timestamp: DateTime.tryParse(a['timestamp']?.toString() ?? '') ?? DateTime.now(),
                 ))
             .toList(),
       );

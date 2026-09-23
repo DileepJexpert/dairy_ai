@@ -30,14 +30,14 @@ services:
       - "1883:1883"
       - "9001:9001"
     volumes:
-      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
     profiles:
       - iot
       - all
 
   backend:
     build:
-      context: ../backend
+      context: ./backend
       dockerfile: Dockerfile
     container_name: dairy_ai_backend
     restart: unless-stopped
@@ -46,7 +46,7 @@ services:
     depends_on:
       - postgres
     env_file:
-      - ../.env
+      - ./.env
     environment:
       DATABASE_URL: postgresql+asyncpg://dairy:dairy123@postgres:5432/dairy_ai
       COMMERCE_TAXONOMY_ENABLED: "true"

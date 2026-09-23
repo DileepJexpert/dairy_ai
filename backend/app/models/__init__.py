@@ -51,3 +51,5 @@ from app.models.analytics import VisitorSession, ClickstreamEvent, ClickstreamEv
 from app.models.commerce_admin import CommerceCoupon, OrderCoupon, CommerceCertificate, CommerceAudit
 from app.models.customer_commerce import WishlistEntry, SavedCartItem, OrderContact, OrderEvent
 from app.models.rfq import RFQInquiry, RFQStatus
+from app.models.storefront_banner import StorefrontBanner
+from app.models.serviceable_pincode import ServiceablePincode

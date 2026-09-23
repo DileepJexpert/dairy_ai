@@ -102,6 +102,7 @@ import 'package:dairy_ai/features/marketplace/screens/help_support_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/milterra_earth_screen.dart';
 import 'package:dairy_ai/features/farmer_hub/screens/farmer_marketplace_screen.dart';
 import 'package:dairy_ai/features/farmer_hub/screens/machinery_detail_screen.dart';
+import 'package:dairy_ai/features/marketplace/screens/admin_pincodes_screen.dart';
 
 // ---------------------------------------------------------------------------
 // Navigation keys
@@ -145,6 +146,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isSeller = isAdmin || userRole == 'vendor' || userRole == 'seller';
 
       final isAdminArea = location == '/admin/ecommerce' ||
+          location == '/admin/pincodes' ||
           location == '/admin-dashboard' ||
           location == '/admin-farmers' ||
           location == '/admin-vets' ||
@@ -961,6 +963,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/admin/ecommerce',
         builder: (context, state) => const EcommerceAdminPanelScreen(),
+      ),
+      GoRoute(
+        path: '/admin/pincodes',
+        builder: (context, state) => const AdminPincodesScreen(),
       ),
       GoRoute(
         path: '/seller/login',

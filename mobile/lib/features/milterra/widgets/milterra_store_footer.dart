@@ -33,8 +33,8 @@ class MilterraStoreFooter extends StatelessWidget {
                       children: const [
                         _TrustPillar(
                           icon: Icons.verified_outlined,
-                          title: 'Vedic Bilona Method',
-                          subtitle: 'Hand-churned from cultured curd in earthen & brass vessels',
+                          title: 'Farm-Crafted Tradition',
+                          subtitle: 'Handcrafted using traditional methods — Bilona churning, Kachi Ghani pressing, organic composting',
                         ),
                         _TrustPillar(
                           icon: Icons.science_outlined,
@@ -43,8 +43,8 @@ class MilterraStoreFooter extends StatelessWidget {
                         ),
                         _TrustPillar(
                           icon: Icons.local_shipping_outlined,
-                          title: 'Glass Jar Safe Delivery',
-                          subtitle: 'Eco-friendly, shockproof doorstep delivery across India',
+                          title: 'Safe Doorstep Delivery',
+                          subtitle: 'Shockproof, eco-friendly packaging — nationwide delivery across India',
                         ),
                         _TrustPillar(
                           icon: Icons.support_agent_outlined,
@@ -80,7 +80,7 @@ class MilterraStoreFooter extends StatelessWidget {
                           ),
                           SizedBox(height: 8),
                           Text(
-                            'Committed to restoring ancient Vedic dairy wisdom. Every batch of our A2 Desi Cow Ghee and Rich Buffalo Ghee is crafted using traditional Bilona churning to preserve natural butyric acid, fat-soluble vitamins (A, D, E, K), and authentic aroma.',
+                            'Committed to transparent, traceable farm-to-family essentials. From handcrafted A2 Bilona Ghee and Kachi Ghani Mustard Oil to sacred Cow Dung Agarbatti, living Vermicompost and pure Hawan Samagri — every product traces back to its source.',
                             style: TextStyle(
                               color: StorePalette.onDark,
                               fontSize: 12,
@@ -130,7 +130,7 @@ class MilterraStoreFooter extends StatelessWidget {
                 const SizedBox(height: 12),
                 const Center(
                   child: Text(
-                    '© 2026 MILTERRA D2C. All rights reserved. Pure Vedic Dairy & Farm Direct.',
+                    '© 2026 MILTERRA. All rights reserved. Farm to Family — Know Your Source.',
                     style: TextStyle(
                       color: StorePalette.onDark,
                       fontSize: 11,

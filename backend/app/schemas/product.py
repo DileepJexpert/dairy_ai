@@ -87,10 +87,10 @@ class ProductMediaCreate(BaseModel):
 
 
 class ProductReviewCreate(BaseModel):
-    author_name: str = Field(min_length=2, max_length=120)
+    author_name: str = Field(min_length=1, max_length=120)
     rating: int = Field(ge=1, le=5)
-    headline: str = Field(min_length=3, max_length=160)
-    content: str = Field(min_length=10, max_length=2000)
+    headline: str = Field(min_length=1, max_length=160)
+    content: str = Field(min_length=1, max_length=2000)
 
 
 class PlacementWindow(BaseModel):

@@ -11,7 +11,7 @@ import '../../marketplace/widgets/store_design.dart';
 import '../widgets/milterra_store_header.dart';
 import '../widgets/milterra_store_footer.dart';
 
-/// Dedicated Luxury D2C Product Detail Screen for Milterra Vedic Ghee & Dairy Foods.
+/// MILTERRA Product Detail — Farm Foods, Earth Essentials & Sacred Living.
 class MilterraProductDetailScreen extends ConsumerStatefulWidget {
   const MilterraProductDetailScreen({super.key, required this.productId});
   final String productId;
@@ -62,7 +62,7 @@ class _MilterraProductDetailScreenState
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: () => context.go('/shop'),
-                        child: const Text('Back to Milterra Ghee Store'),
+                        child: const Text('Back to MILTERRA Store'),
                       ),
                     ],
                   ),
@@ -93,7 +93,7 @@ class _MilterraProductDetailScreenState
                                   children: [
                                     InkWell(
                                       onTap: () => context.go('/shop'),
-                                      child: const Text('MILTERRA D2C Store',
+                                      child: const Text('MILTERRA Store',
                                           style: TextStyle(
                                               fontSize: 12,
                                               color: storeMuted,
@@ -258,7 +258,7 @@ class _MilterraProductDetailScreenState
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Text(
-              '100% VEDIC BILONA METHOD • A2 CERTIFIED',
+              'MILTERRA CERTIFIED • KNOW YOUR SOURCE',
               style: TextStyle(
                 color: storeGreen,
                 fontSize: 10,
@@ -333,7 +333,7 @@ class _MilterraProductDetailScreenState
                   children: [
                     Icon(Icons.check_circle, size: 14, color: storeGreen),
                     SizedBox(width: 4),
-                    Text('In Stock • Glass Jar',
+                    Text('In Stock',
                         style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -481,7 +481,7 @@ class _MilterraProductDetailScreenState
                 context.push('/marketplace/checkout');
               }
             },
-            child: const Text('Buy Now • Express Glass Delivery',
+            child: const Text('Buy Now — Fast Delivery',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
           ),
         ],
@@ -501,7 +501,7 @@ class _MilterraProductDetailScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Nutritional Profile & Lab Certification',
+            'Product Details & Lab Certification',
             style: TextStyle(
               fontFamily: 'CormorantGaramond',
               fontSize: 24,
@@ -511,7 +511,7 @@ class _MilterraProductDetailScreenState
           ),
           const SizedBox(height: 6),
           const Text(
-            'Every batch of Milterra Vedic Bilona Ghee undergoes 18 stringent NABL lab tests for fatty acid profile and zero adulteration.',
+            'Every MILTERRA product is batch-tested and source-verified. Lab reports available on request.',
             style: TextStyle(fontSize: 12, color: storeMuted),
           ),
           const Divider(height: 28),

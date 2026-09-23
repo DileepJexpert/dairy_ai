@@ -5,6 +5,14 @@ from app.models.product import Product, ProductFamily, ProductInventory, Product
 from app.models.commerce_taxonomy import ProductClassification
 from app.models.vendor import Vendor
 async def get(db:AsyncSession,id:uuid.UUID): return (await db.execute(select(Product).where(Product.id==id))).scalar_one_or_none()
+async def get_by_id_or_sku(db:AsyncSession,identifier:str) -> Product | None:
+    try:
+        val = uuid.UUID(identifier)
+        p = await get(db, val)
+        if p: return p
+    except ValueError:
+        pass
+    return (await db.execute(select(Product).where(or_(Product.sku==identifier, Product.slug==identifier)))).scalar_one_or_none()
 async def sku_exists(db:AsyncSession,sku:str,exclude:uuid.UUID|None=None):
  q=select(Product.id).where(Product.sku==sku)
  if exclude:q=q.where(Product.id!=exclude)

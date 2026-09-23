@@ -77,12 +77,15 @@ async def register_vendor(
 @router.get("/me")
 @router.get("/profile")
 async def get_my_profile(
-    current_user: User = Depends(require_role(UserRole.vendor)),
+    current_user: User = Depends(require_role(UserRole.vendor, UserRole.admin, UserRole.super_admin)),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     logger.info(f"GET /vendor/me called | user_id={current_user.id}")
-    logger.debug(f"Looking up vendor profile for user_id={current_user.id}")
     vendor = await vendor_repo.get_by_user_id(db, current_user.id)
+    if not vendor and current_user.role in (UserRole.admin, UserRole.super_admin):
+        vendors, _ = await vendor_repo.list_all(db, limit=1)
+        if vendors:
+            vendor = vendors[0]
     if not vendor:
         logger.warning(f"Vendor profile not found | user_id={current_user.id}")
         raise HTTPException(status_code=404, detail="Vendor profile not found")
@@ -98,12 +101,15 @@ async def get_my_profile(
 @router.put("/profile")
 async def update_my_profile(
     data: VendorUpdate,
-    current_user: User = Depends(require_role(UserRole.vendor)),
+    current_user: User = Depends(require_role(UserRole.vendor, UserRole.admin, UserRole.super_admin)),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     logger.info(f"PUT /vendor/me called | user_id={current_user.id}")
-    logger.debug(f"Update fields: {data.model_dump(exclude_unset=True)}")
     vendor = await vendor_repo.get_by_user_id(db, current_user.id)
+    if not vendor and current_user.role in (UserRole.admin, UserRole.super_admin):
+        vendors, _ = await vendor_repo.list_all(db, limit=1)
+        if vendors:
+            vendor = vendors[0]
     if not vendor:
         logger.warning(f"Vendor profile not found for update | user_id={current_user.id}")
         raise HTTPException(status_code=404, detail="Vendor profile not found")
@@ -122,16 +128,18 @@ async def update_my_profile(
 
 @router.get("/dashboard")
 async def vendor_dashboard(
-    current_user: User = Depends(require_role(UserRole.vendor)),
+    current_user: User = Depends(require_role(UserRole.vendor, UserRole.admin, UserRole.super_admin)),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+):
     logger.info(f"GET /vendor/dashboard called | user_id={current_user.id}")
-    logger.debug(f"Looking up vendor profile for dashboard | user_id={current_user.id}")
     vendor = await vendor_repo.get_by_user_id(db, current_user.id)
+    if not vendor and current_user.role in (UserRole.admin, UserRole.super_admin):
+        vendors, _ = await vendor_repo.list_all(db, limit=1)
+        if vendors:
+            vendor = vendors[0]
     if not vendor:
         logger.warning(f"Vendor profile not found for dashboard | user_id={current_user.id}")
         raise HTTPException(status_code=404, detail="Vendor profile not found. Please register first.")
-    logger.debug(f"Calling vendor_service.get_vendor_dashboard | vendor_id={vendor.id}")
     dashboard = await vendor_service.get_vendor_dashboard(db, vendor.id, current_user.id)
     logger.info(f"Vendor dashboard retrieved | vendor_id={vendor.id} | user_id={current_user.id}")
     return {
@@ -143,10 +151,14 @@ async def vendor_dashboard(
 
 @router.get("/payouts")
 async def get_my_payouts(
-    current_user: User = Depends(require_role(UserRole.vendor)),
+    current_user: User = Depends(require_role(UserRole.vendor, UserRole.admin, UserRole.super_admin)),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     vendor = await vendor_repo.get_by_user_id(db, current_user.id)
+    if not vendor and current_user.role in (UserRole.admin, UserRole.super_admin):
+        vendors, _ = await vendor_repo.list_all(db, limit=1)
+        if vendors:
+            vendor = vendors[0]
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor profile not found.")
     dashboard = await vendor_service.get_vendor_dashboard(db, vendor.id, current_user.id)

@@ -23,6 +23,14 @@ const storeWarm = Color(0xfff5f1e8);
 const storeSuccess = Color(0xff367448);
 const storeError = Color(0xffb3261e);
 
+// MILTERRA Division palette — used for category chip colour coding.
+// These are additive; no existing colour is changed.
+const storeDivisionFarmFoods  = Color(0xff173f35); // dark green/gold — Farm Foods (same as storeGreen)
+const storeDivisionFresh      = Color(0xff2e7d4f); // lighter leaf green — Fresh
+const storeDivisionAnimalNutr = Color(0xff1a4558); // deep green-blue teal — Animal Nutrition
+const storeDivisionEarth      = Color(0xff5a4a2a); // olive / natural brown — Earth
+const storeDivisionEarthDot   = Color(0xff8b6914); // warm amber — Earth chip dot accent
+
 abstract final class StorePalette {
   static const categoryAll = Color(0xffece5d5),
       categoryCow = Color(0xfff4e5bd),

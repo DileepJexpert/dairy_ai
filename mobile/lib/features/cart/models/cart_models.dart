@@ -18,6 +18,9 @@ class CartItem {
   final double priceWhenAdded, currentPrice, lineTotal;
   final bool priceChanged, inStock;
   final String? vendorName, primaryImage, unit;
+
+  double get unitPrice => currentPrice;
+
   factory CartItem.fromJson(Map<String, dynamic> x) => CartItem(
       id: x['id'].toString(),
       productId: x['product_id'].toString(),

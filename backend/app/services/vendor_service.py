@@ -100,15 +100,20 @@ async def get_vendor_dashboard(db: AsyncSession, vendor_id: uuid.UUID, user_id: 
     inv_res = await db.execute(low_stock_q)
     inv_rows = inv_res.all()
 
+    # Count vendor products
+    prod_q = select(Product.id).where(Product.vendor_id == vendor_id)
+    prod_ids = (await db.execute(prod_q)).scalars().all()
+
     low_stock_items = []
     for prod, inv in inv_rows:
         qty = inv.available_quantity
         if qty <= 5:
+            price_val = float(getattr(prod, "base_price", getattr(prod, "price", 0.0)) or 0.0)
             low_stock_items.append({
                 "id": str(prod.id),
                 "title": prod.title,
                 "available_quantity": qty,
-                "price": float(prod.price),
+                "price": price_val,
                 "is_out_of_stock": qty <= 0,
             })
 

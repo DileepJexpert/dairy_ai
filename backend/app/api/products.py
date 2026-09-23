@@ -493,7 +493,17 @@ async def create_family_variant(family_id:str, data:FamilyVariantCreate, current
 @router.post("/vendor/products",status_code=201)
 async def create_product(data:ProductCreate,current_user:User=Depends(require_role(UserRole.vendor, UserRole.admin, UserRole.super_admin)),db:AsyncSession=Depends(get_db)):
  is_admin = current_user.role in (UserRole.admin, UserRole.super_admin)
- v = (await vendor(db, current_user)) if not is_admin else await vendor_repo.get_by_id(db, data.vendor_id) if data.vendor_id else None
+ if is_admin:
+  if data.vendor_id:
+   v = await vendor_repo.get_by_id(db, data.vendor_id)
+  else:
+   v = await vendor_repo.get_by_user_id(db, current_user.id)
+   if not v:
+    vendors, _ = await vendor_repo.list_all(db, limit=1)
+    if vendors:
+     v = vendors[0]
+ else:
+  v = await vendor(db, current_user)
  if not v or not v.is_active: raise HTTPException(422, "Select an active vendor before creating a product")
  p=await product_service.create(db,v.id,data,is_admin);return {"success":True,"data":await enrich(db,p),"message":"Product created"}
 @router.get("/vendor/products")

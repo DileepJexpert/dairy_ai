@@ -326,9 +326,9 @@ class Product {
     return null;
   }
   double get rating =>
-      double.tryParse(specifications['rating']?.toString() ?? '4.5') ?? 4.5;
+      double.tryParse(specifications['rating']?.toString() ?? '') ?? 0.0;
   int get reviewCount =>
-      int.tryParse(specifications['review_count']?.toString() ?? '12') ?? 12;
+      int.tryParse(specifications['review_count']?.toString() ?? '') ?? 0;
   DateTime get createdAt =>
       DateTime.tryParse(specifications['created_at']?.toString() ?? '') ??
       DateTime(2025);

@@ -11,6 +11,7 @@ import '../../../app/store_theme.dart';
 import '../../commerce/providers/commerce_provider.dart';
 import 'product_information.dart';
 import 'pincode_selector_dialog.dart';
+import '../providers/currency_provider.dart';
 import '../../admin/providers/admin_marketplace_provider.dart';
 import '../../../core/analytics_service.dart';
 export '../../../app/store_theme.dart';
@@ -796,19 +797,67 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                       const Spacer(),
                     ],
 
-                    // Language / Region (Optional Desktop element)
+                    // Currency / Region Selector (Desktop & Tablet)
                     if (isWide) ...[
-                      const Padding(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('🇮🇳', style: TextStyle(fontSize: 16)),
-                            SizedBox(width: 3),
-                            Text('EN ▾', style: StoreType.amazonBottomLine),
-                          ],
-                        ),
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final currentCurrency = ref.watch(selectedCurrencyProvider);
+                          return PopupMenuButton<StoreCurrency>(
+                            initialValue: currentCurrency,
+                            tooltip: 'Select Display Currency',
+                            offset: const Offset(0, 42),
+                            onSelected: (currency) {
+                              ref.read(selectedCurrencyProvider.notifier).state = currency;
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    currentCurrency == StoreCurrency.inr
+                                        ? '🇮🇳'
+                                        : currentCurrency == StoreCurrency.usd
+                                            ? '🇺🇸'
+                                            : currentCurrency == StoreCurrency.eur
+                                                ? '🇪🇺'
+                                                : currentCurrency == StoreCurrency.gbp
+                                                    ? '🇬🇧'
+                                                    : '🇦🇪',
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${currentCurrency.code} ▾',
+                                    style: StoreType.amazonBottomLine,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            itemBuilder: (ctx) => [
+                              const PopupMenuItem(
+                                value: StoreCurrency.inr,
+                                child: Text('🇮🇳 INR (₹) · Indian Rupee'),
+                              ),
+                              const PopupMenuItem(
+                                value: StoreCurrency.usd,
+                                child: Text('🇺🇸 USD (\$) · US Dollar'),
+                              ),
+                              const PopupMenuItem(
+                                value: StoreCurrency.eur,
+                                child: Text('🇪🇺 EUR (€) · Euro'),
+                              ),
+                              const PopupMenuItem(
+                                value: StoreCurrency.gbp,
+                                child: Text('🇬🇧 GBP (£) · British Pound'),
+                              ),
+                              const PopupMenuItem(
+                                value: StoreCurrency.aed,
+                                child: Text('🇦🇪 AED · UAE Dirham'),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ],
 

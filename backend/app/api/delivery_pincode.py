@@ -151,6 +151,136 @@ async def lookup_pincode_details(
     return data
 
 
+@router.get("/marketplace/pincode/reverse-geocode")
+async def reverse_geocode_location(
+    lat: float = Query(..., description="Latitude coordinate"),
+    lon: float = Query(..., description="Longitude coordinate"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Reverse geocodes GPS coordinates into Indian address and PIN code using OpenStreetMap Nominatim.
+    Also automatically evaluates delivery serviceability and estimated arrival time.
+    """
+    url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}&addressdetails=1"
+    headers = {"User-Agent": "MilterraDairyEcommerce/1.0 (contact@milterra.in)"}
+
+    try:
+        async with httpx.AsyncClient(timeout=4.0) as client:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                addr = data.get("address", {})
+                raw_pin = addr.get("postcode", "").strip()
+
+                pincode = ""
+                for part in raw_pin.replace("-", " ").split():
+                    clean_digits = "".join(ch for ch in part if ch.isdigit())
+                    if len(clean_digits) == 6:
+                        pincode = clean_digits
+                        break
+
+                city = (
+                    addr.get("city")
+                    or addr.get("town")
+                    or addr.get("village")
+                    or addr.get("suburb")
+                    or addr.get("state_district")
+                    or "Unknown City"
+                )
+                state = addr.get("state", "")
+                road = addr.get("road", "")
+                suburb = addr.get("suburb", "")
+
+                if "gautam buddha nagar" in str(addr).lower():
+                    city = "Noida"
+                elif "delhi" in state.lower() or "delhi" in city.lower():
+                    city = "New Delhi"
+
+                serviceability = None
+                if pincode:
+                    serviceability = await check_pincode_serviceability(pincode=pincode, db=db)
+
+                return {
+                    "pincode": pincode,
+                    "city": city,
+                    "state": state,
+                    "road": road,
+                    "suburb": suburb,
+                    "formatted_address": data.get("display_name", f"{city}, {state}"),
+                    "serviceability": serviceability,
+                }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Reverse geocoding service error: {str(e)}",
+        )
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Could not resolve address from coordinates",
+    )
+
+
+@router.get("/marketplace/pincode/auto-detect")
+async def auto_detect_pincode(
+    lat: Optional[float] = Query(None, description="Optional GPS Latitude"),
+    lon: Optional[float] = Query(None, description="Optional GPS Longitude"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Auto-detects user delivery PIN code and city.
+    Uses OpenStreetMap Nominatim if GPS coordinates are supplied,
+    or falls back to zero-cost network IP geolocation.
+    """
+    if lat is not None and lon is not None:
+        return await reverse_geocode_location(lat=lat, lon=lon, db=db)
+
+    # Fallback to free network IP geolocation
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            resp = await client.get("http://ip-api.com/json/")
+            if resp.status_code == 200:
+                ip_data = resp.json()
+                if ip_data.get("status") == "success":
+                    ip_pin = "".join(ch for ch in str(ip_data.get("zip", "")) if ch.isdigit())
+                    ip_lat = ip_data.get("lat")
+                    ip_lon = ip_data.get("lon")
+
+                    # If valid lat/lon, try Nominatim for street/pincode accuracy
+                    if ip_lat and ip_lon:
+                        try:
+                            return await reverse_geocode_location(lat=ip_lat, lon=ip_lon, db=db)
+                        except Exception:
+                            pass
+
+                    # Direct IP location fallback
+                    city = ip_data.get("city", "New Delhi")
+                    state = ip_data.get("regionName", "Delhi")
+                    pincode = ip_pin if len(ip_pin) == 6 else "110001"
+
+                    serviceability = await check_pincode_serviceability(pincode=pincode, db=db)
+
+                    return {
+                        "pincode": pincode,
+                        "city": city,
+                        "state": state,
+                        "road": "",
+                        "suburb": "",
+                        "formatted_address": f"{city}, {state} {pincode}",
+                        "serviceability": serviceability,
+                    }
+    except Exception:
+        pass
+
+    fallback_svc = await check_pincode_serviceability(pincode="110001", db=db)
+    return {
+        "pincode": "110001",
+        "city": "New Delhi",
+        "state": "Delhi",
+        "formatted_address": "New Delhi, Delhi 110001",
+        "serviceability": fallback_svc,
+    }
+
+
 @router.get("/marketplace/pincode/check", response_model=PincodeCheckResponse)
 async def check_pincode_serviceability(
     pincode: str = Query(..., description="6-digit Indian Postal PIN code"),

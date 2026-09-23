@@ -1,4 +1,5 @@
 import os
+import asyncio
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -47,6 +48,8 @@ from app.api.product_media import router as product_media_router
 from app.api.rfq import router as rfq_router
 from app.api.storefront_banner import router as storefront_banner_router
 from app.api.delivery_pincode import router as delivery_pincode_router
+from app.api.shipment_tracking import router as shipment_tracking_router
+from app.api.currency import router as currency_router
 from app.database import init_db
 from app.config import settings
 
@@ -82,7 +85,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     logger.info("All routers registered. API is ready to serve requests!")
     logger.info("=" * 60)
-    yield
+    shipping_task = None
+    if settings.SHIPPING_AUTO_BOOK_ENABLED and not settings.PRELAUNCH_MODE:
+        from app.api.shipment_tracking import shipping_loop
+        shipping_task = asyncio.create_task(shipping_loop())
+    try:
+        yield
+    finally:
+        if shipping_task:
+            shipping_task.cancel()
+            try:
+                await shipping_task
+            except asyncio.CancelledError:
+                pass
     logger.info("DairyAI API shutting down...")
     if mqtt_subscriber.is_connected:
         await mqtt_subscriber.disconnect()
@@ -184,8 +199,10 @@ app.include_router(product_media_router, prefix="/api/v1")
 app.include_router(rfq_router, prefix="/api/v1")
 app.include_router(storefront_banner_router, prefix="/api/v1")
 app.include_router(delivery_pincode_router, prefix="/api/v1")
+app.include_router(shipment_tracking_router, prefix="/api/v1")
+app.include_router(currency_router, prefix="/api/v1")
 
-logger.info("Registered routers: auth, farmers, cattle, health, milk, feed, breeding, finance, vet, chat, whatsapp, notifications, admin, super-admin, vendor, cooperative, collection, payments, marketplace, outbreak, withdrawal, carbon, vision, schemes, mandi, pashu-aadhaar, milk-purity, products, taxonomy, cart, addresses, orders, analytics, rfq, storefront_banners, delivery_pincodes")
+logger.info("Registered routers: auth, farmers, cattle, health, milk, feed, breeding, finance, vet, chat, whatsapp, notifications, admin, super-admin, vendor, cooperative, collection, payments, marketplace, outbreak, withdrawal, carbon, vision, schemes, mandi, pashu-aadhaar, milk-purity, products, taxonomy, cart, addresses, orders, analytics, rfq, storefront_banners, delivery_pincodes, shipment_tracking, currency")
 
 static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
 if os.path.exists(static_dir):

@@ -117,3 +117,58 @@ async def _route_message(text: str, phone: str) -> str:
     response = await LLMService.chat(phone, text)
     logger.debug(f"LLM response for {masked_phone}: {response[:100]}{'...' if len(response) > 100 else ''}")
     return response
+
+
+async def send_order_confirmation_whatsapp(
+    phone: str,
+    order_number: str,
+    total_amount: str | float,
+    item_count: int,
+    expected_delivery: str,
+    tracking_url: str = "http://localhost:5051/orders",
+) -> dict:
+    """
+    Sends an automated, branded WhatsApp message when a customer places an order.
+    Uses Meta WhatsApp Cloud API (first 1,000 conversations/month free).
+    """
+    masked_phone = f"****{phone[-4:]}" if len(phone) >= 4 else "****"
+    logger.info("Sending WhatsApp order confirmation | phone=%s, order=%s", masked_phone, order_number)
+
+    message = (
+        f"🌿 *Milterra Order Confirmed!*\n\n"
+        f"Namaste! Thank you for ordering pure Vedic dairy from Milterra.\n\n"
+        f"📦 *Order ID:* #{order_number}\n"
+        f"🥛 *Items:* {item_count} product(s)\n"
+        f"💰 *Total:* ₹{total_amount}\n"
+        f"🚚 *Estimated Arrival:* {expected_delivery}\n\n"
+        f"Track your order status and cold-chain dispatch here:\n"
+        f"👉 {tracking_url}\n\n"
+        f"_Pure • Cultured • Delivered fresh from farm to table._"
+    )
+    return await WhatsAppClient.send_text(phone, message)
+
+
+async def send_order_dispatched_whatsapp(
+    phone: str,
+    order_number: str,
+    carrier: str,
+    awb: str,
+    tracking_url: str,
+) -> dict:
+    """
+    Sends an automated dispatch alert with live courier AWB tracking.
+    """
+    masked_phone = f"****{phone[-4:]}" if len(phone) >= 4 else "****"
+    logger.info("Sending WhatsApp dispatch alert | phone=%s, order=%s, awb=%s", masked_phone, order_number, awb)
+
+    message = (
+        f"🚀 *Your Milterra Order is on its way!*\n\n"
+        f"Order #{order_number} has been carefully glass-packed and dispatched.\n\n"
+        f"🚚 *Courier:* {carrier}\n"
+        f"🏷️ *AWB Number:* {awb}\n\n"
+        f"Track live transit checkpoints here:\n"
+        f"👉 {tracking_url}\n\n"
+        f"Please inspect the tamper-evident seal upon delivery. Thank you!"
+    )
+    return await WhatsAppClient.send_text(phone, message)
+

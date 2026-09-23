@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../providers/pincode_provider.dart';
 import 'store_design.dart';
 
@@ -39,6 +40,7 @@ class _PincodeModalContent extends ConsumerStatefulWidget {
 class _PincodeModalContentState extends ConsumerState<_PincodeModalContent> {
   String? _queriedPin;
   bool _checking = false;
+  bool _locating = false;
   PincodeDeliveryInfo? _checkedInfo;
 
   @override
@@ -68,6 +70,43 @@ class _PincodeModalContentState extends ConsumerState<_PincodeModalContent> {
       if (mounted) {
         setState(() => _checking = false);
       }
+    }
+  }
+
+  Future<void> _useCurrentLocation() async {
+    setState(() => _locating = true);
+    try {
+      final dio = ref.read(dioProvider);
+      final res = await dio.get('/marketplace/pincode/auto-detect');
+      if (res.data is Map) {
+        final data = res.data as Map;
+        final detectedPin = data['pincode']?.toString() ?? '';
+        if (detectedPin.length == 6) {
+          widget.controller.text = detectedPin;
+          final svc = data['serviceability'];
+          if (svc is Map) {
+            final info = PincodeDeliveryInfo.fromJson(Map<String, dynamic>.from(svc));
+            if (mounted) {
+              setState(() {
+                _checkedInfo = info;
+                _queriedPin = detectedPin;
+              });
+            }
+          } else {
+            await _checkPincode(detectedPin);
+          }
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not auto-detect location. Please enter your PIN code.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _locating = false);
     }
   }
 
@@ -120,7 +159,44 @@ class _PincodeModalContentState extends ConsumerState<_PincodeModalContent> {
             'Check delivery availability, expected delivery dates, and shipping options.',
             style: TextStyle(fontSize: 12.5, color: storeMuted),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
+
+          // 📍 Use current location button
+          InkWell(
+            onTap: _locating ? null : _useCurrentLocation,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              decoration: BoxDecoration(
+                color: const Color(0xffedf7f1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: storeGreen.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_locating)
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: storeGreen),
+                    )
+                  else
+                    const Icon(Icons.my_location, size: 16, color: storeGreen),
+                  const SizedBox(width: 8),
+                  Text(
+                    _locating ? 'Detecting your location…' : 'Use my current location',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: storeGreen,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
 
           // Pincode Input Bar
           Row(

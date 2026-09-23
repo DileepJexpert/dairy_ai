@@ -98,6 +98,18 @@ final orderDetailProvider =
   }
 });
 
+final liveOrderTrackingProvider =
+    FutureProvider.autoDispose.family<Map<String, dynamic>?, String>((ref, orderId) async {
+  try {
+    final dio = ref.watch(dioProvider);
+    final response = await dio.get('/marketplace/orders/$orderId/tracking');
+    if (response.data is Map && response.data['data'] is Map) {
+      return Map<String, dynamic>.from(response.data['data'] as Map);
+    }
+  } catch (_) {}
+  return null;
+});
+
 class OrderTrackingScreen extends ConsumerStatefulWidget {
   const OrderTrackingScreen({super.key, required this.orderId});
 
@@ -884,8 +896,13 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     final state = address['state']?.toString() ?? '';
     final postalCode = address['postal_code']?.toString() ?? '';
     final phone = address['phone_number']?.toString() ?? '';
-    final trackingNumber = order.trackingNumber;
-    final carrier = order.carrier;
+    final liveTracking = ref.watch(liveOrderTrackingProvider(order.id)).valueOrNull;
+    final trackingNumber = order.trackingNumber.isNotEmpty
+        ? order.trackingNumber
+        : (liveTracking?['awb_number']?.toString() ?? '');
+    final carrier = order.carrier.isNotEmpty
+        ? order.carrier
+        : (liveTracking?['carrier_name']?.toString() ?? 'Delhivery Express');
     final currentStep = order.currentStep;
 
     return LayoutBuilder(

@@ -392,9 +392,157 @@ class _CommerceProductsScreenState
     );
   }
 
+  Future<void> _showQuickAddVendorDialog(
+      void Function(void Function()) setModalState) async {
+    final nameCtrl = TextEditingController();
+    final districtCtrl = TextEditingController(text: 'Lucknow');
+    final stateCtrl = TextEditingController(text: 'Uttar Pradesh');
+    var isSaving = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: const Row(
+            children: [
+              Icon(Icons.add_business, color: storeGreen),
+              SizedBox(width: 8),
+              Text('Register New Producer / Vendor',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Business / Farm Producer Name',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: nameCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'e.g. Vedic Gir Gaushala, Panchamrit Organics',
+                  border: OutlineInputBorder(),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('District / City',
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: districtCtrl,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('State',
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: stateCtrl,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(dialogCtx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: storeGreen),
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      final name = nameCtrl.text.trim();
+                      if (name.isEmpty) return;
+                      setDialogState(() => isSaving = true);
+                      try {
+                        final dio = ref.read(dioProvider);
+                        final resp = await dio.post(
+                          '/admin/marketplace/vendors',
+                          data: {
+                            'business_name': name,
+                            'district': districtCtrl.text.trim(),
+                            'state': stateCtrl.text.trim(),
+                          },
+                        );
+                        final newId = resp.data['data']?['id']?.toString();
+                        if (newId != null) {
+                          final newVendor = <String, String>{
+                            'id': newId,
+                            'name': name
+                          };
+                          setState(() {
+                            _vendorOptions = [..._vendorOptions, newVendor];
+                            _selectedVendorId = newId;
+                          });
+                          setModalState(() {
+                            _selectedVendorId = newId;
+                          });
+                        }
+                        if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                      } catch (e) {
+                        if (dialogCtx.mounted) {
+                          setDialogState(() => isSaving = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('Failed to add vendor: $e'),
+                                backgroundColor: Colors.red),
+                          );
+                        }
+                      }
+                    },
+              child: isSaving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                  : const Text('Add & Select'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // Add Entire Product Family & Initial Variants
   // ---------------------------------------------------------------------------
+
 
   void _showAddProductFamilyDialog() {
     final titleCtrl = TextEditingController();
@@ -466,9 +614,28 @@ class _CommerceProductsScreenState
                         ),
                       )
                     else ...[
-                      const Text('Listing vendor',
-                          style: TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.bold)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Listing vendor',
+                              style: TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.bold)),
+                          TextButton.icon(
+                            style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero),
+                            onPressed: () =>
+                                _showQuickAddVendorDialog(setModalState),
+                            icon: const Icon(Icons.add_business_outlined,
+                                size: 14, color: storeGreen),
+                            label: const Text('Add New Vendor',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: storeGreen)),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
                         initialValue: _selectedVendorId,

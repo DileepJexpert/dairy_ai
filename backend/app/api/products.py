@@ -31,6 +31,23 @@ async def enrich(db,p):
   if family and family.is_concept:
    result['specifications'] = {**result['specifications'], 'concept': True, 'listing_status': 'concept'}
    result['in_stock'] = False
+ # Compute live ratings and review counts from product_reviews table
+ rev_row = (await db.execute(
+  select(func.count(ProductReview.id), func.avg(ProductReview.rating))
+  .where(ProductReview.product_id == p.id, ProductReview.is_approved.is_(True))
+ )).first()
+ rev_count = rev_row[0] if rev_row else 0
+ rev_avg = round(float(rev_row[1]), 1) if rev_row and rev_row[1] is not None else None
+
+ specs = dict(result.get('specifications') or {})
+ if rev_count > 0:
+  specs['review_count'] = rev_count
+  specs['rating'] = rev_avg
+ elif 'review_count' not in specs:
+  specs['review_count'] = 0
+  specs['rating'] = 0.0
+ result['specifications'] = specs
+
  if settings.COMMERCE_TAXONOMY_ENABLED:
   tax_meta = (await taxonomy.product_metadata(db,[p.id])).get(str(p.id))
   result['taxonomy'] = tax_meta
@@ -231,13 +248,12 @@ def serialize_review(review: ProductReview, product_title: str | None = None) ->
 
 @router.get("/marketplace/products/{product_id}/reviews")
 async def product_reviews(product_id:str,db:AsyncSession=Depends(get_db)):
- product_uuid=uid(product_id,"product")
- product=await product_repo.get(db,product_uuid)
+ product=await product_repo.get_by_id_or_sku(db,product_id)
  if not product or not product.is_active or product.publication_status == "draft":
   raise HTTPException(404,"Product not found")
  rows=list((await db.execute(
   select(ProductReview)
-  .where(ProductReview.product_id == product_uuid, ProductReview.is_approved.is_(True))
+  .where(ProductReview.product_id == product.id, ProductReview.is_approved.is_(True))
   .order_by(ProductReview.created_at.desc())
   .limit(100)
  )).scalars())
@@ -246,14 +262,13 @@ async def product_reviews(product_id:str,db:AsyncSession=Depends(get_db)):
 
 @router.post("/marketplace/products/{product_id}/reviews",status_code=status.HTTP_201_CREATED)
 async def create_product_review(product_id:str,data:ProductReviewCreate,db:AsyncSession=Depends(get_db)):
- product_uuid=uid(product_id,"product")
- product=(await db.execute(select(Product).where(Product.id == product_uuid,Product.is_active.is_(True)))).scalar_one_or_none()
- if not product or product.publication_status == "draft":
+ product=await product_repo.get_by_id_or_sku(db,product_id)
+ if not product or not product.is_active or product.publication_status == "draft":
   raise HTTPException(404,"Product not found")
  if is_concept(product):
   raise HTTPException(422,"Use concept feedback instead of a product review")
  review=ProductReview(
-  product_id=product_uuid,
+  product_id=product.id,
   author_name=data.author_name.strip(),
   rating=data.rating,
   headline=data.headline.strip(),
@@ -325,10 +340,71 @@ async def vendor_products_reviews(status_filter: str | None = None, current_user
   "total": len(rows),
   "message": "Vendor product reviews",
  }
+class AdminVendorCreate(BaseModel):
+    business_name: str
+    phone: str | None = None
+    district: str | None = "Lucknow"
+    state: str | None = "Uttar Pradesh"
+    vendor_type: str = "other"
+    gst_number: str | None = None
+    license_number: str | None = None
+
 @router.get("/admin/marketplace/vendors")
 async def marketplace_vendors(current_user:User=Depends(require_role(UserRole.admin, UserRole.super_admin)), db:AsyncSession=Depends(get_db)):
  vendors, total = await vendor_repo.list_all(db, limit=100)
  return {"success": True, "data": [{"id": str(v.id), "business_name": v.business_name, "is_active": v.is_active} for v in vendors if v.is_active], "total": total, "message": "Active marketplace vendors"}
+
+@router.post("/admin/marketplace/vendors", status_code=201)
+async def admin_create_vendor(
+    data: AdminVendorCreate,
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.super_admin)),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.vendor import Vendor, VendorType
+    from app.services.auth_service import get_user_by_phone
+    phone = (data.phone or f"99999{str(uuid.uuid4().int)[:5]}").strip()
+    user = await get_user_by_phone(db, phone)
+    if not user:
+        user = User(
+            id=uuid.uuid4(),
+            phone=phone,
+            role=UserRole.vendor,
+            is_active=True,
+            display_name=data.business_name,
+        )
+        db.add(user)
+        await db.flush()
+
+    v_type = VendorType.other
+    try:
+        v_type = VendorType(data.vendor_type)
+    except Exception:
+        pass
+
+    new_v = Vendor(
+        id=uuid.uuid4(),
+        user_id=user.id,
+        business_name=data.business_name.strip(),
+        vendor_type=v_type,
+        district=data.district or "Lucknow",
+        state=data.state or "Uttar Pradesh",
+        gst_number=data.gst_number,
+        license_number=data.license_number,
+        is_active=True,
+        is_verified=True,
+    )
+    db.add(new_v)
+    await db.flush()
+    return {
+        "success": True,
+        "data": {
+            "id": str(new_v.id),
+            "business_name": new_v.business_name,
+            "is_active": new_v.is_active,
+        },
+        "message": f"Vendor '{new_v.business_name}' created successfully",
+    }
+
 @router.get("/marketplace/vendors/{vendor_id}")
 async def public_vendor_storefront(vendor_id: str, db: AsyncSession = Depends(get_db)):
  v_uid = uid(vendor_id, "vendor")

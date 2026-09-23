@@ -87,3 +87,41 @@ async def get_current_plan(
         },
         "message": "Current feed plan",
     }
+
+
+@router.get("/cattle/{cattle_id}/feed-plans")
+@router.get("/feed-plans")
+async def get_feed_plans(
+    cattle_id: str | None = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    if not cattle_id:
+        return {"success": True, "data": [], "message": "No cattle specified"}
+    try:
+        cid = uuid.UUID(cattle_id)
+    except ValueError:
+        return {"success": True, "data": [], "message": "Invalid cattle_id"}
+    plan = await feed_service.get_current_feed_plan(db, cid)
+    data = []
+    if plan:
+        data.append({
+            "id": str(plan.id),
+            "plan": plan.plan,
+            "total_cost_per_day": plan.total_cost_per_day,
+            "nutrition_score": plan.nutrition_score,
+            "valid_from": str(plan.valid_from),
+        })
+    return {"success": True, "data": data, "message": "Feed plans"}
+
+
+@router.post("/feed-plans/generate", status_code=201)
+async def generate_feed_plan_alt(
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    cattle_id = payload.get("cattle_id")
+    if not cattle_id:
+        raise HTTPException(status_code=422, detail="cattle_id is required")
+    return await generate_feed_plan(cattle_id=cattle_id, current_user=current_user, db=db)

@@ -15,8 +15,11 @@ class SensorProcessor:
         """Validate, store, and check anomalies for sensor data."""
         logger.info("Processing sensor data for cattle_id=%s: payload_keys=%s", cattle_id, list(payload.keys()))
 
-        # Validate ranges
+        # Validate ranges (treat negative readings like -1 as sensor unavailable)
         temp = payload.get("temperature")
+        if temp is not None and temp < 0:
+            logger.debug("Temperature reading is negative (%s), treating as None (sensor unavailable)", temp)
+            temp = None
         if temp is not None:
             logger.debug("Validating temperature: %s (valid range 35.0-42.0°C)", temp)
             if not (35.0 <= temp <= 42.0):
@@ -25,6 +28,9 @@ class SensorProcessor:
             logger.debug("Temperature %s°C is within valid range", temp)
 
         hr = payload.get("heart_rate")
+        if hr is not None and hr < 0:
+            logger.debug("Heart rate reading is negative (%s), treating as None (sensor unavailable)", hr)
+            hr = None
         if hr is not None:
             logger.debug("Validating heart_rate: %s (valid range 40-120 bpm)", hr)
             if not (40 <= hr <= 120):
@@ -33,6 +39,9 @@ class SensorProcessor:
             logger.debug("Heart rate %s bpm is within valid range", hr)
 
         activity = payload.get("activity_level")
+        if activity is not None and activity < 0:
+            logger.debug("Activity level reading is negative (%s), treating as None (sensor unavailable)", activity)
+            activity = None
         if activity is not None:
             logger.debug("Validating activity_level: %s (valid range 0-100)", activity)
             if not (0 <= activity <= 100):

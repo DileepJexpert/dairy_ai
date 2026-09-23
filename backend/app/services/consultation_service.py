@@ -112,6 +112,9 @@ async def end_consultation(
     if not consultation:
         logger.warning(f"Consultation not found for ending | consultation_id={consultation_id}")
         return None
+    if consultation.status == ConsultationStatus.completed:
+        logger.warning(f"Consultation already completed | consultation_id={consultation_id}")
+        return consultation
 
     now = datetime.now(timezone.utc)
     duration = 0

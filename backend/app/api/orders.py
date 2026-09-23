@@ -21,7 +21,8 @@ from app.repositories import cart_repo
 from app.schemas.order import CheckoutRequest
 from app.services.delivery_address_service import serialize as serialize_address
 from app.services.product_policy import purchase_enabled
-from app.models.commerce_admin import OrderCoupon
+from app.models.commerce_admin import OrderCoupon, CommerceCoupon
+from app.models.serviceable_pincode import ServiceablePincode
 from app.models.customer_commerce import OrderContact, OrderEvent
 from app.models.notification import Notification, NotificationType
 from app.models.order import OrderStatus
@@ -93,14 +94,31 @@ async def checkout(data: CheckoutRequest, current_user: User = Depends(get_curre
             raise HTTPException(422, "Cart changed; review price and stock before checkout")
         subtotal += product.base_price * cart_item.quantity
         lines.append((cart_item, product, inventory))
+    postal_code = (address.postal_code or "").strip()
+    pincode_row = (await db.execute(select(ServiceablePincode).where(ServiceablePincode.pincode == postal_code))).scalar_one_or_none()
+    delivery_fee = Decimal("0")
+    if pincode_row:
+        if not pincode_row.is_serviceable:
+            raise HTTPException(422, f"Delivery is not currently available for pincode {postal_code}")
+        if pincode_row.delivery_fee:
+            delivery_fee = Decimal(str(pincode_row.delivery_fee))
+
     coupon = None
     discount = Decimal("0")
     if data.coupon_code:
-        coupon, discount = await validate_coupon(db, data.coupon_code, subtotal, lock=True)
+        coupon_peek = (await db.execute(select(CommerceCoupon).where(CommerceCoupon.code == data.coupon_code.strip().upper()))).scalar_one_or_none()
+        vendor_subtotal = None
+        has_vendor_items = True
+        if coupon_peek and getattr(coupon_peek, "vendor_id", None) is not None:
+            vendor_lines = [p for _, p, _ in lines if p.vendor_id == coupon_peek.vendor_id]
+            if not vendor_lines:
+                raise HTTPException(422, "Coupon is only valid for products from this seller")
+            vendor_subtotal = sum((p.base_price * ci.quantity for ci, p, _ in lines if p.vendor_id == coupon_peek.vendor_id), Decimal("0"))
+        coupon, discount = await validate_coupon(db, data.coupon_code, subtotal, lock=True, vendor_subtotal=vendor_subtotal, has_vendor_items=has_vendor_items)
     order = Order(user_id=current_user.id, idempotency_key=data.idempotency_key,
                   is_prelaunch_interest=settings.PRELAUNCH_MODE,
                   address_snapshot=serialize_address(address), subtotal=subtotal,
-                  delivery_fee=Decimal("0"), total=subtotal-discount)
+                  delivery_fee=delivery_fee, total=subtotal - discount + delivery_fee)
     db.add(order)
     await db.flush()
     db.add(OrderContact(order_id=order.id, payment_method=data.payment_method))
@@ -341,15 +359,7 @@ async def cancel_order(order_id: uuid.UUID, data: CancelRequest, user: User = De
         return {'success': True, 'data': await detail(db, order)}
     items = await _items(db, order.id)
     if order.payment_status == PaymentStatus.paid:
-        contact = await db.get(OrderContact, order.id)
-        if not contact:
-            contact = OrderContact(order_id=order.id)
-            db.add(contact)
-        contact.notes = f"Cancellation requested: {data.reason}".strip()
-        event(db, order, 'Cancellation & refund requested by customer', 'CANCEL_REQUESTED', data.reason)
-        audit(db, user, 'order.cancel_request', 'order', order.id, data.model_dump_json())
-        await db.flush()
-        return {'success': True, 'data': await detail(db, order), 'message': 'Cancellation request submitted for staff review and refund'}
+        raise HTTPException(409, 'This order requires staff cancellation and refund review')
     if any(i.fulfillment_status not in (FulfillmentStatus.pending, FulfillmentStatus.confirmed) for i in items):
         raise HTTPException(409, 'Shipped or delivered orders require support assistance')
     for item in sorted(items, key=lambda i: str(i.product_id)):
@@ -406,6 +416,8 @@ async def process_refund(order_id: uuid.UUID, data: RefundProcessRequest, user: 
         raise HTTPException(404, 'Order not found')
     items = await _items(db, order.id)
     if data.action == 'approve':
+        if order.payment_status == PaymentStatus.refunded:
+            raise HTTPException(400, 'Order has already been refunded')
         order.payment_status = PaymentStatus.refunded
         order.status = OrderStatus.cancelled
         for item in items:
@@ -486,6 +498,8 @@ async def process_return(order_id: uuid.UUID, data: ReturnProcessRequest, user: 
         event(db, order, 'Return pickup scheduled with courier', 'PICKUP_SCHEDULED', data.remarks)
         audit(db, user, 'order.return_pickup_scheduled', 'order', order.id, data.model_dump_json())
     elif data.action == 'confirm_received_refund':
+        if order.return_status == 'RETURN_COMPLETED' or order.payment_status == PaymentStatus.refunded:
+            raise HTTPException(400, 'Return refund already completed')
         order.return_status = 'RETURN_COMPLETED'
         order.payment_status = PaymentStatus.refunded
         for item in items:
@@ -497,6 +511,8 @@ async def process_return(order_id: uuid.UUID, data: ReturnProcessRequest, user: 
         event(db, order, f'Item inspected & return refund issued: ₹{order.total}', 'REFUNDED', f'Ref: {data.refund_reference} · {data.remarks}'.strip(' ·'))
         audit(db, user, 'order.return_refunded', 'order', order.id, data.model_dump_json())
     elif data.action == 'mark_rto':
+        if order.return_status == 'RTO_DELIVERED' or order.status == OrderStatus.cancelled:
+            raise HTTPException(400, 'Order RTO has already been processed')
         order.return_status = 'RTO_DELIVERED'
         order.status = OrderStatus.cancelled
         if data.restock_inventory and not order.is_prelaunch_interest:

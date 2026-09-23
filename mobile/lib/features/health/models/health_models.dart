@@ -63,22 +63,31 @@ class HealthRecord {
 
   factory HealthRecord.fromJson(Map<String, dynamic> json) {
     return HealthRecord(
-      id: json['id'] as int,
-      cattleId: json['cattle_id'] as int,
+      id: json['id'] is int
+          ? json['id'] as int
+          : (int.tryParse(json['id']?.toString() ?? '0') ?? json['id'].toString().hashCode),
+      cattleId: json['cattle_id'] is int
+          ? json['cattle_id'] as int
+          : (int.tryParse(json['cattle_id']?.toString() ?? '0') ?? json['cattle_id'].toString().hashCode),
       cattleName: json['cattle_name'] as String?,
       cattleTagId: json['cattle_tag_id'] as String?,
-      date: DateTime.parse(json['date'] as String),
+      date: json['date'] != null
+          ? DateTime.tryParse(json['date'].toString()) ?? DateTime.now()
+          : DateTime.now(),
       type: HealthRecordType.values.firstWhere(
         (e) => e.name == json['type'],
         orElse: () => HealthRecordType.checkup,
       ),
-      symptoms: (json['symptoms'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          [],
+      symptoms: json['symptoms'] is List
+          ? (json['symptoms'] as List).map((e) => e.toString()).toList()
+          : (json['symptoms'] is String && (json['symptoms'] as String).isNotEmpty
+              ? (json['symptoms'] as String).split(',').map((s) => s.trim()).toList()
+              : []),
       diagnosis: json['diagnosis'] as String?,
       treatment: json['treatment'] as String?,
-      vetId: json['vet_id'] as int?,
+      vetId: json['vet_id'] is int
+          ? json['vet_id'] as int
+          : int.tryParse(json['vet_id']?.toString() ?? ''),
       photoUrl: json['photo_url'] as String?,
     );
   }
@@ -128,14 +137,20 @@ class Vaccination {
 
   factory Vaccination.fromJson(Map<String, dynamic> json) {
     return Vaccination(
-      id: json['id'] as int,
-      cattleId: json['cattle_id'] as int,
+      id: json['id'] is int
+          ? json['id'] as int
+          : (int.tryParse(json['id']?.toString() ?? '0') ?? json['id'].toString().hashCode),
+      cattleId: json['cattle_id'] is int
+          ? json['cattle_id'] as int
+          : (int.tryParse(json['cattle_id']?.toString() ?? '0') ?? json['cattle_id'].toString().hashCode),
       cattleName: json['cattle_name'] as String?,
       cattleTagId: json['cattle_tag_id'] as String?,
-      vaccineName: json['vaccine_name'] as String,
-      dateGiven: DateTime.parse(json['date_given'] as String),
+      vaccineName: json['vaccine_name'] as String? ?? 'Vaccine',
+      dateGiven: json['date_given'] != null
+          ? DateTime.tryParse(json['date_given'].toString()) ?? DateTime.now()
+          : DateTime.now(),
       nextDue: json['next_due'] != null
-          ? DateTime.parse(json['next_due'] as String)
+          ? DateTime.tryParse(json['next_due'].toString())
           : null,
       administeredBy: json['administered_by'] as String?,
     );

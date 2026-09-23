@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class VendorCreate(BaseModel):
@@ -47,7 +47,6 @@ class VendorUpdate(BaseModel):
     return_policy: str | None = None
     products_services: list[str] | None = None
     service_areas: list[str] | None = None
-    commission_rate: float | None = None
 
 
 class VendorPayoutCreate(BaseModel):
@@ -61,5 +60,5 @@ class VendorPayoutCreate(BaseModel):
 
 
 class VendorCommissionUpdate(BaseModel):
-    commission_rate: float
+    commission_rate: float = Field(ge=0.0, le=100.0)
 

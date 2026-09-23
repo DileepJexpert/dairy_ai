@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dairy_ai/core/constants.dart';
 
 /// Wrapper around FlutterSecureStorage for token and user data persistence.
@@ -70,3 +71,7 @@ class SecureStorageService {
     await _storage.deleteAll();
   }
 }
+
+final secureStorageServiceProvider = Provider<SecureStorageService>((ref) {
+  return SecureStorageService();
+});

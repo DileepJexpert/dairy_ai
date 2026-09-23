@@ -53,7 +53,7 @@ async def search(db:AsyncSession,filters:dict,page:int,per_page:int):
      or_(Product.family_id.is_(None), ProductFamily.is_published.is_(True)),
  )
  if not filters.get('include_drafts'):
-     q=q.where(Product.publication_status != 'draft')
+     q=q.where(Product.publication_status == 'published')
      q=q.where(Product.vendor_id.in_(select(Vendor.id).where(Vendor.is_active.is_(True))))
  if filters.get('family_id'):q=q.where(Product.family_id==filters['family_id'])
  if filters.get('category'):q=q.where(Product.category==filters['category'])

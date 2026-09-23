@@ -1,19 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dairy_ai/core/constants.dart';
+import 'package:dairy_ai/core/api_client.dart';
 import 'package:dairy_ai/features/milk/models/milk_models.dart';
 
 // ---------------------------------------------------------------------------
 // Dio provider (shared with health — in prod this comes from a global scope).
 // ---------------------------------------------------------------------------
 final _dioProvider = Provider<Dio>((ref) {
-  final dio = Dio(BaseOptions(
-    baseUrl: AppConstants.baseUrl,
-    connectTimeout: AppConstants.connectTimeout,
-    receiveTimeout: AppConstants.receiveTimeout,
-    headers: {'Content-Type': 'application/json'},
-  ));
-  return dio;
+  return ref.watch(apiClientProvider);
 });
 
 // ---------------------------------------------------------------------------

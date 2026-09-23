@@ -13,24 +13,29 @@ def audit(db, actor, action, entity_type, entity_id, details):
                          entity_id=str(entity_id), details=details))
 
 
-def coupon_discount(coupon, subtotal):
+def coupon_discount(coupon, subtotal, eligible_subtotal=None):
     if not coupon.is_active or (coupon.valid_until and coupon.valid_until <= datetime.utcnow()):
         raise HTTPException(422, "Coupon is inactive or expired")
     if subtotal < coupon.min_order_value:
         raise HTTPException(422, f"Minimum order value is {coupon.min_order_value}")
-    value = subtotal * coupon.discount_value / 100 if coupon.discount_type == "percentage" else coupon.discount_value
+    base_subtotal = eligible_subtotal if eligible_subtotal is not None else subtotal
+    value = base_subtotal * coupon.discount_value / 100 if coupon.discount_type == "percentage" else coupon.discount_value
     if coupon.max_discount_cap is not None:
         value = min(value, coupon.max_discount_cap)
-    return max(Decimal("0"), min(subtotal, value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return max(Decimal("0"), min(base_subtotal, value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-async def validate_coupon(db, code, subtotal, lock=False):
+async def validate_coupon(db, code, subtotal, lock=False, vendor_subtotal=None, has_vendor_items=True):
     query = select(CommerceCoupon).where(CommerceCoupon.code == code.strip().upper())
     if lock:
         query = query.with_for_update()
     coupon = (await db.execute(query)).scalar_one_or_none()
     if coupon is None:
         raise HTTPException(422, "Coupon not found")
+    if getattr(coupon, "vendor_id", None) is not None:
+        if not has_vendor_items or (vendor_subtotal is not None and vendor_subtotal <= Decimal("0")):
+            raise HTTPException(422, "Coupon is only valid for products from this seller")
+        return coupon, coupon_discount(coupon, subtotal, eligible_subtotal=vendor_subtotal)
     return coupon, coupon_discount(coupon, subtotal)
 
 

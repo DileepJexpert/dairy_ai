@@ -78,10 +78,13 @@ async def get_vendor_dashboard(db: AsyncSession, vendor_id: uuid.UUID, user_id: 
             completed_orders_set.add(order.id)
 
         if len(recent_orders) < 10:
+            cust_name = "Customer"
+            if order.address_snapshot and isinstance(order.address_snapshot, dict):
+                cust_name = order.address_snapshot.get("recipient_name") or order.address_snapshot.get("recipient_phone") or "Customer"
             recent_orders.append({
                 "id": str(order.id),
                 "order_number": str(order.id)[:8].upper(),
-                "farmer_name": order.contact_phone or "Customer",
+                "farmer_name": cust_name,
                 "description": f"{item.title} ×{item.quantity}",
                 "amount": float(item.line_total),
                 "status": status_val.lower(),

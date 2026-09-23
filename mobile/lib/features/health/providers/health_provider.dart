@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dairy_ai/core/constants.dart';
+import 'package:dairy_ai/core/api_client.dart';
 import 'package:dairy_ai/features/health/models/health_models.dart';
 
 // ---------------------------------------------------------------------------
@@ -8,13 +8,7 @@ import 'package:dairy_ai/features/health/models/health_models.dart';
 // for the health feature. In production this would come from a shared provider.
 // ---------------------------------------------------------------------------
 final _dioProvider = Provider<Dio>((ref) {
-  final dio = Dio(BaseOptions(
-    baseUrl: AppConstants.baseUrl,
-    connectTimeout: AppConstants.connectTimeout,
-    receiveTimeout: AppConstants.receiveTimeout,
-    headers: {'Content-Type': 'application/json'},
-  ));
-  return dio;
+  return ref.watch(apiClientProvider);
 });
 
 // ---------------------------------------------------------------------------

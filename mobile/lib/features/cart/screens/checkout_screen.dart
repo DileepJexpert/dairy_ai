@@ -173,11 +173,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
       final body = res.data as Map?;
       final data = body?['data'] as Map?;
-      if (data == null ||
-          data['id'] == null ||
-          data['is_prelaunch_interest'] != true) {
+      if (data == null || data['id'] == null) {
         throw const FormatException(
-          'The server did not confirm a pre-launch interest record.',
+          'The server did not return a valid order confirmation.',
         );
       }
       final realOrderId = data['id'].toString();

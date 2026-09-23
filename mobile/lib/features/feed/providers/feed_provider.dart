@@ -1,19 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
-import 'package:dairy_ai/core/constants.dart';
+import 'package:dairy_ai/core/api_client.dart';
 import 'package:dairy_ai/features/feed/models/feed_models.dart';
 
 // ---------------------------------------------------------------------------
-// Dio provider — reuse across features (shared singleton).
+// Dio provider — delegate to centralized authenticated apiClientProvider
 // ---------------------------------------------------------------------------
 final dioProvider = Provider<Dio>((ref) {
-  final dio = Dio(BaseOptions(
-    baseUrl: AppConstants.baseUrl,
-    connectTimeout: AppConstants.connectTimeout,
-    receiveTimeout: AppConstants.receiveTimeout,
-    headers: {'Content-Type': 'application/json'},
-  ));
-  return dio;
+  return ref.watch(apiClientProvider);
 });
 
 // ---------------------------------------------------------------------------
@@ -39,10 +33,7 @@ final cattleListProvider =
 final feedPlanProvider = FutureProvider.autoDispose
     .family<FeedPlan?, String>((ref, cattleId) async {
   final dio = ref.watch(dioProvider);
-  final response = await dio.get('/feed-plans', queryParameters: {
-    'cattle_id': cattleId,
-    'latest': true,
-  });
+  final response = await dio.get('/cattle/$cattleId/feed-plan/current');
   final data = response.data as Map<String, dynamic>;
   if (data['success'] == true && data['data'] != null) {
     return FeedPlan.fromJson(data['data'] as Map<String, dynamic>);
@@ -112,9 +103,7 @@ class FeedActionNotifier extends StateNotifier<FeedActionState> {
     state = const FeedActionState(isGenerating: true);
     try {
       final dio = _ref.read(dioProvider);
-      final response = await dio.post('/feed-plans/generate', data: {
-        'cattle_id': cattleId,
-      });
+      final response = await dio.post('/cattle/$cattleId/feed-plan/generate');
       final data = response.data as Map<String, dynamic>;
       if (data['success'] == true) {
         final plan = FeedPlan.fromJson(data['data'] as Map<String, dynamic>);

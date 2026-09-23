@@ -167,19 +167,8 @@ Future<bool> _tryRefreshToken(
 /// Riverpod provider for the Dio client.
 /// Usage: final dio = ref.read(apiClientProvider);
 final apiClientProvider = Provider<Dio>((ref) {
-  // In production this would use the real SecureStorageService.
-  // For now, return a basic configured Dio that can be overridden in tests.
-  return Dio(
-    BaseOptions(
-      baseUrl: AppConstants.baseUrl,
-      connectTimeout: AppConstants.connectTimeout,
-      receiveTimeout: AppConstants.receiveTimeout,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    ),
-  );
+  final storage = ref.watch(secureStorageServiceProvider);
+  return createDioClient(storage);
 });
 
 /// Extracts a human-friendly error message from a [DioException].

@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dairy_ai/core/constants.dart';
+import 'package:dairy_ai/core/api_client.dart';
 import 'package:dairy_ai/features/vet_farmer/models/vet_farmer_models.dart';
 import 'package:dairy_ai/features/vet_doctor/models/vet_doctor_models.dart';
 
@@ -8,12 +8,7 @@ import 'package:dairy_ai/features/vet_doctor/models/vet_doctor_models.dart';
 // Dio provider for vet-doctor feature.
 // ---------------------------------------------------------------------------
 final _dioProvider = Provider<Dio>((ref) {
-  return Dio(BaseOptions(
-    baseUrl: AppConstants.baseUrl,
-    connectTimeout: AppConstants.connectTimeout,
-    receiveTimeout: AppConstants.receiveTimeout,
-    headers: {'Content-Type': 'application/json'},
-  ));
+  return ref.watch(apiClientProvider);
 });
 
 // ---------------------------------------------------------------------------

@@ -15,7 +15,7 @@ from datetime import date, datetime
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.collection import MilkCollection
+from app.models.collection import MilkCollection, CollectionCenter
 from app.models.payment import (
     PaymentCycle, PaymentCycleType, PaymentStatus,
     FarmerPayment, Loan, LoanStatus, LoanType,
@@ -121,12 +121,13 @@ async def process_payment_cycle(db: AsyncSession, cycle_id: uuid.UUID) -> Paymen
         cycle.period_end,
     )
 
-    if cycle.status not in (PaymentStatus.pending,):
+    if cycle.status != PaymentStatus.pending:
         logger.warning(
             "PaymentCycle is not in pending status — current status=%s | cycle_id=%s",
             cycle.status,
             cycle_id,
         )
+        raise ValueError("Payment cycle is already processed or completed")
 
     # --- Step 2: Fetch all MilkCollection records for the period ---
     logger.debug(
@@ -135,14 +136,19 @@ async def process_payment_cycle(db: AsyncSession, cycle_id: uuid.UUID) -> Paymen
         cycle.period_end,
         cycle_id,
     )
-    collections_result = await db.execute(
-        select(MilkCollection).where(
-            and_(
-                MilkCollection.date >= cycle.period_start,
-                MilkCollection.date <= cycle.period_end,
-                MilkCollection.is_rejected == False,  # noqa: E712
+    collection_filters = [
+        MilkCollection.date >= cycle.period_start,
+        MilkCollection.date <= cycle.period_end,
+        MilkCollection.is_rejected == False,  # noqa: E712
+    ]
+    if cycle.cooperative_id:
+        collection_filters.append(
+            MilkCollection.center_id.in_(
+                select(CollectionCenter.id).where(CollectionCenter.cooperative_id == cycle.cooperative_id)
             )
         )
+    collections_result = await db.execute(
+        select(MilkCollection).where(and_(*collection_filters))
     )
     collections = list(collections_result.scalars().all())
     logger.info(

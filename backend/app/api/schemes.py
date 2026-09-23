@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_role
+from app.models.user import UserRole
 from app.services import scheme_service
 
 logger = logging.getLogger("dairy_ai.api.schemes")
@@ -145,7 +146,7 @@ async def update_application_status(
     status: str = Query(...),
     notes: str | None = None,
     db: AsyncSession = Depends(get_db),
-    user=Depends(get_current_user),
+    user=Depends(require_role(UserRole.admin, UserRole.super_admin, UserRole.vet)),
 ):
     """Update application status (admin/vet only)."""
     app = await scheme_service.update_application_status(db, application_id, status, notes)

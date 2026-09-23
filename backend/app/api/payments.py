@@ -23,6 +23,7 @@ from app.schemas.payment import (
     InsuranceCreate, InsuranceClaimCreate,
 )
 from app.services import payment_service
+from app.repositories import farmer_repo
 
 logger = logging.getLogger("dairy_ai.api.payments")
 
@@ -130,6 +131,10 @@ async def farmer_ledger(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     logger.info(f"GET /payments/ledger/{farmer_id} called | user_id={current_user.id}")
+    if current_user.role not in (UserRole.admin, UserRole.super_admin, UserRole.cooperative):
+        farmer = await farmer_repo.get_by_user_id(db, current_user.id)
+        if not farmer or (str(farmer.id) != farmer_id and str(current_user.id) != farmer_id):
+            raise HTTPException(status_code=403, detail="Not authorized to access another farmer's ledger")
     ledger = await payment_service.get_farmer_ledger(db, uuid.UUID(farmer_id))
     logger.info(f"Farmer ledger retrieved | farmer_id={farmer_id}")
     return {"success": True, "data": ledger, "message": "Farmer ledger"}
@@ -199,7 +204,12 @@ async def list_loans(
 ) -> dict:
     logger.info(f"GET /payments/loans called | farmer_id={farmer_id}")
     query = select(Loan)
-    if farmer_id:
+    if current_user.role not in (UserRole.admin, UserRole.super_admin, UserRole.cooperative):
+        farmer = await farmer_repo.get_by_user_id(db, current_user.id)
+        if not farmer:
+            return {"success": True, "data": [], "message": "Found 0 loans"}
+        query = query.where(Loan.farmer_id == farmer.id)
+    elif farmer_id:
         query = query.where(Loan.farmer_id == uuid.UUID(farmer_id))
     query = query.order_by(Loan.created_at.desc()).limit(20)
     result = await db.execute(query)
@@ -290,7 +300,12 @@ async def list_insurance(
 ) -> dict:
     logger.info(f"GET /payments/insurance called | farmer_id={farmer_id}")
     query = select(CattleInsurance)
-    if farmer_id:
+    if current_user.role not in (UserRole.admin, UserRole.super_admin, UserRole.cooperative):
+        farmer = await farmer_repo.get_by_user_id(db, current_user.id)
+        if not farmer:
+            return {"success": True, "data": [], "message": "Found 0 policies"}
+        query = query.where(CattleInsurance.farmer_id == farmer.id)
+    elif farmer_id:
         query = query.where(CattleInsurance.farmer_id == uuid.UUID(farmer_id))
     query = query.order_by(CattleInsurance.created_at.desc()).limit(20)
     result = await db.execute(query)
@@ -378,7 +393,12 @@ async def list_subsidies(
 ) -> dict:
     logger.info(f"GET /payments/subsidies called | farmer_id={farmer_id}")
     query = select(SubsidyApplication)
-    if farmer_id:
+    if current_user.role not in (UserRole.admin, UserRole.super_admin, UserRole.cooperative):
+        farmer = await farmer_repo.get_by_user_id(db, current_user.id)
+        if not farmer:
+            return {"success": True, "data": [], "message": "Found 0 applications"}
+        query = query.where(SubsidyApplication.farmer_id == farmer.id)
+    elif farmer_id:
         query = query.where(SubsidyApplication.farmer_id == uuid.UUID(farmer_id))
     query = query.order_by(SubsidyApplication.created_at.desc()).limit(20)
     result = await db.execute(query)

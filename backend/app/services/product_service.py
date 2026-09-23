@@ -92,7 +92,7 @@ async def create(db:AsyncSession,vendor_id:uuid.UUID,data:ProductCreate,is_admin
         except ValueError:
             values["category"] = ProductCategory.equipment if "equipment" in cat_val.lower() else ProductCategory.feed_nutrition
     if not is_admin:
-        values["publication_status"] = "pending_approval"
+        values["publication_status"] = "pending_review"
     p=Product(vendor_id=vendor_id,slug=slugify(data.title),**values);db.add(p);await db.flush()
     db.add(ProductInventory(product_id=p.id, available_quantity=data.initial_stock));await db.flush()
     if data.category_id:
@@ -110,6 +110,8 @@ async def update(db:AsyncSession,p:Product,vendor_id:uuid.UUID,is_admin:bool,dat
         family = await product_repo.get_family(db, data.family_id)
         if not family or family.vendor_id != p.vendor_id: raise HTTPException(422,"Product family is unavailable for this vendor")
     update_data = data.model_dump(exclude_unset=True, exclude={"category_id"})
+    if not is_admin and "publication_status" in update_data:
+        del update_data["publication_status"]
     if "category" in update_data and isinstance(update_data["category"], str):
         try:
             update_data["category"] = ProductCategory(update_data["category"])

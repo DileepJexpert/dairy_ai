@@ -2,6 +2,7 @@ import uuid
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -316,10 +317,17 @@ async def accept_consultation(
 @router.put("/consultations/{consultation_id}/start")
 async def start_consultation(
     consultation_id: str,
-    current_user: User = Depends(require_role(UserRole.vet)),
+    current_user: User = Depends(require_role(UserRole.vet, UserRole.admin, UserRole.super_admin)),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     logger.info(f"PUT /consultations/{consultation_id}/start called | user_id={current_user.id}")
+    if current_user.role not in (UserRole.admin, UserRole.super_admin):
+        vet = await _get_vet_profile(db, current_user)
+        c_obj = await vet_repo.get_consultation_by_id(db, uuid.UUID(consultation_id))
+        if not c_obj:
+            raise HTTPException(status_code=404, detail="Consultation not found")
+        if c_obj.vet_id != vet.id:
+            raise HTTPException(status_code=403, detail="Not authorized to start this consultation")
     logger.debug(f"Calling consultation_service.start_consultation | consultation_id={consultation_id}")
     consultation = await consultation_service.start_consultation(
         db, uuid.UUID(consultation_id)
@@ -339,10 +347,17 @@ async def start_consultation(
 async def end_consultation(
     consultation_id: str,
     data: ConsultationUpdate,
-    current_user: User = Depends(require_role(UserRole.vet)),
+    current_user: User = Depends(require_role(UserRole.vet, UserRole.admin, UserRole.super_admin)),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     logger.info(f"PUT /consultations/{consultation_id}/end called | user_id={current_user.id}")
+    if current_user.role not in (UserRole.admin, UserRole.super_admin):
+        vet = await _get_vet_profile(db, current_user)
+        c_obj = await vet_repo.get_consultation_by_id(db, uuid.UUID(consultation_id))
+        if not c_obj:
+            raise HTTPException(status_code=404, detail="Consultation not found")
+        if c_obj.vet_id != vet.id:
+            raise HTTPException(status_code=403, detail="Not authorized to end this consultation")
     logger.debug(f"Calling consultation_service.end_consultation | consultation_id={consultation_id} | has_diagnosis={bool(data.vet_diagnosis)}")
     consultation = await consultation_service.end_consultation(
         db,
@@ -365,10 +380,17 @@ async def end_consultation(
 async def create_prescription(
     consultation_id: str,
     data: PrescriptionCreate,
-    current_user: User = Depends(require_role(UserRole.vet)),
+    current_user: User = Depends(require_role(UserRole.vet, UserRole.admin, UserRole.super_admin)),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     logger.info(f"POST /consultations/{consultation_id}/prescription called | user_id={current_user.id}")
+    if current_user.role not in (UserRole.admin, UserRole.super_admin):
+        vet = await _get_vet_profile(db, current_user)
+        c_obj = await vet_repo.get_consultation_by_id(db, uuid.UUID(consultation_id))
+        if not c_obj:
+            raise HTTPException(status_code=404, detail="Consultation not found")
+        if c_obj.vet_id != vet.id:
+            raise HTTPException(status_code=403, detail="Not authorized to create prescription for this consultation")
     logger.debug(f"Calling consultation_service.create_prescription | consultation_id={consultation_id} | medicines_count={len(data.medicines) if data.medicines else 0}")
     prescription = await consultation_service.create_prescription(
         db, uuid.UUID(consultation_id), data
@@ -439,3 +461,50 @@ async def vet_queue(
         "data": [_consultation_to_dict(c) for c in consultations],
         "message": "Vet consultation queue",
     }
+
+
+@router.get("/vets/me/dashboard")
+@router.get("/vet-profiles/me/dashboard")
+async def vet_dashboard(
+    current_user: User = Depends(require_role(UserRole.vet, UserRole.admin, UserRole.super_admin)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    vet = await vet_repo.get_vet_by_user_id(db, current_user.id)
+    if not vet:
+        raise HTTPException(status_code=404, detail="Vet profile not found")
+
+    queue = await consultation_service.get_vet_queue(db, vet.id)
+    pending_count = len(queue)
+
+    from app.models.vet import Consultation
+    active_res = await db.execute(
+        select(func.count(Consultation.id)).where(
+            Consultation.vet_id == vet.id,
+            Consultation.status == ConsultationStatus.in_progress,
+        )
+    )
+    active_count = active_res.scalar() or 0
+
+    from datetime import date
+    today = date.today()
+    completed_res = await db.execute(
+        select(Consultation).where(
+            Consultation.vet_id == vet.id,
+            Consultation.status == ConsultationStatus.completed,
+            func.date(Consultation.ended_at) == today,
+        )
+    )
+    today_completed = list(completed_res.scalars().all())
+    today_completed_count = len(today_completed)
+    today_earnings = sum((float(c.vet_payout or 0.0) for c in today_completed), 0.0)
+
+    data = {
+        "pending_requests": pending_count,
+        "active_consultations": active_count,
+        "today_completed": today_completed_count,
+        "today_earnings": round(today_earnings, 2),
+        "overall_rating": float(vet.rating_avg or 0.0),
+        "total_consultations": vet.total_consultations or 0,
+        "is_available": vet.is_available,
+    }
+    return {"success": True, "data": data, "message": "Vet dashboard"}

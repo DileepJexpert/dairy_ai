@@ -165,7 +165,7 @@ async def center_dashboard(
 @router.post("/milk", status_code=201)
 async def record_collection(
     data: MilkCollectionCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.super_admin, UserRole.cooperative)),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     logger.info(

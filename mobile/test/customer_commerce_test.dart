@@ -145,8 +145,9 @@ void main() {
     final dio = mock((r) {
       requests.add('${r.method} ${r.path}');
       if (r.path == '/marketplace/saved-items') return [];
-      if (r.path == '/marketplace/cart')
+      if (r.path == '/marketplace/cart') {
         return {'id': 'cart', 'item_count': 0, 'subtotal': '0', 'items': []};
+      }
       return {};
     });
     final container = ProviderContainer(overrides: [

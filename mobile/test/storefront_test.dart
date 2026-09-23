@@ -69,7 +69,7 @@ class _LayoutAnalytics extends AnalyticsService {
   @override
   Future<void> flush() async {}
   @override
-  Future<void> initSession({String landingPage = '/shop'}) async {}
+  Future<void> initSession({String landingPage = '/shop', bool force = false}) async {}
 }
 
 Finder storeSearchField() => find.byKey(const ValueKey('store-search-field'));

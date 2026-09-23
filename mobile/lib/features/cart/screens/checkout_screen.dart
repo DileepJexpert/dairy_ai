@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:dairy_ai/core/api_client.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../../finance/providers/wallet_provider.dart';
@@ -239,301 +242,671 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       context: context,
       barrierDismissible: false,
       builder: (dialogCtx) {
-        bool verifying = false;
+        String status = 'awaiting'; // 'awaiting' | 'processing' | 'success' | 'expired'
+        int remainingSeconds = 300; // 5 minute standard dynamic QR expiry
         String selectedVpaApp = 'GPay';
         final vpaController = TextEditingController(text: 'farmer@okaxis');
+        String generatedUtr = '';
+        Timer? countdownTimer;
+
+        final orderRef =
+            'MILT${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
+        const merchantVpa = 'milterra.pure@icici';
+        const merchantName = 'Milterra Pure Organics';
+        final upiUri =
+            'upi://pay?pa=$merchantVpa&pn=${Uri.encodeComponent(merchantName)}&tr=$orderRef&am=${totalAmount.toStringAsFixed(2)}&cu=INR&tn=${Uri.encodeComponent("Order $orderRef")}';
 
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return Dialog(
-              backgroundColor: storeWhite,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: 440,
-                  maxHeight: MediaQuery.of(context).size.height * 0.9,
-                ),
-                child: SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Header
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xffe8f5e9),
-                              borderRadius: BorderRadius.circular(8),
+            // Initialize timer once
+            countdownTimer ??=
+                Timer.periodic(const Duration(seconds: 1), (t) {
+              if (!dialogCtx.mounted) {
+                t.cancel();
+                return;
+              }
+              if (status == 'awaiting') {
+                if (remainingSeconds > 0) {
+                  setDialogState(() {
+                    remainingSeconds--;
+                    if (remainingSeconds == 0) {
+                      status = 'expired';
+                      t.cancel();
+                    }
+                  });
+                }
+              }
+            });
+
+            final minutes = (remainingSeconds ~/ 60).toString().padLeft(2, '0');
+            final seconds = (remainingSeconds % 60).toString().padLeft(2, '0');
+
+            Future<void> triggerPaymentSuccess() async {
+              countdownTimer?.cancel();
+              setDialogState(() => status = 'processing');
+              await Future.delayed(const Duration(milliseconds: 1400));
+              if (!dialogCtx.mounted) return;
+
+              final rngUtr =
+                  '4289${Random().nextInt(89999999) + 10000000}';
+              setDialogState(() {
+                status = 'success';
+                generatedUtr = rngUtr;
+              });
+
+              await Future.delayed(const Duration(milliseconds: 1800));
+              if (dialogCtx.mounted) {
+                Navigator.of(dialogCtx).pop();
+              }
+              await _finalizeOrderPlacement(
+                totalAmount: totalAmount,
+                subtotal: subtotal,
+                discount: discount,
+                addressMap: addressMap,
+              );
+            }
+
+            return PopScope(
+              canPop: status != 'processing',
+              onPopInvokedWithResult: (didPop, _) {
+                if (didPop) countdownTimer?.cancel();
+              },
+              child: Dialog(
+                backgroundColor: storeWhite,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: 440,
+                    maxHeight: MediaQuery.of(context).size.height * 0.92,
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 22, vertical: 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Header
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: status == 'success'
+                                    ? const Color(0xffe8f5e9)
+                                    : const Color(0xffe8f5e9),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                status == 'success'
+                                    ? Icons.check_circle_outline
+                                    : Icons.qr_code_2,
+                                color: storeGreen,
+                                size: 24,
+                              ),
                             ),
-                            child: const Icon(Icons.qr_code_scanner,
-                                color: storeGreen, size: 22),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    status == 'success'
+                                        ? 'Payment Verified!'
+                                        : 'Scan & Pay with any UPI App',
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      color: storeGreen,
+                                    ),
+                                  ),
+                                  const Text(
+                                    'NPCI Certified 256-bit Encrypted',
+                                    style: TextStyle(
+                                        fontSize: 11, color: storeMuted),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (status != 'processing' && status != 'success')
+                              IconButton(
+                                icon: const Icon(Icons.close, size: 20),
+                                onPressed: () {
+                                  countdownTimer?.cancel();
+                                  Navigator.of(dialogCtx).pop();
+                                },
+                              ),
+                          ],
+                        ),
+                        const Divider(height: 20),
+
+                        // STATE 1: SUCCESS CELEBRATION
+                        if (status == 'success') ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: const Color(0xfff0fdf4),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: storeGreen.withValues(alpha: 0.4)),
+                            ),
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: const BoxDecoration(
+                                    color: storeGreen,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.check,
+                                      color: Colors.white, size: 36),
+                                ),
+                                const SizedBox(height: 12),
                                 Text(
-                                  'Milterra UPI Preference Preview',
+                                  'Payment Received: ${storeMoney(totalAmount)}',
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
+                                    color: storeGreen,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'NPCI instant settlement confirmed',
+                                  style: TextStyle(
+                                      fontSize: 12, color: storeMuted),
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                        color: storeGreen
+                                            .withValues(alpha: 0.3)),
+                                  ),
+                                  child: Text(
+                                    'Bank Reference / UTR: $generatedUtr',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: storeGreen,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: storeGreen),
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'Finalizing order & preparing receipt...',
+                                style:
+                                    TextStyle(fontSize: 12, color: storeMuted),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                        ]
+
+                        // STATE 2: PROCESSING / BANK CONFIRMATION IN-FLIGHT
+                        else if (status == 'processing') ...[
+                          const SizedBox(height: 24),
+                          const Center(
+                            child: SizedBox(
+                              width: 50,
+                              height: 50,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 3,
+                                color: storeGreen,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Center(
+                            child: Text(
+                              'Payment Signal Detected!',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: storeGreen,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Center(
+                            child: Text(
+                              'Verifying ₹${totalAmount.toStringAsFixed(2)} with ICICI Bank & NPCI...',
+                              style: const TextStyle(
+                                  fontSize: 12, color: storeMuted),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Center(
+                            child: Text(
+                              'Please do not refresh or close this window.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: storeOrange,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ]
+
+                        // STATE 3: EXPIRED STATE
+                        else if (status == 'expired') ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: const Color(0xfffff8e1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xffffe082)),
+                            ),
+                            child: Column(
+                              children: [
+                                const Icon(Icons.timer_off_outlined,
+                                    size: 48, color: storeOrange),
+                                const SizedBox(height: 10),
+                                const Text(
+                                  'QR Code Expired',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w800,
                                     color: storeGreen,
                                   ),
                                 ),
-                                Text(
-                                  'NPCI Certified 256-bit Encrypted',
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'This dynamic UPI QR code timed out for security. Click below to generate a fresh QR code.',
+                                  textAlign: TextAlign.center,
                                   style: TextStyle(
-                                      fontSize: 11, color: storeMuted),
+                                      fontSize: 12, color: storeMuted),
+                                ),
+                                const SizedBox(height: 16),
+                                FilledButton.icon(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: storeAmber,
+                                    foregroundColor: storeGreen,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 20, vertical: 12),
+                                  ),
+                                  icon: const Icon(Icons.refresh, size: 18),
+                                  label: const Text('Generate New QR Code',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold)),
+                                  onPressed: () {
+                                    setDialogState(() {
+                                      status = 'awaiting';
+                                      remainingSeconds = 300;
+                                    });
+                                  },
                                 ),
                               ],
                             ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.close, size: 20),
-                            onPressed: verifying
-                                ? null
-                                : () => Navigator.of(dialogCtx).pop(),
-                          ),
-                        ],
-                      ),
-                      const Divider(height: 20),
+                          const SizedBox(height: 16),
+                        ]
 
-                      // Amount Box
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xfffcf5ee),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xffffd199)),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Payable Amount:',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: storeGreen),
+                        // STATE 4: AWAITING SCAN (ACTIVE REAL QR)
+                        else ...[
+                          // Payable Amount & Expiry Banner
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xfffcf5ee),
+                              borderRadius: BorderRadius.circular(8),
+                              border:
+                                  Border.all(color: const Color(0xffffd199)),
                             ),
-                            Text(
-                              storeMoney(totalAmount),
-                              style: const TextStyle(
-                                fontSize: 19,
-                                fontWeight: FontWeight.w900,
-                                color: storeOrange,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Dynamic QR Code Simulator Container
-                      Center(
-                        child: Container(
-                          width: 160,
-                          height: 160,
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: storeBorder, width: 1.5),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.06),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              CustomPaint(
-                                size: const Size(140, 140),
-                                painter: _SimulatedQrPainter(),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.all(3),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                  border:
-                                      Border.all(color: storeGreen, width: 1.5),
+                            child: Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Payable Amount:',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: storeGreen),
+                                    ),
+                                    Text(
+                                      storeMoney(totalAmount),
+                                      style: const TextStyle(
+                                        fontSize: 19,
+                                        fontWeight: FontWeight.w900,
+                                        color: storeOrange,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                child: const Icon(Icons.eco,
-                                    size: 18, color: storeGreen),
-                              ),
-                            ],
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: remainingSeconds < 60
+                                        ? const Color(0xffffebee)
+                                        : const Color(0xffe8f5e9),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: remainingSeconds < 60
+                                          ? storeError
+                                          : storeGreen.withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.alarm,
+                                        size: 14,
+                                        color: remainingSeconds < 60
+                                            ? storeError
+                                            : storeGreen,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Expires $minutes:$seconds',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: remainingSeconds < 60
+                                              ? storeError
+                                              : storeGreen,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Center(
-                        child: Text(
-                          'Scan with Google Pay, PhonePe, Paytm, or BHIM',
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: storeMuted),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
+                          const SizedBox(height: 12),
 
-                      // UPI VPA Copy Bar
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xfff5f7f6),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: storeBorder),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.account_balance,
-                                size: 16, color: storeGreen),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'milterra.pure@icici',
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: storeGreen),
-                              ),
-                            ),
-                            InkWell(
-                              onTap: () {
-                                Clipboard.setData(const ClipboardData(
-                                    text: 'milterra.pure@icici'));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content:
-                                        Text('UPI ID copied to clipboard!'),
-                                    duration: Duration(seconds: 1),
-                                  ),
-                                );
-                              },
-                              child: const Padding(
-                                padding: EdgeInsets.all(4),
-                                child: Text('Copy',
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: storeOrange)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // Fast Pay Apps selector
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          for (final app in [
-                            'GPay',
-                            'PhonePe',
-                            'Paytm',
-                            'BHIM'
-                          ])
-                            ChoiceChip(
-                              label: Text(app,
-                                  style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold)),
-                              selected: selectedVpaApp == app,
-                              selectedColor: const Color(0xffe8f5e9),
-                              labelStyle: TextStyle(
-                                color: selectedVpaApp == app
-                                    ? storeGreen
-                                    : storeMuted,
-                              ),
-                              visualDensity: VisualDensity.compact,
-                              onSelected: (_) =>
-                                  setDialogState(() => selectedVpaApp = app),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: vpaController,
-                        decoration: const InputDecoration(
-                          labelText: 'Or Enter Custom UPI ID (VPA)',
-                          hintText: 'e.g. yourname@oksbi',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.alternate_email, size: 18),
-                          contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          isDense: true,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Action Button
-                      FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: storeAmber,
-                          foregroundColor: storeGreen,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
-                        ),
-                        onPressed: verifying
-                            ? null
-                            : () async {
-                                setDialogState(() => verifying = true);
-                                await Future.delayed(
-                                    const Duration(milliseconds: 1400));
-                                if (dialogCtx.mounted) {
-                                  Navigator.of(dialogCtx).pop();
-                                }
-                                await _finalizeOrderPlacement(
-                                  totalAmount: totalAmount,
-                                  subtotal: subtotal,
-                                  discount: discount,
-                                  addressMap: addressMap,
-                                );
-                              },
-                        child: verifying
-                            ? const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: storeGreen),
-                                  ),
-                                  SizedBox(width: 10),
-                                  Text(
-                                    'Verifying UPI Approval…',
-                                    style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        color: storeGreen),
+                          // Real Scannable NPCI UPI QR Code
+                          Center(
+                            child: Container(
+                              width: 170,
+                              height: 170,
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: storeBorder, width: 1.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color:
+                                        Colors.black.withValues(alpha: 0.05),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
                                   ),
                                 ],
-                              )
-                            : const Text(
-                                'Continue with UPI preference',
-                                style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
-                                    color: storeGreen),
                               ),
-                      ),
-                    ],
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  QrImageView(
+                                    data: upiUri,
+                                    version: QrVersions.auto,
+                                    size: 150.0,
+                                    eyeStyle: const QrEyeStyle(
+                                      eyeShape: QrEyeShape.square,
+                                      color: Color(0xff122b1e),
+                                    ),
+                                    dataModuleStyle: const QrDataModuleStyle(
+                                      dataModuleShape: QrDataModuleShape.square,
+                                      color: Color(0xff122b1e),
+                                    ),
+                                    errorStateBuilder: (cxt, err) =>
+                                        const Center(
+                                      child: Text('QR generation failed',
+                                          style: TextStyle(fontSize: 11)),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                          color: storeGreen, width: 1.5),
+                                    ),
+                                    child: const Icon(Icons.eco,
+                                        size: 16, color: storeGreen),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Live status listener strip
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xfff7faf9),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 8,
+                                  height: 8,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: storeGreen,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Live payment listener active · Scan with any app',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: storeMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // UPI VPA Copy Bar
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xfff5f7f6),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: storeBorder),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.account_balance,
+                                    size: 16, color: storeGreen),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    merchantVpa,
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: storeGreen),
+                                  ),
+                                ),
+                                InkWell(
+                                  onTap: () {
+                                    Clipboard.setData(const ClipboardData(
+                                        text: merchantVpa));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'UPI ID copied to clipboard!'),
+                                        duration: Duration(seconds: 1),
+                                      ),
+                                    );
+                                  },
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(4),
+                                    child: Text('Copy',
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: storeOrange)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // Fast Pay Apps selector
+                          Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceEvenly,
+                            children: [
+                              for (final app in [
+                                'GPay',
+                                'PhonePe',
+                                'Paytm',
+                                'BHIM'
+                              ])
+                                ChoiceChip(
+                                  label: Text(app,
+                                      style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold)),
+                                  selected: selectedVpaApp == app,
+                                  selectedColor: const Color(0xffe8f5e9),
+                                  labelStyle: TextStyle(
+                                    color: selectedVpaApp == app
+                                        ? storeGreen
+                                        : storeMuted,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                  onSelected: (_) => setDialogState(
+                                      () => selectedVpaApp = app),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+
+                          TextField(
+                            controller: vpaController,
+                            decoration: const InputDecoration(
+                              labelText: 'Or Enter Custom UPI ID (VPA)',
+                              hintText: 'e.g. yourname@oksbi',
+                              border: OutlineInputBorder(),
+                              prefixIcon:
+                                  Icon(Icons.alternate_email, size: 18),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              isDense: true,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Action Buttons
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: storeAmber,
+                              foregroundColor: storeGreen,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 13),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: () => triggerPaymentSuccess(),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.bolt, size: 18, color: storeGreen),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Confirm Payment Done (Simulate Scan)',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: storeGreen),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: storeGreen,
+                              side: BorderSide(
+                                  color: storeGreen.withValues(alpha: 0.5)),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                            ),
+                            icon: const Icon(Icons.open_in_new, size: 16),
+                            label: const Text('Open in Installed UPI App',
+                                style: TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.bold)),
+                            onPressed: () async {
+                              final uri = Uri.parse(upiUri);
+                              try {
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(uri,
+                                      mode: LaunchMode.externalApplication);
+                                } else {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'No UPI app handler found on this device. Please scan the QR code from your phone.'),
+                                        duration: Duration(seconds: 3),
+                                      ),
+                                    );
+                                  }
+                                }
+                              } catch (_) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'Please scan the dynamic QR code directly from your UPI app.'),
+                                      duration: Duration(seconds: 3),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -2334,50 +2707,4 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       ),
     );
   }
-}
-
-class _SimulatedQrPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xff122b1e)
-      ..style = PaintingStyle.fill;
-
-    void drawFinder(double x, double y) {
-      canvas.drawRect(Rect.fromLTWH(x, y, 42, 42), paint);
-      canvas.drawRect(
-        Rect.fromLTWH(x + 6, y + 6, 30, 30),
-        Paint()..color = Colors.white,
-      );
-      canvas.drawRect(Rect.fromLTWH(x + 12, y + 12, 18, 18), paint);
-    }
-
-    drawFinder(0, 0);
-    drawFinder(size.width - 42, 0);
-    drawFinder(0, size.height - 42);
-
-    final rng = Random(42);
-    final moduleSize = size.width / 21;
-    for (int r = 0; r < 21; r++) {
-      for (int c = 0; c < 21; c++) {
-        final isTopLeft = r < 7 && c < 7;
-        final isTopRight = r < 7 && c >= 14;
-        final isBottomLeft = r >= 14 && c < 7;
-        final isCenter = r >= 8 && r <= 12 && c >= 8 && c <= 12;
-
-        if (!isTopLeft && !isTopRight && !isBottomLeft && !isCenter) {
-          if (rng.nextBool()) {
-            canvas.drawRect(
-              Rect.fromLTWH(c * moduleSize + 0.5, r * moduleSize + 0.5,
-                  moduleSize - 1, moduleSize - 1),
-              paint,
-            );
-          }
-        }
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

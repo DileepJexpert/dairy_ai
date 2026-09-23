@@ -182,6 +182,57 @@ class OperationsOrdersScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> resolveShipment(BuildContext context, WidgetRef ref,
+      Map<String, dynamic> order) async {
+    final awb = TextEditingController();
+    final note = TextEditingController();
+    Future<void> submit(String action, BuildContext dialogContext) async {
+      if (note.text.trim().length < 8 || (action == 'attach_awb' && awb.text.trim().isEmpty)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enter the portal evidence and AWB when applicable.')));
+        return;
+      }
+      try {
+        await ref.read(dioProvider).post(
+          '/marketplace/orders/${order['id']}/shipping/resolve',
+          data: {'action': action, 'awb': awb.text.trim(), 'note': note.text.trim()},
+        );
+        ref.invalidate(operationsOrdersProvider);
+        if (dialogContext.mounted) Navigator.pop(dialogContext);
+      } catch (error) {
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(commerceError(error))));
+      }
+    }
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Resolve courier booking'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Check the courier portal first. Record its AWB if the order exists. Confirm no booking only after verifying the portal; then dispatch manually.'),
+                TextField(controller: awb, decoration: const InputDecoration(labelText: 'AWB found in portal (if any)')),
+                TextField(controller: note, maxLength: 500,
+                    decoration: const InputDecoration(labelText: 'Portal check / evidence note')),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            TextButton(onPressed: () => submit('no_booking', dialogContext), child: const Text('No booking found')),
+            FilledButton(onPressed: () => submit('attach_awb', dialogContext), child: const Text('Attach AWB')),
+          ],
+        ),
+      );
+    } finally {
+      awb.dispose();
+      note.dispose();
+    }
+  }
+
   void _showPackingSlipDialog(BuildContext context, Map<String, dynamic> order) {
     final orderId = order['id']?.toString() ?? '';
     final shortId = orderId.length >= 8 ? orderId.substring(0, 8).toUpperCase() : orderId;
@@ -937,6 +988,12 @@ TOTAL: ${storeMoney(total)}
                                                   if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(commerceError(error))));
                                                 }
                                               },
+                                            ),
+                                          if (shipmentStatus == 'NEEDS_ATTENTION' && shipment['courier_code'] != null)
+                                            OutlinedButton.icon(
+                                              icon: const Icon(Icons.fact_check_outlined, size: 16),
+                                              label: const Text('Resolve', style: TextStyle(fontSize: 12)),
+                                              onPressed: () => resolveShipment(context, ref, order),
                                             ),
                                           if (canFulfill)
                                             FilledButton.icon(

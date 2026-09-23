@@ -3,6 +3,7 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime, timedelta
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, Field
@@ -20,6 +21,7 @@ from app.models.product import Product
 from app.models.shipping import Shipment, ShipmentEvent
 from app.models.user import User, UserRole
 from app.repositories import vendor_repo
+from app.services.commerce_admin_service import audit
 
 router = APIRouter(tags=["shipping"])
 logger = logging.getLogger(__name__)
@@ -95,7 +97,7 @@ async def record_manual_dispatch(db: AsyncSession, order: Order, carrier: str, a
     if shipment and shipment.status in {"booked", "in_transit", "out_for_delivery"} and shipment.courier_name == carrier and shipment.awb == awb:
         return shipment
     manual_safe = shipment and shipment.status == "needs_attention" and shipment.courier_code is None
-    if shipment and shipment.status not in {"ready", "needs_package", "manual_shipped"} and not manual_safe:
+    if shipment and shipment.status not in {"ready", "needs_package", "manual_pending", "manual_shipped"} and not manual_safe:
         raise HTTPException(409, "An automatic booking exists or needs courier reconciliation")
     if shipment and shipment.status == "manual_shipped" and (shipment.courier_name != carrier or shipment.awb != awb):
         raise HTTPException(409, "This order already has a different shipment")
@@ -179,6 +181,36 @@ async def reconcile(order_id: uuid.UUID, user: User = Depends(seller_only), db: 
     else:
         shipment.status = "needs_attention"
         shipment.last_error = "No matching AWB found. Verify the courier portal before another booking."
+    return {"success": True, "data": shipment_data(shipment)}
+
+
+class ResolutionInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action: Literal["attach_awb", "no_booking"]
+    awb: str = Field(default="", max_length=100)
+    note: str = Field(min_length=8, max_length=500)
+
+
+@router.post("/marketplace/orders/{order_id}/shipping/resolve")
+async def resolve_uncertain_booking(order_id: uuid.UUID, data: ResolutionInput,
+    user: User = Depends(seller_only), db: AsyncSession = Depends(get_db)):
+    """Seller records evidence from the courier portal before manual recovery."""
+    await require_seller_access(db, user, order_id)
+    shipment = (await db.execute(select(Shipment).where(Shipment.order_id == order_id).with_for_update())).scalar_one_or_none()
+    if not shipment or shipment.status not in {"booking", "needs_attention"} or not shipment.courier_code or shipment.awb:
+        raise HTTPException(409, "There is no unresolved courier booking")
+    if data.action == "attach_awb":
+        awb = data.awb.strip()
+        if not awb:
+            raise HTTPException(422, "Enter the AWB shown in the courier portal")
+        await confirm_booking(db, shipment, awb, shipment.courier_code, shipment.courier_name or shipment.courier_code)
+    else:
+        shipment.status, shipment.mode = "manual_pending", "manual"
+        shipment.courier_code = shipment.courier_name = None
+        shipment.quoted_cost = shipment.claimed_at = None
+        shipment.last_error = None
+    audit(db, user, "shipment.booking_resolved", "order", order_id, data.model_dump_json())
+    db.add(OrderEvent(order_id=order_id, title="Courier booking reviewed", status="REVIEWED", remarks="Shipment details updated by the seller"))
     return {"success": True, "data": shipment_data(shipment)}
 
 

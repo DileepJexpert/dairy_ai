@@ -150,6 +150,15 @@ async def test_automatic_booking_claim_is_idempotent_and_uncertain_results_stop(
     booked = (await db_session.execute(select(Shipment).where(Shipment.order_id == order_id))).scalar_one()
     assert booked.status == ("needs_attention" if uncertain else "booked")
     assert booked.awb == (None if uncertain else "REAL-DELHIVERY-AWB")
+    if uncertain:
+        assert (await client.put(url, headers=admin_headers,
+                json={"status": "DISPATCHED", "carrier": "Blue Dart", "tracking_number": "OTHER-AWB"})).status_code == 409
+        resolved = await client.post(f"/api/v1/marketplace/orders/{order_id}/shipping/resolve", headers=admin_headers,
+                                     json={"action": "no_booking", "note": "Checked Delhivery portal; no booking exists"})
+        assert resolved.status_code == 200 and resolved.json()["data"]["status"] == "MANUAL_PENDING"
+        manual = await client.put(url, headers=admin_headers,
+                                  json={"status": "DISPATCHED", "carrier": "Blue Dart", "tracking_number": "OTHER-AWB"})
+        assert manual.status_code == 200 and courier.calls == 1
     if not uncertain:
         monkeypatch.setattr(shipping, "DelhiveryShipping", lambda: courier)
         label = await client.get(f"/api/v1/marketplace/orders/{order_id}/shipping/label", headers=admin_headers)

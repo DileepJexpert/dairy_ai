@@ -1,0 +1,13 @@
+name = "milterra-api-compat"
+main = "src/main.py"
+compatibility_date = "2026-09-25"
+compatibility_flags = ["python_workers"]
+workers_dev = false
+
+# This UUID is deliberately non-deployable. Replace with a staging D1 database
+# ID before any remote deployment; local D1 uses it only to identify its store.
+[[d1_databases]]
+binding = "DB"
+database_name = "milterra-compat-local"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"

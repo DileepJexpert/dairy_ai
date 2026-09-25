@@ -42,6 +42,13 @@ backend/storage/
 
 # Node (if applicable)
 node_modules/
+cloudflare/worker/.uv-cache/
+cloudflare/worker/.wrangler/
+cloudflare/worker/.dev.vars*
+cloudflare/worker/.venv-workers/
+cloudflare/worker/python_modules/
+cloudflare/worker/pytest-cache-files-*/
+backend/.pytest-tmp-catalogue/
 
 # Flutter generated files
 mobile/.dart_tool/

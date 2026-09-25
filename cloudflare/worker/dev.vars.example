@@ -1,0 +1,6 @@
+# Local compatibility probe only. Never use real payment credentials here.
+COMPAT_JWT_SECRET="local-compat-jwt-secret-long-enough"
+COMPAT_WEBHOOK_SECRET="local-compat-webhook-secret"
+COMPAT_PROVIDER_URL="http://127.0.0.1:8899/v1"
+COMPAT_PROVIDER_KEY_ID="rzp_test_compat"
+COMPAT_PROVIDER_KEY_SECRET="compat-test-secret"

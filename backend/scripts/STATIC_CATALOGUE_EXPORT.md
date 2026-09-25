@@ -1,6 +1,6 @@
 # Static storefront catalogue export
 
-`export_static_catalogue.py` reads the existing PostgreSQL `Product`, `ProductFamily`, `ProductMedia`, active `Vendor`, approved review, and active taxonomy records. It emits one compact JSON file with stable ordering and a `content_sha256` that changes only when exported content changes. The script uses a read-only, repeatable-read transaction on PostgreSQL and replaces the output file atomically.
+`export_static_catalogue.py` reads the existing PostgreSQL `Product`, `ProductFamily`, `ProductMedia`, active `Vendor`, and active taxonomy records. It emits one compact JSON file with stable ordering and a `content_sha256` that changes only when exported content changes. The script uses a read-only, repeatable-read transaction on PostgreSQL and replaces the output file atomically.
 
 From `backend`, after applying migrations and reviewing the public product content:
 
@@ -19,3 +19,11 @@ The snapshot includes only active, published products from active sellers and pu
 Uploaded media currently uses `/api/v1/marketplace/media/<uuid>`. The export fails if it encounters such a reference without `--public-media-base-url`. When supplied, it writes `<base-url>/<uuid>.jpg`; the matching JPEG bytes must first be copied to that public R2/CDN path. Bundled `assets/...` paths and stable HTTPS media URLs remain as stored. HTTP URLs, signed/query URLs, and traversal paths are rejected so a published snapshot does not depend on expiring or private image links. The export does not perform the R2 upload; that publishing step remains to be implemented.
 
 The JSON is built from the current database. Without access to that database and its media files, the script can be tested against synthetic fixture records, but a real catalogue snapshot and image completeness cannot be verified. Before release, check the item count, sample product IDs and prices, image fetches from the public media domain, and a live checkout quote against the same products.
+
+For a Pages deployment that ships the uploaded images with Flutter, run:
+
+```powershell
+python -m scripts.publish_static_catalogue --output-dir ../mobile/web/catalogue
+```
+
+This writes `/catalogue/media/<uuid>.jpg`, a versioned `/catalogue/products-<sha>.json`, and `/catalogue/current.json` last. The pointer contains `schema_version`, `snapshot`, and `content_sha256`. Existing snapshots/images remain for older clients. Missing, oversized, invalid or metadata-bearing local JPEGs abort before the pointer changes. Deploy the resulting `mobile/build/web` only after reviewing the new snapshot and checking every image URL. The script does not mark admin publication status or deploy Pages; those are separate unfinished steps. The same-origin `/catalogue/media` prefix avoids an R2 bill for this small initial catalogue; R2 remains appropriate when admin uploads must be published without a full frontend release.

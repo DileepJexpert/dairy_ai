@@ -50,10 +50,14 @@ def _media_base_url(value: str | None) -> str | None:
     if value is None:
         return None
     parsed = urlsplit(value)
+    if (parsed.scheme == "" and parsed.netloc == "" and value.startswith("/catalogue/media") and
+            parsed.path == value and parsed.path.rstrip("/") == "/catalogue/media" and
+            not parsed.query and not parsed.fragment):
+        return "/catalogue/media"
     if (parsed.scheme != "https" or not parsed.netloc or parsed.username or
             parsed.password or parsed.query or parsed.fragment or
             ".." in parsed.path.split("/")):
-        raise ValueError("Public media base URL must be an HTTPS URL without credentials, query, or fragment")
+        raise ValueError("Public media base URL must be /catalogue/media or an HTTPS URL without credentials, query, or fragment")
     return value.rstrip("/")
 
 

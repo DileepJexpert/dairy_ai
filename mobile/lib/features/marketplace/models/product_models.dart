@@ -253,6 +253,8 @@ class Product {
       this.specifications = const {},
       this.isActive = true,
       this.inStock = false,
+      this.stockKnown = true,
+      this.isStaticSnapshot = false,
       this.availableQuantity = 0,
       this.minOrderQuantity = 1,
       this.media = const [],
@@ -273,6 +275,9 @@ class Product {
   final bool taxonomyEnabled;
   final Map<String, dynamic> specifications;
   final bool inStock, isRentable, isActive;
+
+  /// False for published catalogue snapshots, which intentionally omit stock.
+  final bool stockKnown, isStaticSnapshot;
   final int availableQuantity, minOrderQuantity;
   final List<String> media;
   final Map<String, dynamic>? vendor;
@@ -321,6 +326,7 @@ class Product {
     }
     return null;
   }
+
   double get rating =>
       double.tryParse(specifications['rating']?.toString() ?? '') ?? 0.0;
   int get reviewCount =>
@@ -361,6 +367,8 @@ class Product {
     Map<String, dynamic>? specifications,
     bool? isActive,
     bool? inStock,
+    bool? stockKnown,
+    bool? isStaticSnapshot,
     int? availableQuantity,
     int? minOrderQuantity,
     List<String>? media,
@@ -389,6 +397,8 @@ class Product {
         specifications: specifications ?? this.specifications,
         isActive: isActive ?? this.isActive,
         inStock: inStock ?? this.inStock,
+        stockKnown: stockKnown ?? this.stockKnown,
+        isStaticSnapshot: isStaticSnapshot ?? this.isStaticSnapshot,
         availableQuantity: availableQuantity ?? this.availableQuantity,
         minOrderQuantity: minOrderQuantity ?? this.minOrderQuantity,
         media: media ?? this.media,
@@ -403,49 +413,53 @@ class Product {
         weightGrams: weightGrams ?? this.weightGrams,
       );
 
-  factory Product.fromJson(Map<String, dynamic> j) => Product(
-      id: j['id'].toString(),
-      vendorId: j['vendor_id'].toString(),
-      title: j['title'] ?? '',
-      category: j['category'] == 'EQUIPMENT'
-          ? ProductCategory.equipment
-          : ProductCategory.feedNutrition,
-      price: double.parse(j['base_price'].toString()),
-      unit: j['unit'] ?? '',
-      brand: j['brand'],
-      packSize: j['pack_size'],
-      description: j['description'],
-      taxonomyEnabled: j.containsKey('taxonomy'),
-      taxonomy: j['taxonomy'] == null
-          ? null
-          : Map<String, dynamic>.from(j['taxonomy']),
-      specifications: Map<String, dynamic>.from(j['specifications'] ?? {}),
-      isActive: j['is_active'] ?? true,
-      inStock: j['in_stock'] ?? false,
-      availableQuantity: j['available_quantity'] ?? 0,
-      minOrderQuantity: j['min_order_quantity'] ?? 1,
-      media: (j['media'] as List? ?? [])
-          .map((x) => resolveMediaUrl(x['url'].toString()))
-          .toList(),
-      vendor:
-          j['vendor'] is Map ? Map<String, dynamic>.from(j['vendor']) : null,
-      isRentable: j['is_rentable'] ?? false,
-      rentalRatePerHour: j['rental_rate_per_hour'] == null
-          ? null
-          : double.parse(j['rental_rate_per_hour'].toString()),
-      rentalRatePerAcre: j['rental_rate_per_acre'],
-      variants: (j['variants'] as List? ?? [])
-          .map((v) =>
-              ProductVariant.fromJson(Map<String, dynamic>.from(v as Map)))
-          .toList(),
-      familyId: j['family_id']?.toString(),
-      publicationStatus: j['publication_status']?.toString(),
-      compareAtPrice: j['compare_at_price'] != null
-          ? double.tryParse(j['compare_at_price'].toString())
-          : null,
-      weightGrams: j['weight_grams'] != null
-          ? int.tryParse(j['weight_grams'].toString())
-          : null);
+  factory Product.fromJson(Map<String, dynamic> j, {bool snapshot = false}) =>
+      Product(
+          id: j['id'].toString(),
+          vendorId: j['vendor_id'].toString(),
+          title: j['title'] ?? '',
+          category: j['category'] == 'EQUIPMENT'
+              ? ProductCategory.equipment
+              : ProductCategory.feedNutrition,
+          price: double.parse(j['base_price'].toString()),
+          unit: j['unit'] ?? '',
+          brand: j['brand'],
+          packSize: j['pack_size'],
+          description: j['description'],
+          taxonomyEnabled: j.containsKey('taxonomy'),
+          taxonomy: j['taxonomy'] == null
+              ? null
+              : Map<String, dynamic>.from(j['taxonomy']),
+          specifications: Map<String, dynamic>.from(j['specifications'] ?? {}),
+          isActive: j['is_active'] ?? true,
+          inStock: j['in_stock'] ?? false,
+          stockKnown: !snapshot && j.containsKey('in_stock'),
+          isStaticSnapshot: snapshot,
+          availableQuantity: j['available_quantity'] ?? 0,
+          minOrderQuantity: j['min_order_quantity'] ?? 1,
+          media: (j['media'] as List? ?? [])
+              .map((x) => resolveMediaUrl(x['url'].toString()))
+              .toList(),
+          vendor: j['vendor'] is Map
+              ? Map<String, dynamic>.from(j['vendor'])
+              : null,
+          isRentable: j['is_rentable'] ?? false,
+          rentalRatePerHour: j['rental_rate_per_hour'] == null
+              ? null
+              : double.parse(j['rental_rate_per_hour'].toString()),
+          rentalRatePerAcre: j['rental_rate_per_acre'],
+          variants: (j['variants'] as List? ?? [])
+              .map((v) =>
+                  ProductVariant.fromJson(Map<String, dynamic>.from(v as Map)))
+              .toList(),
+          familyId: j['family_id']?.toString(),
+          publicationStatus: j['publication_status']?.toString(),
+          compareAtPrice: j['compare_at_price'] != null
+              ? double.tryParse(j['compare_at_price'].toString())
+              : null,
+          weightGrams: j['weight_grams'] != null
+              ? int.tryParse(j['weight_grams'].toString())
+              : null);
 }
 
 /// Rich default multi-department catalogue serving Retail Consumers & Dairy Farmers
@@ -893,7 +907,8 @@ const defaultMilterraProducts = <Product>[
     minOrderQuantity: 1,
     specifications: {
       'Base': 'Cultured Bilona Chhachh',
-      'Ingredients': 'Curd Churn Water, Roasted Jeera, Himalayan Rock Salt, Mint',
+      'Ingredients':
+          'Curd Churn Water, Roasted Jeera, Himalayan Rock Salt, Mint',
       'Benefits': 'Natural Probiotic, Aids Digestion & Cooling',
       'Storage': 'Keep Chilled (0-4°C)'
     },
@@ -1279,8 +1294,10 @@ const defaultMilterraProducts = <Product>[
     minOrderQuantity: 1,
     specifications: {
       'Source': '100% Pure Desi Cow Milk Fat',
-      'Intended Rituals': 'Yajna, Havan, Homam, Agnihotra, Akhand Jyot, and Aarti',
-      'Characteristics': 'Clean golden flame, minimal soot, natural auspicious satvik aroma',
+      'Intended Rituals':
+          'Yajna, Havan, Homam, Agnihotra, Akhand Jyot, and Aarti',
+      'Characteristics':
+          'Clean golden flame, minimal soot, natural auspicious satvik aroma',
       'Storage': 'Store sealed in a cool, dry place away from direct sunlight',
       'Shelf Life': '12 months from packing date',
       'Country of Origin': 'India',
@@ -1314,8 +1331,10 @@ const defaultMilterraProducts = <Product>[
     minOrderQuantity: 1,
     specifications: {
       'Raw Material': '100% Indigenous Desi Cow Dung & Organic Neem Leaves',
-      'Processing': 'Naturally sun-dried and sanitized, zero chemical additives or coal',
-      'Intended Rituals': 'Vedic Yajna, Homa, Agnihotra, Dhoop base, Environment purification',
+      'Processing':
+          'Naturally sun-dried and sanitized, zero chemical additives or coal',
+      'Intended Rituals':
+          'Vedic Yajna, Homa, Agnihotra, Dhoop base, Environment purification',
       'Packaging': '12 pieces cushioned box packing to prevent breakage',
       'Country of Origin': 'India',
     },
@@ -1347,7 +1366,8 @@ const defaultMilterraProducts = <Product>[
     availableQuantity: 75,
     minOrderQuantity: 1,
     specifications: {
-      'Composition': 'Gir Cow Dung, Pure Guggul, Natural Loban, Bhimseni Camphor, Ayurvedic Herbs',
+      'Composition':
+          'Gir Cow Dung, Pure Guggul, Natural Loban, Bhimseni Camphor, Ayurvedic Herbs',
       'Features': '100% Charcoal-Free, Bamboo-Less, Chemical-Free, Low Smoke',
       'Burning Time': 'Approx 45 minutes per stick',
       'Package Contents': '30 Dhoop Sticks with 1 handmade ceramic holder',
@@ -1381,10 +1401,13 @@ const defaultMilterraProducts = <Product>[
     availableQuantity: 60,
     minOrderQuantity: 1,
     specifications: {
-      'Purity': '100% Pure Bhimseni Camphor (Cinnamomum camphora extract flakes)',
-      'Residue Standard': 'Leaves zero soot, ash, or toxic chemical residue upon combustion',
+      'Purity':
+          '100% Pure Bhimseni Camphor (Cinnamomum camphora extract flakes)',
+      'Residue Standard':
+          'Leaves zero soot, ash, or toxic chemical residue upon combustion',
       'Usage': 'Daily Aarti, Hawan Ahuti, Diffusers, and Natural Aromatherapy',
-      'Storage': 'Keep tightly closed in an airtight jar to prevent evaporation',
+      'Storage':
+          'Keep tightly closed in an airtight jar to prevent evaporation',
       'Country of Origin': 'India',
     },
   ),
@@ -1415,9 +1438,12 @@ const defaultMilterraProducts = <Product>[
     availableQuantity: 50,
     minOrderQuantity: 1,
     specifications: {
-      'Herbal Composition': '51 Sacred Herbs: Jatamansi, Nagarmotha, Chandan, Guggul, Loban, Navgraha Woods',
-      'Purity Standard': '100% Natural botanicals, no added artificial colour or synthetic perfume',
-      'Usage': 'Sacred Ahuti in Navchandi, Griha Pravesh, Gayatri Hawan, and Daily Homa',
+      'Herbal Composition':
+          '51 Sacred Herbs: Jatamansi, Nagarmotha, Chandan, Guggul, Loban, Navgraha Woods',
+      'Purity Standard':
+          '100% Natural botanicals, no added artificial colour or synthetic perfume',
+      'Usage':
+          'Sacred Ahuti in Navchandi, Griha Pravesh, Gayatri Hawan, and Daily Homa',
       'Net Quantity': '500 grams',
       'Country of Origin': 'India',
     },
@@ -1449,8 +1475,10 @@ const defaultMilterraProducts = <Product>[
     availableQuantity: 80,
     minOrderQuantity: 1,
     specifications: {
-      'Raw Material': 'Pure Indigenous Cow Dung, Organic Clay, and Natural Plant Binders',
-      'Eco Property': '100% Biodegradable; burns completely with ghee leaving sacred holy ash',
+      'Raw Material':
+          'Pure Indigenous Cow Dung, Organic Clay, and Natural Plant Binders',
+      'Eco Property':
+          '100% Biodegradable; burns completely with ghee leaving sacred holy ash',
       'Use': 'Diwali, Navratri, Daily Mandir Puja, and Floating Deepdan',
       'Package Contents': '24 pieces per pack',
       'Country of Origin': 'India',
@@ -1549,7 +1577,8 @@ const defaultMilterraProducts = <Product>[
     availableQuantity: 90,
     minOrderQuantity: 1,
     specifications: {
-      'Composition': 'Gir Cow Dung, Sandalwood Powder, Rose Petals, Guggul, Natural Jitu Powder',
+      'Composition':
+          'Gir Cow Dung, Sandalwood Powder, Rose Petals, Guggul, Natural Jitu Powder',
       'Charcoal': '0% Charcoal, 100% Bamboo-Free',
       'Burning Time': '40-45 minutes per stick',
       'Country of Origin': 'India',

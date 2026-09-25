@@ -55,10 +55,14 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       }
     }
     final lower = value.toLowerCase().trim();
-    if (lower.contains('pure pantry') || lower == 'pantry' || lower == 'pure-pantry') {
+    if (lower.contains('pure pantry') ||
+        lower == 'pantry' ||
+        lower == 'pure-pantry') {
       return '🌾 The Pure Pantry (Adulteration-Free Staples)';
     }
-    if (lower.contains('botanical living') || lower == 'botanical' || lower == 'botanical-living') {
+    if (lower.contains('botanical living') ||
+        lower == 'botanical' ||
+        lower == 'botanical-living') {
       return '🌿 The Botanical Living (Living Greens & Bio-Soil)';
     }
     if (lower.contains('aloe') || lower == 'pure-aloe-botanicals') {
@@ -164,20 +168,27 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       return 'MILTERRA Cattle Nutrition Solutions';
     }
     return switch (value) {
-      'Vedic Bilona Ghee' || 'All Ghee' || 'all-ghee' || 'Ghee' =>
+      'Vedic Bilona Ghee' ||
+      'All Ghee' ||
+      'all-ghee' ||
+      'Ghee' =>
         '🧈 Vedic Bilona Ghee',
-      'Fresh Milk & Dairy' || 'Dairy Foods' =>
+      'Fresh Milk & Dairy' ||
+      'Dairy Foods' =>
         '🥛 Fresh Milk & Dairy (Chhachh & Paneer)',
-      'Puja & Hawan Samagri' || 'puja-hawan-samagri' =>
+      'Puja & Hawan Samagri' ||
+      'puja-hawan-samagri' =>
         '🪔 Puja & Hawan: Sacred Essentials',
-      'Natural Agarbatti & Dhoop' || 'dhoop-agarbatti' =>
+      'Natural Agarbatti & Dhoop' ||
+      'dhoop-agarbatti' =>
         '🌸 Natural Agarbatti & Dhoop',
       'Vermicompost & Living Soil' ||
       'MILTERRA Earth' ||
       'milterra-earth' ||
       'Earth' =>
         '🌱 Vermicompost & Living Soil',
-      'Cold-Pressed Sarso (Mustard) Oil' || 'sarso-oil' =>
+      'Cold-Pressed Sarso (Mustard) Oil' ||
+      'sarso-oil' =>
         '🌻 Cold-Pressed Sarso (Mustard) Oil',
       'Cow ghee' => 'A2 Desi Cow Ghee',
       'Buffalo ghee' => 'Rich Buffalo Ghee',
@@ -225,10 +236,10 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
 
   void _browse(String category, {String? sort}) {
     ref.read(analyticsServiceProvider).trackButtonClick(
-          'category_filter',
-          'Category: $category',
-          metadata: {'category': category, if (sort != null) 'sort': sort},
-        );
+      'category_filter',
+      'Category: $category',
+      metadata: {'category': category, if (sort != null) 'sort': sort},
+    );
     setState(() {
       if (_category != category) {
         _priceMin = 0;
@@ -361,14 +372,17 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                               if (_search.text.isEmpty &&
                                   (_category == 'All products' ||
                                       _category == 'All' ||
-                                      _category == 'All Organic Essentials')) ...[
+                                      _category ==
+                                          'All Organic Essentials')) ...[
                                 _hero(size.maxWidth),
                                 const SizedBox(height: 20),
                               ],
 
                               // Visual Department Quick Navigation (Fast 1-tap browsing across all devices)
-                              if (widget.category != ProductCategory.equipment &&
-                                  widget.category != ProductCategory.feedNutrition) ...[
+                              if (widget.category !=
+                                      ProductCategory.equipment &&
+                                  widget.category !=
+                                      ProductCategory.feedNutrition) ...[
                                 _buildVisualCategoryBar(isMobile),
                                 const SizedBox(height: 12),
                               ],
@@ -378,18 +392,22 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                   (_category == 'All products' ||
                                       _category == 'All' ||
                                       _category == 'All Organic Essentials') &&
-                                  widget.category != ProductCategory.equipment &&
-                                  widget.category != ProductCategory.feedNutrition) ...[
+                                  widget.category !=
+                                      ProductCategory.equipment &&
+                                  widget.category !=
+                                      ProductCategory.feedNutrition) ...[
                                 catalogue.maybeWhen(
-                                  data: (items) =>
-                                      _buildBrandSpecialsSection(isMobile, items),
+                                  data: (items) => _buildBrandSpecialsSection(
+                                      isMobile, items),
                                   orElse: () => const SizedBox.shrink(),
                                 ),
                               ],
 
                               // IndiaMART-Style RFQ Banner & Live Demand (exclusive to Farmer Hub)
-                              if (widget.category == ProductCategory.equipment ||
-                                  widget.category == ProductCategory.feedNutrition) ...[
+                              if (widget.category ==
+                                      ProductCategory.equipment ||
+                                  widget.category ==
+                                      ProductCategory.feedNutrition) ...[
                                 _buildRFQBanner(isMobile),
                                 _buildLiveRequirementTicker(),
                               ],
@@ -431,6 +449,19 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                             // Amazon Results & Sort Header Bar
                                             _buildResultsHeader(isDesktop),
                                             const SizedBox(height: 14),
+                                            if (ref
+                                                    .watch(
+                                                        staticCatalogueProvider)
+                                                    .valueOrNull !=
+                                                null) ...[
+                                              const Text(
+                                                'Published catalogue prices are a guide. Stock, delivery and final price are checked when you order.',
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: storeMuted),
+                                              ),
+                                              const SizedBox(height: 10),
+                                            ],
 
                                             // Catalogue State
                                             catalogue.when(
@@ -443,8 +474,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                               ),
                                               error: (_, __) => _message(
                                                 Icons.cloud_off_outlined,
-                                                'We couldn’t load the collection',
-                                                'Please check your connection and try again.',
+                                                'Catalogue temporarily unavailable',
+                                                'The published catalogue and live shop could not be loaded. Please retry.',
                                                 'Try again',
                                                 () => ref.invalidate(
                                                     productsProvider(
@@ -598,8 +629,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                   ? 'Results for “$query”'
                                   : (_category == 'All products' ||
                                           _category == 'All' ||
-                                          _category ==
-                                              'All Organic Essentials'
+                                          _category == 'All Organic Essentials'
                                       ? 'Showing all products'
                                       : _label(_category))))),
                   style: const TextStyle(
@@ -671,11 +701,11 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
 
   Widget _hero(double screenWidth) {
     final allGroups = storeProductGroups(ref
-                .watch(productsProvider(null))
-                .valueOrNull
-                ?.where((p) => !p.isConcept)
-                .toList() ??
-            []);
+            .watch(productsProvider(null))
+            .valueOrNull
+            ?.where((p) => !p.isConcept)
+            .toList() ??
+        []);
     // Sort product groups so that MILTERRA A2 Cow Bilona Ghee leads first,
     // followed by Murrah Buffalo Ghee, Fresh Dairy, and then Pantry products.
     allGroups.sort((a, b) {
@@ -684,15 +714,22 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       int score(Product p) {
         final t = p.title.toLowerCase();
         final c = storeCategory(p).toLowerCase();
-        if (t.contains('a2') && t.contains('cow') && t.contains('ghee')) return 0;
+        if (t.contains('a2') && t.contains('cow') && t.contains('ghee')) {
+          return 0;
+        }
         if (t.contains('bilona') && t.contains('ghee')) return 1;
         if (t.contains('ghee')) return 2;
         if (c.contains('ghee')) return 3;
-        if (t.contains('milk') || t.contains('paneer') || t.contains('mattha')) return 4;
+        if (t.contains('milk') ||
+            t.contains('paneer') ||
+            t.contains('mattha')) {
+          return 4;
+        }
         if (t.contains('mustard') || t.contains('oil')) return 5;
         if (t.contains('honey') || t.contains('atta')) return 6;
         return 10;
       }
+
       return score(pA).compareTo(score(pB));
     });
 
@@ -704,7 +741,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         return HeroProductSlide(
             id: p.id,
             category: storeCategory(p),
-            badge: p.title.toLowerCase().contains('ghee') ? 'HERITAGE BILONA' : '',
+            badge:
+                p.title.toLowerCase().contains('ghee') ? 'HERITAGE BILONA' : '',
             name: p.title,
             packSize: p.packSize ?? p.unit,
             price: p.price,
@@ -1164,16 +1202,22 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       final pB = b.first;
       int score(Product p) {
         final t = p.title.toLowerCase();
-        if (t.contains('a2') && t.contains('cow') && t.contains('ghee')) return 0;
+        if (t.contains('a2') && t.contains('cow') && t.contains('ghee')) {
+          return 0;
+        }
         if (t.contains('buffalo') && t.contains('ghee')) return 1;
         if (t.contains('bilona') && t.contains('ghee')) return 2;
-        if (t.contains('sarso') || (t.contains('mustard') && t.contains('oil'))) return 3;
+        if (t.contains('sarso') ||
+            (t.contains('mustard') && t.contains('oil'))) {
+          return 3;
+        }
         if (t.contains('shata') || t.contains('washed ghee')) return 4;
         if (t.contains('khapli') || t.contains('atta')) return 5;
         if (t.contains('honey')) return 6;
         if (t.contains('ghee')) return 7;
         return 10;
       }
+
       return score(pA).compareTo(score(pB));
     });
 
@@ -1384,7 +1428,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                     width: double.infinity,
                     height: 38,
                     child: FilledButton.icon(
-                      icon: const Icon(Icons.send_rounded, size: 16, color: Color(0xff064e3b)),
+                      icon: const Icon(Icons.send_rounded,
+                          size: 16, color: Color(0xff064e3b)),
                       label: const Text(
                         'Post Buy Requirement / Get Quotes',
                         style: TextStyle(
@@ -1395,11 +1440,15 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       ),
                       style: FilledButton.styleFrom(
                         backgroundColor: const Color(0xfffef08a),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
                       ),
                       onPressed: () => showRFQQuoteDialog(
                         context,
-                        defaultTitle: _category == 'All products' || _category == 'All' ? null : _category,
+                        defaultTitle:
+                            _category == 'All products' || _category == 'All'
+                                ? null
+                                : _category,
                       ),
                     ),
                   ),
@@ -1447,7 +1496,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                   ),
                   const SizedBox(width: 16),
                   FilledButton.icon(
-                    icon: const Icon(Icons.send_rounded, size: 16, color: Color(0xff064e3b)),
+                    icon: const Icon(Icons.send_rounded,
+                        size: 16, color: Color(0xff064e3b)),
                     label: const Text(
                       'Post Buy Requirement (RFQ)',
                       style: TextStyle(
@@ -1458,12 +1508,17 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                     ),
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xfffef08a),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     onPressed: () => showRFQQuoteDialog(
                       context,
-                      defaultTitle: _category == 'All products' || _category == 'All' ? null : _category,
+                      defaultTitle:
+                          _category == 'All products' || _category == 'All'
+                              ? null
+                              : _category,
                     ),
                   ),
                 ],
@@ -1564,7 +1619,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.flash_on, size: 14, color: Color(0xff16a34a)),
+                          const Icon(Icons.flash_on,
+                              size: 14, color: Color(0xff16a34a)),
                           const SizedBox(width: 4),
                           Text(
                             '$name ($city): ',
@@ -1583,7 +1639,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Text('•', style: TextStyle(color: Color(0xff86efac))),
+                          const Text('•',
+                              style: TextStyle(color: Color(0xff86efac))),
                         ],
                       ),
                     ),
@@ -1665,7 +1722,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       },
       '🌿 Vedic Skincare & Soaps': {
         'botanical-skincare': 'All Vedic Skincare & Soaps',
-        'shata-dhauta-ghrita-category': 'Shata Dhauta Ghrita (100x Washed Ghee)',
+        'shata-dhauta-ghrita-category':
+            'Shata Dhauta Ghrita (100x Washed Ghee)',
         'skincare': 'Ayurvedic Skincare',
         'soap': 'Cold-Process Goat Milk & Honey Soap',
       },
@@ -1702,15 +1760,12 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         final existingKey = groups.keys.firstWhere(
           (k) =>
               k.toLowerCase() == dept.name.toLowerCase() ||
-              k
-                  .replaceAll(RegExp(r'[^\w\s&]'), '')
-                  .trim()
-                  .toLowerCase() ==
+              k.replaceAll(RegExp(r'[^\w\s&]'), '').trim().toLowerCase() ==
                   dept.name.toLowerCase(),
           orElse: () => dept.name,
         );
-        final group =
-            groups.putIfAbsent(existingKey, () => {dept.id: 'All ${dept.name}'});
+        final group = groups.putIfAbsent(
+            existingKey, () => {dept.id: 'All ${dept.name}'});
         for (final node in _taxonomy!.nodes
             .where((n) => n.parentId == dept.id && n.isActive)) {
           if (widget.category == null) {
@@ -1787,7 +1842,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 },
                 child: const Text('Clear all'))
           ]),
-      _categoryFilterItem('All Organic Essentials', 'All Organic Essentials', refresh,
+      _categoryFilterItem(
+          'All Organic Essentials', 'All Organic Essentials', refresh,
           icon: Icons.grid_view_rounded),
       for (final group in orderedGroups)
         ExpansionTile(
@@ -1880,8 +1936,10 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
                     onPressed: () {
-                      final min = double.tryParse(_minPriceCtrl.text.trim()) ?? 0;
-                      final max = double.tryParse(_maxPriceCtrl.text.trim()) ?? 0;
+                      final min =
+                          double.tryParse(_minPriceCtrl.text.trim()) ?? 0;
+                      final max =
+                          double.tryParse(_maxPriceCtrl.text.trim()) ?? 0;
                       setState(() {
                         _priceMin = min;
                         _priceMax = max;
@@ -1889,22 +1947,27 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       refresh();
                     },
                     child: const Text('Go',
-                        style:
-                            TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
             ),
-
             CheckboxListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
-                title: const Text('In Stock only'),
+                title: Text(
+                    ref.watch(staticCatalogueProvider).valueOrNull != null
+                        ? 'In stock only (live check required)'
+                        : 'In Stock only'),
                 value: _inStock,
-                onChanged: (v) {
-                  setState(() => _inStock = v ?? false);
-                  refresh();
-                }),
+                onChanged:
+                    ref.watch(staticCatalogueProvider).valueOrNull != null
+                        ? null
+                        : (v) {
+                            setState(() => _inStock = v ?? false);
+                            refresh();
+                          }),
           ],
         ),
     ]));
@@ -1929,9 +1992,10 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 catLower == 'cat-animal-nutrition' ||
                 catLower == 'animal-nutrition'));
     return InkWell(
-      key: ValueKey((value == 'All Organic Essentials' || value == 'All products')
-          ? 'category-filter-All products'
-          : 'category-filter-$value'),
+      key: ValueKey(
+          (value == 'All Organic Essentials' || value == 'All products')
+              ? 'category-filter-All products'
+              : 'category-filter-$value'),
       onTap: () {
         _browse(value);
         refresh();
@@ -1993,7 +2057,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         catLower == 'all ghee' ||
         catLower == 'all-ghee' ||
         catLower == 'ghee collection';
-    final isCowGheeCategory = catLower.contains('cow ghee') || catLower == 'cow-ghee';
+    final isCowGheeCategory =
+        catLower.contains('cow ghee') || catLower == 'cow-ghee';
     final isBuffGheeCategory =
         catLower.contains('buffalo ghee') || catLower == 'buffalo-ghee';
     final isHerbalGheeCategory = catLower.contains('herbal ghee') ||
@@ -2006,15 +2071,15 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         catLower.contains('ubtan');
 
     final isMilkDairyCategory = (catLower.contains('fresh milk') ||
-        catLower.contains('dairy foods') ||
-        catLower.contains('chhachh') ||
-        catLower.contains('chaas') ||
-        catLower.contains('paneer') ||
-        catLower.contains('makhan') ||
-        catLower.contains('butter') ||
-        catLower == 'milk' ||
-        catLower == 'doodh' ||
-        catLower == 'other products') &&
+            catLower.contains('dairy foods') ||
+            catLower.contains('chhachh') ||
+            catLower.contains('chaas') ||
+            catLower.contains('paneer') ||
+            catLower.contains('makhan') ||
+            catLower.contains('butter') ||
+            catLower == 'milk' ||
+            catLower == 'doodh' ||
+            catLower == 'other products') &&
         !isSkincareCategory;
 
     final isPujaSacredCategory = catLower.contains('puja') ||
@@ -2104,7 +2169,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         catLower == 'the botanical living' ||
         catLower == 'botanical-living';
 
-    final isAloeCategory = catLower.contains('aloe') || catLower == 'pure-aloe-botanicals';
+    final isAloeCategory =
+        catLower.contains('aloe') || catLower == 'pure-aloe-botanicals';
 
     final isAllNutrition = catLower == 'animal nutrition' ||
         catLower == 'cattle nutrition' ||
@@ -2136,13 +2202,14 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         final node = _taxonomy!.findNode(_category);
         if (node != null) {
           final descendants = _taxonomy!.descendants(node.id);
-          final matchesNode = descendants.contains(p.taxonomy?['category_id']) ||
-              descendants.contains(p.taxonomy?['subcategory_id']) ||
-              p.taxonomy?['category_name']?.toString().toLowerCase() ==
-                  node.name.toLowerCase() ||
-              p.taxonomy?['department_name']?.toString().toLowerCase() ==
-                  node.name.toLowerCase() ||
-              storeCategory(p).toLowerCase() == node.name.toLowerCase();
+          final matchesNode =
+              descendants.contains(p.taxonomy?['category_id']) ||
+                  descendants.contains(p.taxonomy?['subcategory_id']) ||
+                  p.taxonomy?['category_name']?.toString().toLowerCase() ==
+                      node.name.toLowerCase() ||
+                  p.taxonomy?['department_name']?.toString().toLowerCase() ==
+                      node.name.toLowerCase() ||
+                  storeCategory(p).toLowerCase() == node.name.toLowerCase();
           if (matchesNode) {
             return query.isEmpty ||
                 '${p.title} ${p.packSize ?? ''} ${p.brand ?? ''}'
@@ -2374,20 +2441,30 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       } else if (isAloeCategory) {
         matchesCategory = pTitle.contains('aloe') ||
             pCategory.toLowerCase().contains('aloe') ||
-            (p.taxonomy?['category_name']?.toString().toLowerCase().contains('aloe') ?? false);
+            (p.taxonomy?['category_name']
+                    ?.toString()
+                    .toLowerCase()
+                    .contains('aloe') ??
+                false);
       } else if (isEquipmentCategory) {
-        matchesCategory = pCategory == 'Equipment' ||
-            p.category == ProductCategory.equipment;
+        matchesCategory =
+            pCategory == 'Equipment' || p.category == ProductCategory.equipment;
       } else if (isAllNutrition) {
         matchesCategory = pCategory == 'Animal nutrition' ||
             p.category == ProductCategory.feedNutrition;
       } else {
-        final catName = p.taxonomy?['category_name']?.toString().toLowerCase() ?? '';
-        final subcatName = p.taxonomy?['subcategory_name']?.toString().toLowerCase() ?? '';
-        final deptName = p.taxonomy?['department_name']?.toString().toLowerCase() ?? '';
-        final collectionName = p.taxonomy?['collection']?.toString().toLowerCase() ?? '';
-        final specCollection = p.specifications['collection']?.toString().toLowerCase() ?? '';
-        final specDept = p.specifications['department']?.toString().toLowerCase() ?? '';
+        final catName =
+            p.taxonomy?['category_name']?.toString().toLowerCase() ?? '';
+        final subcatName =
+            p.taxonomy?['subcategory_name']?.toString().toLowerCase() ?? '';
+        final deptName =
+            p.taxonomy?['department_name']?.toString().toLowerCase() ?? '';
+        final collectionName =
+            p.taxonomy?['collection']?.toString().toLowerCase() ?? '';
+        final specCollection =
+            p.specifications['collection']?.toString().toLowerCase() ?? '';
+        final specDept =
+            p.specifications['department']?.toString().toLowerCase() ?? '';
 
         matchesCategory = pCategory.toLowerCase() == catLower ||
             collectionName == catLower ||
@@ -2430,7 +2507,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         return false;
       }
       if (!_conceptOnly) {
-        if (_inStock && (p.isConcept || !p.inStock)) return false;
+        if (_inStock && (p.isConcept || !p.stockKnown || !p.inStock)) {
+          return false;
+        }
         if ((_priceMin > 0 || _priceMax > 0) && p.isConcept) return false;
         if (_priceMin > 0 && p.price < _priceMin) return false;
         if (_priceMax > 0 && p.price > _priceMax) return false;
@@ -2544,26 +2623,27 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         spacing: gap,
         runSpacing: gap,
         children: groups
-            .map((packs) => SizedBox(
+            .map(
+              (packs) => SizedBox(
                 width: ((bounds.maxWidth - gap * (columns - 1)) / columns)
                     .clamp(140.0, 320.0),
                 child: StoreProductCard(
-                    key: ValueKey(packs.first.id),
-                    packs: packs,
-                    compact: small,
-                    busyIds: _adding,
-                    onAdd: _add,
-                    onOpen: (p) {
-                      ref.read(analyticsServiceProvider).trackProductView(
-                            p.id,
-                            p.title,
-                            price: p.price,
-                          );
-                      context.push('/shop/product/${p.id}');
-                    },
-                  ),
+                  key: ValueKey(packs.first.id),
+                  packs: packs,
+                  compact: small,
+                  busyIds: _adding,
+                  onAdd: _add,
+                  onOpen: (p) {
+                    ref.read(analyticsServiceProvider).trackProductView(
+                          p.id,
+                          p.title,
+                          price: p.price,
+                        );
+                    context.push('/shop/product/${p.id}');
+                  },
                 ),
-              )
+              ),
+            )
             .toList(),
       );
     });

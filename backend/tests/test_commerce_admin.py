@@ -86,7 +86,9 @@ async def test_suspension_removes_seller_products_and_blocks_checkout(client, db
 
 
 @pytest.mark.asyncio
-async def test_coupon_admin_store_quote_checkout_snapshot_and_idempotency(client, db_session, vendor_user, admin_headers, auth_headers):
+async def test_coupon_admin_store_quote_checkout_snapshot_and_idempotency(client, db_session, vendor_user, admin_headers, auth_headers, monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, 'PRELAUNCH_MODE', True)
     p = await product(db_session, vendor_user, price=Decimal("799"))
     created = await client.post(f"{ROOT}/admin/commerce/coupons", headers=admin_headers, json=coupon())
     assert created.status_code == 201, created.text
@@ -103,7 +105,8 @@ async def test_coupon_admin_store_quote_checkout_snapshot_and_idempotency(client
     assert first.status_code == 201, first.text
     assert Decimal(first.json()["data"]["total"]) == 749 and Decimal(first.json()["data"]["discount"]) == 50
     await client.patch(f"{ROOT}/admin/commerce/coupons/{coupon_id}", headers=admin_headers, json={"is_active": False})
-    again = await client.post(f"{ROOT}/marketplace/orders/checkout", headers=auth_headers, json=request)
+    again = await client.post(f"{ROOT}/marketplace/orders/checkout", headers=auth_headers,
+                              json={**request, "coupon_code": " launch10 "})
     assert again.json()["data"]["id"] == first.json()["data"]["id"]
     assert len(list((await db_session.execute(select(OrderCoupon))).scalars())) == 1
     snapshot = (await client.get(f"{ROOT}/admin/commerce", headers=admin_headers)).json()["data"]

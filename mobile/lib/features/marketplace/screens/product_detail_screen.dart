@@ -104,7 +104,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   }
 
   bool _available(Product p) =>
-      !p.isConcept && p.inStock && p.availableQuantity >= p.minOrderQuantity;
+      !p.isConcept &&
+      (!p.stockKnown ||
+          (p.inStock && p.availableQuantity >= p.minOrderQuantity));
 
   Future<void> _purchase(Product p,
       {bool checkout = false, int? quantity}) async {
@@ -118,14 +120,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         );
     if (checkout) {
       ref.read(analyticsServiceProvider).trackCheckoutStep(
-            'buy_now_initiated',
-            metadata: {
-              'product_id': p.id,
-              'product_title': p.title,
-              'quantity': qty,
-              'price': p.price,
-            },
-          );
+        'buy_now_initiated',
+        metadata: {
+          'product_id': p.id,
+          'product_title': p.title,
+          'quantity': qty,
+          'price': p.price,
+        },
+      );
     }
     if (ref.read(currentUserProvider) == null) {
       final destination = checkout
@@ -563,10 +565,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   }
 
   Widget _centerDetails(Product p, List<Product> packs) {
-    final discountPercent =
-        (p.compareAtPrice != null && p.compareAtPrice! > p.price)
-            ? (((p.compareAtPrice! - p.price) / p.compareAtPrice!) * 100).round()
-            : null;
+    final discountPercent = (p.compareAtPrice != null &&
+            p.compareAtPrice! > p.price)
+        ? (((p.compareAtPrice! - p.price) / p.compareAtPrice!) * 100).round()
+        : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -598,7 +600,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         const SizedBox(height: 8),
 
         // 3. Ratings Bar & Review Count (Powered by live reviews from backend)
-        if (!p.isConcept) ...[
+        if (!p.isConcept && !p.isStaticSnapshot) ...[
           () {
             final liveReviewsAsync = ref.watch(productReviewsProvider(p.id));
             final liveReviews = liveReviewsAsync.valueOrNull ?? [];
@@ -840,7 +842,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       return _buildConceptBuyBox(p);
     }
     final available = _available(p);
-    final maxQuantity = p.availableQuantity.clamp(1, 10);
+    final maxQuantity = p.stockKnown
+        ? p.availableQuantity.clamp(1, 10)
+        : (p.minOrderQuantity > 10 ? p.minOrderQuantity : 10);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -881,118 +885,141 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             ],
           ),
           const SizedBox(height: 8),
+          if (p.isStaticSnapshot) ...[
+            const Text(
+              'Displayed price is from the published catalogue. Final price and stock are confirmed by the shop before checkout.',
+              style: TextStyle(fontSize: 11, color: storeMuted),
+            ),
+            const SizedBox(height: 8),
+          ],
 
           // Delivery Promise & Interactive Location (Powered by backend master table)
-          Consumer(
-            builder: (context, ref, _) {
-              final pin = ref.watch(currentPincodeProvider);
-              final deliveryAsync = ref.watch(deliveryCheckProvider(pin));
-              final deliveryInfo = deliveryAsync.valueOrNull;
+          if (p.isStaticSnapshot)
+            const Text(
+              'Delivery availability is checked at checkout.',
+              style: TextStyle(fontSize: 13, color: storeMuted),
+            )
+          else
+            Consumer(
+              builder: (context, ref, _) {
+                final pin = ref.watch(currentPincodeProvider);
+                final deliveryAsync = ref.watch(deliveryCheckProvider(pin));
+                final deliveryInfo = deliveryAsync.valueOrNull;
 
-              final isServiceable = deliveryInfo?.isServiceable ?? true;
-              final etaText = deliveryInfo?.expectedDeliveryText ??
-                  (p.price >= 499 ? 'by Tomorrow, 8 AM. ' : 'in 1-2 business days. ');
-              final locText = deliveryInfo?.locationLabel ?? 'New Delhi $pin';
+                final isServiceable = deliveryInfo?.isServiceable ?? true;
+                final etaText = deliveryInfo?.expectedDeliveryText ??
+                    (p.price >= 499
+                        ? 'by Tomorrow, 8 AM. '
+                        : 'in 1-2 business days. ');
+                final locText = deliveryInfo?.locationLabel ?? 'New Delhi $pin';
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (isServiceable) ...[
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                            fontSize: 13, color: Color(0xff0f1111)),
-                        children: [
-                          const TextSpan(
-                            text: 'FREE Delivery ',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: storeSuccess),
-                          ),
-                          TextSpan(
-                            text: '$etaText ',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          const TextSpan(
-                            text: 'Order within 3 hrs 24 mins.',
-                            style: TextStyle(
-                                color: storeOrange, fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ] else ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xfffef2f2),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: const Color(0xfffca5a5)),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.error_outline,
-                              size: 15, color: storeError),
-                          SizedBox(width: 5),
-                          Expanded(
-                            child: Text(
-                              'Delivery unavailable for this PIN code',
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (isServiceable) ...[
+                      RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                              fontSize: 13, color: Color(0xff0f1111)),
+                          children: [
+                            const TextSpan(
+                              text: 'FREE Delivery ',
                               style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.bold,
-                                color: storeError,
+                                  fontWeight: FontWeight.bold,
+                                  color: storeSuccess),
+                            ),
+                            TextSpan(
+                              text: '$etaText ',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            const TextSpan(
+                              text: 'Order within 3 hrs 24 mins.',
+                              style: TextStyle(
+                                  color: storeOrange,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xfffef2f2),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: const Color(0xfffca5a5)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.error_outline,
+                                size: 15, color: storeError),
+                            SizedBox(width: 5),
+                            Expanded(
+                              child: Text(
+                                'Delivery unavailable for this PIN code',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: storeError,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 6),
+                    InkWell(
+                      onTap: () => showPincodeSelectorDialog(context, ref),
+                      borderRadius: BorderRadius.circular(4),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.location_on_outlined,
+                                size: 16, color: storeGreen),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                'Deliver to $locText ▾',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xff007185),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
-                  const SizedBox(height: 6),
-                  InkWell(
-                    onTap: () => showPincodeSelectorDialog(context, ref),
-                    borderRadius: BorderRadius.circular(4),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.location_on_outlined,
-                              size: 16, color: storeGreen),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              'Deliver to $locText ▾',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xff007185),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
+                );
+              },
+            ),
           const SizedBox(height: 12),
 
           // Stock Status
           Text(
-            available
-                ? (p.availableQuantity <= 5 && p.availableQuantity > 0
-                    ? 'Only ${p.availableQuantity} left in stock - order soon.'
-                    : 'In Stock.')
-                : 'Currently unavailable.',
+            !p.stockKnown
+                ? 'Availability checked when you add this item.'
+                : available
+                    ? (p.availableQuantity <= 5 && p.availableQuantity > 0
+                        ? 'Only ${p.availableQuantity} left in stock - order soon.'
+                        : 'In Stock.')
+                    : 'Currently unavailable.',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: available ? storeSuccess : storeError,
+              color: !p.stockKnown
+                  ? storeMuted
+                  : available
+                      ? storeSuccess
+                      : storeError,
             ),
           ),
           const SizedBox(height: 12),
@@ -1087,7 +1114,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 height: 40,
                 child: OutlinedButton.icon(
                   key: const ValueKey('detail-request-rfq'),
-                  icon: const Icon(Icons.request_quote_outlined, size: 18, color: Color(0xff047857)),
+                  icon: const Icon(Icons.request_quote_outlined,
+                      size: 18, color: Color(0xff047857)),
                   label: const Text(
                     'Get Best Price / Request RFQ',
                     style: TextStyle(
@@ -1097,8 +1125,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xff047857), width: 1.5),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    side:
+                        const BorderSide(color: Color(0xff047857), width: 1.5),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                     backgroundColor: const Color(0xfff0fdf4),
                   ),
                   onPressed: () => showRFQQuoteDialog(context, product: p),
@@ -1226,7 +1256,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final district = p.vendor?['district']?.toString() ?? '';
     final state = p.vendor?['state']?.toString() ?? '';
     final location = [district, state].where((s) => s.isNotEmpty).join(', ');
-    final rating = p.vendor?['rating_avg']?.toString() ?? '4.8';
+    final rating =
+        p.isStaticSnapshot ? null : p.vendor?['rating_avg']?.toString();
 
     return Container(
       margin: const EdgeInsets.only(top: 12),
@@ -1274,9 +1305,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   ],
                 ),
                 Text(
-                  location.isNotEmpty
-                      ? '$location · ★ $rating'
-                      : '★ $rating Verified Producer',
+                  rating == null
+                      ? (location.isNotEmpty ? location : 'Store seller')
+                      : location.isNotEmpty
+                          ? '$location · ★ $rating'
+                          : '★ $rating',
                   style: const TextStyle(fontSize: 11, color: storeMuted),
                 ),
               ],
@@ -1286,8 +1319,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             onPressed: () => context.push('/store/vendor/${p.vendorId}'),
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: storeGreen),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               minimumSize: const Size(60, 32),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(6)),
@@ -1295,9 +1327,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             child: const Text(
               'Visit Store',
               style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: storeGreen),
+                  fontSize: 11, fontWeight: FontWeight.bold, color: storeGreen),
             ),
           ),
         ],
@@ -1516,12 +1546,25 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     if (isEquipment) {
       attributes = [
         ('Brand / OEM', p.brand ?? 'Katixo Agri Mechanization'),
-        ('Power / Motor', p.specifications['power']?.toString() ?? '3.0 HP (Heavy Duty)'),
-        ('Power Source', p.specifications['fuel_type']?.toString() ?? 'Electric Motor (Single Phase 230V)'),
-        ('Processing Output', p.specifications['capacity']?.toString() ?? '800 - 1200 kg/hr'),
+        (
+          'Power / Motor',
+          p.specifications['power']?.toString() ?? '3.0 HP (Heavy Duty)'
+        ),
+        (
+          'Power Source',
+          p.specifications['fuel_type']?.toString() ??
+              'Electric Motor (Single Phase 230V)'
+        ),
+        (
+          'Processing Output',
+          p.specifications['capacity']?.toString() ?? '800 - 1200 kg/hr'
+        ),
         ('Operating Speed', p.specifications['rpm']?.toString() ?? '2800 RPM'),
         ('Blade / Mechanism', 'High-Grade Hardened Alloy Steel Blades'),
-        ('Warranty & Spares', '1 Year Manufacturer Warranty + Lifetime Spares Availability'),
+        (
+          'Warranty & Spares',
+          '1 Year Manufacturer Warranty + Lifetime Spares Availability'
+        ),
         ('Country of Origin', 'India'),
       ];
     } else if (isFeed) {
@@ -1529,7 +1572,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         ('Brand', p.brand ?? 'Katixo Animal Nutrition'),
         ('Net Quantity', p.packSize ?? p.unit),
         ('Form / Texture', 'Steam-Conditioned 4mm Pellets / Meal'),
-        ('Crude Protein (CP)', p.specifications['protein']?.toString() ?? 'Min 20 - 22%'),
+        (
+          'Crude Protein (CP)',
+          p.specifications['protein']?.toString() ?? 'Min 20 - 22%'
+        ),
         ('Total Digestible Nutrients', 'Min 70% TDN'),
         ('Target Animals', 'Lactating Cows, Murrah Buffaloes & Calves'),
         ('FSSAI / BIS Certified', 'BIS Type-II Compliant · FSSAI Tested'),
@@ -1538,9 +1584,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     } else {
       final form = lowerTitle.contains('ghee')
           ? 'Clarified Butter / Granular Paste'
-          : (lowerTitle.contains('paneer')
-              ? 'Fresh Solid Block'
-              : 'Pure Form');
+          : (lowerTitle.contains('paneer') ? 'Fresh Solid Block' : 'Pure Form');
       final container = p.packSize?.contains('Tin') == true
           ? 'Food-Grade Heritage Tin'
           : (p.packSize?.contains('Jar') == true
@@ -1718,9 +1762,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   child: RichText(
                     text: TextSpan(
                       style: const TextStyle(
-                          fontSize: 13,
-                          color: Color(0xff333333),
-                          height: 1.4),
+                          fontSize: 13, color: Color(0xff333333), height: 1.4),
                       children: [
                         TextSpan(
                           text: '${b.$1}: ',
@@ -2904,6 +2946,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       child: Text('No verified answers are published for this product yet.'));
 
   Widget _buildCustomerReviews(Product p, bool isMobile) {
+    if (p.isStaticSnapshot) {
+      return const StorePanel(
+        title: 'Customer reviews',
+        child: Text('Verified customer reviews are not available yet.'),
+      );
+    }
     final reviews = ref.watch(productReviewsProvider(p.id));
     final reviewItems = reviews.valueOrNull ?? [];
     final hasRealReviews = reviewItems.isNotEmpty;
@@ -2914,8 +2962,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         : p.rating;
 
     final total = reviewItems.length;
-    double pct(int star) =>
-        total > 0 ? reviewItems.where((r) => r.rating == star).length / total : 0.0;
+    double pct(int star) => total > 0
+        ? reviewItems.where((r) => r.rating == star).length / total
+        : 0.0;
 
     final summaryAndHistogram = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3130,8 +3179,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             child: Text(feature,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    fontSize: 12.5, color: Color(0xff0f1111))),
+                style:
+                    const TextStyle(fontSize: 12.5, color: Color(0xff0f1111))),
           ),
           const SizedBox(width: 8),
           Row(
@@ -3152,9 +3201,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final date = review.createdAt == null
         ? 'Reviewed in India on 18 September 2026'
         : 'Reviewed in India on ${review.createdAt!.day} ${_monthName(review.createdAt!.month)} ${review.createdAt!.year}';
-    final initial = review.authorName.isNotEmpty
-        ? review.authorName[0].toUpperCase()
-        : 'V';
+    final initial =
+        review.authorName.isNotEmpty ? review.authorName[0].toUpperCase() : 'V';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3189,8 +3237,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   if (review.sourceLabel.isNotEmpty)
                     Text(
                       review.sourceLabel,
-                      style:
-                          const TextStyle(fontSize: 11, color: storeMuted),
+                      style: const TextStyle(fontSize: 11, color: storeMuted),
                     ),
                 ],
               ),
@@ -3346,7 +3393,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     maxLines: 5,
                     decoration: const InputDecoration(
                       labelText: 'Your Review',
-                      hintText: 'What did you like or dislike about this product?',
+                      hintText:
+                          'What did you like or dislike about this product?',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -3384,7 +3432,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       final author = authorController.text.trim();
                       final headline = headlineController.text.trim();
                       final content = contentController.text.trim();
-                      if (author.isEmpty || headline.isEmpty || content.isEmpty) {
+                      if (author.isEmpty ||
+                          headline.isEmpty ||
+                          content.isEmpty) {
                         ScaffoldMessenger.of(this.context).showSnackBar(
                           const SnackBar(
                             content: Text(

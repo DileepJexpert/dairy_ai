@@ -1,6 +1,6 @@
 # Milterra Cloudflare migration status
 
-Last updated: 26 September 2026. Source plan: [milterra-cloudflare-development-brief.md](../milterra-cloudflare-development-brief.md).
+Last updated: 26 September 2026. Source plan: [milterra-cloudflare-development-brief.md](../milterra-cloudflare-development-brief.md). This is the handoff tracker for the next implementation agent. Update each row with source, tests, and staging evidence before marking it complete.
 
 ## Implementation plan
 
@@ -17,8 +17,11 @@ Last updated: 26 September 2026. Source plan: [milterra-cloudflare-development-b
 | Repository and architecture audit | Complete for first slice | [Feature matrix](MILTERRA_CLOUDFLARE_FEATURE_MATRIX.md) records PostgreSQL, Redis, local media, background loops and all registered route families. |
 | Feature parity matrix | First pass complete | [Source-backed matrix](MILTERRA_CLOUDFLARE_FEATURE_MATRIX.md); refresh as each module migrates. |
 | Python Worker / D1 compatibility proof | Local proof complete | [Isolated Worker](../cloudflare/worker/README.md): production dry-run bundle and local runtime checks passed for `/health`, D1, JWT, HMAC, mocked provider call, Pillow image processing and unknown-route 404. No staging run. |
-| Static catalogue and local basket | Exporter implemented; storefront pending | [DB-driven exporter](../backend/scripts/STATIC_CATALOGUE_EXPORT.md) and focused tests are present. No authoritative DB/media was available to generate a production snapshot. Flutter still depends on live catalogue and server cart. |
-| D1 commerce correctness | Not started | Design and test stock, idempotency, and webhook invariants in D1. |
+| Static catalogue publication | Local tooling complete; publication pending | [DB-driven exporter and Pages publisher](../backend/scripts/STATIC_CATALOGUE_EXPORT.md) validate referenced JPEGs, write immutable `products-<sha>.json`, and switch `/catalogue/current.json` last. No authoritative DB/media was available to generate a real snapshot or test a Pages release. |
+| Flutter static browsing | Code and focused checks complete; live acceptance pending | The storefront loads the same-origin pointer and snapshot for product lists/details and local filtering, then falls back to the existing API while no snapshot exists. Four focused Flutter tests passed; targeted analysis found no issues. Stock remains unknown in a snapshot; cart/checkout still call the API. |
+| Anonymous local basket and outage UX | Not started | Persist product/variant IDs and quantities locally, keep basket editing usable during API failure, and reconcile with the authoritative checkout quote. |
+| Current PostgreSQL checkout idempotency | Code complete; migration not applied to a live DB | Checkout stores a normalized request fingerprint and rejects reuse of the same key with different inputs; legacy rows compare saved inputs. Alembic `checkout_request_fingerprint_v19` is the sole head. The order/checkout tests printed 21 passes; the Windows pytest process lingered after summary and was interrupted. |
+| D1 commerce correctness | Isolated local proof complete; real API pending | [Reservation proof](../cloudflare/commerce_proof/README.md) demonstrates guarded stock, multi-line rollback, same-key replay, payload conflict, and stale-price rejection. Seven Python tests and a local D1/workerd test passed. It is not connected to checkout or a remote D1 database. |
 | Full parity, staging and release | Not started | Requires compatibility results and Cloudflare staging access. |
 
 The current API remains the commerce authority until the replacement passes its own integration and staging checks. A local prototype is not a production deployment.
@@ -26,11 +29,20 @@ The current API remains the commerce authority until the replacement passes its 
 ## Findings that affect the next slices
 
 - Python FastAPI, D1, Pillow, PyJWT and an outbound authenticated HTTP request work together in the tested local Workers runtime. The probe is **not** proof that the full legacy backend can bundle or run unchanged. Cloudflare's Python Workers currently do not support async SQLAlchemy ORM; replace that data layer explicitly.
-- The current order idempotency key can return an earlier order when the same key is reused with a different payload. D1 order creation must store and compare a canonical request hash before accepting a retry.
+- The previous checkout idempotency key could return an earlier order when reused with a different payload. The current PostgreSQL path now compares the new fingerprint (or saved fields for legacy rows); the D1 port must preserve this behavior and cover provider actions too.
 - Existing approved reviews include illustrative/seeded feedback, and the review route can approve anonymous submissions. The static exporter therefore omits ratings and reviews entirely until genuine purchase provenance can be enforced.
-- The static exporter is read-only against PostgreSQL and writes a deterministic, sanitized JSON snapshot. It does not upload media to R2 or publish a Cloudflare Pages release; those steps remain required.
+- The static exporter is read-only against PostgreSQL and writes a deterministic, sanitized JSON snapshot. The local Pages publisher checks local images and moves its pointer last, but it does not upload to R2, deploy Pages, or record an admin publication state.
 - Backend catalogue tests reported seven passes, but the pytest process lingered after its summary on this Windows host. Worker contract tests passed cleanly (six tests), and the full local runtime script passed after fixing D1 result conversion.
+- The existing Dart sample product list remains in source as a legacy fallback. It must not become an independent live catalogue; remove or confine it after the authoritative snapshot is published and its outage behavior is accepted.
+- Wrangler authentication is expired in this workspace. The local configuration uses a dummy D1 ID, so no Cloudflare staging or production deployment has been attempted.
 
-## Next reviewable step
+## Next tasks for Antigravity
 
-Publish one real catalogue snapshot with its images from the authoritative database, then wire Flutter browsing and an anonymous local basket to that version. The present workspace has no reachable PostgreSQL database or Cloudflare staging account, so a customer-visible outage-resilient catalogue cannot be claimed yet. In parallel, design the first D1 commerce schema and test guarded inventory/idempotency behavior before any checkout traffic is moved.
+1. Apply `checkout_request_fingerprint_v19` to a backed-up **staging** PostgreSQL database, then rerun the checkout tests against that schema. Keep the current backend as the commerce authority throughout the migration.
+2. Obtain the authoritative product database and matching `PRODUCT_MEDIA_DIR`; generate and inspect one real catalogue with `python -m scripts.publish_static_catalogue --output-dir ../mobile/web/catalogue` from `backend`. Review public content, product count, current prices, every image URL, and old-pointer behavior on failure. Build Flutter web, deploy to a Pages staging site, and test first visit plus API outage. No real catalogue has been published yet.
+3. Complete the anonymous local basket and checkout-reconciliation flow. Basket editing must work without the API; final price, stock, discount, delivery and payment remain server-authoritative. Make failed/unknown checkout states explicit and preserve the basket for retry.
+4. Turn the isolated D1 proof into the first authenticated commerce API slice: current price/stock, quote, guarded reservation, idempotent order creation, cancellation/release and migration/import of real records. Add concurrent last-unit, multi-item rollback, retry and payload-conflict integration tests against staging D1. Do not redirect checkout merely because the local proof passes.
+5. Port remaining active routes and durable jobs from the [feature matrix](MILTERRA_CLOUDFLARE_FEATURE_MATRIX.md), including auth, addresses, customer/admin ownership, payment webhooks and reconciliation, shipping, media, refunds, and scheduled work. Replace PostgreSQL locks, Redis and local-disk dependencies explicitly.
+6. Restore Wrangler authentication and create separate staging bindings/secrets; replace the dummy D1 ID. Verify the full customer/admin journeys, webhook/provider sandbox flows, performance, backup/restore and rollback in Cloudflare staging. Only then plan a production cutover. Record each result and any blocker in this tracker.
+
+The present workspace has no reachable authoritative PostgreSQL database/media or Cloudflare staging access. Local proofs and code checks do not establish customer-visible availability or production readiness.

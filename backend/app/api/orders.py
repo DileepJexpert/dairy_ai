@@ -229,16 +229,66 @@ async def quote_checkout(data: CheckoutPricingInput, current_user: User = Depend
     }}
 
 
+def _checkout_request_fingerprint(data: CheckoutRequest) -> str:
+    """Bind an idempotency key to the customer's normalized checkout inputs."""
+    amount = None
+    if data.expected_total is not None:
+        decimal_tuple = data.expected_total.as_tuple()
+        digits = list(decimal_tuple.digits)
+        exponent = decimal_tuple.exponent
+        if not any(digits):
+            amount = (0, "0", 0)
+        else:
+            while digits[-1] == 0:
+                digits.pop()
+                exponent += 1
+            amount = (decimal_tuple.sign, "".join(map(str, digits)), exponent)
+    payload = {
+        "version": 1,
+        "delivery_address_id": str(data.delivery_address_id),
+        "payment_method": data.payment_method,
+        "coupon_code": data.coupon_code.strip().upper() if data.coupon_code else None,
+        "expected_total": amount,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+async def _legacy_checkout_request_matches(db: AsyncSession, order: Order, data: CheckoutRequest) -> bool:
+    """Compare persisted order inputs for orders created before fingerprints existed.
+
+    The old request's expected_total was not retained. Any accepted value had
+    to equal the saved total, so both an omitted value and that total are safe.
+    """
+    contact = await db.get(OrderContact, order.id)
+    coupon = await db.get(OrderCoupon, order.id)
+    return (
+        str((order.address_snapshot or {}).get("id")) == str(data.delivery_address_id)
+        and contact is not None and contact.payment_method == data.payment_method
+        and (coupon.code.strip().upper() if coupon else None)
+        == (data.coupon_code.strip().upper() if data.coupon_code else None)
+        and (data.expected_total is None or data.expected_total == order.total)
+    )
+
+
 @router.post("/checkout", status_code=status.HTTP_201_CREATED)
 async def checkout(data: CheckoutRequest, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> dict:
+    fingerprint = _checkout_request_fingerprint(data)
     existing = (await db.execute(select(Order).where(Order.user_id == current_user.id, Order.idempotency_key == data.idempotency_key))).scalar_one_or_none()
     if existing:
+        if existing.checkout_request_fingerprint:
+            matches = hmac.compare_digest(existing.checkout_request_fingerprint, fingerprint)
+        else:
+            matches = await _legacy_checkout_request_matches(db, existing, data)
+        if not matches:
+            raise HTTPException(409, "Idempotency key was already used for a different checkout request")
         return {"success": True, "data": await detail(db, existing), "message": "Existing order returned"}
     address, cart_items, lines, subtotal, delivery_fee, coupon, discount = await checkout_price(db, current_user, data, lock=True)
     total = subtotal - discount + delivery_fee
     if data.expected_total is not None and data.expected_total != total:
         raise HTTPException(409, "Checkout total changed; refresh the quote before ordering")
     order = Order(user_id=current_user.id, idempotency_key=data.idempotency_key,
+                  checkout_request_fingerprint=fingerprint,
                   is_prelaunch_interest=settings.PRELAUNCH_MODE,
                   is_cod=not settings.PRELAUNCH_MODE and data.payment_method == 'cod',
                   status=OrderStatus.confirmed if not settings.PRELAUNCH_MODE and data.payment_method == 'cod' else OrderStatus.pending_payment,

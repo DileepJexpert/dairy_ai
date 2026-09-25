@@ -36,6 +36,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/catalogue/
     - assets/store/
     - assets/store/buffalo-ghee.png
     - assets/store/cow-ghee.png

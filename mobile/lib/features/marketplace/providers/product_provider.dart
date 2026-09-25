@@ -1,6 +1,57 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../models/product_models.dart';
+import '../models/static_catalogue.dart';
+
+/// Pages serves a small same-origin pointer and a versioned immutable JSON
+/// snapshot. Native builds may bundle the same export as an asset. If neither
+/// has been published yet, the live API remains the migration fallback.
+final staticCatalogueReaderProvider =
+    Provider<Future<StaticCatalogue?> Function()>((ref) {
+  if (!kIsWeb) {
+    return () async {
+      try {
+        return StaticCatalogue.parse(
+            await rootBundle.loadString(StaticCatalogue.assetPath));
+      } on FlutterError {
+        return null;
+      }
+    };
+  }
+  return () async {
+    final client = Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 3),
+      receiveTimeout: const Duration(seconds: 3),
+    ));
+    final pointerUrl = Uri.base.resolve(StaticCatalogue.pointerUrl);
+    if (pointerUrl.origin != Uri.base.origin) {
+      throw const FormatException('Catalogue pointer must be same-origin');
+    }
+    Response<String> response;
+    try {
+      response = await client.get<String>(pointerUrl.toString(),
+          options: Options(responseType: ResponseType.plain));
+    } on DioException {
+      return null;
+    }
+    final pointer = StaticCataloguePointer.parse(response.data ?? '');
+    final snapshotUrl = Uri.base.resolve(pointer.snapshotPath);
+    final snapshotResponse = await client.get<String>(snapshotUrl.toString(),
+        options: Options(responseType: ResponseType.plain));
+    final snapshot = StaticCatalogue.parse(snapshotResponse.data ?? '');
+    if (snapshot.contentSha256 != pointer.contentSha256) {
+      throw const FormatException('Catalogue pointer and snapshot differ');
+    }
+    return snapshot;
+  };
+});
+
+final staticCatalogueProvider = FutureProvider<StaticCatalogue?>((ref) async {
+  return ref.read(staticCatalogueReaderProvider)();
+});
 
 const _legacyStorefrontSkuAliases = <String, String>{
   'mil-ghee-500': 'MIL-GHEE-500',
@@ -50,6 +101,20 @@ Product conceptFamilyProduct(ProductFamily family) => Product(
 
 final productsProvider = FutureProvider.family<List<Product>, ProductCategory?>(
     (ref, category) async {
+  final snapshot = await ref.watch(staticCatalogueProvider.future);
+  if (snapshot != null) {
+    final items = snapshot.products
+        .where((p) => category == null || p.category == category)
+        .toList();
+    final existingFamilies = items.map((p) => p.familyId).toSet();
+    items.addAll(snapshot.families
+        .where((f) =>
+            f.isConcept && f.isPublished && !existingFamilies.contains(f.id))
+        .map(conceptFamilyProduct)
+        .where((p) => category == null || p.category == category));
+    return items;
+  }
+
   final items = <Product>[];
   var page = 1;
   while (true) {
@@ -84,6 +149,25 @@ final productsProvider = FutureProvider.family<List<Product>, ProductCategory?>(
 
 final productDetailProvider =
     FutureProvider.family<Product, String>((ref, id) async {
+  final snapshot = await ref.watch(staticCatalogueProvider.future);
+  if (snapshot != null) {
+    final conceptSlug = _legacyConceptSlugs[id];
+    final family = conceptSlug != null
+        ? snapshot.familyBySlug(conceptSlug)
+        : id.startsWith('family-')
+            ? snapshot.familyById(id.substring(7))
+            : null;
+    if (family != null && family.isConcept) {
+      return conceptFamilyProduct(family);
+    }
+    final sku = _legacyStorefrontSkuAliases[id];
+    final product = sku == null ? snapshot.byId(id) : snapshot.bySku(sku);
+    if (product == null) {
+      throw StateError('Product is no longer available.');
+    }
+    return product;
+  }
+
   if (_legacyConceptSlugs.containsKey(id)) {
     final response = await ref
         .read(dioProvider)
@@ -112,6 +196,8 @@ final productDetailProvider =
 });
 
 final familiesProvider = FutureProvider<List<ProductFamily>>((ref) async {
+  final snapshot = await ref.watch(staticCatalogueProvider.future);
+  if (snapshot != null) return snapshot.families;
   final response = await ref.watch(dioProvider).get('/marketplace/families');
   return (response.data['data'] as List)
       .map((j) => ProductFamily.fromJson(Map<String, dynamic>.from(j)))
@@ -125,7 +211,8 @@ final vendorFamiliesProvider = FutureProvider<List<ProductFamily>>((ref) async {
       .toList();
 });
 
-final recentRFQsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final recentRFQsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
   try {
     final response = await ref.read(dioProvider).get('/rfq/recent');
     return (response.data['data'] as List? ?? [])

@@ -11,6 +11,7 @@ from app.integrations.delhivery_shipping import BookingUncertain, CourierQuote
 from app.integrations.shipping_policy import select_quote
 from app.models.order import FulfillmentStatus, Order, OrderItem, PaymentStatus
 from app.models.shipping import Shipment, ShipmentEvent
+from app.models.serviceable_pincode import ServiceablePincode
 from app.models.user import User, UserRole
 from app.services.auth_service import create_access_token
 from tests.conftest import TestSessionLocal
@@ -40,6 +41,12 @@ def test_quote_policy_uses_cost_eta_and_ceiling(monkeypatch):
 
 async def make_order(client, db_session, vendor_user, auth_headers, monkeypatch, *, prelaunch=False):
     monkeypatch.setattr(settings, "PRELAUNCH_MODE", prelaunch)
+    monkeypatch.setattr(settings, "RAZORPAY_KEY_ID", "rzp_test")
+    monkeypatch.setattr(settings, "RAZORPAY_KEY_SECRET", "test-secret")
+    if await db_session.get(ServiceablePincode, "302001") is None:
+        db_session.add(ServiceablePincode(
+            pincode="302001", city="Jaipur", state="Rajasthan", is_serviceable=True))
+        await db_session.flush()
     item = await product(db_session, vendor_user)
     item.weight_grams = 500
     delivery = (await client.post("/api/v1/marketplace/addresses", headers=auth_headers, json=address())).json()["data"]
@@ -94,6 +101,11 @@ async def test_packed_order_can_be_prepared_then_dispatched_manually(client, db_
     shipment = (await db_session.execute(select(Shipment).where(Shipment.order_id == order_id))).scalar_one()
     assert shipment.mode == "manual" and shipment.awb == "REAL-123"
     assert (await client.get(f"/api/v1/marketplace/orders/{order_id}/tracking", headers=auth_headers)).json()["data"]["awb"] == "REAL-123"
+    delivered = await client.put(url, headers=admin_headers, json={"status": "DELIVERED"})
+    assert delivered.status_code == 200
+    tracking = (await client.get(f"/api/v1/marketplace/orders/{order_id}/tracking", headers=auth_headers)).json()["data"]
+    assert tracking["status"] == "DELIVERED"
+    assert [checkpoint["status"] for checkpoint in tracking["checkpoints"]] == ["DISPATCHED", "DELIVERED"]
 
 
 class FakeCourier:
@@ -177,3 +189,87 @@ async def test_automatic_booking_claim_is_idempotent_and_uncertain_results_stop(
         assert await shipping.poll_tracking_once(courier) is True
         async with TestSessionLocal() as check:
             assert len((await check.execute(select(ShipmentEvent))).scalars().all()) == 1
+
+
+@pytest.mark.asyncio
+async def test_refund_during_quote_cannot_overtake_courier_booking(
+    client, db_session, vendor_user, auth_headers, admin_headers, monkeypatch,
+):
+    order_id = await make_order(client, db_session, vendor_user, auth_headers, monkeypatch)
+    order = await db_session.get(Order, order_id)
+    order.payment_status = PaymentStatus.paid
+    await db_session.commit()
+    for stage in ("CONFIRMED", "PACKED"):
+        response = await client.put(
+            f"/api/v1/marketplace/orders/operations/{order_id}",
+            headers=admin_headers, json={"status": stage},
+        )
+        assert response.status_code == 200
+    prepared = await client.post(
+        f"/api/v1/marketplace/orders/{order_id}/shipping/prepare",
+        headers=admin_headers,
+        json={"weight_grams": 750, "length_cm": 20, "width_cm": 15, "height_cm": 12},
+    )
+    assert prepared.status_code == 200
+    await db_session.commit()
+
+    class RefundDuringQuote(FakeCourier):
+        async def quote(self, *args):
+            refund = await client.post(
+                f"/api/v1/marketplace/orders/admin/refunds/{order_id}",
+                headers=admin_headers,
+                json={"action": "approve", "restock_inventory": True},
+            )
+            assert refund.status_code == 409
+            return CourierQuote(self.code, self.name, Decimal("80"))
+
+    monkeypatch.setattr(shipping, "async_session_factory", TestSessionLocal)
+    monkeypatch.setattr(settings, "SHIPPING_AUTO_BOOK_ENABLED", True)
+    courier = RefundDuringQuote()
+    assert await shipping.process_ready_once(courier) is True
+    db_session.expire_all()
+    assert (await db_session.get(Order, order_id)).payment_status == PaymentStatus.paid
+    shipment = (await db_session.scalars(select(Shipment).where(
+        Shipment.order_id == order_id))).one()
+    assert shipment.status == "booked" and shipment.awb == "REAL-DELHIVERY-AWB"
+
+
+@pytest.mark.asyncio
+async def test_active_booking_cannot_be_resolved_as_missing(
+    client, db_session, vendor_user, auth_headers, admin_headers, monkeypatch,
+):
+    order_id = await make_order(client, db_session, vendor_user, auth_headers, monkeypatch)
+    order = await db_session.get(Order, order_id)
+    order.payment_status = PaymentStatus.paid
+    await db_session.commit()
+    for stage in ("CONFIRMED", "PACKED"):
+        response = await client.put(
+            f"/api/v1/marketplace/orders/operations/{order_id}",
+            headers=admin_headers, json={"status": stage},
+        )
+        assert response.status_code == 200
+    prepared = await client.post(
+        f"/api/v1/marketplace/orders/{order_id}/shipping/prepare",
+        headers=admin_headers,
+        json={"weight_grams": 750, "length_cm": 20, "width_cm": 15, "height_cm": 12},
+    )
+    assert prepared.status_code == 200
+    await db_session.commit()
+
+    class ResolveDuringBook(FakeCourier):
+        async def book(self, *args):
+            recovery = await client.post(
+                f"/api/v1/marketplace/orders/{order_id}/shipping/resolve",
+                headers=admin_headers,
+                json={"action": "no_booking", "note": "Portal search found nothing yet"},
+            )
+            assert recovery.status_code == 409
+            return "REAL-DELHIVERY-AWB"
+
+    monkeypatch.setattr(shipping, "async_session_factory", TestSessionLocal)
+    monkeypatch.setattr(settings, "SHIPPING_AUTO_BOOK_ENABLED", True)
+    assert await shipping.process_ready_once(ResolveDuringBook()) is True
+    db_session.expire_all()
+    shipment = (await db_session.scalars(select(Shipment).where(
+        Shipment.order_id == order_id))).one()
+    assert shipment.status == "booked" and shipment.awb == "REAL-DELHIVERY-AWB"

@@ -3,33 +3,106 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, Integer, JSON, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, Integer, JSON, Numeric, String, Text, TypeDecorator, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 
 
+class CaseInsensitiveEnum(TypeDecorator):
+    impl = SAEnum
+    cache_ok = True
+
+    def __init__(self, enum_cls, name, **kwargs):
+        self.enum_cls = enum_cls
+        super().__init__(
+            enum_cls,
+            name=name,
+            values_callable=lambda obj: [e.value for e in obj],
+            validate_strings=False,
+            **kwargs,
+        )
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, self.enum_cls):
+            return value.value
+        if isinstance(value, str):
+            member = self.enum_cls(value)
+            return member.value
+        return str(value).upper()
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        return self.enum_cls(value)
+
+
 class OrderStatus(str, enum.Enum):
-    pending_payment = "PENDING_PAYMENT"
-    confirmed = "CONFIRMED"
-    cancelled = "CANCELLED"
+    PENDING_PAYMENT = "PENDING_PAYMENT"
+    CONFIRMED = "CONFIRMED"
+    CANCELLED = "CANCELLED"
+
+    # Lowercase aliases for backward compatibility
+    pending_payment = PENDING_PAYMENT
+    confirmed = CONFIRMED
+    cancelled = CANCELLED
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            for member in cls:
+                if member.value.upper() == value.upper() or member.name.upper() == value.upper():
+                    return member
+        return super()._missing_(value)
 
 
 class PaymentStatus(str, enum.Enum):
-    pending = "PENDING"
-    paid = "PAID"
-    failed = "FAILED"
-    refunded = "REFUNDED"
+    PENDING = "PENDING"
+    PAID = "PAID"
+    FAILED = "FAILED"
+    REFUNDED = "REFUNDED"
+
+    # Lowercase aliases for backward compatibility
+    pending = PENDING
+    paid = PAID
+    failed = FAILED
+    refunded = REFUNDED
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            for member in cls:
+                if member.value.upper() == value.upper() or member.name.upper() == value.upper():
+                    return member
+        return super()._missing_(value)
 
 
 class FulfillmentStatus(str, enum.Enum):
-    pending = "PENDING"
-    confirmed = "CONFIRMED"
-    packed = "PACKED"
-    shipped = "SHIPPED"
-    delivered = "DELIVERED"
-    cancelled = "CANCELLED"
+    PENDING = "PENDING"
+    CONFIRMED = "CONFIRMED"
+    PACKED = "PACKED"
+    SHIPPED = "SHIPPED"
+    DELIVERED = "DELIVERED"
+    CANCELLED = "CANCELLED"
+
+    # Lowercase aliases for backward compatibility
+    pending = PENDING
+    confirmed = CONFIRMED
+    packed = PACKED
+    shipped = SHIPPED
+    delivered = DELIVERED
+    cancelled = CANCELLED
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            for member in cls:
+                if member.value.upper() == value.upper() or member.name.upper() == value.upper():
+                    return member
+        return super()._missing_(value)
 
 
 class Order(Base):
@@ -39,9 +112,19 @@ class Order(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True, nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
-    status: Mapped[OrderStatus] = mapped_column(SAEnum(OrderStatus), default=OrderStatus.pending_payment, nullable=False)
-    payment_status: Mapped[PaymentStatus] = mapped_column(SAEnum(PaymentStatus, name="commerce_payment_status"), default=PaymentStatus.pending, nullable=False)
+    status: Mapped[OrderStatus] = mapped_column(
+        CaseInsensitiveEnum(OrderStatus, name="orderstatus"),
+        default=OrderStatus.PENDING_PAYMENT,
+        nullable=False,
+    )
+    payment_status: Mapped[PaymentStatus] = mapped_column(
+        CaseInsensitiveEnum(PaymentStatus, name="commerce_payment_status"),
+        default=PaymentStatus.PENDING,
+        nullable=False,
+    )
     is_prelaunch_interest: Mapped[bool] = mapped_column(Boolean, default=False, index=True, nullable=False)
+    inventory_released: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_cod: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     address_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
     subtotal: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     delivery_fee: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0, nullable=False)
@@ -66,5 +149,7 @@ class OrderItem(Base):
     unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     line_total: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     fulfillment_status: Mapped[FulfillmentStatus] = mapped_column(
-        SAEnum(FulfillmentStatus), default=FulfillmentStatus.pending, nullable=False
+        CaseInsensitiveEnum(FulfillmentStatus, name="fulfillmentstatus"),
+        default=FulfillmentStatus.pending,
+        nullable=False,
     )

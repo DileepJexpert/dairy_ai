@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dairy_ai/core/api_client.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
@@ -14,10 +13,71 @@ import '../providers/cart_provider.dart';
 import '../providers/delivery_address_provider.dart';
 import '../providers/coupon_provider.dart';
 import '../providers/order_repository.dart';
+import '../widgets/address_location_fields.dart';
 import '../../marketplace/widgets/store_design.dart';
 import '../../../core/analytics_service.dart';
 
-import 'package:flutter/services.dart';
+typedef CheckoutQuoteKey = ({
+  String addressId,
+  String paymentMethod,
+  String couponCode,
+  String cartFingerprint,
+});
+
+class CheckoutQuote {
+  const CheckoutQuote({
+    required this.subtotal,
+    required this.deliveryFee,
+    required this.discount,
+    required this.total,
+    required this.totalRaw,
+    required this.isPrelaunch,
+  });
+
+  final double subtotal, deliveryFee, discount, total;
+  final String totalRaw;
+  final bool isPrelaunch;
+
+  factory CheckoutQuote.fromJson(Map<String, dynamic> data) => CheckoutQuote(
+        subtotal: double.parse(data['subtotal'].toString()),
+        deliveryFee: double.parse(data['delivery_fee'].toString()),
+        discount: double.parse(data['discount'].toString()),
+        total: double.parse(data['total'].toString()),
+        totalRaw: data['total'].toString(),
+        isPrelaunch: data['is_prelaunch_interest'] == true,
+      );
+}
+
+final checkoutQuoteProvider = FutureProvider.autoDispose
+    .family<CheckoutQuote, CheckoutQuoteKey>((ref, key) async {
+  ref.watch(currentUserProvider);
+  final response = await ref.read(dioProvider).post(
+    '/marketplace/orders/checkout/quote',
+    data: {
+      'delivery_address_id': key.addressId,
+      'payment_method': key.paymentMethod,
+      if (key.couponCode.isNotEmpty) 'coupon_code': key.couponCode,
+    },
+  );
+  return CheckoutQuote.fromJson(
+      Map<String, dynamic>.from(response.data['data'] as Map));
+});
+
+final paymentCapabilitiesProvider = FutureProvider.autoDispose<
+    ({
+      bool isPrelaunch,
+      bool onlineAvailable,
+    })>((ref) async {
+  ref.watch(currentUserProvider);
+  final response = await ref.read(dioProvider).get(
+        '/marketplace/orders/payment-capabilities',
+      );
+  final data = Map<String, dynamic>.from(response.data['data'] as Map);
+  return (
+    isPrelaunch: data['is_prelaunch_interest'] == true,
+    onlineAvailable: data['online_payment_available'] == true,
+  );
+});
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -33,6 +93,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String? _checkoutKey;
   bool _summaryItemsExpanded = true;
 
+  CheckoutQuoteKey _quoteKey(dynamic cart, StoreCoupon? coupon) => (
+        addressId: _addressId ?? '',
+        paymentMethod: _paymentMethod,
+        couponCode: coupon?.code ?? '',
+        cartFingerprint: cart?.items
+                .map((item) =>
+                    '${item.productId}:${item.quantity}:${item.currentPrice}')
+                .join('|') ??
+            '',
+      );
+
   @override
   void initState() {
     super.initState();
@@ -43,8 +114,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     });
   }
 
-  String _getPaymentButtonLabel(double totalAmount) {
-    if (_submitting) return 'Saving your interest…';
+  String _getPaymentButtonLabel(double totalAmount, bool isPrelaunch) {
+    if (_submitting) {
+      return isPrelaunch ? 'Saving your interest…' : 'Placing order…';
+    }
+    if (!isPrelaunch) {
+      return _paymentMethod == 'cod'
+          ? 'Place COD order (${storeMoney(totalAmount)})'
+          : 'Place order and pay (${storeMoney(totalAmount)})';
+    }
     switch (_paymentMethod) {
       case 'wallet':
         return 'Continue with Wallet preview (${storeMoney(totalAmount)})';
@@ -74,10 +152,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       );
       return;
     }
-    final subtotal = cart.subtotal;
     final appliedCoupon = ref.read(appliedCouponProvider);
-    final discount = appliedCoupon?.calculateDiscount(subtotal) ?? 0.0;
-    final totalAmount = (subtotal - discount).clamp(0.0, double.infinity);
+    final quote = ref
+        .read(checkoutQuoteProvider(_quoteKey(cart, appliedCoupon)))
+        .valueOrNull;
+    if (quote == null) return;
+    final subtotal = quote.subtotal;
+    final discount = quote.discount;
+    final totalAmount = quote.total;
     // Extract selected address details
     final addresses = ref.read(deliveryAddressesProvider).valueOrNull ?? [];
     final DeliveryAddress? selectedAddress =
@@ -102,53 +184,26 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     };
 
     ref.read(analyticsServiceProvider).trackPaymentStep(
-          _paymentMethod,
-          amount: totalAmount,
-          metadata: {
-            'address_id': _addressId,
-            'city': selectedAddress.villageOrCity,
-            'coupon_code': appliedCoupon?.code,
-          },
-        );
+      _paymentMethod,
+      amount: totalAmount,
+      metadata: {
+        'address_id': _addressId,
+        'city': selectedAddress.villageOrCity,
+        'coupon_code': appliedCoupon?.code,
+      },
+    );
 
-    if (_paymentMethod == 'wallet') {
-      setState(() => _submitting = true);
-      await _finalizeOrderPlacement(
-        totalAmount: totalAmount,
-        subtotal: subtotal,
-        discount: discount,
-        addressMap: addressMap,
-      );
-    } else if (_paymentMethod == 'cod') {
-      setState(() => _submitting = true);
-      await _finalizeOrderPlacement(
-        totalAmount: totalAmount,
-        subtotal: subtotal,
-        discount: discount,
-        addressMap: addressMap,
-      );
-    } else if (_paymentMethod == 'upi') {
-      _showUpiPaymentDialog(
-        totalAmount: totalAmount,
-        subtotal: subtotal,
-        discount: discount,
-        addressMap: addressMap,
-      );
-    } else if (_paymentMethod == 'card') {
-      _showCardPaymentDialog(
-        totalAmount: totalAmount,
-        subtotal: subtotal,
-        discount: discount,
-        addressMap: addressMap,
-      );
-    } else if (_paymentMethod == 'netbanking') {
-      _showNetBankingDialog(
-        totalAmount: totalAmount,
-        subtotal: subtotal,
-        discount: discount,
-        addressMap: addressMap,
-      );
-    }
+    // Always route order placement through server-verified APIs.
+    // Dynamic payment requests, hosted checkout links, and provider-issued QR codes
+    // are generated on the server with real provider IDs (e.g. Razorpay plink_...)
+    // rather than relying on untrusted client-side static QRs or simulated UTR timers.
+    setState(() => _submitting = true);
+    await _finalizeOrderPlacement(
+      totalAmount: totalAmount,
+      subtotal: subtotal,
+      discount: discount,
+      addressMap: addressMap,
+    );
   }
 
   Future<void> _finalizeOrderPlacement({
@@ -161,6 +216,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     try {
       final key = _checkoutKey ??=
           'flutter-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(9999)}';
+      final cart = ref.read(cartProvider).valueOrNull;
+      final quotedTotal = ref
+          .read(checkoutQuoteProvider(
+              _quoteKey(cart, ref.read(appliedCouponProvider))))
+          .valueOrNull
+          ?.totalRaw;
+      if (quotedTotal == null) {
+        throw const FormatException('Checkout quote is no longer available');
+      }
       final res = await ref
           .read(dioProvider)
           .post('/marketplace/orders/checkout', data: {
@@ -168,6 +232,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         'payment_method': _paymentMethod,
         if (ref.read(appliedCouponProvider) != null)
           'coupon_code': ref.read(appliedCouponProvider)!.code,
+        'expected_total': quotedTotal,
         'idempotency_key': key,
       });
 
@@ -179,14 +244,33 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         );
       }
       final realOrderId = data['id'].toString();
+      final isPrelaunch = data['is_prelaunch_interest'] == true;
+      var paymentMessage = '';
+      if (!isPrelaunch && _paymentMethod != 'cod') {
+        try {
+          final paymentResponse = await ref
+              .read(dioProvider)
+              .post('/marketplace/orders/$realOrderId/payment-link');
+          final paymentUrl =
+              paymentResponse.data['data']['url']?.toString() ?? '';
+          final uri = Uri.tryParse(paymentUrl);
+          if (uri == null ||
+              uri.scheme != 'https' ||
+              !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+            paymentMessage = 'Open this order to complete payment.';
+          }
+        } catch (_) {
+          paymentMessage = 'Order saved. Open it to retry payment.';
+        }
+      }
       ref.read(analyticsServiceProvider).trackCheckoutStep(
-            'order_completed',
-            metadata: {
-              'order_id': realOrderId,
-              'total_amount': totalAmount,
-              'payment_method': _paymentMethod,
-            },
-          );
+        'order_completed',
+        metadata: {
+          'order_id': realOrderId,
+          'total_amount': totalAmount,
+          'payment_method': _paymentMethod,
+        },
+      );
       ref
           .read(ordersNotifierProvider.notifier)
           .acceptServerOrder(Map<String, dynamic>.from(data));
@@ -197,16 +281,25 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             backgroundColor: storeGreen,
-            content: Text(
-              'Interest saved. No payment was taken. Milterra can contact you before launch.',
-            ),
+            content: Text(isPrelaunch
+                ? 'Interest saved. No payment was taken. Milterra can contact you before launch.'
+                : paymentMessage.isNotEmpty
+                    ? paymentMessage
+                    : _paymentMethod == 'cod'
+                        ? 'COD order confirmed. Pay on delivery.'
+                        : 'Order saved. Complete payment in the secure checkout.'),
           ),
         );
         context.go('/marketplace/orders/$realOrderId');
       }
     } on DioException catch (e) {
+      final cart = ref.read(cartProvider).valueOrNull;
+      if (cart != null && _addressId != null) {
+        ref.invalidate(checkoutQuoteProvider(
+            _quoteKey(cart, ref.read(appliedCouponProvider))));
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -228,1302 +321,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
-  }
-
-  void _showUpiPaymentDialog({
-    required double totalAmount,
-    required double subtotal,
-    required double discount,
-    required Map<String, dynamic> addressMap,
-  }) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogCtx) {
-        String status = 'awaiting'; // 'awaiting' | 'processing' | 'success' | 'expired'
-        int remainingSeconds = 300; // 5 minute standard dynamic QR expiry
-        String selectedVpaApp = 'GPay';
-        final vpaController = TextEditingController(text: 'farmer@okaxis');
-        String generatedUtr = '';
-        Timer? countdownTimer;
-
-        final orderRef =
-            'MILT${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
-        const merchantVpa = 'milterra.pure@icici';
-        const merchantName = 'Milterra Pure Organics';
-        final upiUri =
-            'upi://pay?pa=$merchantVpa&pn=${Uri.encodeComponent(merchantName)}&tr=$orderRef&am=${totalAmount.toStringAsFixed(2)}&cu=INR&tn=${Uri.encodeComponent("Order $orderRef")}';
-
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            // Initialize timer once
-            countdownTimer ??=
-                Timer.periodic(const Duration(seconds: 1), (t) {
-              if (!dialogCtx.mounted) {
-                t.cancel();
-                return;
-              }
-              if (status == 'awaiting') {
-                if (remainingSeconds > 0) {
-                  setDialogState(() {
-                    remainingSeconds--;
-                    if (remainingSeconds == 0) {
-                      status = 'expired';
-                      t.cancel();
-                    }
-                  });
-                }
-              }
-            });
-
-            final minutes = (remainingSeconds ~/ 60).toString().padLeft(2, '0');
-            final seconds = (remainingSeconds % 60).toString().padLeft(2, '0');
-
-            Future<void> triggerPaymentSuccess() async {
-              countdownTimer?.cancel();
-              setDialogState(() => status = 'processing');
-              await Future.delayed(const Duration(milliseconds: 1400));
-              if (!dialogCtx.mounted) return;
-
-              final rngUtr =
-                  '4289${Random().nextInt(89999999) + 10000000}';
-              setDialogState(() {
-                status = 'success';
-                generatedUtr = rngUtr;
-              });
-
-              await Future.delayed(const Duration(milliseconds: 1800));
-              if (dialogCtx.mounted) {
-                Navigator.of(dialogCtx).pop();
-              }
-              await _finalizeOrderPlacement(
-                totalAmount: totalAmount,
-                subtotal: subtotal,
-                discount: discount,
-                addressMap: addressMap,
-              );
-            }
-
-            return PopScope(
-              canPop: status != 'processing',
-              onPopInvokedWithResult: (didPop, _) {
-                if (didPop) countdownTimer?.cancel();
-              },
-              child: Dialog(
-                backgroundColor: storeWhite,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: 440,
-                    maxHeight: MediaQuery.of(context).size.height * 0.92,
-                  ),
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 22, vertical: 20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Header
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: status == 'success'
-                                    ? const Color(0xffe8f5e9)
-                                    : const Color(0xffe8f5e9),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                status == 'success'
-                                    ? Icons.check_circle_outline
-                                    : Icons.qr_code_2,
-                                color: storeGreen,
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    status == 'success'
-                                        ? 'Payment Verified!'
-                                        : 'Scan & Pay with any UPI App',
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w800,
-                                      color: storeGreen,
-                                    ),
-                                  ),
-                                  const Text(
-                                    'NPCI Certified 256-bit Encrypted',
-                                    style: TextStyle(
-                                        fontSize: 11, color: storeMuted),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (status != 'processing' && status != 'success')
-                              IconButton(
-                                icon: const Icon(Icons.close, size: 20),
-                                onPressed: () {
-                                  countdownTimer?.cancel();
-                                  Navigator.of(dialogCtx).pop();
-                                },
-                              ),
-                          ],
-                        ),
-                        const Divider(height: 20),
-
-                        // STATE 1: SUCCESS CELEBRATION
-                        if (status == 'success') ...[
-                          const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: const Color(0xfff0fdf4),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: storeGreen.withValues(alpha: 0.4)),
-                            ),
-                            child: Column(
-                              children: [
-                                Container(
-                                  width: 60,
-                                  height: 60,
-                                  decoration: const BoxDecoration(
-                                    color: storeGreen,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.check,
-                                      color: Colors.white, size: 36),
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'Payment Received: ${storeMoney(totalAmount)}',
-                                  style: const TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w800,
-                                    color: storeGreen,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  'NPCI instant settlement confirmed',
-                                  style: TextStyle(
-                                      fontSize: 12, color: storeMuted),
-                                ),
-                                const SizedBox(height: 12),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                        color: storeGreen
-                                            .withValues(alpha: 0.3)),
-                                  ),
-                                  child: Text(
-                                    'Bank Reference / UTR: $generatedUtr',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: storeGreen,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: storeGreen),
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'Finalizing order & preparing receipt...',
-                                style:
-                                    TextStyle(fontSize: 12, color: storeMuted),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                        ]
-
-                        // STATE 2: PROCESSING / BANK CONFIRMATION IN-FLIGHT
-                        else if (status == 'processing') ...[
-                          const SizedBox(height: 24),
-                          const Center(
-                            child: SizedBox(
-                              width: 50,
-                              height: 50,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 3,
-                                color: storeGreen,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          const Center(
-                            child: Text(
-                              'Payment Signal Detected!',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: storeGreen,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Center(
-                            child: Text(
-                              'Verifying ₹${totalAmount.toStringAsFixed(2)} with ICICI Bank & NPCI...',
-                              style: const TextStyle(
-                                  fontSize: 12, color: storeMuted),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Center(
-                            child: Text(
-                              'Please do not refresh or close this window.',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: storeOrange,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                        ]
-
-                        // STATE 3: EXPIRED STATE
-                        else if (status == 'expired') ...[
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: const Color(0xfffff8e1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xffffe082)),
-                            ),
-                            child: Column(
-                              children: [
-                                const Icon(Icons.timer_off_outlined,
-                                    size: 48, color: storeOrange),
-                                const SizedBox(height: 10),
-                                const Text(
-                                  'QR Code Expired',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: storeGreen,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                const Text(
-                                  'This dynamic UPI QR code timed out for security. Click below to generate a fresh QR code.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                      fontSize: 12, color: storeMuted),
-                                ),
-                                const SizedBox(height: 16),
-                                FilledButton.icon(
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: storeAmber,
-                                    foregroundColor: storeGreen,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 20, vertical: 12),
-                                  ),
-                                  icon: const Icon(Icons.refresh, size: 18),
-                                  label: const Text('Generate New QR Code',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold)),
-                                  onPressed: () {
-                                    setDialogState(() {
-                                      status = 'awaiting';
-                                      remainingSeconds = 300;
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                        ]
-
-                        // STATE 4: AWAITING SCAN (ACTIVE REAL QR)
-                        else ...[
-                          // Payable Amount & Expiry Banner
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xfffcf5ee),
-                              borderRadius: BorderRadius.circular(8),
-                              border:
-                                  Border.all(color: const Color(0xffffd199)),
-                            ),
-                            child: Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Payable Amount:',
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: storeGreen),
-                                    ),
-                                    Text(
-                                      storeMoney(totalAmount),
-                                      style: const TextStyle(
-                                        fontSize: 19,
-                                        fontWeight: FontWeight.w900,
-                                        color: storeOrange,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: remainingSeconds < 60
-                                        ? const Color(0xffffebee)
-                                        : const Color(0xffe8f5e9),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: remainingSeconds < 60
-                                          ? storeError
-                                          : storeGreen.withValues(alpha: 0.3),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.alarm,
-                                        size: 14,
-                                        color: remainingSeconds < 60
-                                            ? storeError
-                                            : storeGreen,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Expires $minutes:$seconds',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                          color: remainingSeconds < 60
-                                              ? storeError
-                                              : storeGreen,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Real Scannable NPCI UPI QR Code
-                          Center(
-                            child: Container(
-                              width: 170,
-                              height: 170,
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                    color: storeBorder, width: 1.5),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color:
-                                        Colors.black.withValues(alpha: 0.05),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  QrImageView(
-                                    data: upiUri,
-                                    version: QrVersions.auto,
-                                    size: 150.0,
-                                    eyeStyle: const QrEyeStyle(
-                                      eyeShape: QrEyeShape.square,
-                                      color: Color(0xff122b1e),
-                                    ),
-                                    dataModuleStyle: const QrDataModuleStyle(
-                                      dataModuleShape: QrDataModuleShape.square,
-                                      color: Color(0xff122b1e),
-                                    ),
-                                    errorStateBuilder: (cxt, err) =>
-                                        const Center(
-                                      child: Text('QR generation failed',
-                                          style: TextStyle(fontSize: 11)),
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.all(3),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                          color: storeGreen, width: 1.5),
-                                    ),
-                                    child: const Icon(Icons.eco,
-                                        size: 16, color: storeGreen),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Live status listener strip
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: const Color(0xfff7faf9),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SizedBox(
-                                  width: 8,
-                                  height: 8,
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      color: storeGreen,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(width: 6),
-                                Text(
-                                  'Live payment listener active · Scan with any app',
-                                  style: TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: storeMuted,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-
-                          // UPI VPA Copy Bar
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xfff5f7f6),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: storeBorder),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.account_balance,
-                                    size: 16, color: storeGreen),
-                                const SizedBox(width: 8),
-                                const Expanded(
-                                  child: Text(
-                                    merchantVpa,
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: storeGreen),
-                                  ),
-                                ),
-                                InkWell(
-                                  onTap: () {
-                                    Clipboard.setData(const ClipboardData(
-                                        text: merchantVpa));
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                            'UPI ID copied to clipboard!'),
-                                        duration: Duration(seconds: 1),
-                                      ),
-                                    );
-                                  },
-                                  child: const Padding(
-                                    padding: EdgeInsets.all(4),
-                                    child: Text('Copy',
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                            color: storeOrange)),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-
-                          // Fast Pay Apps selector
-                          Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceEvenly,
-                            children: [
-                              for (final app in [
-                                'GPay',
-                                'PhonePe',
-                                'Paytm',
-                                'BHIM'
-                              ])
-                                ChoiceChip(
-                                  label: Text(app,
-                                      style: const TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold)),
-                                  selected: selectedVpaApp == app,
-                                  selectedColor: const Color(0xffe8f5e9),
-                                  labelStyle: TextStyle(
-                                    color: selectedVpaApp == app
-                                        ? storeGreen
-                                        : storeMuted,
-                                  ),
-                                  visualDensity: VisualDensity.compact,
-                                  onSelected: (_) => setDialogState(
-                                      () => selectedVpaApp = app),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-
-                          TextField(
-                            controller: vpaController,
-                            decoration: const InputDecoration(
-                              labelText: 'Or Enter Custom UPI ID (VPA)',
-                              hintText: 'e.g. yourname@oksbi',
-                              border: OutlineInputBorder(),
-                              prefixIcon:
-                                  Icon(Icons.alternate_email, size: 18),
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8),
-                              isDense: true,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Action Buttons
-                          FilledButton(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: storeAmber,
-                              foregroundColor: storeGreen,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 13),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
-                            ),
-                            onPressed: () => triggerPaymentSuccess(),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.bolt, size: 18, color: storeGreen),
-                                SizedBox(width: 6),
-                                Text(
-                                  'Confirm Payment Done (Simulate Scan)',
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800,
-                                      color: storeGreen),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-
-                          OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: storeGreen,
-                              side: BorderSide(
-                                  color: storeGreen.withValues(alpha: 0.5)),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 10),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
-                            ),
-                            icon: const Icon(Icons.open_in_new, size: 16),
-                            label: const Text('Open in Installed UPI App',
-                                style: TextStyle(
-                                    fontSize: 12, fontWeight: FontWeight.bold)),
-                            onPressed: () async {
-                              final uri = Uri.parse(upiUri);
-                              try {
-                                if (await canLaunchUrl(uri)) {
-                                  await launchUrl(uri,
-                                      mode: LaunchMode.externalApplication);
-                                } else {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                            'No UPI app handler found on this device. Please scan the QR code from your phone.'),
-                                        duration: Duration(seconds: 3),
-                                      ),
-                                    );
-                                  }
-                                }
-                              } catch (_) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                          'Please scan the dynamic QR code directly from your UPI app.'),
-                                      duration: Duration(seconds: 3),
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showCardPaymentDialog({
-    required double totalAmount,
-    required double subtotal,
-    required double discount,
-    required Map<String, dynamic> addressMap,
-  }) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogCtx) {
-        bool step3ds = false;
-        bool processing = false;
-        final cardNumCtrl = TextEditingController(text: '4532 8920 1148 7639');
-        final currentUser = ref.read(currentUserProvider);
-        final nameCtrl = TextEditingController(
-            text: currentUser?.name?.toUpperCase() ?? 'MILTERRA MEMBER');
-        final expCtrl = TextEditingController(text: '08/29');
-        final cvvCtrl = TextEditingController(text: '482');
-        final otpCtrl = TextEditingController(text: '774102');
-
-        return StatefulBuilder(
-          builder: (context, setCardState) {
-            return Dialog(
-              backgroundColor: storeWhite,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: 460,
-                  maxHeight: MediaQuery.of(context).size.height * 0.9,
-                ),
-                child: SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Header
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xffe8f5e9),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.credit_card,
-                                color: storeGreen, size: 22),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  step3ds
-                                      ? 'Card Preference Confirmation'
-                                      : 'Milterra Card Preference Preview',
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800,
-                                    color: storeGreen,
-                                  ),
-                                ),
-                                const Text(
-                                  'Demo only · Do not enter a real card number',
-                                  style: TextStyle(
-                                      fontSize: 11, color: storeMuted),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close, size: 20),
-                            onPressed: processing
-                                ? null
-                                : () => Navigator.of(dialogCtx).pop(),
-                          ),
-                        ],
-                      ),
-                      const Divider(height: 24),
-
-                      if (!step3ds) ...[
-                        // Virtual Card Graphic Banner
-                        Container(
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xff1b382b), Color(0xff2d5f47)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.12),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'MILTERRA PLATINUM',
-                                    style: TextStyle(
-                                      color: storeAmber,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 1.5,
-                                    ),
-                                  ),
-                                  Icon(Icons.contactless,
-                                      color: Colors.white70, size: 20),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                cardNumCtrl.text.isEmpty
-                                    ? '•••• •••• •••• ••••'
-                                    : cardNumCtrl.text,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  letterSpacing: 2.2,
-                                  fontFamily: 'monospace',
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text('CARDHOLDER',
-                                          style: TextStyle(
-                                              color: Colors.white54,
-                                              fontSize: 9)),
-                                      Text(
-                                        nameCtrl.text.toUpperCase(),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text('EXPIRES',
-                                          style: TextStyle(
-                                              color: Colors.white54,
-                                              fontSize: 9)),
-                                      Text(
-                                        expCtrl.text,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Form Inputs
-                        TextField(
-                          controller: cardNumCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Card Number',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.credit_card_outlined),
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
-                          ),
-                          onChanged: (_) => setCardState(() {}),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              flex: 2,
-                              child: TextField(
-                                controller: expCtrl,
-                                decoration: const InputDecoration(
-                                  labelText: 'MM / YY',
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 10),
-                                ),
-                                onChanged: (_) => setCardState(() {}),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              flex: 2,
-                              child: TextField(
-                                controller: cvvCtrl,
-                                obscureText: true,
-                                decoration: const InputDecoration(
-                                  labelText: 'CVV',
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 10),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: nameCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Name on Card',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.person_outline),
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
-                          ),
-                          onChanged: (_) => setCardState(() {}),
-                        ),
-                        const SizedBox(height: 18),
-
-                        // Submit to 3DS Button
-                        FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: storeAmber,
-                            foregroundColor: storeGreen,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                          ),
-                          onPressed: processing
-                              ? null
-                              : () async {
-                                  setCardState(() => processing = true);
-                                  await Future.delayed(
-                                      const Duration(milliseconds: 900));
-                                  setCardState(() {
-                                    processing = false;
-                                    step3ds = true;
-                                  });
-                                },
-                          child: processing
-                              ? const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2, color: storeGreen),
-                                    ),
-                                    SizedBox(width: 10),
-                                    Text('Connecting to Bank Gateway…',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: storeGreen)),
-                                  ],
-                                )
-                              : const Text(
-                                  'Continue to preference confirmation',
-                                  style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w800,
-                                      color: storeGreen),
-                                ),
-                        ),
-                      ] else ...[
-                        // 3D Secure Simulation Panel
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xfff0f7ff),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xffb8d8ff)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Row(
-                                children: [
-                                  Icon(Icons.verified_user,
-                                      color: Color(0xff0052cc), size: 20),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Pre-launch payment preference',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xff0052cc),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'No bank OTP is sent. Enter the demo code shown here to confirm this payment preference for ${storeMoney(totalAmount)}.',
-                                style: const TextStyle(
-                                    fontSize: 12, color: Color(0xff333333)),
-                              ),
-                              const SizedBox(height: 6),
-                              const Text(
-                                'Sent to mobile linked to card ending with •••• 7639',
-                                style:
-                                    TextStyle(fontSize: 11, color: storeMuted),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          controller: otpCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Enter 6-digit Bank OTP',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.password_outlined),
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Center(
-                          child: TextButton.icon(
-                            onPressed: () => otpCtrl.text = '774102',
-                            icon: const Icon(Icons.flash_on,
-                                size: 14, color: storeOrange),
-                            label: const Text('Autofill Test Passcode (774102)',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: storeOrange)),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: storeGreen,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                          ),
-                          onPressed: processing
-                              ? null
-                              : () async {
-                                  setCardState(() => processing = true);
-                                  await Future.delayed(
-                                      const Duration(milliseconds: 1200));
-                                  if (dialogCtx.mounted) {
-                                    Navigator.of(dialogCtx).pop();
-                                  }
-                                  await _finalizeOrderPlacement(
-                                    totalAmount: totalAmount,
-                                    subtotal: subtotal,
-                                    discount: discount,
-                                    addressMap: addressMap,
-                                  );
-                                },
-                          child: processing
-                              ? const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2, color: Colors.white),
-                                    ),
-                                    SizedBox(width: 10),
-                                    Text('Authorizing Payment with Bank…',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white)),
-                                  ],
-                                )
-                              : const Text('Save Card Payment Preference',
-                                  style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showNetBankingDialog({
-    required double totalAmount,
-    required double subtotal,
-    required double discount,
-    required Map<String, dynamic> addressMap,
-  }) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogCtx) {
-        String selectedBank = 'State Bank of India';
-        bool processing = false;
-
-        final banks = [
-          'State Bank of India',
-          'HDFC Bank',
-          'ICICI Bank',
-          'Axis Bank',
-          'Punjab National Bank',
-          'Bank of Baroda',
-          'Rajasthan Rural Apex Cooperative Bank',
-        ];
-
-        return StatefulBuilder(
-          builder: (context, setBankState) {
-            return Dialog(
-              backgroundColor: storeWhite,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: 440,
-                  maxHeight: MediaQuery.of(context).size.height * 0.9,
-                ),
-                child: SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Header
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xffe8f5e9),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.account_balance,
-                                color: storeGreen, size: 22),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Select Your Bank',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: storeGreen,
-                                  ),
-                                ),
-                                Text(
-                                  'Pre-launch bank preference preview',
-                                  style: TextStyle(
-                                      fontSize: 11, color: storeMuted),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close, size: 20),
-                            onPressed: processing
-                                ? null
-                                : () => Navigator.of(dialogCtx).pop(),
-                          ),
-                        ],
-                      ),
-                      const Divider(height: 24),
-
-                      // Bank list
-                      for (final bank in banks)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 3),
-                          child: InkWell(
-                            onTap: () =>
-                                setBankState(() => selectedBank = bank),
-                            borderRadius: BorderRadius.circular(6),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: selectedBank == bank
-                                    ? const Color(0xfffcf5ee)
-                                    : storeWhite,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: selectedBank == bank
-                                      ? storeOrange
-                                      : storeBorder,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    selectedBank == bank
-                                        ? Icons.radio_button_checked
-                                        : Icons.radio_button_unchecked,
-                                    size: 18,
-                                    color: selectedBank == bank
-                                        ? storeOrange
-                                        : storeMuted,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      bank,
-                                      style: TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: selectedBank == bank
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
-                                        color: storeGreen,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      const SizedBox(height: 18),
-
-                      FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: storeAmber,
-                          foregroundColor: storeGreen,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
-                        ),
-                        onPressed: processing
-                            ? null
-                            : () async {
-                                setBankState(() => processing = true);
-                                await Future.delayed(
-                                    const Duration(milliseconds: 1300));
-                                if (dialogCtx.mounted) {
-                                  Navigator.of(dialogCtx).pop();
-                                }
-                                await _finalizeOrderPlacement(
-                                  totalAmount: totalAmount,
-                                  subtotal: subtotal,
-                                  discount: discount,
-                                  addressMap: addressMap,
-                                );
-                              },
-                        child: processing
-                            ? Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: storeGreen),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    'Redirecting to $selectedBank…',
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: storeGreen),
-                                  ),
-                                ],
-                              )
-                            : Text(
-                                'Save $selectedBank preference',
-                                style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
-                                    color: storeGreen),
-                              ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
   }
 
   @override
@@ -1764,8 +561,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final line1Ctrl = TextEditingController(text: address.addressLine1);
     final cityCtrl = TextEditingController(text: address.villageOrCity);
     final stateCtrl = TextEditingController(text: address.state);
+    final districtCtrl = TextEditingController(text: address.district);
     final pinCtrl = TextEditingController(text: address.postalCode);
     final landmarkCtrl = TextEditingController(text: address.landmark ?? '');
+    final formKey = GlobalKey<FormState>();
 
     showDialog(
       context: context,
@@ -1779,158 +578,142 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Edit Delivery Address',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: storeGreen,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, size: 20),
-                          onPressed: () => Navigator.of(dialogCtx).pop(),
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 24),
-                    TextField(
-                      controller: nameCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Full Name / Recipient',
-                        border: OutlineInputBorder(),
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: phoneCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Phone Number',
-                        border: OutlineInputBorder(),
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: line1Ctrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Flat, House no., Building, Street',
-                        border: OutlineInputBorder(),
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: cityCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'City / Village',
-                              border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 12),
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Edit Delivery Address',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: storeGreen,
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: stateCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'State',
-                              border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 12),
-                            ),
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 20),
+                            onPressed: () => Navigator.of(dialogCtx).pop(),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: pinCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'PIN Code',
-                              border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 12),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: landmarkCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'Landmark (Optional)',
-                              border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 12),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 44,
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: storeAmber,
-                          foregroundColor: storeGreen,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(22)),
-                        ),
-                        onPressed: () async {
-                          final updated = {
-                            'recipient_name': nameCtrl.text.trim(),
-                            'phone': phoneCtrl.text.trim(),
-                            'address_line1': line1Ctrl.text.trim(),
-                            'village_or_city': cityCtrl.text.trim(),
-                            'state': stateCtrl.text.trim(),
-                            'postal_code': pinCtrl.text.trim(),
-                            'landmark': landmarkCtrl.text.trim(),
-                            'district': cityCtrl.text.trim(),
-                            'is_default': address.isDefault,
-                          };
-                          await ref
-                              .read(deliveryAddressesProvider.notifier)
-                              .update(address.id, updated);
-                          if (dialogCtx.mounted) {
-                            Navigator.of(dialogCtx).pop();
-                          }
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content:
-                                      Text('Address updated successfully')),
-                            );
-                          }
-                        },
-                        child: const Text(
-                          'Save Changes',
-                          style: TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.bold),
+                        ],
+                      ),
+                      const Divider(height: 24),
+                      TextFormField(
+                        controller: nameCtrl,
+                        validator: (value) => (value ?? '').trim().length < 2
+                            ? 'Enter the recipient name'
+                            : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Full Name / Recipient',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: phoneCtrl,
+                        validator: (value) =>
+                            RegExp(r'^\d{10}$').hasMatch((value ?? '').trim())
+                                ? null
+                                : 'Enter a 10-digit phone number',
+                        decoration: const InputDecoration(
+                          labelText: 'Phone Number',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: line1Ctrl,
+                        validator: (value) => (value ?? '').trim().length < 3
+                            ? 'Enter the street address'
+                            : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Flat, House no., Building, Street',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      AddressLocationFields(
+                        pin: pinCtrl,
+                        city: cityCtrl,
+                        stateName: stateCtrl,
+                        district: districtCtrl,
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: landmarkCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Landmark (Optional)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: storeAmber,
+                            foregroundColor: storeGreen,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(22)),
+                          ),
+                          onPressed: () async {
+                            if (!formKey.currentState!.validate()) return;
+                            final updated = {
+                              'recipient_name': nameCtrl.text.trim(),
+                              'phone': phoneCtrl.text.trim(),
+                              'address_line1': line1Ctrl.text.trim(),
+                              'village_or_city': cityCtrl.text.trim(),
+                              'state': stateCtrl.text.trim(),
+                              'postal_code': pinCtrl.text.trim(),
+                              'landmark': landmarkCtrl.text.trim(),
+                              'district': districtCtrl.text.trim(),
+                              'is_default': address.isDefault,
+                            };
+                            try {
+                              await ref
+                                  .read(deliveryAddressesProvider.notifier)
+                                  .update(address.id, updated);
+                            } catch (_) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text(
+                                          'Could not save address. Please try again.')),
+                                );
+                              }
+                              return;
+                            }
+                            if (dialogCtx.mounted) {
+                              Navigator.of(dialogCtx).pop();
+                            }
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content:
+                                        Text('Address updated successfully')),
+                              );
+                            }
+                          },
+                          child: const Text(
+                            'Save Changes',
+                            style: TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -2162,6 +945,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   Widget _buildStepPayment() {
     final walletBal = ref.watch(milterraWalletProvider).totalBalance;
+    final capabilities = ref.watch(paymentCapabilitiesProvider);
+    final cart = ref.watch(cartProvider).valueOrNull;
+    final coupon = ref.watch(appliedCouponProvider);
+    final quote = _addressId == null
+        ? null
+        : ref.watch(checkoutQuoteProvider(_quoteKey(cart, coupon))).valueOrNull;
+    final isPrelaunch =
+        quote?.isPrelaunch ?? capabilities.valueOrNull?.isPrelaunch ?? false;
+    final onlineAvailable = capabilities.valueOrNull?.onlineAvailable == true;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -2204,15 +996,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: storeAmber),
             ),
-            child: const Row(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.info_outline, size: 18, color: storeGreen),
-                SizedBox(width: 8),
+                const Icon(Icons.info_outline, size: 18, color: storeGreen),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Payment preview only. Choose how you would prefer to pay after launch. No money, wallet balance, or bank details are collected.',
-                    style: TextStyle(
+                    isPrelaunch
+                        ? 'Pre-launch preview only: Choose how you would prefer to pay after official launch. No money, UPI request, QR code, or bank details are generated.'
+                        : capabilities.isLoading
+                            ? 'Checking available payment methods…'
+                            : !onlineAvailable
+                                ? 'Online payment is currently unavailable. You can place a Cash on Delivery order.'
+                                : 'COD is collected on delivery. Online payments open a secure Razorpay checkout after you place the order.',
+                    style: const TextStyle(
                       fontSize: 12,
                       height: 1.35,
                       fontWeight: FontWeight.w600,
@@ -2223,38 +1021,54 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ],
             ),
           ),
-          _paymentOptionTile(
-            value: 'wallet',
-            title:
-                'Milterra Wallet & Milk Earnings (${storeMoney(walletBal)} shown)',
-            subtitle:
-                'Preview this preference; no wallet balance will be deducted',
-            icon: Icons.account_balance_wallet_outlined,
-          ),
+          if (isPrelaunch)
+            _paymentOptionTile(
+              value: 'wallet',
+              title:
+                  'Milterra Wallet & Milk Earnings (${storeMoney(walletBal)} shown)',
+              subtitle:
+                  'Preview this preference; no wallet balance will be deducted',
+              icon: Icons.account_balance_wallet_outlined,
+            ),
           _paymentOptionTile(
             value: 'cod',
             title: 'Cash on Delivery',
-            subtitle: 'Register that you would prefer to pay after delivery',
+            subtitle: isPrelaunch
+                ? 'Register that you would prefer to pay after delivery'
+                : 'Pay the courier on delivery',
             icon: Icons.payments_outlined,
           ),
-          _paymentOptionTile(
-            value: 'upi',
-            title: 'UPI (Google Pay, PhonePe, Paytm, BHIM) — Preview',
-            subtitle: 'No UPI request will be sent during pre-launch',
-            icon: Icons.qr_code_scanner_outlined,
-          ),
-          _paymentOptionTile(
-            value: 'card',
-            title: 'Credit or Debit Card — Preview',
-            subtitle: 'Do not enter a real card; no card data is collected',
-            icon: Icons.credit_card_outlined,
-          ),
-          _paymentOptionTile(
-            value: 'netbanking',
-            title: 'Net Banking — Preview',
-            subtitle: 'Select a preferred bank without leaving Milterra',
-            icon: Icons.account_balance_outlined,
-          ),
+          if (isPrelaunch || onlineAvailable)
+            _paymentOptionTile(
+              value: 'upi',
+              title: isPrelaunch
+                  ? 'UPI (Google Pay, PhonePe, Paytm, BHIM) — Preview'
+                  : 'UPI',
+              subtitle: isPrelaunch
+                  ? 'Pre-launch preview only: No payment request or QR code is generated'
+                  : 'Pay through secure hosted Razorpay checkout',
+              icon: Icons.qr_code_scanner_outlined,
+            ),
+          if (isPrelaunch || onlineAvailable)
+            _paymentOptionTile(
+              value: 'card',
+              title: isPrelaunch
+                  ? 'Credit or Debit Card — Preview'
+                  : 'Credit or Debit Card',
+              subtitle: isPrelaunch
+                  ? 'Pre-launch preview: Do not enter a card; no payment request is made'
+                  : 'Pay through secure hosted checkout',
+              icon: Icons.credit_card_outlined,
+            ),
+          if (isPrelaunch || onlineAvailable)
+            _paymentOptionTile(
+              value: 'netbanking',
+              title: isPrelaunch ? 'Net Banking — Preview' : 'Net Banking',
+              subtitle: isPrelaunch
+                  ? 'Pre-launch preview: Select preferred bank without payment processing'
+                  : 'Pay through secure hosted checkout',
+              icon: Icons.account_balance_outlined,
+            ),
         ],
       ),
     );
@@ -2423,11 +1237,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Widget _buildOrderSummaryBox(dynamic cart) {
-    final subtotal = cart?.subtotal ?? 0.0;
     final count = cart?.itemCount ?? 0;
     final appliedCoupon = ref.watch(appliedCouponProvider);
-    final discount = appliedCoupon?.calculateDiscount(subtotal) ?? 0.0;
-    final orderTotal = (subtotal - discount).clamp(0.0, double.infinity);
+    final quoteKey = _quoteKey(cart, appliedCoupon);
+    final quoteState = _addressId == null || count == 0
+        ? null
+        : ref.watch(checkoutQuoteProvider(quoteKey));
+    final quote = quoteState?.valueOrNull;
+    final subtotal = quote?.subtotal ?? cart?.subtotal ?? 0.0;
+    final discount = quote?.discount ?? 0.0;
+    final orderTotal = quote?.total;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -2450,9 +1269,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   borderRadius: BorderRadius.circular(22),
                 ),
               ),
-              onPressed: _submitting || count == 0 ? null : _checkout,
+              onPressed:
+                  _submitting || count == 0 || quote == null ? null : _checkout,
               child: Text(
-                _getPaymentButtonLabel(orderTotal),
+                quote == null
+                    ? 'Calculating delivery and total…'
+                    : _getPaymentButtonLabel(orderTotal!, quote.isPrelaunch),
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
@@ -2463,6 +1285,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ),
           ),
           const SizedBox(height: 12),
+          if (quoteState?.hasError == true) ...[
+            Text('Unable to quote checkout: ${quoteState!.error}',
+                style: const TextStyle(color: storeError, fontSize: 12)),
+            TextButton(
+              onPressed: () => ref.invalidate(checkoutQuoteProvider(quoteKey)),
+              child: const Text('Retry quote'),
+            ),
+          ],
           const Text(
             'By placing your order, you agree to Milterra\'s Conditions of Use & Sale.',
             style: TextStyle(fontSize: 10, color: storeMuted),
@@ -2620,13 +1450,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ),
           ],
           const SizedBox(height: 6),
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Delivery charge:',
+              const Text('Delivery charge:',
                   style: TextStyle(fontSize: 13, color: Color(0xff565959))),
-              Text('FREE',
-                  style: TextStyle(
+              Text(
+                  quote == null
+                      ? 'Calculating…'
+                      : quote.deliveryFee == 0
+                          ? 'FREE'
+                          : storeMoney(quote.deliveryFee),
+                  style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
                       color: Color(0xff067d62))),
@@ -2645,7 +1480,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ),
               ),
               Text(
-                storeMoney(orderTotal),
+                orderTotal == null ? 'Calculating…' : storeMoney(orderTotal),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,

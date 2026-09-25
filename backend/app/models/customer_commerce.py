@@ -28,6 +28,10 @@ class OrderContact(Base):
     __tablename__ = "commerce_order_contact"
     order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), primary_key=True)
     payment_method: Mapped[str] = mapped_column(String(30), default="not specified")
+    payment_link_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    payment_link_reference: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    payment_link_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    payment_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
     carrier: Mapped[str] = mapped_column(String(100), default="")
     tracking_number: Mapped[str] = mapped_column(String(100), default="")
     interest_status: Mapped[str] = mapped_column(String(30), default="NEW")

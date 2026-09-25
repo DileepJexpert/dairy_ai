@@ -121,7 +121,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
                                         style: TextStyle(
                                             fontSize: 12, color: storeMuted)),
                                     InkWell(
-                                      onTap: () => context.go('/profile'),
+                                      onTap: () => context.go('/account'),
                                       child: const Text('Your Account',
                                           style: TextStyle(
                                               fontSize: 12, color: storeMuted)),

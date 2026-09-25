@@ -12,10 +12,13 @@ class AppConstants {
 
   static String get apiBaseUrl {
     if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
-    if (kIsWeb) return 'http://localhost:8000';
+    if (kIsWeb) {
+      final host = Uri.base.host.isNotEmpty ? Uri.base.host : '127.0.0.1';
+      return 'http://$host:8000';
+    }
     return defaultTargetPlatform == TargetPlatform.android
         ? 'http://10.0.2.2:8000'
-        : 'http://localhost:8000';
+        : 'http://127.0.0.1:8000';
   }
 
   static const String apiVersion = '/api/v1';

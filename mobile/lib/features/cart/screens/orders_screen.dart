@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../providers/order_repository.dart';
 import '../../marketplace/widgets/store_design.dart';
 
@@ -62,7 +64,7 @@ class OrdersScreen extends ConsumerWidget {
                                 Wrap(
                                   children: [
                                     InkWell(
-                                      onTap: () => context.go('/shop'),
+                                      onTap: () => context.go('/account'),
                                       child: const Text('Your Account',
                                           style: TextStyle(
                                               fontSize: 12, color: storeMuted)),
@@ -149,8 +151,8 @@ class OrdersScreen extends ConsumerWidget {
                                     separatorBuilder: (_, __) =>
                                         const SizedBox(height: 18),
                                     itemBuilder: (context, index) {
-                                      return _buildOrderCard(
-                                          context, orders[index], isMobile);
+                                      return _buildOrderCard(context, ref,
+                                          orders[index], isMobile);
                                     },
                                   ),
                               ],
@@ -213,11 +215,339 @@ class OrdersScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _openPayment(
+      BuildContext context, WidgetRef ref, StoreOrder order) async {
+    try {
+      final response = await ref
+          .read(dioProvider)
+          .post('/marketplace/orders/${order.id}/payment-link');
+      if (response.data['data']['payment_status'] == 'PAID') {
+        ref.read(ordersNotifierProvider.notifier).refresh();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Payment confirmed for this order.')),
+          );
+        }
+        return;
+      }
+      final uri = Uri.tryParse(response.data['data']['url']?.toString() ?? '');
+      if (uri == null ||
+          uri.scheme != 'https' ||
+          !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        throw StateError('Payment page could not be opened');
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content:
+              Text('Secure payment is unavailable. Please try again later.'),
+        ));
+      }
+    }
+  }
+
+  Future<void> _checkPayment(
+      BuildContext context, WidgetRef ref, StoreOrder order) async {
+    try {
+      final response = await ref
+          .read(dioProvider)
+          .post('/marketplace/orders/${order.id}/payment/verify');
+      ref.read(ordersNotifierProvider.notifier).refresh();
+      if (context.mounted) {
+        final confirmed = response.data['data']?['confirmed'] == true;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: confirmed ? storeGreen : const Color(0xffe65100),
+          content: Text(confirmed
+              ? 'Payment confirmed.'
+              : 'Payment is still pending verification from the provider.'),
+        ));
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Payment could not be checked. Please retry.'),
+        ));
+      }
+    }
+  }
+
+  Widget _buildStatusHeader(StoreOrder order) {
+    if (order.isPrelaunchInterest) {
+      if (order.status == 'CANCELLED') {
+        return Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.bookmark_remove_outlined,
+                    color: Color(0xffc62828), size: 18),
+                SizedBox(width: 8),
+                Text(
+                  'Interest Withdrawn',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xffc62828),
+                  ),
+                ),
+              ],
+            ),
+            _statusBadge(
+              label: 'Pre-launch · Cancelled',
+              bgColor: const Color(0xffffebee),
+              borderColor: const Color(0xffef9a9a),
+              textColor: const Color(0xffc62828),
+            ),
+          ],
+        );
+      }
+      return Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
+        runSpacing: 6,
+        children: [
+          const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.bookmark_added_rounded,
+                  color: Color(0xff0277bd), size: 18),
+              SizedBox(width: 8),
+              Text(
+                'Launch Interest Recorded',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xff0277bd),
+                ),
+              ),
+            ],
+          ),
+          _statusBadge(
+            label: 'Pre-launch · No payment taken',
+            bgColor: const Color(0xffe1f5fe),
+            borderColor: const Color(0xff81d4fa),
+            textColor: const Color(0xff01579b),
+          ),
+          _statusBadge(
+            label: 'Fulfillment on Launch',
+            bgColor: const Color(0xfff1f8e9),
+            borderColor: const Color(0xffc5e1a5),
+            textColor: const Color(0xff33691e),
+          ),
+        ],
+      );
+    }
+
+    if (order.status == 'CANCELLED') {
+      return Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
+        runSpacing: 6,
+        children: [
+          const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.cancel_outlined, color: Color(0xffd32f2f), size: 18),
+              SizedBox(width: 8),
+              Text(
+                'Order Cancelled',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xffc62828),
+                ),
+              ),
+            ],
+          ),
+          _statusBadge(
+            label: 'Cancelled',
+            bgColor: const Color(0xffffebee),
+            borderColor: const Color(0xffef9a9a),
+            textColor: const Color(0xffc62828),
+          ),
+        ],
+      );
+    }
+
+    if (order.cancellationStatus == 'REQUESTED') {
+      return _statusBadge(
+        label: 'Cancellation requested · Refund review pending',
+        bgColor: const Color(0xfffff3e0),
+        borderColor: const Color(0xffffcc80),
+        textColor: const Color(0xffe65100),
+      );
+    }
+
+    final isPaymentPending =
+        order.paymentStatus == 'PENDING' || order.status == 'PENDING_PAYMENT';
+
+    if (isPaymentPending) {
+      final isCod = order.paymentMethod.toLowerCase() == 'cod';
+      if (isCod) {
+        return Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.local_shipping_outlined,
+                    color: Color(0xff067d62), size: 18),
+                SizedBox(width: 8),
+                Text(
+                  'Order Confirmed · Cash on Delivery',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xff067d62),
+                  ),
+                ),
+              ],
+            ),
+            _statusBadge(
+              label: 'Pay on delivery',
+              bgColor: const Color(0xffe8f5e9),
+              borderColor: const Color(0xffa5d6a7),
+              textColor: const Color(0xff1b5e20),
+            ),
+            if (order.carrier.isNotEmpty && order.carrier != 'Not assigned')
+              _statusBadge(
+                label: order.carrier,
+                bgColor: const Color(0xfff0f4c3),
+                borderColor: const Color(0xffdce775),
+                textColor: const Color(0xff827717),
+              ),
+          ],
+        );
+      }
+
+      return Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
+        runSpacing: 6,
+        children: [
+          const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.schedule_rounded, color: Color(0xffe65100), size: 18),
+              SizedBox(width: 8),
+              Text(
+                'Payment Pending',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xffe65100),
+                ),
+              ),
+            ],
+          ),
+          _statusBadge(
+            label: 'Awaiting payment',
+            bgColor: const Color(0xfffff3e0),
+            borderColor: const Color(0xffffcc80),
+            textColor: const Color(0xffe65100),
+          ),
+          _statusBadge(
+            label: 'Delivery scheduled after payment',
+            bgColor: const Color(0xfff5f5f5),
+            borderColor: const Color(0xffe0e0e0),
+            textColor: const Color(0xff616161),
+          ),
+        ],
+      );
+    }
+
+    String displayStatus;
+    switch (order.status.toUpperCase()) {
+      case 'CONFIRMED':
+        displayStatus = 'Order Confirmed';
+        break;
+      case 'PACKED':
+        displayStatus = 'Order Packed';
+        break;
+      case 'DISPATCHED':
+        displayStatus = 'Dispatched';
+        break;
+      case 'OUT_FOR_DELIVERY':
+        displayStatus = 'Out for Delivery';
+        break;
+      case 'DELIVERED':
+        displayStatus = 'Delivered';
+        break;
+      default:
+        displayStatus = 'Status: ${order.status}';
+    }
+
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 6,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: Color(0xff067d62), size: 18),
+            const SizedBox(width: 8),
+            Text(
+              displayStatus,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: Color(0xff067d62),
+              ),
+            ),
+          ],
+        ),
+        if (order.carrier.isNotEmpty && order.carrier != 'Not assigned')
+          _statusBadge(
+            label: order.carrier,
+            bgColor: const Color(0xffe8f5e9),
+            borderColor: const Color(0xffa5d6a7),
+            textColor: const Color(0xff1b5e20),
+          )
+        else
+          _statusBadge(
+            label: 'Processing',
+            bgColor: const Color(0xffe8f5e9),
+            borderColor: const Color(0xffa5d6a7),
+            textColor: const Color(0xff1b5e20),
+          ),
+      ],
+    );
+  }
+
+  Widget _statusBadge({
+    required String label,
+    required Color bgColor,
+    required Color borderColor,
+    required Color textColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: borderColor),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: textColor,
+        ),
+      ),
+    );
+  }
+
   Widget _buildOrderCard(
-      BuildContext context, StoreOrder order, bool isMobile) {
+      BuildContext context, WidgetRef ref, StoreOrder order, bool isMobile) {
     final id = order.id;
     final total = order.total;
-    final status = order.status;
     final items = order.items;
     final createdAt = order.createdAt;
 
@@ -248,8 +578,16 @@ class OrdersScreen extends ConsumerWidget {
                   spacing: 24,
                   runSpacing: 6,
                   children: [
-                    _orderHeaderItem('ORDER PLACED', createdAt),
-                    _orderHeaderItem('TOTAL', storeMoney(total)),
+                    _orderHeaderItem(
+                        order.isPrelaunchInterest
+                            ? 'INTEREST RECORDED'
+                            : 'ORDER PLACED',
+                        createdAt),
+                    _orderHeaderItem(
+                        order.isPrelaunchInterest
+                            ? 'INDICATIVE VALUE'
+                            : 'TOTAL',
+                        storeMoney(total)),
                     _orderHeaderItem(
                         'SHIP TO',
                         order.address['recipient_name']?.toString() ??
@@ -261,7 +599,9 @@ class OrdersScreen extends ConsumerWidget {
                   child: Row(
                     children: [
                       Text(
-                        'ORDER # $id',
+                        order.isPrelaunchInterest
+                            ? 'RESERVATION # $id'
+                            : 'ORDER # $id',
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -285,39 +625,8 @@ class OrdersScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.check_circle,
-                        color: Color(0xff067d62), size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Status: $status',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xff067d62),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xffe8f5e9),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: const Color(0xffa5d6a7)),
-                      ),
-                      child: Text(
-                        order.carrier,
-                        style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xff1b5e20)),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                _buildStatusHeader(order),
+                const SizedBox(height: 14),
                 for (final item in items) ...[
                   InkWell(
                     onTap: () {
@@ -388,48 +697,129 @@ class OrdersScreen extends ConsumerWidget {
                   spacing: 12,
                   runSpacing: 8,
                   children: [
-                    FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: storeAmber,
-                        foregroundColor: storeGreen,
-                        minimumSize: const Size(120, 34),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(17)),
+                    if (!order.isPrelaunchInterest &&
+                        (order.paymentStatus == 'PENDING' ||
+                            order.status == 'PENDING_PAYMENT') &&
+                        order.status != 'CANCELLED' &&
+                        order.paymentMethod.toLowerCase() != 'cod') ...[
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: storeGreen,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(130, 34),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(17)),
+                        ),
+                        onPressed: () => _openPayment(context, ref, order),
+                        icon: const Icon(Icons.payment, size: 16),
+                        label: const Text('Pay securely',
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.bold)),
                       ),
-                      onPressed: () {
-                        if (items.isNotEmpty) {
-                          final firstId = _resolveProductId(items.first);
-                          context.push('/shop/product/$firstId');
-                        } else {
-                          context.go('/shop');
-                        }
-                      },
-                      child: const Text('Buy it again',
-                          style: TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.bold)),
-                    ),
-                    OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(120, 34),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(17)),
-                        side: const BorderSide(color: storeBorder),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(140, 34),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(17)),
+                          side: const BorderSide(color: storeBorder),
+                        ),
+                        onPressed: () => _checkPayment(context, ref, order),
+                        icon:
+                            const Icon(Icons.sync, size: 16, color: storeGreen),
+                        label: const Text('Check payment status',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: storeGreen,
+                                fontWeight: FontWeight.bold)),
                       ),
-                      onPressed: () {
-                        context.go('/marketplace/orders/$id');
-                      },
-                      child: const Text('Track package',
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: storeGreen,
-                              fontWeight: FontWeight.bold)),
-                    ),
-                    TextButton(
-                      onPressed: () => context.go('/marketplace/orders/$id'),
-                      child: const Text('View order details',
-                          style: TextStyle(
-                              fontSize: 12, color: Color(0xff007185))),
-                    ),
+                      TextButton(
+                        onPressed: () => context.go('/marketplace/orders/$id'),
+                        child: const Text('View order details',
+                            style: TextStyle(
+                                fontSize: 12, color: Color(0xff007185))),
+                      ),
+                    ] else if (order.isPrelaunchInterest) ...[
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: storeAmber,
+                          foregroundColor: storeGreen,
+                          minimumSize: const Size(140, 34),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(17)),
+                        ),
+                        onPressed: () => context.go('/marketplace/orders/$id'),
+                        icon: const Icon(Icons.description_outlined,
+                            size: 16, color: storeGreen),
+                        label: const Text('View Reservation Details',
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(120, 34),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(17)),
+                          side: const BorderSide(color: storeBorder),
+                        ),
+                        onPressed: () {
+                          if (items.isNotEmpty) {
+                            final firstId = _resolveProductId(items.first);
+                            context.push('/shop/product/$firstId');
+                          } else {
+                            context.go('/shop');
+                          }
+                        },
+                        child: const Text('Explore Product',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: storeGreen,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    ] else ...[
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: storeAmber,
+                          foregroundColor: storeGreen,
+                          minimumSize: const Size(120, 34),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(17)),
+                        ),
+                        onPressed: () {
+                          if (items.isNotEmpty) {
+                            final firstId = _resolveProductId(items.first);
+                            context.push('/shop/product/$firstId');
+                          } else {
+                            context.go('/shop');
+                          }
+                        },
+                        child: const Text('Buy it again',
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                      if (order.status != 'CANCELLED')
+                        OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(120, 34),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(17)),
+                            side: const BorderSide(color: storeBorder),
+                          ),
+                          onPressed: () {
+                            context.go('/marketplace/orders/$id');
+                          },
+                          child: const Text('Track package',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: storeGreen,
+                                  fontWeight: FontWeight.bold)),
+                        ),
+                      TextButton(
+                        onPressed: () => context.go('/marketplace/orders/$id'),
+                        child: const Text('View order details',
+                            style: TextStyle(
+                                fontSize: 12, color: Color(0xff007185))),
+                      ),
+                    ],
                   ],
                 ),
               ],

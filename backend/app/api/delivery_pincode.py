@@ -1,5 +1,8 @@
 import httpx
+import json
 from datetime import datetime, timedelta
+from functools import lru_cache
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -20,6 +23,18 @@ from app.schemas.serviceable_pincode import (
 
 router = APIRouter(tags=["delivery pincodes"])
 admin_only = require_role(UserRole.admin, UserRole.super_admin)
+
+
+@lru_cache(maxsize=1)
+def _location_master() -> dict:
+    path = Path(__file__).resolve().parents[1] / "data" / "india_locations.json"
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@router.get("/marketplace/locations")
+async def list_indian_locations() -> dict:
+    """Bundled government directory snapshot for address state/district choices."""
+    return _location_master()
 
 DEFAULT_SEEDS = [
     # Delhi NCR (Express 1-day delivery)
@@ -138,11 +153,20 @@ def _serialize(row: ServiceablePincode) -> dict:
 
 @router.get("/marketplace/pincode/lookup")
 async def lookup_pincode_details(
-    pincode: str = Query(..., description="6-digit Indian Postal PIN code")
+    pincode: str = Query(..., description="6-digit Indian Postal PIN code"),
+    db: AsyncSession = Depends(get_db),
 ):
     """Direct lookup endpoint that returns official city, district, and state from India Post."""
     clean_pin = pincode.strip()
+    if len(clean_pin) != 6 or not clean_pin.isdigit():
+        raise HTTPException(status_code=422, detail="Enter a 6-digit Indian PIN code")
     data = await lookup_india_post_pincode(clean_pin)
+    if not data:
+        row = await db.get(ServiceablePincode, clean_pin)
+        if row:
+            data = {"pincode": clean_pin, "city": row.city,
+                    "district": "", "state": row.state,
+                    "source": "delivery_master"}
     if not data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

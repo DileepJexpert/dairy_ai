@@ -25,7 +25,7 @@ def result(data):
 async def wallet_status(user: User = Depends(get_current_user)):
     # No real wallet ledger or payment gateway is configured. Never invent funds.
     return result({'enabled': False, 'total_balance': '0', 'milk_payout_balance': '0', 'store_credit_balance': '0', 'transactions': [],
-                   'message': 'Wallet funding, bank withdrawals and milk settlement are not enabled. Checkout records your payment preference only; no money is collected.'})
+                   'message': 'Wallet funding, bank withdrawals and milk settlement are not enabled. Use the available payment methods shown at checkout.'})
 
 
 class ProfileInput(BaseModel):

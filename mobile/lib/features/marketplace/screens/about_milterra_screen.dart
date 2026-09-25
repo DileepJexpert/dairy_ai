@@ -1,49 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/store_design.dart';
-import '../../milterra/widgets/milterra_store_header.dart';
-import '../../milterra/widgets/milterra_store_footer.dart';
 
 class AboutMilterraScreen extends StatelessWidget {
   const AboutMilterraScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: storeCream,
-      body: Column(
-        children: [
-          const MilterraStoreHeader(),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1080),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Breadcrumb
-                            Wrap(
-                              children: [
-                                InkWell(
-                                  onTap: () => context.go('/shop'),
-                                  child: const Text('Home',
-                                      style: TextStyle(fontSize: 12, color: storeMuted)),
-                                ),
-                                const Text(' › ',
-                                    style: TextStyle(fontSize: 12, color: storeMuted)),
-                                const Text('About Milterra',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: storeGreen)),
-                              ],
-                            ),
-                            const SizedBox(height: 18),
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          context.go('/shop');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: storeCream,
+        body: Column(
+          children: [
+            const StoreHeader(currentCategory: 'All'),
+            StoreCategoryNavigation(
+              selected: 'About',
+              onSelected: (cat) {
+                context.go(Uri(
+                  path: '/shop',
+                  queryParameters: {'category': cat},
+                ).toString());
+              },
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1080),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Navigation & Back Action Bar
+                              _buildBackAndBreadcrumbs(context),
+                              const SizedBox(height: 20),
 
                             // Hero Banner
                             _buildHeroBanner(),
@@ -73,9 +72,110 @@ class AboutMilterraScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const MilterraStoreFooter(),
+                  const StoreFooter(),
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+  Widget _buildBackAndBreadcrumbs(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: storeBorder.withValues(alpha: 0.6)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Prominent Back to Shopping button
+          InkWell(
+            onTap: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              } else {
+                context.go('/shop');
+              }
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: storeGreen.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: storeGreen.withValues(alpha: 0.2)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.arrow_back_rounded, size: 16, color: storeGreen),
+                  SizedBox(width: 6),
+                  Text(
+                    'Back to Store',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: storeGreen,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Text('│', style: TextStyle(color: Color(0xffcbd5e1), fontSize: 14)),
+          const SizedBox(width: 14),
+
+          // Breadcrumbs
+          Expanded(
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                InkWell(
+                  onTap: () => context.go('/shop'),
+                  child: const Text(
+                    'Home',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: storeMuted,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const Text(' › ', style: TextStyle(fontSize: 12.5, color: storeMuted)),
+                InkWell(
+                  onTap: () => context.go('/shop'),
+                  child: const Text(
+                    'Store',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: storeMuted,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const Text(' › ', style: TextStyle(fontSize: 12.5, color: storeMuted)),
+                const Text(
+                  'About Milterra & Vedic Craft',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.bold,
+                    color: storeGreen,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

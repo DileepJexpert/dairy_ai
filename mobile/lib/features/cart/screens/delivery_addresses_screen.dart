@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../models/delivery_address.dart';
 import '../providers/cart_provider.dart';
 import '../providers/delivery_address_provider.dart';
+import '../widgets/address_location_fields.dart';
 import '../../marketplace/widgets/store_design.dart';
 
 class DeliveryAddressesScreen extends ConsumerWidget {
@@ -50,7 +51,7 @@ class DeliveryAddressesScreen extends ConsumerWidget {
                                           WrapCrossAlignment.center,
                                       children: [
                                         InkWell(
-                                          onTap: () => context.go('/shop'),
+                                          onTap: () => context.go('/account'),
                                           child: const Text('Your Account',
                                               style: TextStyle(
                                                   fontSize: 12,
@@ -62,8 +63,8 @@ class DeliveryAddressesScreen extends ConsumerWidget {
                                                 color: storeMuted)),
                                         if (cartCount > 0) ...[
                                           InkWell(
-                                            onTap: () => context
-                                                .go('/marketplace/cart'),
+                                            onTap: () =>
+                                                context.go('/marketplace/cart'),
                                             child: Text('Cart ($cartCount)',
                                                 style: const TextStyle(
                                                     fontSize: 12,
@@ -100,8 +101,7 @@ class DeliveryAddressesScreen extends ConsumerWidget {
                                                   BorderRadius.circular(20),
                                             ),
                                           ),
-                                          icon: const Icon(
-                                              Icons.arrow_back,
+                                          icon: const Icon(Icons.arrow_back,
                                               size: 15),
                                           label: Text(
                                             cartCount > 0
@@ -111,8 +111,8 @@ class DeliveryAddressesScreen extends ConsumerWidget {
                                                 fontSize: 13,
                                                 fontWeight: FontWeight.w600),
                                           ),
-                                          onPressed: () => context
-                                              .go('/marketplace/cart'),
+                                          onPressed: () =>
+                                              context.go('/marketplace/cart'),
                                         ),
                                         FilledButton.icon(
                                           style: FilledButton.styleFrom(
@@ -172,10 +172,8 @@ class DeliveryAddressesScreen extends ConsumerWidget {
                                     ),
                                     child: Row(
                                       children: [
-                                        const Icon(
-                                            Icons.shopping_bag_outlined,
-                                            color: storeGreen,
-                                            size: 24),
+                                        const Icon(Icons.shopping_bag_outlined,
+                                            color: storeGreen, size: 24),
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: Column(
@@ -207,8 +205,8 @@ class DeliveryAddressesScreen extends ConsumerWidget {
                                                 const Color(0xffdcfce7),
                                             foregroundColor: storeGreen,
                                           ),
-                                          onPressed: () => context
-                                              .go('/marketplace/cart'),
+                                          onPressed: () =>
+                                              context.go('/marketplace/cart'),
                                           child: const Text('Return to Cart'),
                                         ),
                                       ],
@@ -248,11 +246,10 @@ class DeliveryAddressesScreen extends ConsumerWidget {
                                         final columns = isMobile
                                             ? 1
                                             : (space.maxWidth >= 900 ? 3 : 2);
-                                        final cardWidth =
-                                            ((space.maxWidth -
-                                                        16 * (columns - 1)) /
-                                                    columns)
-                                                .clamp(280.0, space.maxWidth);
+                                        final cardWidth = ((space.maxWidth -
+                                                    16 * (columns - 1)) /
+                                                columns)
+                                            .clamp(280.0, space.maxWidth);
 
                                         return Wrap(
                                           spacing: 16,
@@ -360,7 +357,7 @@ class DeliveryAddressesScreen extends ConsumerWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -392,9 +389,9 @@ class DeliveryAddressesScreen extends ConsumerWidget {
               children: [
                 // Tag: Default Badge
                 if (address.isDefault)
-                  Row(
+                  const Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
+                    children: [
                       Icon(Icons.check_circle, size: 14, color: storeOrange),
                       SizedBox(width: 4),
                       Text(
@@ -415,10 +412,10 @@ class DeliveryAddressesScreen extends ConsumerWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: _typeColor(addressType).withOpacity(0.12),
+                    color: _typeColor(addressType).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(
-                      color: _typeColor(addressType).withOpacity(0.4),
+                      color: _typeColor(addressType).withValues(alpha: 0.4),
                     ),
                   ),
                   child: Row(
@@ -702,9 +699,7 @@ class DeliveryAddressesScreen extends ConsumerWidget {
     final isEditing = initialAddress != null;
     final formKey = GlobalKey<FormState>();
 
-    var selectedType = isEditing
-        ? _detectAddressType(initialAddress)
-        : 'Home';
+    var selectedType = isEditing ? _detectAddressType(initialAddress) : 'Home';
     var isDefault = isEditing ? initialAddress.isDefault : false;
     var isSaving = false;
 
@@ -719,8 +714,8 @@ class DeliveryAddressesScreen extends ConsumerWidget {
           text: isEditing ? (initialAddress.landmark ?? '') : ''),
       'village_or_city': TextEditingController(
           text: isEditing ? initialAddress.villageOrCity : ''),
-      'district': TextEditingController(
-          text: isEditing ? initialAddress.district : ''),
+      'district':
+          TextEditingController(text: isEditing ? initialAddress.district : ''),
       'state':
           TextEditingController(text: isEditing ? initialAddress.state : ''),
       'postal_code': TextEditingController(
@@ -786,9 +781,8 @@ class DeliveryAddressesScreen extends ConsumerWidget {
                           selectedColor: storeGreen,
                           labelStyle: TextStyle(
                             color: selected ? Colors.white : Colors.black87,
-                            fontWeight: selected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
+                            fontWeight:
+                                selected ? FontWeight.bold : FontWeight.normal,
                           ),
                           onSelected: (val) {
                             if (val) setModalState(() => selectedType = type);
@@ -830,7 +824,8 @@ class DeliveryAddressesScreen extends ConsumerWidget {
                                 horizontal: 12, vertical: 12),
                           ),
                           validator: (v) {
-                            final text = (v ?? '').replaceAll(RegExp(r'\D'), '');
+                            final text =
+                                (v ?? '').replaceAll(RegExp(r'\D'), '');
                             return text.length < 8 || text.length > 12
                                 ? 'Valid mobile required'
                                 : null;
@@ -870,81 +865,11 @@ class DeliveryAddressesScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
 
-                  // PIN Code & City Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: fields['postal_code'],
-                          keyboardType: TextInputType.number,
-                          maxLength: 6,
-                          decoration: const InputDecoration(
-                            labelText: '6-digit PIN Code *',
-                            counterText: '',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 12),
-                          ),
-                          validator: (v) =>
-                              (v ?? '').trim().length != 6
-                                  ? '6 digits required'
-                                  : null,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: fields['village_or_city'],
-                          decoration: const InputDecoration(
-                            labelText: 'Town / City *',
-                            hintText: 'e.g. New Delhi / Noida',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 12),
-                          ),
-                          validator: (v) =>
-                              (v ?? '').trim().isEmpty ? 'City required' : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // District & State Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: fields['district'],
-                          decoration: const InputDecoration(
-                            labelText: 'District *',
-                            hintText: 'e.g. Gautam Buddha Nagar',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 12),
-                          ),
-                          validator: (v) => (v ?? '').trim().isEmpty
-                              ? 'District required'
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: fields['state'],
-                          decoration: const InputDecoration(
-                            labelText: 'State *',
-                            hintText: 'e.g. Uttar Pradesh',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 12),
-                          ),
-                          validator: (v) => (v ?? '').trim().isEmpty
-                              ? 'State required'
-                              : null,
-                        ),
-                      ),
-                    ],
+                  AddressLocationFields(
+                    pin: fields['postal_code']!,
+                    city: fields['village_or_city']!,
+                    stateName: fields['state']!,
+                    district: fields['district']!,
                   ),
                   const SizedBox(height: 8),
 
@@ -972,7 +897,8 @@ class DeliveryAddressesScreen extends ConsumerWidget {
                         backgroundColor: storeAmber,
                         foregroundColor: storeGreen,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(StoreLayout.radius),
+                          borderRadius:
+                              BorderRadius.circular(StoreLayout.radius),
                         ),
                       ),
                       onPressed: isSaving
@@ -1033,7 +959,8 @@ class DeliveryAddressesScreen extends ConsumerWidget {
                                       .showSnackBar(
                                     SnackBar(
                                       backgroundColor: storeError,
-                                      content: Text('Error saving address: $err'),
+                                      content:
+                                          Text('Error saving address: $err'),
                                     ),
                                   );
                                 }

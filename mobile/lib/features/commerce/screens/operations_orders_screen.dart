@@ -22,6 +22,38 @@ class OperationsOrdersScreen extends ConsumerWidget {
   const OperationsOrdersScreen({super.key, required this.title});
   final String title;
 
+  Future<void> collectCod(BuildContext context, WidgetRef ref, String orderId) async {
+    final reference = TextEditingController();
+    try {
+      await showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
+        title: const Text('Record COD remittance'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('Confirm the courier has delivered the parcel and remitted the collected payment.'),
+          TextField(controller: reference, maxLength: 100,
+              decoration: const InputDecoration(labelText: 'Courier remittance reference')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+          FilledButton(onPressed: () async {
+            try {
+              await ref.read(dioProvider).post('/marketplace/orders/admin/cod/$orderId/collect',
+                  data: {'remittance_reference': reference.text.trim()});
+              ref.invalidate(operationsOrdersProvider);
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+            } catch (error) {
+              if (dialogContext.mounted) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  SnackBar(content: Text(commerceError(error))));
+              }
+            }
+          }, child: const Text('Record payment')),
+        ],
+      ));
+    } finally {
+      reference.dispose();
+    }
+  }
+
   Future<void> update(
       BuildContext context, WidgetRef ref, Map<String, dynamic> order) async {
     final current = order['status'];
@@ -480,11 +512,11 @@ class OperationsOrdersScreen extends ConsumerWidget {
                                     ],
                                   ),
                                   const SizedBox(height: 2),
-                                  const Row(
+                                  Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text('Shipping & Handling:', style: TextStyle(fontSize: 11, color: storeMuted)),
-                                      Text('FREE', style: TextStyle(fontSize: 11, color: storeGreen, fontWeight: FontWeight.bold)),
+                                      const Text('Shipping & Handling:', style: TextStyle(fontSize: 11, color: storeMuted)),
+                                      Text(storeMoney(double.tryParse(order['delivery_fee']?.toString() ?? '') ?? 0), style: const TextStyle(fontSize: 11, color: storeGreen, fontWeight: FontWeight.bold)),
                                     ],
                                   ),
                                   const Divider(height: 8),
@@ -568,7 +600,7 @@ class OperationsOrdersScreen extends ConsumerWidget {
 MILTERRA TAX INVOICE & PACKING SLIP
 Invoice: $invoiceNumber
 Date: $createdAt
-Status: $status | Payment: $paymentMethod (PAID)
+Status: $status | Payment: $paymentMethod (${order['payment_status'] ?? 'PENDING'})
 
 SOLD BY:
 $vendorName
@@ -685,7 +717,7 @@ TOTAL: ${storeMoney(total)}
               data: (orders) => orders.isEmpty
                   ? const Center(
                       child: Text(
-                          'No paid commercial orders to fulfill.\nPre-launch interests are managed in the admin contact list.',
+                          'No paid or confirmed COD orders to fulfill.\nPre-launch interests are managed in the admin contact list.',
                           textAlign: TextAlign.center))
                   : ListView.separated(
                       padding: const EdgeInsets.all(20),
@@ -1004,6 +1036,15 @@ TOTAL: ${storeMoney(total)}
                                               icon: const Icon(Icons.local_shipping_outlined, size: 16),
                                               label: const Text('Update', style: TextStyle(fontSize: 12)),
                                               onPressed: () => update(context, ref, order),
+                                            ),
+                                          if (order['payment_method'] == 'cod' &&
+                                              order['payment_status'] == 'PENDING' &&
+                                              status == 'DELIVERED' &&
+                                              {'admin', 'super_admin'}.contains(ref.watch(currentUserProvider)?.role))
+                                            OutlinedButton.icon(
+                                              icon: const Icon(Icons.payments_outlined, size: 16),
+                                              label: const Text('Record COD remittance'),
+                                              onPressed: () => collectCod(context, ref, orderId),
                                             ),
                                         ],
                                       ),

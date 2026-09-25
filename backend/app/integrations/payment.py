@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import logging
+import time
 from typing import Optional
 
 import httpx
@@ -21,6 +22,69 @@ class RazorpayClient:
         """Return Basic Auth credentials (key_id, key_secret)."""
         settings = get_settings()
         return (settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
+
+    @staticmethod
+    async def create_checkout_link(amount_paise: int, reference_id: str, customer_name: str, customer_phone: str) -> Optional[dict]:
+        """Create one hosted checkout link; notifications are handled by Milterra."""
+        payload = {
+            "amount": amount_paise, "currency": "INR", "accept_partial": False,
+            "reference_id": reference_id, "description": f"Milterra order {reference_id}",
+            "customer": {"name": customer_name, "contact": customer_phone},
+            "notify": {"sms": False, "email": False}, "reminder_enable": False,
+            "expire_by": int(time.time()) + get_settings().COMMERCE_PAYMENT_LINK_EXPIRY_MINUTES * 60,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(f"{RAZORPAY_BASE_URL}/payment_links", auth=RazorpayClient._auth(), json=payload)
+                response.raise_for_status()
+                return response.json()
+        except (httpx.HTTPError, ValueError):
+            logger.exception("Unable to create checkout payment link for %s", reference_id)
+            return None
+
+    @staticmethod
+    async def fetch_checkout_link(link_id: str) -> Optional[dict]:
+        if not link_id.startswith("plink_"):
+            return None
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(f"{RAZORPAY_BASE_URL}/payment_links/{link_id}", auth=RazorpayClient._auth())
+                response.raise_for_status()
+                return response.json()
+        except (httpx.HTTPError, ValueError):
+            logger.exception("Unable to verify checkout payment link %s", link_id)
+            return None
+
+    @staticmethod
+    async def cancel_checkout_link(link_id: str) -> bool:
+        if not link_id.startswith("plink_"):
+            return False
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(f"{RAZORPAY_BASE_URL}/payment_links/{link_id}/cancel", auth=RazorpayClient._auth())
+                if response.status_code == 200:
+                    return response.json().get("status") == "cancelled"
+                if response.status_code in {400, 404}:
+                    link = await RazorpayClient.fetch_checkout_link(link_id)
+                    if link and link.get("status") in {"cancelled", "expired"}:
+                        return True
+                return False
+        except (httpx.HTTPError, ValueError):
+            logger.exception("Unable to cancel checkout payment link %s", link_id)
+            return False
+
+    @staticmethod
+    async def fetch_checkout_refund(refund_id: str) -> Optional[dict]:
+        if not refund_id.startswith("rfnd_"):
+            return None
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(f"{RAZORPAY_BASE_URL}/refunds/{refund_id}", auth=RazorpayClient._auth())
+                response.raise_for_status()
+                return response.json()
+        except (httpx.HTTPError, ValueError):
+            logger.exception("Unable to verify checkout refund %s", refund_id)
+            return None
 
     @staticmethod
     async def create_order(

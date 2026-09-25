@@ -6,7 +6,8 @@ import '../providers/pincode_provider.dart';
 import 'store_design.dart';
 
 /// Shows an interactive Amazon-style PIN code selector and live delivery check modal.
-Future<void> showPincodeSelectorDialog(BuildContext context, WidgetRef ref) async {
+Future<void> showPincodeSelectorDialog(
+    BuildContext context, WidgetRef ref) async {
   final currentPin = ref.read(currentPincodeProvider);
   final controller = TextEditingController(text: currentPin);
 
@@ -34,7 +35,8 @@ class _PincodeModalContent extends ConsumerStatefulWidget {
   final TextEditingController controller;
 
   @override
-  ConsumerState<_PincodeModalContent> createState() => _PincodeModalContentState();
+  ConsumerState<_PincodeModalContent> createState() =>
+      _PincodeModalContentState();
 }
 
 class _PincodeModalContentState extends ConsumerState<_PincodeModalContent> {
@@ -42,6 +44,7 @@ class _PincodeModalContentState extends ConsumerState<_PincodeModalContent> {
   bool _checking = false;
   bool _locating = false;
   PincodeDeliveryInfo? _checkedInfo;
+  int _checkVersion = 0;
 
   @override
   void initState() {
@@ -51,24 +54,37 @@ class _PincodeModalContentState extends ConsumerState<_PincodeModalContent> {
 
   Future<void> _checkPincode(String pin) async {
     final clean = pin.trim();
-    if (clean.length != 6) return;
+    if (!RegExp(r'^\d{6}$').hasMatch(clean)) return;
+    final version = ++_checkVersion;
 
     setState(() {
       _checking = true;
       _queriedPin = clean;
+      _checkedInfo = null;
     });
 
     try {
+      ref.invalidate(deliveryCheckProvider(clean));
       final info = await ref.read(deliveryCheckProvider(clean).future);
-      if (mounted) {
+      if (mounted &&
+          version == _checkVersion &&
+          widget.controller.text == clean) {
         setState(() {
           _checkedInfo = info;
           _checking = false;
         });
       }
     } catch (_) {
-      if (mounted) {
-        setState(() => _checking = false);
+      if (mounted && version == _checkVersion) {
+        setState(() {
+          _checkedInfo = PincodeDeliveryInfo(
+            isServiceable: false,
+            pincode: clean,
+            message:
+                'Delivery availability could not be verified. Please try again.',
+          );
+          _checking = false;
+        });
       }
     }
   }
@@ -82,14 +98,17 @@ class _PincodeModalContentState extends ConsumerState<_PincodeModalContent> {
         final data = res.data as Map;
         final detectedPin = data['pincode']?.toString() ?? '';
         if (detectedPin.length == 6) {
+          _checkVersion++;
           widget.controller.text = detectedPin;
           final svc = data['serviceability'];
           if (svc is Map) {
-            final info = PincodeDeliveryInfo.fromJson(Map<String, dynamic>.from(svc));
+            final info =
+                PincodeDeliveryInfo.fromJson(Map<String, dynamic>.from(svc));
             if (mounted) {
               setState(() {
                 _checkedInfo = info;
                 _queriedPin = detectedPin;
+                _checking = false;
               });
             }
           } else {
@@ -101,7 +120,8 @@ class _PincodeModalContentState extends ConsumerState<_PincodeModalContent> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Could not auto-detect location. Please enter your PIN code.'),
+            content: Text(
+                'Could not auto-detect location. Please enter your PIN code.'),
           ),
         );
       }
@@ -112,7 +132,8 @@ class _PincodeModalContentState extends ConsumerState<_PincodeModalContent> {
 
   void _applyPincode(PincodeDeliveryInfo info) {
     ref.read(currentPincodeProvider.notifier).state = info.pincode;
-    ref.read(selectedDeliveryLocationProvider.notifier).state = info.locationLabel;
+    ref.read(selectedDeliveryLocationProvider.notifier).state =
+        info.locationLabel;
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -137,7 +158,8 @@ class _PincodeModalContentState extends ConsumerState<_PincodeModalContent> {
           // Header
           Row(
             children: [
-              const Icon(Icons.location_on_outlined, color: storeGreen, size: 24),
+              const Icon(Icons.location_on_outlined,
+                  color: storeGreen, size: 24),
               const SizedBox(width: 8),
               const Text(
                 'Enter a delivery PIN code',
@@ -179,13 +201,16 @@ class _PincodeModalContentState extends ConsumerState<_PincodeModalContent> {
                     const SizedBox(
                       width: 14,
                       height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: storeGreen),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: storeGreen),
                     )
                   else
                     const Icon(Icons.my_location, size: 16, color: storeGreen),
                   const SizedBox(width: 8),
                   Text(
-                    _locating ? 'Detecting your location…' : 'Use my current location',
+                    _locating
+                        ? 'Detecting your location…'
+                        : 'Use my current location',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -211,19 +236,28 @@ class _PincodeModalContentState extends ConsumerState<_PincodeModalContent> {
                     counterText: '',
                     hintText: 'Enter 6-digit PIN code',
                     hintStyle: const TextStyle(fontSize: 13, color: storeMuted),
-                    prefixIcon: const Icon(Icons.pin_drop_outlined, size: 18, color: storeGreen),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    prefixIcon: const Icon(Icons.pin_drop_outlined,
+                        size: 18, color: storeGreen),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: storeBorder),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: storeGreen, width: 1.5),
+                      borderSide:
+                          const BorderSide(color: storeGreen, width: 1.5),
                     ),
                   ),
                   onSubmitted: (val) => _checkPincode(val),
                   onChanged: (val) {
+                    _checkVersion++;
+                    setState(() {
+                      _checkedInfo = null;
+                      _queriedPin = null;
+                      _checking = false;
+                    });
                     if (val.trim().length == 6) {
                       _checkPincode(val);
                     }
@@ -250,9 +284,11 @@ class _PincodeModalContentState extends ConsumerState<_PincodeModalContent> {
                       ? const SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: storeGreen),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: storeGreen),
                         )
-                      : const Text('Check', style: TextStyle(fontWeight: FontWeight.bold)),
+                      : const Text('Check',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -377,7 +413,8 @@ class _PincodeModalContentState extends ConsumerState<_PincodeModalContent> {
                 {'pin': '400001', 'name': 'Mumbai 400001'},
               ])
                 ActionChip(
-                  avatar: const Icon(Icons.location_city, size: 14, color: storeGreen),
+                  avatar: const Icon(Icons.location_city,
+                      size: 14, color: storeGreen),
                   label: Text(hub['name']!),
                   backgroundColor: _queriedPin == hub['pin']
                       ? storeAmber
@@ -391,6 +428,7 @@ class _PincodeModalContentState extends ConsumerState<_PincodeModalContent> {
                     color: const Color(0xff1f2937),
                   ),
                   onPressed: () {
+                    _checkVersion++;
                     widget.controller.text = hub['pin']!;
                     _checkPincode(hub['pin']!);
                   },

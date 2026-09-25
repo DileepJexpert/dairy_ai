@@ -107,6 +107,7 @@ class StoreOrder {
   final String
       status; // CONFIRMED, PACKED, DISPATCHED, OUT_FOR_DELIVERY, DELIVERED, CANCELLED
   final String paymentStatus; // PAID, PENDING, FAILED
+  final String? cancellationStatus; // REQUESTED, REJECTED, COMPLETED
   final String paymentMethod; // Milterra Wallet, COD, UPI, Card
   final String carrier; // DTDC Express, Delhivery, Blue Dart, Milterra Direct
   final String trackingNumber; // e.g. DTDC-7749210
@@ -125,6 +126,7 @@ class StoreOrder {
     required this.createdAt,
     this.status = 'PENDING_PAYMENT',
     this.paymentStatus = 'PENDING',
+    this.cancellationStatus,
     this.paymentMethod = 'Not specified',
     this.carrier = 'Not assigned',
     this.trackingNumber = '',
@@ -144,6 +146,7 @@ class StoreOrder {
         createdAt: j['created_at'].toString(),
         status: j['status'].toString(),
         paymentStatus: j['payment_status'].toString(),
+        cancellationStatus: j['cancellation_status']?.toString(),
         paymentMethod: j['payment_method']?.toString() ?? 'Not specified',
         carrier: j['carrier']?.toString().isNotEmpty == true
             ? j['carrier'].toString()
@@ -180,6 +183,7 @@ class StoreOrder {
     String? createdAt,
     String? status,
     String? paymentStatus,
+    String? cancellationStatus,
     String? paymentMethod,
     String? carrier,
     String? trackingNumber,
@@ -198,6 +202,7 @@ class StoreOrder {
       createdAt: createdAt ?? this.createdAt,
       status: status ?? this.status,
       paymentStatus: paymentStatus ?? this.paymentStatus,
+      cancellationStatus: cancellationStatus ?? this.cancellationStatus,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       carrier: carrier ?? this.carrier,
       trackingNumber: trackingNumber ?? this.trackingNumber,
@@ -217,6 +222,7 @@ class StoreOrder {
         'created_at': createdAt,
         'status': status,
         'payment_status': paymentStatus,
+        'cancellation_status': cancellationStatus,
         'payment_method': paymentMethod,
         'carrier': carrier,
         'tracking_number': trackingNumber,

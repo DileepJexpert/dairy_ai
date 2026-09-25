@@ -319,10 +319,6 @@ class Product {
         specifications['best_seller'] == true) {
       return '#1 Best Seller';
     }
-    if (compareAtPrice != null && compareAtPrice! > price) {
-      final off = ((compareAtPrice! - price) / compareAtPrice! * 100).round();
-      if (off >= 15) return 'Limited time deal';
-    }
     return null;
   }
   double get rating =>

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,8 +11,9 @@ import '../../marketplace/widgets/store_design.dart';
 import '../models/auth_state.dart';
 import '../providers/auth_provider.dart';
 
-/// Customers use phone and password so pre-launch demand capture has no SMS
-/// cost. Development admin/vendor accounts retain their role-checked OTP flow.
+const _demoUiEnabled = bool.fromEnvironment('ENABLE_DEMO_UI', defaultValue: false);
+
+/// Customers use password login; staff OTP login requires real SMS in production.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({
     super.key,
@@ -288,8 +290,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               style: StoreType.body,
                             ),
                             const SizedBox(height: 16),
-                            // Quick 1-Click Demo Credentials for Testing
-                            Container(
+                            // Never publish known demo credentials in a release build.
+                            if (kDebugMode && _demoUiEnabled) Container(
                               margin: const EdgeInsets.only(bottom: 20),
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(

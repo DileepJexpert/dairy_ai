@@ -67,7 +67,7 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
                                 Wrap(
                                   children: [
                                     InkWell(
-                                      onTap: () => context.go('/shop'),
+                                      onTap: () => context.go('/account'),
                                       child: const Text('Your Account',
                                           style: TextStyle(
                                               fontSize: 12, color: storeMuted)),
@@ -88,7 +88,7 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
                                 const SizedBox(height: 16),
 
                                 const Text(
-                                  'Milterra Balance & Farmer Wallet',
+                                  'Wallet & transaction history',
                                   style: TextStyle(
                                     fontSize: 26,
                                     fontWeight: FontWeight.w800,
@@ -97,7 +97,7 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
                                 ),
                                 const SizedBox(height: 6),
                                 const Text(
-                                  'Combine cooperative milk supply earnings with store cashback credits for frictionless 1-click purchases and bank payouts.',
+                                  'View wallet availability and any recorded transactions. Wallet payments and payouts are not enabled yet.',
                                   style: TextStyle(
                                       fontSize: 13, color: storeMuted),
                                 ),
@@ -187,7 +187,7 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
-                  '100% FDIC / RBI Protected',
+                  'Wallet not enabled',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -201,7 +201,9 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
 
           // Total Number
           Text(
-            storeMoney(_walletBalance),
+            ref.watch(milterraWalletProvider).enabled
+                ? storeMoney(_walletBalance)
+                : 'Unavailable',
             style: const TextStyle(
               fontSize: 36,
               fontWeight: FontWeight.w900,
@@ -221,14 +223,14 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
                       icon: Icons.water_drop_outlined,
                       label: 'Milk Procurement Payouts',
                       amount: _milkPayoutBalance,
-                      desc: 'Verified by Anand Cooperative Dairy',
+                      desc: 'Not enabled',
                     ),
                     const SizedBox(height: 12),
                     _subBalanceTile(
                       icon: Icons.card_giftcard_outlined,
                       label: 'Store Cashback & Credits',
                       amount: _storeCreditBalance,
-                      desc: 'Ready for instant marketplace checkout',
+                      desc: 'Not enabled for checkout',
                     ),
                   ],
                 )
@@ -239,7 +241,7 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
                         icon: Icons.water_drop_outlined,
                         label: 'Milk Procurement Payouts',
                         amount: _milkPayoutBalance,
-                        desc: 'Verified by Anand Cooperative Dairy',
+                        desc: 'Not enabled',
                       ),
                     ),
                     const SizedBox(width: 24),
@@ -248,7 +250,7 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
                         icon: Icons.card_giftcard_outlined,
                         label: 'Store Cashback & Credits',
                         amount: _storeCreditBalance,
-                        desc: 'Ready for instant marketplace checkout',
+                        desc: 'Not enabled for checkout',
                       ),
                     ),
                   ],
@@ -315,9 +317,9 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
       runSpacing: 16,
       children: [
         _actionCard(
-          title: 'Shop with Balance',
+          title: 'Shop Milterra',
           subtitle:
-              'Use your milk earnings directly for fresh A2 Ghee & cattle feed.',
+              'Choose an available payment method at checkout.',
           icon: Icons.shopping_bag_outlined,
           buttonText: 'Shop the Marketplace →',
           onTap: () => context.go('/shop'),
@@ -327,7 +329,7 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
         _actionCard(
           title: 'Bank Payout — Not Enabled',
           subtitle:
-              'Withdraw earnings to your linked cooperative or national bank.',
+              'Bank withdrawals are not available.',
           icon: Icons.account_balance_outlined,
           buttonText: 'Withdraw to Bank',
           onTap: _openWithdrawDialog,
@@ -336,7 +338,7 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
         ),
         _actionCard(
           title: 'Add Store Credit — Not Enabled',
-          subtitle: 'Top-up wallet balance via UPI, RuPay, or Net Banking.',
+          subtitle: 'Adding money to a wallet is not available.',
           icon: Icons.add_circle_outline,
           buttonText: 'Add Funds',
           onTap: _openAddMoneyDialog,
@@ -477,7 +479,7 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
         ),
         child: const Center(
           child: Text(
-            'No transactions found for this filter.',
+            'No wallet transactions are available.',
             style: TextStyle(fontSize: 14, color: storeMuted),
           ),
         ),
@@ -578,55 +580,15 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
         borderRadius: BorderRadius.circular(StoreLayout.radius),
         border: Border.all(color: storeBorder),
       ),
-      child: const Wrap(
-        alignment: WrapAlignment.spaceBetween,
-        spacing: 20,
-        runSpacing: 12,
+      child: const Row(
         children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.verified_user_outlined, size: 20, color: storeGreen),
-              SizedBox(width: 8),
-              Text(
-                'Direct Cooperative Settlement',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: storeGreen,
-                ),
-              ),
-            ],
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.lock_outline, size: 20, color: storeGreen),
-              SizedBox(width: 8),
-              Text(
-                '256-Bit SSL Encrypted Banking',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: storeGreen,
-                ),
-              ),
-            ],
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.price_check_outlined, size: 20, color: storeGreen),
-              SizedBox(width: 8),
-              Text(
-                'Zero Processing Fee on Payouts',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: storeGreen,
-                ),
-              ),
-            ],
+          Icon(Icons.info_outline, size: 20, color: storeGreen),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Wallet funding and bank payouts are unavailable. Orders use the payment options shown at checkout.',
+              style: TextStyle(fontSize: 13, color: storeGreen),
+            ),
           ),
         ],
       ),

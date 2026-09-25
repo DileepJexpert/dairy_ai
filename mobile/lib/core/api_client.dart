@@ -174,7 +174,16 @@ final apiClientProvider = Provider<Dio>((ref) {
 /// Extracts a human-friendly error message from a [DioException].
 String dioErrorMessage(DioException error) {
   if (error.response?.data is Map) {
-    final msg = (error.response!.data as Map)['message'];
+    final map = error.response!.data as Map;
+    final detail = map['detail'];
+    if (detail is String && detail.isNotEmpty) return detail;
+    if (detail is List && detail.isNotEmpty) {
+      final first = detail.first;
+      if (first is Map && first['msg'] != null) {
+        return first['msg'].toString();
+      }
+    }
+    final msg = map['message'];
     if (msg is String && msg.isNotEmpty) return msg;
   }
   switch (error.type) {

@@ -14,9 +14,11 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5000,http://localhost:8000"
     INIT_DB_ON_STARTUP: bool = True
-    # Demand-validation mode: checkout records intent without charging a
-    # customer or consuming sellable inventory.
-    PRELAUNCH_MODE: bool = True
+    # Historical purchase interests remain marked on their orders. New
+    # checkouts create commercial orders unless pre-launch is explicitly enabled.
+    PRELAUNCH_MODE: bool = False
+    COMMERCE_PAYMENT_LINK_EXPIRY_MINUTES: int = 30
+    COMMERCE_UNPAID_ORDER_TTL_HOURS: int = 24
     # Shipping remains manual until an approved courier account is configured.
     SHIPPING_ORIGIN_PINCODE: str = "201305"
     SHIPPING_AUTO_BOOK_ENABLED: bool = False
@@ -52,7 +54,7 @@ class Settings(BaseSettings):
     WHATSAPP_PHONE_ID: str = ""
     WHATSAPP_VERIFY_TOKEN: str = ""
     WHATSAPP_APP_SECRET: str = ""
-    ALLOW_DEMO_LOGIN: bool = True
+    ALLOW_DEMO_LOGIN: bool = False
 
     # Agora
     AGORA_APP_ID: str = ""
@@ -79,6 +81,7 @@ class Settings(BaseSettings):
     # Razorpay
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
+    RAZORPAY_WEBHOOK_SECRET: str = ""
 
     # Pashudhan / INAPH
     PASHUDHAN_API_URL: str = "https://inaph.gov.in/api/v1"
@@ -92,6 +95,7 @@ class Settings(BaseSettings):
     SMS_PROVIDER: str = "msg91"  # msg91 | twilio
     SMS_API_KEY: str = ""
     SMS_SENDER_ID: str = "DRYAI"
+    SMS_TEMPLATE_ID: str = ""
 
     model_config = {
         "env_file": ".env",
@@ -121,6 +125,28 @@ class Settings(BaseSettings):
             raise RuntimeError("CORS_ORIGINS must list explicit HTTPS origins in production")
         if any(not origin.startswith("https://") for origin in self.cors_origins):
             raise RuntimeError("CORS_ORIGINS must use HTTPS origins in production")
+        if self.ALLOW_DEMO_LOGIN:
+            raise RuntimeError("Demo login must be disabled in production")
+        if self.INIT_DB_ON_STARTUP:
+            raise RuntimeError("Apply Alembic migrations before startup; disable INIT_DB_ON_STARTUP in production")
+        if not self.STOREFRONT_BASE_URL.startswith("https://"):
+            raise RuntimeError("STOREFRONT_BASE_URL must use HTTPS in production")
+        if not self.REDIS_URL:
+            raise RuntimeError("REDIS_URL is required for production authentication rate limiting")
+        if not all((self.SMTP_HOST, self.SMTP_USERNAME, self.SMTP_PASSWORD, self.SMTP_FROM_EMAIL)):
+            raise RuntimeError("Password recovery SMTP settings are required in production")
+        if self.SMS_PROVIDER != "msg91" or not self.SMS_API_KEY or not self.SMS_TEMPLATE_ID:
+            raise RuntimeError("Production OTP login requires a configured MSG91 SMS template")
+        if not self.PRELAUNCH_MODE and (
+            not self.RAZORPAY_KEY_ID
+            or not self.RAZORPAY_KEY_SECRET
+            or not self.RAZORPAY_WEBHOOK_SECRET
+        ):
+            raise RuntimeError("Live commerce requires Razorpay keys and a webhook secret in production")
+        if not self.PRELAUNCH_MODE and not self.RAZORPAY_KEY_ID.startswith("rzp_live_"):
+            raise RuntimeError("Production commerce requires Razorpay live-mode keys")
+        if self.COMMERCE_PAYMENT_LINK_EXPIRY_MINUTES < 15 or self.COMMERCE_UNPAID_ORDER_TTL_HOURS < 1:
+            raise RuntimeError("Live commerce payment expiry settings are invalid")
 
 
 settings = Settings()

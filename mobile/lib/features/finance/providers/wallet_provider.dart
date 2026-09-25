@@ -5,6 +5,7 @@ import '../../auth/providers/auth_provider.dart';
 class MilterraWalletState {
   const MilterraWalletState({
     this.message = 'Sign in to check wallet availability.',
+    this.enabled = false,
     required this.totalBalance,
     required this.milkPayoutBalance,
     required this.storeCreditBalance,
@@ -12,6 +13,7 @@ class MilterraWalletState {
   });
 
   final String message;
+  final bool enabled;
   final double totalBalance;
   final double milkPayoutBalance;
   final double storeCreditBalance;
@@ -25,6 +27,7 @@ class MilterraWalletState {
   }) =>
       MilterraWalletState(
         message: message,
+        enabled: enabled,
         totalBalance: totalBalance ?? this.totalBalance,
         milkPayoutBalance: milkPayoutBalance ?? this.milkPayoutBalance,
         storeCreditBalance: storeCreditBalance ?? this.storeCreditBalance,
@@ -48,6 +51,7 @@ class MilterraWalletNotifier extends StateNotifier<MilterraWalletState> {
       final j = response.data['data'];
       if (!mounted) return;
       state = MilterraWalletState(
+          enabled: j['enabled'] == true,
           totalBalance: double.parse(j['total_balance'].toString()),
           milkPayoutBalance: double.parse(j['milk_payout_balance'].toString()),
           storeCreditBalance:
@@ -57,13 +61,14 @@ class MilterraWalletNotifier extends StateNotifier<MilterraWalletState> {
               .toList(),
           message: j['message'].toString());
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         state = const MilterraWalletState(
             totalBalance: 0,
             milkPayoutBalance: 0,
             storeCreditBalance: 0,
             transactions: [],
             message: 'Wallet status could not be loaded. Please retry.');
+      }
     }
   }
 }

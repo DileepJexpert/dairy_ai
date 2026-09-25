@@ -245,13 +245,13 @@ class _EcommerceAdminPanelScreenState
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold, fontSize: 14)),
                         const SizedBox(height: 4),
-                        Text('Customer: ${order['contact_phone'] ?? 'N/A'}',
+                        Text('Customer: ${order['customer_phone'] ?? 'N/A'}',
                             style: const TextStyle(
                                 fontSize: 12, color: Color(0xff64748b))),
-                        if (order['cancel_reason'] != null &&
-                            order['cancel_reason'].toString().isNotEmpty) ...[
+                        if (order['cancellation_reason'] != null &&
+                            order['cancellation_reason'].toString().isNotEmpty) ...[
                           const SizedBox(height: 4),
-                          Text('Reason: ${order['cancel_reason']}',
+                          Text('Reason: ${order['cancellation_reason']}',
                               style: const TextStyle(
                                   fontSize: 12,
                                   color: storeError,
@@ -269,7 +269,7 @@ class _EcommerceAdminPanelScreenState
                     segments: const [
                       ButtonSegment(
                           value: 'approve',
-                          label: Text('Approve & Refund'),
+                          label: Text('Confirm completed refund'),
                           icon: Icon(Icons.check_circle_outline)),
                       ButtonSegment(
                           value: 'reject',
@@ -283,11 +283,15 @@ class _EcommerceAdminPanelScreenState
                   ),
                   const SizedBox(height: 14),
                   if (action == 'approve') ...[
+                    const Text(
+                      'Process the full refund in Razorpay first. Once Razorpay shows it as processed, enter its refund ID here to close the order.',
+                    ),
+                    const SizedBox(height: 10),
                     TextField(
                       controller: refCtrl,
                       decoration: const InputDecoration(
-                        labelText: 'Payment Gateway / Bank Reference (UTR)',
-                        hintText: 'e.g. UPI-REF-98765432 or RAZORPAY_REF',
+                        labelText: 'Processed Razorpay refund ID',
+                        hintText: 'rfnd_...',
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -315,7 +319,7 @@ class _EcommerceAdminPanelScreenState
                           ? 'Admin remarks (Optional)'
                           : 'Rejection explanation (Required)',
                       hintText: action == 'approve'
-                          ? 'Refund processed via UPI'
+                          ? 'Refund processed in Razorpay'
                           : 'e.g. Package already dispatched with courier',
                     ),
                   ),
@@ -363,7 +367,7 @@ class _EcommerceAdminPanelScreenState
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(action == 'approve'
-                                  ? 'Refund approved and order cancelled.'
+                                  ? 'Processed refund verified; order cancelled.'
                                   : 'Cancellation request rejected.'),
                               backgroundColor:
                                   action == 'approve' ? storeGreen : Colors.orange,
@@ -3695,11 +3699,11 @@ class _EcommerceAdminPanelScreenState
                     final total = double.tryParse(
                             order['total']?.toString() ?? '') ??
                         0.0;
-                    final reason = order['cancel_reason']?.toString() ??
+                    final reason = order['cancellation_reason']?.toString() ??
                         order['notes']?.toString() ??
                         '';
                     final customerPhone =
-                        order['contact_phone']?.toString() ?? '';
+                        order['customer_phone']?.toString() ?? '';
                     final isRefunded =
                         order['payment_status']?.toString().toUpperCase() ==
                             'REFUNDED';
@@ -3783,7 +3787,7 @@ class _EcommerceAdminPanelScreenState
                               ),
                               icon: const Icon(Icons.rate_review_outlined,
                                   size: 16),
-                              label: const Text('Review / Refund'),
+                              label: const Text('Review refund'),
                               onPressed: () => _processRefundDialog(order),
                             ),
                     );

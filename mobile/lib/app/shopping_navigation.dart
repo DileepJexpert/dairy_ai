@@ -10,6 +10,11 @@ String shoppingReturnPath(String? candidate) {
     return '/shop';
   }
   if (uri.path == '/shop' ||
+      uri.path == '/account' ||
+      uri.path == '/shop/account' ||
+      uri.path == '/profile' ||
+      uri.path == '/wishlist' ||
+      uri.path == '/balance' ||
       uri.path == '/admin/commerce' ||
       uri.path == '/admin/ecommerce' ||
       uri.path == '/admin-dashboard' ||

@@ -3126,9 +3126,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(feature,
-              style:
-                  const TextStyle(fontSize: 12.5, color: Color(0xff0f1111))),
+          Expanded(
+            child: Text(feature,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontSize: 12.5, color: Color(0xff0f1111))),
+          ),
+          const SizedBox(width: 8),
           Row(
             children: [
               Text('$score',

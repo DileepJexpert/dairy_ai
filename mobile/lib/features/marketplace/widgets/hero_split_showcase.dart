@@ -628,7 +628,7 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                           }
                         },
                         child: const Text(
-                          'Shop now →',
+                          'Shop Now →',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
@@ -722,7 +722,7 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                         ),
                         onPressed: () => context.go(slide.targetRoute),
                         child: const Text(
-                          'Shop now →',
+                          'Shop Now →',
                           style: TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w800,

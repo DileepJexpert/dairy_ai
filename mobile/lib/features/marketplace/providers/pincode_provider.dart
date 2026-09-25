@@ -56,7 +56,7 @@ final currentPincodeProvider = StateProvider<String>((ref) => '110001');
 final deliveryCheckProvider =
     FutureProvider.family<PincodeDeliveryInfo, String>((ref, pin) async {
   final clean = pin.trim();
-  if (clean.length != 6) {
+  if (!RegExp(r'^\d{6}$').hasMatch(clean)) {
     return PincodeDeliveryInfo(
       isServiceable: false,
       pincode: clean,
@@ -66,8 +66,8 @@ final deliveryCheckProvider =
 
   try {
     final dio = ref.watch(dioProvider);
-    final res = await dio.get('/marketplace/pincode/check',
-        queryParameters: {'pincode': clean});
+    final res = await dio
+        .get('/marketplace/pincode/check', queryParameters: {'pincode': clean});
 
     if (res.statusCode == 200 && res.data is Map) {
       return PincodeDeliveryInfo.fromJson(
@@ -75,21 +75,10 @@ final deliveryCheckProvider =
     }
   } catch (_) {}
 
-  // Fallback defaults for primary demo hubs if backend is starting up
-  final isNCR = clean.startsWith('11') || clean.startsWith('201') || clean.startsWith('122');
+  // Delivery availability must come from the backend, never a guessed PIN prefix.
   return PincodeDeliveryInfo(
-    isServiceable: isNCR,
+    isServiceable: false,
     pincode: clean,
-    city: clean.startsWith('201')
-        ? 'Noida'
-        : (clean.startsWith('122') ? 'Gurugram' : 'New Delhi'),
-    state: clean.startsWith('122') ? 'Haryana' : (clean.startsWith('201') ? 'Uttar Pradesh' : 'Delhi'),
-    deliveryDaysMin: 1,
-    deliveryDaysMax: 2,
-    expectedDeliveryText: isNCR ? 'Tomorrow, by 8 AM' : 'in 2-3 business days',
-    expressAvailable: isNCR,
-    message: isNCR
-        ? 'Next-Day Morning Delivery via Cold-Chain Express'
-        : 'Delivery available via DTDC Express',
+    message: 'Delivery availability could not be verified. Please try again.',
   );
 });

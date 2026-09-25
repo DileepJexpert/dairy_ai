@@ -38,8 +38,11 @@ def test_complete_model_enum_names_do_not_conflict():
 @pytest.mark.asyncio
 @pytest.mark.parametrize('environment,expected', [('development', '123456'), ('test', '123456'), ('production', '654321')])
 async def test_demo_otp_shortcut_is_local_only(db_session, monkeypatch, environment, expected):
-    monkeypatch.setattr(auth_service, 'get_settings', lambda: SimpleNamespace(APP_ENV=environment, JWT_SECRET='unit-test-secret'))
+    monkeypatch.setattr(auth_service, 'get_settings', lambda: SimpleNamespace(APP_ENV=environment, ALLOW_DEMO_LOGIN=True, JWT_SECRET='unit-test-secret'))
     monkeypatch.setattr(auth_service, 'generate_otp', lambda: '654321')
+    async def accepted(phone, code):
+        return True
+    monkeypatch.setattr(auth_service.OtpSmsClient, 'send', staticmethod(accepted))
     assert await auth_service.send_otp(db_session, '9999900000') == expected
 
 

@@ -4,6 +4,11 @@ import logging
 import time
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from pathlib import Path
+
+from alembic.config import Config as AlembicConfig
+from alembic.script import ScriptDirectory
+from sqlalchemy import text
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -50,7 +55,7 @@ from app.api.storefront_banner import router as storefront_banner_router
 from app.api.delivery_pincode import router as delivery_pincode_router
 from app.api.shipment_tracking import router as shipment_tracking_router
 from app.api.currency import router as currency_router
-from app.database import init_db
+from app.database import init_db, engine
 from app.config import settings
 
 # Configure logging for the whole app
@@ -60,6 +65,26 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("dairy_ai.main")
+
+
+async def validate_production_dependencies() -> None:
+    """Do not serve checkout against an old schema or unavailable auth limiter."""
+    if settings.APP_ENV.lower() != "production":
+        return
+    from app.services.auth_rate_limit import _redis
+
+    backend_root = Path(__file__).resolve().parents[1]
+    alembic_config = AlembicConfig(str(backend_root / "alembic.ini"))
+    alembic_config.set_main_option("script_location", str(backend_root / "alembic"))
+    expected = set(ScriptDirectory.from_config(alembic_config).get_heads())
+    async with engine.connect() as connection:
+        current = set((await connection.execute(text("SELECT version_num FROM alembic_version"))).scalars())
+    if current != expected:
+        raise RuntimeError(f"Database migration mismatch: apply Alembic head before startup (expected {sorted(expected)}, current {sorted(current)})")
+    try:
+        await _redis().ping()
+    except Exception as exc:
+        raise RuntimeError("Production authentication rate limiter Redis is unavailable") from exc
 
 
 @asynccontextmanager
@@ -74,6 +99,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("Database initialized successfully")
     else:
         logger.info("Skipping schema creation; migrations must be applied before startup")
+    await validate_production_dependencies()
 
     # Start MQTT subscriber if broker configured
     from app.iot.mqtt_client import mqtt_subscriber
@@ -86,12 +112,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("All routers registered. API is ready to serve requests!")
     logger.info("=" * 60)
     shipping_task = None
+    unpaid_order_task = None
+    if not settings.PRELAUNCH_MODE:
+        from app.api.orders import unpaid_order_expiry_loop
+
+        unpaid_order_task = asyncio.create_task(unpaid_order_expiry_loop())
     if settings.SHIPPING_AUTO_BOOK_ENABLED and not settings.PRELAUNCH_MODE:
         from app.api.shipment_tracking import shipping_loop
         shipping_task = asyncio.create_task(shipping_loop())
     try:
         yield
     finally:
+        if unpaid_order_task:
+            unpaid_order_task.cancel()
+            try:
+                await unpaid_order_task
+            except asyncio.CancelledError:
+                pass
         if shipping_task:
             shipping_task.cancel()
             try:

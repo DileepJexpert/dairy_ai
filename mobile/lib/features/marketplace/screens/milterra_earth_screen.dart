@@ -54,7 +54,14 @@ class _MilterraEarthScreenState extends ConsumerState<MilterraEarthScreen> {
   Widget build(BuildContext context) {
     final productsAsync = ref.watch(productsProvider(null));
 
-    return Scaffold(
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          context.go('/shop');
+        }
+      },
+      child: Scaffold(
       backgroundColor: storeEarthCream,
       body: LayoutBuilder(builder: (context, size) {
         final isDesktop = size.maxWidth >= StoreLayout.desktop;
@@ -91,6 +98,9 @@ class _MilterraEarthScreenState extends ConsumerState<MilterraEarthScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // Back to Store & Breadcrumbs
+                              _buildBackAndBreadcrumbs(isMobile),
+
                               // Circular Farm Composting Story Banner
                               _buildCompostingStoryBanner(isMobile),
                               const SizedBox(height: 28),
@@ -170,8 +180,9 @@ class _MilterraEarthScreenState extends ConsumerState<MilterraEarthScreen> {
           ],
         );
       }),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildHeroHeader(bool isDesktop, bool isMobile) {
     return Container(
@@ -723,6 +734,103 @@ class _MilterraEarthScreenState extends ConsumerState<MilterraEarthScreen> {
               ),
             )),
       ],
+    );
+  }
+  Widget _buildBackAndBreadcrumbs(bool isMobile) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: storeEarthTerracotta.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          InkWell(
+            onTap: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              } else {
+                context.go('/shop');
+              }
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: storeEarthDarkGreen.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: storeEarthDarkGreen.withValues(alpha: 0.2)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.arrow_back_rounded, size: 16, color: storeEarthDarkGreen),
+                  SizedBox(width: 6),
+                  Text(
+                    'Back to Store',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: storeEarthDarkGreen,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Text('│', style: TextStyle(color: Color(0xffcbd5e1), fontSize: 14)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                InkWell(
+                  onTap: () => context.go('/shop'),
+                  child: const Text(
+                    'Home',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: storeMuted,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const Text(' › ', style: TextStyle(fontSize: 12.5, color: storeMuted)),
+                InkWell(
+                  onTap: () => context.go('/shop'),
+                  child: const Text(
+                    'Store',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: storeMuted,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const Text(' › ', style: TextStyle(fontSize: 12.5, color: storeMuted)),
+                const Text(
+                  'MILTERRA Earth & Living Soil',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.bold,
+                    color: storeEarthDarkGreen,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

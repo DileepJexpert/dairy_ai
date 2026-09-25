@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +18,7 @@ import 'package:dairy_ai/features/marketplace/models/product_models.dart';
 import 'package:dairy_ai/features/marketplace/providers/product_provider.dart';
 import 'package:dairy_ai/features/marketplace/screens/product_list_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/product_detail_screen.dart';
+import 'package:dairy_ai/features/marketplace/screens/customer_account_screen.dart';
 
 const products = [
   Product(
@@ -69,7 +71,8 @@ class _LayoutAnalytics extends AnalyticsService {
   @override
   Future<void> flush() async {}
   @override
-  Future<void> initSession({String landingPage = '/shop', bool force = false}) async {}
+  Future<void> initSession(
+      {String landingPage = '/shop', bool force = false}) async {}
 }
 
 Finder storeSearchField() => find.byKey(const ValueKey('store-search-field'));
@@ -103,6 +106,11 @@ Future<GoRouter> openStore(WidgetTester tester,
     GoRoute(
         path: '/login',
         builder: (_, __) => const Scaffold(body: Text('Sign in to continue'))),
+    GoRoute(
+        path: '/account', builder: (_, __) => const CustomerAccountScreen()),
+    GoRoute(
+        path: '/marketplace/addresses',
+        builder: (_, __) => const Scaffold(body: Text('Address destination'))),
   ]);
   addTearDown(router.dispose);
   await tester.pumpWidget(ProviderScope(overrides: [
@@ -136,11 +144,61 @@ Future<GoRouter> openStore(WidgetTester tester,
   return router;
 }
 
+Dio accountTestClient() {
+  final dio = Dio();
+  dio.interceptors.add(InterceptorsWrapper(onRequest: (request, handler) {
+    handler.resolve(Response(requestOptions: request, data: {
+      'success': true,
+      'data': request.path.contains('wishlist') ? [] : {'items': []}
+    }));
+  }));
+  return dio;
+}
+
 void main() {
   setUpAll(() async {
     final font = FontLoader('CormorantGaramond')
       ..addFont(rootBundle.load('assets/fonts/CormorantGaramond.ttf'));
     await font.load();
+  });
+  for (final width in [390.0, 1440.0]) {
+    testWidgets(
+        'Account menu opens the customer hub and address page at $width',
+        (tester) async {
+      await openStore(tester, width: width, client: accountTestClient());
+      await tester.tap(find.byKey(const ValueKey('store-account-menu')));
+      await tester.pumpAndSettle();
+      expect(find.text('Your lists'), findsOneWidget);
+      await tester.tap(find.text('Account overview'));
+      await tester.pumpAndSettle();
+      expect(
+          find.text(
+              'Manage your orders, delivery details, saved products, and account.'),
+          findsOneWidget);
+      expect(find.text('Delivery addresses'), findsWidgets);
+      await tester.tap(
+          find.byKey(const ValueKey('account-tile-/marketplace/addresses')));
+      await tester.pumpAndSettle();
+      expect(find.text('Address destination'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+  testWidgets('Desktop account menu opens on hover', (tester) async {
+    await openStore(tester, width: 1440, client: accountTestClient());
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer();
+    await mouse.moveTo(
+        tester.getCenter(find.byKey(const ValueKey('store-account-menu'))));
+    await tester.pumpAndSettle();
+    expect(find.text('Your shopping'), findsOneWidget);
+    expect(find.text('Saved for later'), findsOneWidget);
+    await mouse.moveTo(tester.getCenter(find.text('Your shopping')));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Your shopping'), findsOneWidget);
+    await mouse.moveTo(const Offset(5, 900));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Your shopping'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
   for (final width in [360.0, 390.0, 768.0, 1024.0, 1440.0]) {
     testWidgets('Storefront and detail fit width $width', (tester) async {

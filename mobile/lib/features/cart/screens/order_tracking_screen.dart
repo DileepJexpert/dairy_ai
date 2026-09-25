@@ -1,90 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import 'package:dairy_ai/features/cart/providers/cart_provider.dart';
 import '../../commerce/utils/courier_tracking_utils.dart';
 import '../providers/order_repository.dart';
 import '../../marketplace/widgets/store_design.dart';
-
-String _getHsnCode(String title) {
-  final t = title.toLowerCase();
-  if (t.contains('ghee')) return '0405 90 20';
-  if (t.contains('makhan') || t.contains('butter')) return '0405 10 00';
-  if (t.contains('paneer') || t.contains('cheese')) return '0406 10 00';
-  if (t.contains('milk')) return '0401 20 00';
-  if (t.contains('feed') || t.contains('nutrition') || t.contains('mineral')) {
-    return '2309 90 90';
-  }
-  if (t.contains('milking') || t.contains('equipment') || t.contains('machine')) {
-    return '8434 10 00';
-  }
-  return '0405 90 20';
-}
-
-String _numberToWords(int number) {
-  if (number <= 0) return 'Zero';
-  final units = [
-    '',
-    'One',
-    'Two',
-    'Three',
-    'Four',
-    'Five',
-    'Six',
-    'Seven',
-    'Eight',
-    'Nine',
-    'Ten',
-    'Eleven',
-    'Twelve',
-    'Thirteen',
-    'Fourteen',
-    'Fifteen',
-    'Sixteen',
-    'Seventeen',
-    'Eighteen',
-    'Nineteen'
-  ];
-  final tens = [
-    '',
-    '',
-    'Twenty',
-    'Thirty',
-    'Forty',
-    'Fifty',
-    'Sixty',
-    'Seventy',
-    'Eighty',
-    'Ninety'
-  ];
-
-  String convertLessThanOneThousand(int n) {
-    if (n == 0) return '';
-    if (n < 20) return units[n];
-    if (n < 100) return '${tens[n ~/ 10]} ${units[n % 10]}'.trim();
-    return '${units[n ~/ 100]} Hundred ${convertLessThanOneThousand(n % 100)}'
-        .trim();
-  }
-
-  String result = '';
-  if (number >= 10000000) {
-    result += '${convertLessThanOneThousand(number ~/ 10000000)} Crore ';
-    number %= 10000000;
-  }
-  if (number >= 100000) {
-    result += '${convertLessThanOneThousand(number ~/ 100000)} Lakh ';
-    number %= 100000;
-  }
-  if (number >= 1000) {
-    result += '${convertLessThanOneThousand(number ~/ 1000)} Thousand ';
-    number %= 1000;
-  }
-  if (number > 0) {
-    result += convertLessThanOneThousand(number);
-  }
-  return result.trim();
-}
 
 final orderDetailProvider =
     Provider.autoDispose.family<StoreOrder?, String>((ref, orderId) {
@@ -98,8 +20,8 @@ final orderDetailProvider =
   }
 });
 
-final liveOrderTrackingProvider =
-    FutureProvider.autoDispose.family<Map<String, dynamic>?, String>((ref, orderId) async {
+final liveOrderTrackingProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String>((ref, orderId) async {
   try {
     final dio = ref.watch(dioProvider);
     final response = await dio.get('/marketplace/orders/$orderId/tracking');
@@ -121,568 +43,101 @@ class OrderTrackingScreen extends ConsumerStatefulWidget {
 }
 
 class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
-  void _showGstInvoiceDialog(BuildContext context, StoreOrder order) {
-    if (order.isPrelaunchInterest) {
-      showDialog<void>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-                title: const Text('Purchase interest summary'),
-                content: Text(
-                    'Reference: ${order.id}\nIndicative total: ${storeMoney(order.total)}\nNo payment collected. This is not a tax invoice.'),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(dialogContext),
-                      child: const Text('Close'))
-                ],
-              ));
-      return;
+  Future<void> _openPayment(StoreOrder order) async {
+    try {
+      final response = await ref
+          .read(dioProvider)
+          .post('/marketplace/orders/${order.id}/payment-link');
+      if (response.data['data']['payment_status'] == 'PAID') {
+        ref.read(ordersNotifierProvider.notifier).refresh();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Payment confirmed for this order.')),
+          );
+        }
+        return;
+      }
+      final uri = Uri.tryParse(response.data['data']['url']?.toString() ?? '');
+      if (uri == null ||
+          uri.scheme != 'https' ||
+          !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        throw StateError('Payment page could not be opened');
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Secure payment is unavailable. Please try again later.')));
+      }
     }
-    showDialog(
+  }
+
+  Future<void> _checkPayment(StoreOrder order) async {
+    try {
+      final response = await ref
+          .read(dioProvider)
+          .post('/marketplace/orders/${order.id}/payment/verify');
+      ref.read(ordersNotifierProvider.notifier).refresh();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(response.data['data']['confirmed'] == true
+                ? 'Payment confirmed.'
+                : 'Payment is still pending.')));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Payment could not be checked. Please retry.')));
+      }
+    }
+  }
+
+  void _showOrderSummaryDialog(BuildContext context, StoreOrder order) {
+    showDialog<void>(
       context: context,
-      builder: (dialogCtx) {
-        final invNumber =
-            'MIL-INV-2026-${order.id.replaceAll(RegExp(r'[^0-9]'), '')}';
-        final taxableSubtotal = order.subtotal / 1.05;
-        final cgst = taxableSubtotal * 0.025;
-        final sgst = taxableSubtotal * 0.025;
-        final words = _numberToWords(order.total.round());
-
-        return Dialog(
-          backgroundColor: Colors.white,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 780),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Action Bar
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xffe8f5e9),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: const Color(0xffa5d6a7)),
-                        ),
-                        child: const Text(
-                          'ORIGINAL FOR RECIPIENT · TAX INVOICE',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                            color: storeGreen,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: storeGreen,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 8),
-                            ),
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  backgroundColor: storeGreen,
-                                  content: Text(
-                                      'Invoice $invNumber sent to browser print spooler / PDF generated.'),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.print, size: 16),
-                            label: const Text('Print / Save PDF',
-                                style: TextStyle(
-                                    fontSize: 12, fontWeight: FontWeight.bold)),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: const Icon(Icons.close, size: 20),
-                            onPressed: () => Navigator.of(dialogCtx).pop(),
-                          ),
-                        ],
-                      ),
-                    ],
+      builder: (dialogContext) => AlertDialog(
+        title: Text(order.isPrelaunchInterest
+            ? 'Purchase interest summary'
+            : 'Order summary'),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Reference: ${order.id}'),
+                const SizedBox(height: 8),
+                Text('Order status: ${order.status}'),
+                Text(order.isPrelaunchInterest
+                    ? 'No payment was taken. This is not a tax invoice.'
+                    : 'Payment status: ${order.paymentStatus}'),
+                const Divider(height: 24),
+                for (final item in order.items)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text('${item.title} × ${item.quantity}'),
                   ),
-                  const Divider(height: 24, thickness: 1.5, color: storeGreen),
-
-                  // Company Details & Invoice Info
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Seller Box
-                      const Expanded(
-                        flex: 6,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'MILTERRA AGRO FOODS PRIVATE LIMITED',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w900,
-                                color: storeGreen,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text('CIN: U01111RJ2024PTC081234',
-                                style:
-                                    TextStyle(fontSize: 11, color: storeMuted)),
-                            Text('GSTIN: 08AAACM4592L1Z5 (Rajasthan)',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xff333333))),
-                            Text('FSSAI Central Lic. No.: 10822003000412',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xff333333))),
-                            SizedBox(height: 4),
-                            Text(
-                              'Regd. Processing Corridor, Plot 42, Karnal-GT Road, Haryana - 132001\nCustomer Care: +91 1800 233 4567 | support@milterra.in',
-                              style: TextStyle(
-                                  fontSize: 10.5,
-                                  color: storeMuted,
-                                  height: 1.3),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      // Meta Box
-                      Expanded(
-                        flex: 5,
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xfffafcfb),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: storeBorder),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Invoice No: $invNumber',
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                      color: storeGreen)),
-                              const SizedBox(height: 3),
-                              Text('Invoice Date: ${order.createdAt}',
-                                  style: const TextStyle(
-                                      fontSize: 11, color: Color(0xff333333))),
-                              Text('Order Ref: #${order.id}',
-                                  style: const TextStyle(
-                                      fontSize: 11, color: Color(0xff333333))),
-                              Text('Payment Mode: ${order.paymentMethod}',
-                                  style: const TextStyle(
-                                      fontSize: 11, color: Color(0xff333333))),
-                              Text(
-                                  'Courier: ${order.carrier} (AWB: ${order.trackingNumber})',
-                                  style: const TextStyle(
-                                      fontSize: 11, color: Color(0xff333333))),
-                              Text(
-                                  'Place of Supply: ${order.address['state'] ?? 'Rajasthan'} (State Code: 08)',
-                                  style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xff333333))),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-
-                  // Buyer / Consignee Details
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xfff7faf9),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: storeBorder),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Billed To / Recipient:',
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: storeGreen)),
-                              const SizedBox(height: 3),
-                              Text(
-                                '${order.address['recipient_name'] ?? 'Customer'}\n${order.address['street_address'] ?? ''}\n${order.address['city'] ?? ''}, ${order.address['state'] ?? ''} - ${order.address['postal_code'] ?? ''}\nPhone: ${order.address['phone_number'] ?? ''}',
-                                style: const TextStyle(
-                                    fontSize: 11,
-                                    height: 1.35,
-                                    color: Color(0xff333333)),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Shipped To / Delivery Destination:',
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: storeGreen)),
-                              const SizedBox(height: 3),
-                              Text(
-                                '${order.address['recipient_name'] ?? 'Customer'}\n${order.address['street_address'] ?? ''}\n${order.address['city'] ?? ''}, ${order.address['state'] ?? ''} - ${order.address['postal_code'] ?? ''}\nVerified Cold-Chain Delivery Slot',
-                                style: const TextStyle(
-                                    fontSize: 11,
-                                    height: 1.35,
-                                    color: Color(0xff333333)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Items Table
-                  Table(
-                    border: TableBorder.all(color: storeBorder, width: 1),
-                    columnWidths: const {
-                      0: FixedColumnWidth(30),
-                      1: FlexColumnWidth(4),
-                      2: FlexColumnWidth(2),
-                      3: FixedColumnWidth(45),
-                      4: FlexColumnWidth(1.8),
-                      5: FlexColumnWidth(1.8),
-                      6: FlexColumnWidth(1.8),
-                      7: FlexColumnWidth(1.8),
-                      8: FlexColumnWidth(2.2),
-                    },
-                    children: [
-                      // Header Row
-                      TableRow(
-                        decoration:
-                            const BoxDecoration(color: Color(0xffe8f5e9)),
-                        children: [
-                          '#',
-                          'Description of Goods',
-                          'HSN Code',
-                          'Qty',
-                          'Unit Price',
-                          'Taxable Base',
-                          'CGST 2.5%',
-                          'SGST 2.5%',
-                          'Total (₹)',
-                        ]
-                            .map((h) => Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 8),
-                                  child: Text(
-                                    h,
-                                    textAlign: h == 'Description of Goods'
-                                        ? TextAlign.left
-                                        : TextAlign.center,
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      color: storeGreen,
-                                    ),
-                                  ),
-                                ))
-                            .toList(),
-                      ),
-                      // Item Rows
-                      for (int idx = 0; idx < order.items.length; idx++) ...[
-                        () {
-                          final it = order.items[idx];
-                          final hsn = _getHsnCode(it.title);
-                          final lineTot = it.lineTotal;
-                          final taxable = lineTot / 1.05;
-                          final taxCgst = taxable * 0.025;
-                          final taxSgst = taxable * 0.025;
-
-                          return TableRow(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.all(6),
-                                child: Text('${idx + 1}',
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(fontSize: 10.5)),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(6),
-                                child: Text(it.title,
-                                    style: const TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w600)),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(6),
-                                child: Text(hsn,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                        fontSize: 10, fontFamily: 'monospace')),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(6),
-                                child: Text('${it.quantity}',
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(fontSize: 10.5)),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(6),
-                                child: Text(
-                                    '₹${it.unitPrice.toStringAsFixed(2)}',
-                                    textAlign: TextAlign.right,
-                                    style: const TextStyle(fontSize: 10.5)),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(6),
-                                child: Text('₹${taxable.toStringAsFixed(2)}',
-                                    textAlign: TextAlign.right,
-                                    style: const TextStyle(fontSize: 10.5)),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(6),
-                                child: Text('₹${taxCgst.toStringAsFixed(2)}',
-                                    textAlign: TextAlign.right,
-                                    style: const TextStyle(fontSize: 10.5)),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(6),
-                                child: Text('₹${taxSgst.toStringAsFixed(2)}',
-                                    textAlign: TextAlign.right,
-                                    style: const TextStyle(fontSize: 10.5)),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(6),
-                                child: Text('₹${lineTot.toStringAsFixed(2)}',
-                                    textAlign: TextAlign.right,
-                                    style: const TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          );
-                        }(),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Summary Totals Table
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: SizedBox(
-                      width: 320,
-                      child: Table(
-                        border: TableBorder.all(color: storeBorder),
-                        children: [
-                          TableRow(
-                            children: [
-                              const Padding(
-                                padding: EdgeInsets.all(6),
-                                child: Text('Total Taxable Value:',
-                                    style: TextStyle(fontSize: 11)),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(6),
-                                child: Text(
-                                    '₹${taxableSubtotal.toStringAsFixed(2)}',
-                                    textAlign: TextAlign.right,
-                                    style: const TextStyle(fontSize: 11)),
-                              ),
-                            ],
-                          ),
-                          TableRow(
-                            children: [
-                              const Padding(
-                                padding: EdgeInsets.all(6),
-                                child: Text('Total CGST (2.5%):',
-                                    style: TextStyle(fontSize: 11)),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(6),
-                                child: Text('₹${cgst.toStringAsFixed(2)}',
-                                    textAlign: TextAlign.right,
-                                    style: const TextStyle(fontSize: 11)),
-                              ),
-                            ],
-                          ),
-                          TableRow(
-                            children: [
-                              const Padding(
-                                padding: EdgeInsets.all(6),
-                                child: Text('Total SGST (2.5%):',
-                                    style: TextStyle(fontSize: 11)),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(6),
-                                child: Text('₹${sgst.toStringAsFixed(2)}',
-                                    textAlign: TextAlign.right,
-                                    style: const TextStyle(fontSize: 11)),
-                              ),
-                            ],
-                          ),
-                          const TableRow(
-                            children: [
-                              Padding(
-                                padding: EdgeInsets.all(6),
-                                child: Text('Shipping / Delivery Charge:',
-                                    style: TextStyle(fontSize: 11)),
-                              ),
-                              Padding(
-                                padding: EdgeInsets.all(6),
-                                child: Text('FREE (₹0.00)',
-                                    textAlign: TextAlign.right,
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xff067d62))),
-                              ),
-                            ],
-                          ),
-                          TableRow(
-                            decoration:
-                                const BoxDecoration(color: Color(0xfffcf5ee)),
-                            children: [
-                              const Padding(
-                                padding: EdgeInsets.all(8),
-                                child: Text('Invoice Grand Total:',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w900,
-                                        color: storeGreen)),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Text(
-                                    '₹${order.total.toStringAsFixed(2)}',
-                                    textAlign: TextAlign.right,
-                                    style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w900,
-                                        color: storeOrange)),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Amount in Words Box
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xfff5f7f6),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      'Amount Chargeable (in words): Indian Rupees $words Only.',
-                      style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          fontStyle: FontStyle.italic),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-
-                  // Signatory & Disclaimers
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Declaration & Terms:',
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: storeGreen),
-                            ),
-                            Text(
-                              '1. Certified 100% farm-origin goods tested for zero adulteration.\n2. Goods transported via insulated cold-chain vehicles.\n3. This is a computer-generated tax invoice and requires no physical signature.',
-                              style: TextStyle(
-                                  fontSize: 9.5,
-                                  color: storeMuted,
-                                  height: 1.3),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: storeBorder),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.check_circle,
-                                    size: 14, color: storeGreen),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Digitally Signed',
-                                  style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      color: storeGreen),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'For MILTERRA AGRO FOODS PVT LTD',
-                              style: TextStyle(
-                                  fontSize: 9.5, fontWeight: FontWeight.bold),
-                            ),
-                            Text(
-                              'Authorised Signatory',
-                              style: TextStyle(fontSize: 9, color: storeMuted),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                const Divider(height: 24),
+                Text('Total: ${storeMoney(order.total)}'),
+                const SizedBox(height: 8),
+                const Text('This summary is not a tax invoice.'),
+              ],
             ),
           ),
-        );
-      },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 
   void _showCancelOrderDialog(BuildContext context, StoreOrder order) {
+    final requiresRefund = order.paymentStatus == 'PAID';
     String selectedReason = 'Ordered by mistake';
     final reasons = [
       'Ordered by mistake',
@@ -741,7 +196,11 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Prepaid order amount of ${storeMoney(order.total)} will be instantly refunded to your Milterra Wallet.',
+                              requiresRefund
+                                  ? 'Your paid order will remain active while staff reviews the cancellation and verifies a refund to the original payment method. No instant refund is made.'
+                                  : order.isPrelaunchInterest
+                                      ? 'This withdraws your purchase interest. No payment was taken.'
+                                      : 'This cancels the unpaid order. No payment or refund will be made.',
                               style: const TextStyle(
                                   fontSize: 11.5,
                                   color: storeGreen,
@@ -815,7 +274,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                         SnackBar(
                           backgroundColor: storeGreen,
                           content: Text(
-                            'Order #${order.id} cancelled. No automatic refund or payment was made.',
+                            requiresRefund
+                                ? 'Cancellation requested. Your order remains paid until a refund is verified.'
+                                : 'Order #${order.id} cancelled. No refund or payment was made.',
                           ),
                         ),
                       );
@@ -827,7 +288,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                       }
                     }
                   },
-                  child: const Text('Confirm Cancellation'),
+                  child: Text(requiresRefund
+                      ? 'Request cancellation'
+                      : 'Confirm cancellation'),
                 ),
               ],
             );
@@ -896,7 +359,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     final state = address['state']?.toString() ?? '';
     final postalCode = address['postal_code']?.toString() ?? '';
     final phone = address['phone']?.toString() ?? '';
-    final liveTracking = ref.watch(liveOrderTrackingProvider(order.id)).valueOrNull;
+    final liveTracking =
+        ref.watch(liveOrderTrackingProvider(order.id)).valueOrNull;
     final trackingNumber = order.trackingNumber.isNotEmpty
         ? order.trackingNumber
         : (liveTracking?['awb']?.toString() ?? '');
@@ -925,7 +389,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                         Wrap(
                           children: [
                             InkWell(
-                              onTap: () => context.go('/shop'),
+                              onTap: () => context.go('/account'),
                               child: const Text('Your Account',
                                   style: TextStyle(
                                       fontSize: 12, color: storeMuted)),
@@ -960,7 +424,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Order Details & Tracking',
+                                    order.isPrelaunchInterest
+                                        ? 'Launch Reservation Details'
+                                        : 'Order Details & Tracking',
                                     style: TextStyle(
                                       fontSize: isMobile ? 22 : 26,
                                       fontWeight: FontWeight.w800,
@@ -969,7 +435,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Ordered on $createdAt · Order # $id',
+                                    order.isPrelaunchInterest
+                                        ? 'Registered on $createdAt · Reference # $id'
+                                        : 'Ordered on $createdAt · Order # $id',
                                     style: const TextStyle(
                                         fontSize: 13, color: storeMuted),
                                   ),
@@ -990,10 +458,14 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                                         horizontal: 14, vertical: 10),
                                   ),
                                   onPressed: () =>
-                                      _showGstInvoiceDialog(context, order),
-                                  icon: const Icon(Icons.receipt_outlined,
-                                      size: 16, color: storeGreen),
-                                  label: const Text('Download Invoice',
+                                      _showOrderSummaryDialog(context, order),
+                                  icon: Icon(
+                                      order.isPrelaunchInterest
+                                          ? Icons.description_outlined
+                                          : Icons.receipt_outlined,
+                                      size: 16,
+                                      color: storeGreen),
+                                  label: const Text('Order summary',
                                       style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
@@ -1038,7 +510,12 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                                           color: storeGreen)),
                                 ),
                                 if (order.status != 'CANCELLED' &&
-                                    order.status != 'DELIVERED')
+                                    order.status != 'DELIVERED' &&
+                                    order.status != 'PACKED' &&
+                                    order.status != 'SHIPPED' &&
+                                    order.status != 'DISPATCHED' &&
+                                    order.status != 'OUT_FOR_DELIVERY' &&
+                                    order.cancellationStatus != 'REQUESTED')
                                   OutlinedButton.icon(
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: const Color(0xffd32f2f),
@@ -1054,16 +531,43 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                                         _showCancelOrderDialog(context, order),
                                     icon: const Icon(Icons.cancel_outlined,
                                         size: 16),
-                                    label: const Text('Cancel Order',
-                                        style: TextStyle(
+                                    label: Text(
+                                        order.paymentStatus == 'PAID'
+                                            ? 'Request cancellation'
+                                            : 'Cancel Order',
+                                        style: const TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold)),
+                                  ),
+                                if (order.cancellationStatus == 'REQUESTED')
+                                  const Padding(
+                                    padding: EdgeInsets.all(8),
+                                    child: Text(
+                                        'Cancellation requested · Refund review pending'),
                                   ),
                               ],
                             ),
                           ],
                         ),
                         const SizedBox(height: 20),
+
+                        if (!order.isPrelaunchInterest &&
+                            order.paymentStatus == 'PENDING' &&
+                            order.status != 'CANCELLED' &&
+                            order.paymentMethod != 'cod') ...[
+                          Wrap(spacing: 8, runSpacing: 8, children: [
+                            FilledButton.icon(
+                              onPressed: () => _openPayment(order),
+                              icon: const Icon(Icons.payment),
+                              label: const Text('Pay securely'),
+                            ),
+                            OutlinedButton(
+                              onPressed: () => _checkPayment(order),
+                              child: const Text('Check payment status'),
+                            ),
+                          ]),
+                          const SizedBox(height: 20),
+                        ],
 
                         // Cancellation Notice Banner (if cancelled)
                         if (order.status == 'CANCELLED') ...[
@@ -1185,24 +689,155 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     required StoreOrder order,
   }) {
     if (order.isPrelaunchInterest) {
-      return Card(
-          child: Padding(
+      final isCancelled = order.status == 'CANCELLED';
+      return Container(
+        decoration: BoxDecoration(
+          color: storeWhite,
+          borderRadius: BorderRadius.circular(StoreLayout.radius),
+          border: Border.all(color: storeBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: isCancelled
+                    ? const Color(0xffffebee)
+                    : const Color(0xffe1f5fe).withValues(alpha: 0.4),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(StoreLayout.radius),
+                  topRight: Radius.circular(StoreLayout.radius),
+                ),
+                border: Border(
+                  bottom: BorderSide(
+                    color: isCancelled
+                        ? const Color(0xffef9a9a)
+                        : const Color(0xffb3e5fc),
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isCancelled
+                          ? const Color(0xffd32f2f)
+                          : const Color(0xff0277bd),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      isCancelled
+                          ? Icons.bookmark_remove_outlined
+                          : Icons.bookmark_added_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isCancelled
+                              ? 'Launch Interest Withdrawn'
+                              : 'Launch Reservation Recorded',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: isCancelled
+                                ? const Color(0xffc62828)
+                                : const Color(0xff01579b),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Pre-launch registration only: No payment was collected and no courier dispatch is scheduled.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xff565959),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                        order.status == 'CANCELLED'
-                            ? 'Interest withdrawn'
-                            : 'Purchase interest received',
-                        style: StoreType.heading),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'What happens next?',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: storeGreen,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Milterra will notify you when products become available for dispatch in your area. You can then review the final price and complete payment securely via hosted UPI, cards, net banking, or choose Cash on Delivery.',
+                    style:
+                        TextStyle(fontSize: 13, height: 1.4, color: storeMuted),
+                  ),
+                  if (order.timeline.isNotEmpty) ...[
+                    const Divider(height: 28, color: storeBorder),
                     const Text(
-                        'Pre-launch only. No payment was taken and no shipment is scheduled.'),
+                      'Reservation Activity',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: storeGreen,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
                     for (final event in order.timeline)
-                      ListTile(
-                          title: Text(event.title),
-                          subtitle: Text('${event.time}\n${event.remarks}')),
-                  ])));
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.circle,
+                                size: 8, color: storeGreen),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    event.title,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xff0f1111),
+                                    ),
+                                  ),
+                                  Text(
+                                    '${event.time}${event.remarks.isNotEmpty ? ' · ${event.remarks}' : ''}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: storeMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
     }
     final stages = [
       {
@@ -1212,9 +847,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       },
       {
         'title': 'Packed',
-        'subtitle': currentStep >= 1
-            ? 'Packed for dispatch'
-            : 'Pending packaging',
+        'subtitle':
+            currentStep >= 1 ? 'Packed for dispatch' : 'Pending packaging',
         'date': currentStep >= 1 ? 'Completed' : 'Pending',
       },
       {
@@ -1380,8 +1014,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 8),
                       ),
-                      onPressed: () =>
-                          _showReturnRequestDialog(order.id),
+                      onPressed: () => _showReturnRequestDialog(order.id),
                       child: const Text(
                         'Return / Replace',
                         style: TextStyle(

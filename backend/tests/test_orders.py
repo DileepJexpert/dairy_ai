@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from app.models.order import Order, PaymentStatus
 from app.models.product import ProductInventory
+from app.models.serviceable_pincode import ServiceablePincode
 from tests.test_cart import product
 from tests.test_delivery_addresses import address
 
@@ -28,7 +29,9 @@ async def test_checkout_rejects_item_changed_to_concept(client, db_session, vend
 
 
 @pytest.mark.asyncio
-async def test_prelaunch_checkout_snapshots_interest_without_decrementing_stock(client, db_session, vendor_user, auth_headers, admin_headers):
+async def test_prelaunch_checkout_snapshots_interest_without_decrementing_stock(client, db_session, vendor_user, auth_headers, admin_headers, monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, 'PRELAUNCH_MODE', True)
     item = await product(db_session, vendor_user, stock=5, price=Decimal("250"))
     delivery = (await client.post("/api/v1/marketplace/addresses", headers=auth_headers, json=address())).json()["data"]
     assert (await client.post("/api/v1/marketplace/cart/items", headers=auth_headers, json={"product_id": str(item.id), "quantity": 2})).status_code == 201
@@ -55,10 +58,15 @@ async def test_prelaunch_checkout_snapshots_interest_without_decrementing_stock(
 async def test_vendor_can_only_progress_its_own_order_items(client, db_session, vendor_user, vendor_headers, auth_headers, monkeypatch):
     from app.config import settings
     monkeypatch.setattr(settings, 'PRELAUNCH_MODE', False)
+    monkeypatch.setattr(settings, 'RAZORPAY_KEY_ID', 'rzp_test')
+    monkeypatch.setattr(settings, 'RAZORPAY_KEY_SECRET', 'test-secret')
+    db_session.add(ServiceablePincode(
+        pincode='302001', city='Jaipur', state='Rajasthan', is_serviceable=True))
+    await db_session.flush()
     item = await product(db_session, vendor_user)
     delivery = (await client.post("/api/v1/marketplace/addresses", headers=auth_headers, json=address())).json()["data"]
     await client.post("/api/v1/marketplace/cart/items", headers=auth_headers, json={"product_id": str(item.id), "quantity": 1})
-    await client.post("/api/v1/marketplace/orders/checkout", headers=auth_headers, json={"delivery_address_id": delivery["id"], "idempotency_key": "vendor-order-test-01"})
+    await client.post("/api/v1/marketplace/orders/checkout", headers=auth_headers, json={"delivery_address_id": delivery["id"], "idempotency_key": "vendor-order-test-01", "payment_method": "upi"})
     assert (await client.get("/api/v1/marketplace/orders/vendor", headers=vendor_headers)).json()["data"] == []
     order = (await db_session.execute(select(Order))).scalar_one()
     order.payment_status = PaymentStatus.paid

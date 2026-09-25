@@ -34,12 +34,15 @@ TAXONOMY_TREE = [
     ("terroir-salts-spices", "department", "Terroir Salts & Native Spices", None, "Crushed Himalayan pink salt, wild roasted black salt & >5% curcumin haldi"),
     ("living-balcony-soil", "department", "Apartment Balcony & Living Soil", None, "Odorless elevator-safe vermicompost, potting booster & heirloom seed kits"),
     ("curated-combos", "department", "Curated Kitchen & Wellness Boxes", None, "Starter upgrade boxes and high-AOV wellness bundles"),
+    ("botanical-skincare", "department", "Vedic Skincare & Botanicals", None, "100-times washed pure ghee cream, cold-process goat milk soaps and living botanicals"),
 
     # Categories under artisanal-dairy
     ("vedic-ghee", "category", "Vedic Bilona Ghee", "artisanal-dairy", "Artisanal wooden bilona churned A2 cow and buffalo ghee"),
     ("probiotic-dairy", "category", "Cultured Probiotic Dairy", "artisanal-dairy", "Live-culture spiced mattha, fresh paneer and makhan"),
     ("curd-chillies-category", "category", "Traditional Curd Chillies", "artisanal-dairy", "Sun-dried buttermilk soaked green chillies (Mor Milagai)"),
-    ("shata-dhauta-ghrita-category", "category", "Vedic Skincare & Goat Milk Soaps", "artisanal-dairy", "100-times washed pure ghee skin moisturizer & cold-process goat milk soaps"),
+
+    # Categories under botanical-skincare
+    ("shata-dhauta-ghrita-category", "category", "Vedic Skincare & Goat Milk Soaps", "botanical-skincare", "100-times washed pure ghee skin moisturizer & cold-process goat milk soaps"),
 
     # Categories under cold-pressed-oils-sweeteners
     ("lakdi-ghani-oils", "category", "Cold-Pressed Cooking Oils", "cold-pressed-oils-sweeteners", "Traditional wooden kolhu extracted mustard, sesame and groundnut oils"),
@@ -1411,22 +1414,25 @@ async def seed_urban_catalog():
             if item.get("badge") and admin_user:
                 mp = (await db.scalars(select(MerchandisingPlacement).where(MerchandisingPlacement.product_id == target_id))).first()
                 subhead = item.get("subheadline") or item["description"][:120]
+                is_restock = "RESTOCK" in item.get("badge", "")
+                priority = 500 if "BILONA" in item["sku"] else (50 if is_restock else 200)
                 if not mp:
                     db.add(MerchandisingPlacement(
                         product_id=target_id,
-                        placement_type="highlight" if "BESTSELLER" in item["badge"] else "new_launch",
+                        placement_type="highlight" if ("BILONA" in item["sku"] or "BESTSELLER" in item["badge"]) else "new_launch",
                         headline=item["title"],
                         subheadline=subhead,
                         badge=item["badge"],
-                        priority=300 if "COMBO" in item["sku"] or "BILONA" in item["sku"] else 200,
-                        is_active=True,
+                        priority=priority,
+                        is_active=not is_restock,
                         created_by_user_id=admin_user.id,
                     ))
                 else:
                     mp.headline = item["title"]
                     mp.subheadline = subhead
                     mp.badge = item["badge"]
-                    mp.is_active = True
+                    mp.priority = priority
+                    mp.is_active = not is_restock
 
             # Seed high-credibility verified reviews
             has_rev = (await db.scalars(select(ProductReview).where(ProductReview.product_id == target_id))).first()

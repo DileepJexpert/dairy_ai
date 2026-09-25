@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Boolean, DateTime, Enum as SAEnum
+from sqlalchemy import String, Boolean, DateTime, Integer, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
 import enum
@@ -25,6 +25,8 @@ class User(Base):
     display_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
     otp_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     otp_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    otp_last_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    otp_failed_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     password_reset_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
     password_reset_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

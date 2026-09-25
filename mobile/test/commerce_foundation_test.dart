@@ -51,7 +51,7 @@ void main() {
             theme: StoreTheme.light, home: const ProductListScreen())));
     await tester.pumpAndSettle();
     expect(find.text('Dairy Foods'), findsWidgets);
-    expect(find.text('Puja & Hawan Samagri'), findsWidgets);
+    expect(find.textContaining('Puja & Hawan Samagri'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
   test('Authentication returns stay on known internal routes', () {
@@ -65,6 +65,10 @@ void main() {
       expect(shoppingReturnPath(input), '/shop');
     }
     expect(shoppingReturnPath('/marketplace/cart'), '/marketplace/cart');
+    expect(shoppingReturnPath('/account'), '/account');
+    expect(shoppingReturnPath('/profile'), '/profile');
+    expect(shoppingReturnPath('/wishlist'), '/wishlist');
+    expect(shoppingReturnPath('/balance'), '/balance');
     expect(shoppingReturnPath('/admin/commerce'), '/admin/commerce');
     expect(shoppingReturnPath('/admin/ecommerce'), '/admin/ecommerce');
     expect(shoppingReturnPath('/admin-farmers'), '/admin-farmers');

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../../../app/shopping_navigation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +15,8 @@ import 'package:dairy_ai/features/auth/models/user_model.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import 'package:dairy_ai/shared/widgets/loading_overlay.dart';
 import 'package:dairy_ai/shared/widgets/error_dialog.dart';
+
+const _demoUiEnabled = bool.fromEnvironment('ENABLE_DEMO_UI', defaultValue: false);
 
 class OtpScreen extends ConsumerStatefulWidget {
   final String phone;
@@ -32,13 +35,13 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   bool _canResend = false;
 
   bool get _isDemoPhone {
-    return widget.phone.startsWith('99999') ||
+    return kDebugMode && _demoUiEnabled && (widget.phone.startsWith('99999') ||
         widget.phone.startsWith('98765') ||
         widget.phone.startsWith('98201') ||
         widget.phone.startsWith('97654') ||
         widget.phone.startsWith('94481') ||
         widget.phone.startsWith('99351') ||
-        widget.phone.startsWith('98290');
+        widget.phone.startsWith('98290'));
   }
 
   @override

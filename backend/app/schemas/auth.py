@@ -52,6 +52,8 @@ class PasswordAuthRequest(BaseModel):
     def validate_password(cls, v: str) -> str:
         if len(v) < 8 or len(v) > 72:
             raise ValueError("Password must be between 8 and 72 characters")
+        if v == "Password@123":
+            raise ValueError("Choose a password that is not a published demo password")
         return v
 
     @field_validator("username")
@@ -130,6 +132,8 @@ class ResetPasswordRequest(BaseModel):
     def validate_new_password(cls, v: str) -> str:
         if len(v) < 8 or len(v) > 72:
             raise ValueError("Password must be between 8 and 72 characters")
+        if v == "Password@123":
+            raise ValueError("Choose a password that is not a published demo password")
         return v
 
 

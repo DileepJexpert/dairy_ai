@@ -1,5 +1,4 @@
 import logging
-import random
 import secrets
 import uuid
 import base64
@@ -13,6 +12,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.integrations.otp_sms import OtpSmsClient
 from app.models.user import User, UserRole
 
 logger = logging.getLogger("dairy_ai.services.auth")
@@ -27,9 +27,11 @@ def normalize_phone(phone: str) -> str:
 
 
 def generate_otp() -> str:
-    otp = f"{random.randint(0, 999999):06d}"
-    logger.debug(f"Generated new OTP (length={len(otp)})")
-    return otp
+    while True:
+        otp = f"{secrets.randbelow(1_000_000):06d}"
+        if otp != "123456":
+            logger.debug("Generated new OTP (length=%s)", len(otp))
+            return otp
 
 def hash_otp(otp: str) -> str:
     """Hash OTP using SHA256 with a salt (simple, no bcrypt dependency issues)."""
@@ -175,14 +177,31 @@ DEMO_CREDENTIALS = {
 }
 
 
+def demo_access_enabled() -> bool:
+    config = get_settings()
+    return (config.APP_ENV.lower() in {"development", "test", "local", "dev"}
+            and getattr(config, "ALLOW_DEMO_LOGIN", False))
+
+
+class OtpUnavailable(Exception):
+    pass
+
+
+class OtpTooSoon(Exception):
+    pass
+
+
 async def login_with_password(
     db: AsyncSession, identifier: str, password: str
 ) -> dict | None:
     user = await get_user_by_identifier(db, identifier)
     phone = normalize_phone(identifier.strip().lower())
 
+    if get_settings().APP_ENV.lower() == "production" and password == "Password@123":
+        return None
+
     # Dev / demo mode auto-provisioning & password backfill
-    if password == "Password@123":
+    if demo_access_enabled() and password == "Password@123":
         if user is None and (
             phone in DEMO_CREDENTIALS
             or phone.startswith("99999")
@@ -201,19 +220,16 @@ async def login_with_password(
             db.add(user)
             await db.flush()
         elif user is not None and (
+            phone in DEMO_CREDENTIALS
+            or phone.startswith("99999")
+            or phone.startswith("98765")
+            or phone.startswith("98201")
+        ) and (
             user.password_hash is None
             or not verify_password(password, user.password_hash)
         ):
-            if (
-                phone in DEMO_CREDENTIALS
-                or phone.startswith("99999")
-                or phone.startswith("98765")
-                or phone.startswith("98201")
-                or get_settings().APP_ENV.lower()
-                in {"development", "test", "local", "dev"}
-            ):
-                user.password_hash = hash_password(password)
-                await db.flush()
+            user.password_hash = hash_password(password)
+            await db.flush()
 
     if (
         user is None
@@ -296,15 +312,20 @@ async def get_user_by_id(db: AsyncSession, user_id: str) -> User | None:
     return user
 
 async def send_otp(db: AsyncSession, phone: str) -> str:
-    """Generate OTP and store hash. For dev: phone starting with 99999 uses OTP 123456."""
+    """Send a short-lived code, or fail without creating a usable login code."""
     phone = normalize_phone(phone)
     masked_phone = f"****{phone[-4:]}" if len(phone) >= 4 else "****"
     logger.info(f"send_otp called | phone={masked_phone}")
 
-    user = await get_user_by_phone(db, phone)
+    user = (await db.execute(select(User).where(User.phone == phone).with_for_update())).scalar_one_or_none()
 
-    # Dev mode: phones starting with 99999 always use 123456
-    if get_settings().APP_ENV.lower() in {"development", "test"} and phone.startswith("99999"):
+    if user is not None and not user.is_active:
+        return ""
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if user and user.otp_last_sent_at and (now - user.otp_last_sent_at).total_seconds() < 30:
+        raise OtpTooSoon()
+
+    if demo_access_enabled() and phone.startswith("99999"):
         otp = "123456"
         logger.debug(f"Dev mode: using fixed OTP 123456 for phone={masked_phone}")
     else:
@@ -314,7 +335,7 @@ async def send_otp(db: AsyncSession, phone: str) -> str:
     otp_hashed = hash_otp(otp)
     # PostgreSQL stores this legacy column as TIMESTAMP WITHOUT TIME ZONE.
     # Keep UTC semantics while passing a naive UTC timestamp to asyncpg.
-    expires = (datetime.now(timezone.utc) + timedelta(minutes=5)).replace(tzinfo=None)
+    expires = now + timedelta(minutes=5)
     logger.debug(f"OTP expires at {expires.isoformat()}")
 
     if user is None:
@@ -331,6 +352,11 @@ async def send_otp(db: AsyncSession, phone: str) -> str:
         user.otp_hash = otp_hashed
         user.otp_expires_at = expires
 
+    user.otp_last_sent_at = now
+    user.otp_failed_attempts = 0
+    if not (demo_access_enabled() and phone.startswith("99999")):
+        if not await OtpSmsClient.send(phone, otp):
+            raise OtpUnavailable()
     await db.flush()
     logger.info(f"send_otp completed | phone={masked_phone}, user_id={user.id}")
     return otp
@@ -342,10 +368,15 @@ async def verify_otp_and_login(db: AsyncSession, phone: str, otp: str) -> dict |
     masked_phone = f"****{phone[-4:]}" if len(phone) >= 4 else "****"
     logger.info(f"verify_otp_and_login called | phone={masked_phone}")
 
-    user = await get_user_by_phone(db, phone)
+    if get_settings().APP_ENV.lower() == "production" and otp == "123456":
+        return None
+
+    user = (await db.execute(select(User).where(User.phone == phone).with_for_update())).scalar_one_or_none()
+    if user is not None and not user.is_active:
+        return None
 
     if user is None:
-        if otp == "123456" and (
+        if demo_access_enabled() and otp == "123456" and (
             phone in DEMO_CREDENTIALS
             or phone.startswith("99999")
             or phone.startswith("98765")
@@ -365,7 +396,7 @@ async def verify_otp_and_login(db: AsyncSession, phone: str, otp: str) -> dict |
         return None
 
     if user.otp_hash is None or user.otp_expires_at is None:
-        if otp == "123456" and phone in DEMO_CREDENTIALS:
+        if demo_access_enabled() and otp == "123456" and phone in DEMO_CREDENTIALS:
             return token_response(user)
         logger.warning(f"Login failed — no OTP set for user_id={user.id}")
         return None
@@ -377,10 +408,21 @@ async def verify_otp_and_login(db: AsyncSession, phone: str, otp: str) -> dict |
         expires = expires.replace(tzinfo=timezone.utc)
 
     if now > expires:
+        user.otp_hash = None
+        user.otp_expires_at = None
+        await db.commit()
         logger.warning(f"Login failed — OTP expired for user_id={user.id} (expired at {expires.isoformat()})")
         return None
 
+    if user.otp_failed_attempts >= 5:
+        return None
+
     if not verify_otp(otp, user.otp_hash):
+        user.otp_failed_attempts += 1
+        if user.otp_failed_attempts >= 5:
+            user.otp_hash = None
+            user.otp_expires_at = None
+        await db.commit()
         logger.warning(f"Login failed — incorrect OTP for user_id={user.id}, phone={masked_phone}")
         return None
 
@@ -388,6 +430,7 @@ async def verify_otp_and_login(db: AsyncSession, phone: str, otp: str) -> dict |
     logger.debug(f"OTP verified — clearing OTP for user_id={user.id}")
     user.otp_hash = None
     user.otp_expires_at = None
+    user.otp_failed_attempts = 0
     await db.flush()
 
     logger.info(f"Login successful | user_id={user.id}, role={user.role.value}, phone={masked_phone}")

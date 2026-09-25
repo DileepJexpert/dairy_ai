@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +14,7 @@ from app.schemas.auth import (
     ResetPasswordRequest, ProfileUpdateRequest, RefreshRequest, UserResponse,
 )
 from app.services import auth_service, email_service
+from app.services.auth_rate_limit import limit_auth
 
 logger = logging.getLogger("dairy_ai.api.auth")
 
@@ -23,8 +24,10 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/register-password", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register_password(
     request: PasswordAuthRequest,
+    http_request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    await limit_auth(http_request, "register", request.phone, per_identity=3, per_ip=15, seconds=3600)
     result = await auth_service.register_with_password(
         db,
         request.phone,
@@ -44,8 +47,10 @@ async def register_password(
 @router.post("/login-password", response_model=TokenResponse)
 async def login_password(
     request: PasswordLoginRequest,
+    http_request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    await limit_auth(http_request, "password-login", request.identifier, per_identity=10, per_ip=40, seconds=900)
     result = await auth_service.login_with_password(
         db, request.identifier, request.password
     )
@@ -60,9 +65,11 @@ async def login_password(
 @router.post("/forgot-password")
 async def forgot_password(
     request: ForgotPasswordRequest,
+    http_request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Start recovery without revealing whether an identifier exists."""
+    await limit_auth(http_request, "password-recovery", request.identifier, per_identity=3, per_ip=20, seconds=3600)
     user, token = await auth_service.begin_password_reset(db, request.identifier)
     email_sent = False
     reset_url = None
@@ -97,8 +104,10 @@ async def forgot_password(
 @router.post("/reset-password")
 async def reset_password(
     request: ResetPasswordRequest,
+    http_request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    await limit_auth(http_request, "password-reset", request.token, per_identity=5, per_ip=20, seconds=900)
     if not await auth_service.reset_password(db, request.token, request.new_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -107,19 +116,27 @@ async def reset_password(
     return {"success": True, "data": {}, "message": "Password updated"}
 
 @router.post("/send-otp")
-async def send_otp(request: SendOTPRequest, db: AsyncSession = Depends(get_db)) -> dict:
+async def send_otp(request: SendOTPRequest, http_request: Request, db: AsyncSession = Depends(get_db)) -> dict:
+    await limit_auth(http_request, "otp-send", request.phone, per_identity=3, per_ip=20, seconds=900)
     logger.info(f"POST /auth/send-otp called | phone=****{request.phone[-4:]}")
     logger.debug(f"Calling auth_service.send_otp for phone=****{request.phone[-4:]}")
     try:
         await auth_service.send_otp(db, request.phone)
-        logger.info(f"OTP sent successfully to phone=****{request.phone[-4:]}")
-        return {"success": True, "message": "OTP sent", "data": {}}
+        logger.info(f"OTP request accepted for phone=****{request.phone[-4:]}")
+        return {"success": True, "message": "If this account is eligible, a code was sent", "data": {}}
+    except auth_service.OtpTooSoon:
+        raise HTTPException(status_code=429, detail="Wait before requesting another code")
+    except auth_service.OtpUnavailable:
+        raise HTTPException(status_code=503, detail="SMS delivery is unavailable; try again later")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to send OTP to phone=****{request.phone[-4:]}: {e}")
         raise
 
 @router.post("/verify-otp", response_model=TokenResponse)
-async def verify_otp(request: VerifyOTPRequest, db: AsyncSession = Depends(get_db)) -> dict:
+async def verify_otp(request: VerifyOTPRequest, http_request: Request, db: AsyncSession = Depends(get_db)) -> dict:
+    await limit_auth(http_request, "otp-verify", request.phone, per_identity=10, per_ip=40, seconds=900)
     logger.info(f"POST /auth/verify-otp called | phone=****{request.phone[-4:]}")
     logger.debug(f"Calling auth_service.verify_otp_and_login for phone=****{request.phone[-4:]}")
     try:

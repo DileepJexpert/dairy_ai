@@ -45,6 +45,14 @@ async def lines_for(db: AsyncSession, order_id: uuid.UUID) -> list[OrderItem]:
     return list((await db.execute(select(OrderItem).where(OrderItem.order_id == order_id))).scalars())
 
 
+async def cancellation_request_pending(db: AsyncSession, order_id: uuid.UUID) -> bool:
+    latest = (await db.execute(select(OrderEvent.status).where(
+        OrderEvent.order_id == order_id,
+        OrderEvent.status.in_({'CANCEL_REQUESTED', 'CANCEL_REJECTED', 'REFUNDED'}),
+    ).order_by(OrderEvent.created_at.desc(), OrderEvent.id.desc()).limit(1))).scalar_one_or_none()
+    return latest == 'CANCEL_REQUESTED'
+
+
 async def require_seller_access(db: AsyncSession, user: User, order_id: uuid.UUID, lines: list[OrderItem] | None = None) -> None:
     if user.role != UserRole.vendor:
         return
@@ -55,8 +63,9 @@ async def require_seller_access(db: AsyncSession, user: User, order_id: uuid.UUI
 
 
 def require_shippable(order: Order, lines: list[OrderItem]) -> None:
-    if order.is_prelaunch_interest or order.payment_status != PaymentStatus.paid or order.status == OrderStatus.cancelled:
-        raise HTTPException(409, "A paid commercial order is required before shipping")
+    cod_ready = order.is_cod and order.status == OrderStatus.confirmed and order.payment_status == PaymentStatus.pending
+    if order.is_prelaunch_interest or (order.payment_status != PaymentStatus.paid and not cod_ready) or order.status == OrderStatus.cancelled:
+        raise HTTPException(409, "A paid online or confirmed COD order is required before shipping")
     if not lines or len({line.vendor_id for line in lines}) != 1:
         raise HTTPException(409, "This booking flow supports one seller and one parcel per order")
     if any(line.fulfillment_status != FulfillmentStatus.packed for line in lines):
@@ -65,6 +74,8 @@ def require_shippable(order: Order, lines: list[OrderItem]) -> None:
 
 async def prepare_shipment(db: AsyncSession, order: Order, lines: list[OrderItem], package: dict | None = None) -> Shipment:
     require_shippable(order, lines)
+    if await cancellation_request_pending(db, order.id):
+        raise HTTPException(409, "Resolve the cancellation request before booking a courier")
     shipment = (await db.execute(select(Shipment).where(Shipment.order_id == order.id).with_for_update())).scalar_one_or_none()
     retry_safe = shipment and shipment.status == "needs_attention" and shipment.courier_code is None
     if shipment and shipment.status not in {"needs_package", "ready"} and not retry_safe:
@@ -110,6 +121,47 @@ async def record_manual_dispatch(db: AsyncSession, order: Order, carrier: str, a
     shipment.booked_at = shipment.booked_at or datetime.utcnow()
     await db.flush()
     return shipment
+
+
+async def record_manual_milestone(db: AsyncSession, order_id: uuid.UUID, status: str, location: str, remarks: str) -> None:
+    """Keep the customer-facing shipment in step with seller-entered milestones."""
+    if status not in {"DISPATCHED", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"}:
+        return
+    shipment = (await db.execute(select(Shipment).where(Shipment.order_id == order_id).with_for_update())).scalar_one_or_none()
+    if not shipment or not shipment.awb:
+        raise HTTPException(409, "Record a real courier and tracking reference first")
+    state = "delivered" if status == "DELIVERED" else "out_for_delivery" if status == "OUT_FOR_DELIVERY" else "manual_shipped" if shipment.mode == "manual" else "in_transit"
+    shipment.status = state
+    now = datetime.utcnow()
+    if state == "delivered":
+        shipment.delivered_at = now
+    elif state == "out_for_delivery":
+        shipment.picked_up_at = shipment.picked_up_at or now
+    external_key = f"manual:{status}"
+    existing = await db.scalar(select(ShipmentEvent.id).where(
+        ShipmentEvent.shipment_id == shipment.id, ShipmentEvent.external_key == external_key))
+    if existing is None:
+        db.add(ShipmentEvent(
+            shipment_id=shipment.id, external_key=external_key, status=status,
+            description=remarks or status.replace("_", " ").title(),
+            location=location, occurred_at=now,
+        ))
+    await db.flush()
+
+
+async def stop_shipment_for_refund(db: AsyncSession, order: Order, *, returned: bool = False) -> None:
+    """Prevent a paid order from being refunded while a courier may book it."""
+    shipment = (await db.execute(select(Shipment).where(Shipment.order_id == order.id).with_for_update())).scalar_one_or_none()
+    if not shipment:
+        return
+    if shipment.status == "booking" or (shipment.status == "needs_attention" and shipment.courier_code):
+        raise HTTPException(409, "Resolve the uncertain courier booking before refunding this order")
+    in_flight = {"booked", "in_transit", "out_for_delivery", "manual_shipped", "delivered"}
+    if not returned and shipment.status in in_flight:
+        raise HTTPException(409, "Resolve the dispatched parcel or process a return before refunding")
+    shipment.status = "returned" if returned else "cancelled"
+    shipment.claimed_at = None
+    await db.flush()
 
 
 class PackageInput(BaseModel):
@@ -166,7 +218,7 @@ async def reconcile(order_id: uuid.UUID, user: User = Depends(seller_only), db: 
         raise HTTPException(404, "Shipment not found")
     if shipment.awb:
         return {"success": True, "data": shipment_data(shipment)}
-    if shipment.status not in {"booking", "needs_attention"}:
+    if shipment.status != "needs_attention":
         raise HTTPException(409, "No uncertain booking to reconcile")
     if shipment.courier_code is None:
         raise HTTPException(409, "No courier booking was attempted; dispatch manually or correct package and coverage")
@@ -197,7 +249,7 @@ async def resolve_uncertain_booking(order_id: uuid.UUID, data: ResolutionInput,
     """Seller records evidence from the courier portal before manual recovery."""
     await require_seller_access(db, user, order_id)
     shipment = (await db.execute(select(Shipment).where(Shipment.order_id == order_id).with_for_update())).scalar_one_or_none()
-    if not shipment or shipment.status not in {"booking", "needs_attention"} or not shipment.courier_code or shipment.awb:
+    if not shipment or shipment.status != "needs_attention" or not shipment.courier_code or shipment.awb:
         raise HTTPException(409, "There is no unresolved courier booking")
     if data.action == "attach_awb":
         awb = data.awb.strip()
@@ -243,6 +295,8 @@ async def process_ready_once(courier: DelhiveryShipping | None = None) -> bool:
         order = await db.get(Order, shipment.order_id)
         try:
             require_shippable(order, await lines_for(db, shipment.order_id))
+            if await cancellation_request_pending(db, order.id):
+                raise HTTPException(409, "Cancellation review is pending")
         except (HTTPException, AttributeError):
             shipment.status, shipment.last_error = "needs_attention", "Order is no longer eligible for booking"
             await db.commit()
@@ -260,12 +314,10 @@ async def process_ready_once(courier: DelhiveryShipping | None = None) -> bool:
             package = shipment.package
         if not order or not contact or not package:
             raise CourierUnavailable("Order package or payment method is missing")
-        if contact.payment_method.lower() == "cod":
-            raise CourierUnavailable("COD settlement is not integrated with order payment confirmation")
         options = []
         for provider in providers:
             try:
-                offer = await provider.quote(str(order.address_snapshot.get("postal_code") or ""), package["weight_grams"], False)
+                offer = await provider.quote(str(order.address_snapshot.get("postal_code") or ""), package["weight_grams"], order.is_cod)
                 if offer:
                     options.append((provider, offer))
             except Exception:
@@ -278,11 +330,18 @@ async def process_ready_once(courier: DelhiveryShipping | None = None) -> bool:
             shipment = (await db.execute(select(Shipment).where(Shipment.id == shipment_id).with_for_update())).scalar_one()
             shipment.courier_code, shipment.courier_name, shipment.quoted_cost = courier.code, courier.name, quote.cost
             await db.commit()
-        awb = await courier.book(order, order.address_snapshot, [line.title for line in lines], package, contact.payment_method)
         async with async_session_factory() as db:
+            # Hold the order and shipment locks until the courier result is
+            # recorded. Refunds and manual recovery cannot overtake booking.
+            locked_order = (await db.execute(select(Order).where(Order.id == order.id).with_for_update())).scalar_one()
             shipment = (await db.execute(select(Shipment).where(Shipment.id == shipment_id).with_for_update())).scalar_one()
-            if shipment.status != "booking":
+            if shipment.status != "booking" or shipment.courier_code != courier.code:
                 raise BookingUncertain("Shipment state changed during courier booking")
+            require_shippable(locked_order, await lines_for(db, locked_order.id))
+            if await cancellation_request_pending(db, locked_order.id):
+                raise HTTPException(409, "Cancellation review is pending")
+            awb = await courier.book(locked_order, locked_order.address_snapshot,
+                                     [line.title for line in lines], package, contact.payment_method)
             await confirm_booking(db, shipment, awb, courier.code, courier.name)
             await db.commit()
         try:
@@ -321,7 +380,7 @@ async def poll_tracking_once(courier: DelhiveryShipping | None = None) -> bool:
         if not shipment:
             return False
         shipment.last_tracking_at = datetime.utcnow()
-        shipment_id, awb = shipment.id, shipment.awb
+        shipment_id, awb, order_id = shipment.id, shipment.awb, shipment.order_id
         await db.commit()
     try:
         scans = await courier.track(awb)
@@ -329,8 +388,14 @@ async def poll_tracking_once(courier: DelhiveryShipping | None = None) -> bool:
         logger.exception("Courier tracking failed for %s", shipment_id)
         return True
     async with async_session_factory() as db:
+        # Acquire locks in consistent global order: Order -> Shipment (prevents deadlocks with admin refunds/returns)
+        order = (await db.execute(select(Order).where(Order.id == order_id).with_for_update())).scalar_one_or_none()
         shipment = (await db.execute(select(Shipment).where(Shipment.id == shipment_id).with_for_update())).scalar_one_or_none()
-        if not shipment:
+        if not shipment or not order:
+            return True
+        # Do not advance shipments or orders that were cancelled or returned while tracking was in-flight
+        if (order.status == OrderStatus.cancelled or order.return_status in {"RETURN_COMPLETED", "RTO_DELIVERED"}
+                or order.payment_status == PaymentStatus.refunded or shipment.status in {"cancelled", "returned", "rto"}):
             return True
         for scan in scans:
             key = str(scan.get("key") or "")[:200]
@@ -347,27 +412,34 @@ async def poll_tracking_once(courier: DelhiveryShipping | None = None) -> bool:
                                  location=str(scan.get("location") or "")[:200], occurred_at=occurred))
             if state == "DELIVERED" and shipment.status != "delivered":
                 shipment.status, shipment.delivered_at = "delivered", occurred
-                await advance_order(db, shipment.order_id, FulfillmentStatus.delivered)
+                await advance_order(db, order, FulfillmentStatus.delivered)
             elif state == "OUT_FOR_DELIVERY" and shipment.status not in {"out_for_delivery", "delivered"}:
                 shipment.status = "out_for_delivery"
-                await advance_order(db, shipment.order_id, FulfillmentStatus.shipped)
+                await advance_order(db, order, FulfillmentStatus.shipped)
             elif state == "IN_TRANSIT" and shipment.status == "booked":
                 shipment.status, shipment.picked_up_at = "in_transit", occurred
-                await advance_order(db, shipment.order_id, FulfillmentStatus.shipped)
+                await advance_order(db, order, FulfillmentStatus.shipped)
         await db.commit()
     return True
 
 
-async def advance_order(db: AsyncSession, order_id: uuid.UUID, target: FulfillmentStatus) -> None:
-    order = (await db.execute(select(Order).where(Order.id == order_id).with_for_update())).scalar_one_or_none()
-    if not order or order.payment_status != PaymentStatus.paid or order.is_prelaunch_interest:
+async def advance_order(db: AsyncSession, order_or_id: uuid.UUID | Order, target: FulfillmentStatus) -> None:
+    if isinstance(order_or_id, Order):
+        order = order_or_id
+    else:
+        order = (await db.execute(select(Order).where(Order.id == order_or_id).with_for_update())).scalar_one_or_none()
+    if not order or order.status == OrderStatus.cancelled or order.return_status in {"RETURN_COMPLETED", "RTO_DELIVERED"} or order.payment_status == PaymentStatus.refunded:
         return
-    for line in await lines_for(db, order_id):
+    if order.is_prelaunch_interest or (order.payment_status != PaymentStatus.paid and not (order.is_cod and order.status == OrderStatus.confirmed and order.payment_status == PaymentStatus.pending)):
+        return
+    for line in await lines_for(db, order.id):
+        if line.fulfillment_status == FulfillmentStatus.cancelled:
+            continue
         if target == FulfillmentStatus.shipped and line.fulfillment_status == FulfillmentStatus.packed:
             line.fulfillment_status = target
         elif target == FulfillmentStatus.delivered and line.fulfillment_status in {FulfillmentStatus.packed, FulfillmentStatus.shipped}:
             line.fulfillment_status = target
-    db.add(OrderEvent(order_id=order_id, title="Courier update", status=target.value, remarks="Confirmed by courier tracking"))
+    db.add(OrderEvent(order_id=order.id, title="Courier update", status=target.value, remarks="Confirmed by courier tracking"))
 
 
 async def shipping_loop() -> None:

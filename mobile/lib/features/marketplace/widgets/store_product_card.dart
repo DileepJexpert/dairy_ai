@@ -47,32 +47,114 @@ class _StoreProductCardState extends State<StoreProductCard> {
             color: storeWhite,
             borderRadius: BorderRadius.circular(StoreLayout.radius),
             clipBehavior: Clip.antiAlias,
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Stack(children: [
-                    InkWell(
+            child: LayoutBuilder(builder: (context, constraints) {
+              final isBounded = constraints.hasBoundedHeight;
+
+              Widget imageSection;
+              if (isBounded) {
+                imageSection = Expanded(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      InkWell(
                         onTap: () => widget.onOpen(p),
-                        child: AspectRatio(
-                            aspectRatio: StoreLayout.productImageAspectRatio,
-                            child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: ProductArtwork(product: p)))),
-                    if (p.isConcept)
-                      Positioned(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: ProductArtwork(product: p),
+                        ),
+                      ),
+                      if (p.isConcept)
+                        Positioned(
                           top: 8,
                           left: 8,
                           child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                  color: storeGreen,
-                                  borderRadius: BorderRadius.circular(4)),
-                              child: const Padding(
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  child: Text('Concept Preview',
-                                      style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10)))))
+                            decoration: BoxDecoration(
+                              color: storeGreen,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              child: Text(
+                                'Concept Preview',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                      else if (p.badge != null && p.badge!.isNotEmpty)
+                        Positioned(
+                          top: 8,
+                          left: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: p.badge!.toUpperCase().contains('BEST')
+                                  ? const Color(0xff232f3e)
+                                  : (p.badge!.toUpperCase().contains('DEAL')
+                                      ? const Color(0xffcc0c39)
+                                      : storeGreen),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Text(
+                              p.badge!,
+                              style: TextStyle(
+                                color: p.badge!.toUpperCase().contains('BEST')
+                                    ? const Color(0xffff9900)
+                                    : storeWhite,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: WishlistHeartButton(product: p),
+                      ),
+                    ],
+                  ),
+                );
+              } else {
+                imageSection = Stack(
+                  children: [
+                    InkWell(
+                      onTap: () => widget.onOpen(p),
+                      child: AspectRatio(
+                        aspectRatio: StoreLayout.productImageAspectRatio,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: ProductArtwork(product: p),
+                        ),
+                      ),
+                    ),
+                    if (p.isConcept)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: storeGreen,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            child: Text(
+                              'Concept Preview',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
                     else if (p.badge != null && p.badge!.isNotEmpty)
                       Positioned(
                         top: 8,
@@ -101,13 +183,22 @@ class _StoreProductCardState extends State<StoreProductCard> {
                         ),
                       ),
                     Positioned(
-                        top: 8,
-                        right: 8,
-                        child: WishlistHeartButton(product: p)),
-                  ]),
+                      top: 8,
+                      right: 8,
+                      child: WishlistHeartButton(product: p),
+                    ),
+                  ],
+                );
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  imageSection,
                   Padding(
                       padding: StoreLayout.productCardPadding,
                       child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             InkWell(
@@ -266,7 +357,8 @@ class _StoreProductCardState extends State<StoreProductCard> {
                                             : 'Add to cart',
                                     textAlign: TextAlign.center)),
                           ])),
-                ])));
+                ]);
+            })));
   }
 }
 

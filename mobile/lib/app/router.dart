@@ -87,6 +87,7 @@ import 'package:dairy_ai/features/vet_farmer/screens/tele_vet_booking_screen.dar
 import 'package:dairy_ai/features/marketplace/screens/marketplace_detail_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/sell_on_milterra_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/product_list_screen.dart';
+import 'package:dairy_ai/features/marketplace/screens/customer_account_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/product_detail_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/vendor_storefront_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/deals_screen.dart';
@@ -226,9 +227,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           location == '/shop/help' ||
           location == '/register' ||
           location == '/profile' ||
-          location == '/account' ||
           location == '/shop/profile' ||
-          location == '/shop/account' ||
           location.startsWith('/purity') ||
           location == '/marketplace' ||
           location == '/marketplace/sell' ||
@@ -366,7 +365,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/account',
-        redirect: (_, __) => '/profile',
+        builder: (context, state) => const CustomerAccountScreen(),
       ),
       GoRoute(
         path: '/shop/profile',
@@ -374,7 +373,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/shop/account',
-        redirect: (_, __) => '/profile',
+        redirect: (_, __) => '/account',
       ),
       GoRoute(
         path: '/shop/deals',

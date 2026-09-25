@@ -5,6 +5,8 @@ import pytest
 
 from app.models.user import User, UserRole
 from app.services.auth_service import create_access_token
+from app.api import delivery_pincode
+from app.models.serviceable_pincode import ServiceablePincode
 
 
 def address(**overrides) -> dict:
@@ -54,3 +56,30 @@ async def test_update_delete_and_user_isolation(client, db_session, auth_headers
 async def test_delivery_address_validation(client, auth_headers):
     assert (await client.post("/api/v1/marketplace/addresses", headers=auth_headers, json=address(postal_code="123"))).status_code == 422
     assert (await client.put("/api/v1/marketplace/addresses/not-a-uuid", headers=auth_headers, json={})).status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_location_master_contains_all_states_and_state_districts(client):
+    response = await client.get("/api/v1/marketplace/locations")
+    assert response.status_code == 200
+    states = {row["name"]: row["districts"] for row in response.json()["states"]}
+    assert len(states) == 36
+    assert "Gautam Buddha Nagar" in states["Uttar Pradesh"]
+    assert "Jaipur" in states["Rajasthan"]
+
+
+@pytest.mark.asyncio
+async def test_pin_lookup_falls_back_to_delivery_master(client, db_session, monkeypatch):
+    async def unavailable(pin):
+        return None
+    monkeypatch.setattr(delivery_pincode, "lookup_india_post_pincode", unavailable)
+    db_session.add(ServiceablePincode(
+        pincode="201305", city="Noida", state="Uttar Pradesh",
+        is_serviceable=True,
+    ))
+    await db_session.flush()
+    response = await client.get("/api/v1/marketplace/pincode/lookup?pincode=201305")
+    assert response.status_code == 200
+    assert response.json()["state"] == "Uttar Pradesh"
+    assert response.json()["district"] == ""
+    assert (await client.get("/api/v1/marketplace/pincode/lookup?pincode=123" )).status_code == 422

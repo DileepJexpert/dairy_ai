@@ -88,7 +88,7 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
         _analytics = analytics,
         _isLoggedIn = isLoggedIn,
         super(AsyncValue.data(_createEmptyCart())) {
-    _init();
+    _initFuture = _init();
   }
 
   final Dio _dio;
@@ -96,6 +96,15 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
   final Ref ref;
   final AnalyticsService? _analytics;
   final bool _isLoggedIn;
+  Future<void>? _initFuture;
+
+  Future<void> _waitForInit() async {
+    if (_initFuture != null) {
+      try {
+        await _initFuture;
+      } catch (_) {}
+    }
+  }
 
   static Cart _createEmptyCart() {
     return const Cart(
@@ -112,7 +121,7 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
       state = AsyncValue.data(_buildLocalCart(localItems));
     }
     if (_isLoggedIn) {
-      await refresh(throwOnError: false);
+      await _refreshInternal(throwOnError: false);
     }
   }
 
@@ -160,6 +169,11 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
   }
 
   Future<void> refresh({bool throwOnError = false}) async {
+    await _waitForInit();
+    await _refreshInternal(throwOnError: throwOnError);
+  }
+
+  Future<void> _refreshInternal({bool throwOnError = false}) async {
     final localItems = await _storage.load();
 
     if (!_isLoggedIn) {
@@ -175,19 +189,50 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
       if (body['data'] is! Map) {
         throw const FormatException('Cart response did not contain data');
       }
-      final serverCart =
+      var serverCart =
           Cart.fromJson(Map<String, dynamic>.from(body['data'] as Map));
 
-      // If local basket has items that are not in serverCart yet (e.g. added before login),
-      // merge them to the server cart
-      final serverProductIds =
-          serverCart.items.map((i) => i.productId).toSet();
+      if (localItems.isEmpty) {
+        await _syncLocalStorageWithServer(serverCart.items);
+        if (mounted) {
+          state = AsyncValue.data(serverCart);
+        }
+        return;
+      }
+
+      // Merge local basket with server cart:
+      // - Delete items removed locally while offline
+      // - Sync missing items to server
+      // - Sync offline quantity updates to server
+      final localItemMap = {for (final item in localItems) item.productId: item};
+      final serverItemMap =
+          {for (final item in serverCart.items) item.productId: item};
       bool syncedPending = false;
+
+      // 1. Delete server items not present in localItems (offline deletions)
+      for (final serverItem in serverCart.items) {
+        if (!localItemMap.containsKey(serverItem.productId)) {
+          try {
+            await _dio.delete('/marketplace/cart/items/${serverItem.id}');
+            syncedPending = true;
+          } catch (_) {}
+        }
+      }
+
+      // 2. Add new local items and update quantities
       for (final localItem in localItems) {
-        if (!serverProductIds.contains(localItem.productId)) {
+        final serverItem = serverItemMap[localItem.productId];
+        if (serverItem == null) {
           try {
             await _dio.post('/marketplace/cart/items', data: {
               'product_id': localItem.productId,
+              'quantity': localItem.quantity,
+            });
+            syncedPending = true;
+          } catch (_) {}
+        } else if (serverItem.quantity != localItem.quantity) {
+          try {
+            await _dio.put('/marketplace/cart/items/${serverItem.id}', data: {
               'quantity': localItem.quantity,
             });
             syncedPending = true;
@@ -198,11 +243,8 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
       if (syncedPending) {
         final reRes = await _dio.get('/marketplace/cart');
         final reBody = reRes.data as Map<String, dynamic>;
-        final reCart =
+        serverCart =
             Cart.fromJson(Map<String, dynamic>.from(reBody['data'] as Map));
-        await _syncLocalStorageWithServer(reCart.items);
-        if (mounted) state = AsyncValue.data(reCart);
-        return;
       }
 
       await _syncLocalStorageWithServer(serverCart.items);
@@ -210,9 +252,10 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
         state = AsyncValue.data(serverCart);
       }
     } catch (error, stackTrace) {
-      // Backend is unavailable: fall back to local basket without crashing
+      // Backend is unavailable: fall back to latest local basket without crashing
+      final latestLocal = await _storage.load();
       if (mounted) {
-        state = AsyncValue.data(_buildLocalCart(localItems));
+        state = AsyncValue.data(_buildLocalCart(latestLocal));
       }
       if (throwOnError) {
         Error.throwWithStackTrace(error, stackTrace);
@@ -236,6 +279,7 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
   }
 
   Future<void> add(String productId, int quantity, [Product? product]) async {
+    await _waitForInit();
     if (product?.isConcept == true) {
       throw StateError('Concept products are not for sale');
     }
@@ -270,7 +314,7 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
           'product_id': productId,
           'quantity': quantity,
         });
-        await refresh(throwOnError: false);
+        await _refreshInternal(throwOnError: false);
       } catch (_) {
         // API outage: local basket retains selection safely
       }
@@ -278,6 +322,7 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
   }
 
   Future<void> update(String itemId, int quantity) async {
+    await _waitForInit();
     String productId = itemId;
     final currentCart = state.valueOrNull;
     if (currentCart != null) {
@@ -309,6 +354,7 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
   }
 
   Future<void> remove(String itemId) async {
+    await _waitForInit();
     _analytics?.trackRemoveFromCart(itemId, 'Cart Item');
     String productId = itemId;
     final currentCart = state.valueOrNull;
@@ -334,6 +380,7 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
   }
 
   Future<void> clear() async {
+    await _waitForInit();
     await _storage.clear();
     if (mounted) {
       state = AsyncValue.data(_createEmptyCart());
@@ -348,26 +395,55 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
   /// Reconciles local basket items with the server before checkout.
   /// Throws if the backend cannot be reached, so checkout can show the retry state.
   Future<Cart> reconcileWithBackend() async {
+    await _waitForInit();
     final localItems = await _storage.load();
     if (localItems.isEmpty) {
-      return _createEmptyCart();
+      try {
+        await _dio.delete('/marketplace/cart');
+      } catch (_) {}
+      final empty = _createEmptyCart();
+      if (mounted) state = AsyncValue.data(empty);
+      return empty;
     }
 
     final res = await _dio.get('/marketplace/cart');
     final body = res.data as Map<String, dynamic>;
     var serverCart =
         Cart.fromJson(Map<String, dynamic>.from(body['data'] as Map));
-    final serverProductIds =
-        serverCart.items.map((i) => i.productId).toSet();
+
+    final localItemMap = {for (final item in localItems) item.productId: item};
+    final serverItemMap =
+        {for (final item in serverCart.items) item.productId: item};
 
     bool needsReload = false;
-    for (final item in localItems) {
-      if (!serverProductIds.contains(item.productId)) {
+
+    // 1. If an item exists on server but was deleted locally while offline, delete it from server
+    for (final serverItem in serverCart.items) {
+      if (!localItemMap.containsKey(serverItem.productId)) {
+        try {
+          await _dio.delete('/marketplace/cart/items/${serverItem.id}');
+          needsReload = true;
+        } catch (_) {}
+      }
+    }
+
+    // 2. If an item was added locally while offline, add to server
+    // 3. If an item exists in both but quantity was updated locally while offline, update on server
+    for (final localItem in localItems) {
+      final serverItem = serverItemMap[localItem.productId];
+      if (serverItem == null) {
         await _dio.post('/marketplace/cart/items', data: {
-          'product_id': item.productId,
-          'quantity': item.quantity,
+          'product_id': localItem.productId,
+          'quantity': localItem.quantity,
         });
         needsReload = true;
+      } else if (serverItem.quantity != localItem.quantity) {
+        try {
+          await _dio.put('/marketplace/cart/items/${serverItem.id}', data: {
+            'quantity': localItem.quantity,
+          });
+          needsReload = true;
+        } catch (_) {}
       }
     }
 

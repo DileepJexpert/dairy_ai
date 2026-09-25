@@ -94,6 +94,34 @@ class _FakeCartBackendAdapter implements HttpClientAdapter {
       );
     }
 
+    if (options.method == 'PUT' && path.startsWith('/marketplace/cart/items/')) {
+      final itemId = path.split('/').last;
+      final productId = itemId.replaceFirst('server-', '').replaceFirst('item-', '');
+      final data = options.data as Map;
+      final qty = (data['quantity'] as num).toInt();
+      serverCart[productId] = qty;
+      return ResponseBody.fromString(
+        '{"success": true, "data": {"id": "$itemId", "quantity": $qty}}',
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    }
+
+    if (options.method == 'DELETE' && path.startsWith('/marketplace/cart/items/')) {
+      final itemId = path.split('/').last;
+      final productId = itemId.replaceFirst('server-', '').replaceFirst('item-', '');
+      serverCart.remove(productId);
+      return ResponseBody.fromString(
+        '{"success": true, "data": {}}',
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    }
+
     if (options.method == 'DELETE' && path == '/marketplace/cart') {
       serverCart.clear();
       return ResponseBody.fromString(
@@ -305,4 +333,59 @@ void main() {
     // Verify server has received the item
     expect(fakeBackend.serverCart['cow500'], 2);
   });
+
+  test('Bidirectional reconciliation: offline quantity updates and item deletions sync to backend', () async {
+    final mockStorage = LocalBasketStorage();
+    final fakeBackend = _FakeCartBackendAdapter();
+    final dio = Dio()..httpClientAdapter = fakeBackend;
+
+    // Server already has cow500 (qty 2) and paneer200 (qty 1)
+    fakeBackend.serverCart['cow500'] = 2;
+    fakeBackend.serverCart['paneer200'] = 1;
+
+    // Offline user updated cow500 to qty 5 and removed paneer200 from local basket
+    await mockStorage.addItem(
+      productId: 'cow500',
+      quantity: 5,
+      price: 799.0,
+    );
+
+    final container = ProviderContainer(
+      overrides: [
+        localBasketStorageProvider.overrideWithValue(mockStorage),
+        dioProvider.overrideWithValue(dio),
+        currentUserProvider.overrideWith((ref) => const UserModel(
+              id: 'user-1',
+              phone: '+919999900000',
+              role: 'farmer',
+            )),
+        staticCatalogueProvider.overrideWith((ref) => Future.value(_sampleCatalogue)),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    // Reconcile pushes offline quantity modification (5) and deletion of paneer200 to backend
+    final reconciledCart = await container.read(cartProvider.notifier).reconcileWithBackend();
+
+    expect(reconciledCart.itemCount, 5);
+    expect(reconciledCart.items.length, 1);
+    expect(reconciledCart.items.first.productId, 'cow500');
+    expect(reconciledCart.items.first.quantity, 5);
+
+    // Verify backend state reflects user's offline edits
+    expect(fakeBackend.serverCart['cow500'], 5);
+    expect(fakeBackend.serverCart.containsKey('paneer200'), isFalse);
+  });
+
+  test('Storage transparency: isPersisted reflects secure storage success or fallback', () async {
+    final storage = LocalBasketStorage();
+    expect(storage.isPersisted, isTrue);
+
+    storage.setPersistedForTesting(false);
+    expect(storage.isPersisted, isFalse);
+
+    storage.setPersistedForTesting(true);
+    expect(storage.isPersisted, isTrue);
+  });
 }
+

@@ -148,3 +148,22 @@ CREATE TABLE IF NOT EXISTS order_lines (
     total_minor INTEGER NOT NULL CHECK (total_minor >= 0),
     currency TEXT NOT NULL CHECK (currency = 'INR')
 );
+
+CREATE TABLE IF NOT EXISTS coupons (
+    code TEXT PRIMARY KEY,
+    description TEXT,
+    discount_type TEXT NOT NULL CHECK (discount_type IN ('percentage', 'flat')),
+    discount_value REAL NOT NULL CHECK (discount_value >= 0),
+    min_order_value REAL NOT NULL DEFAULT 0,
+    max_discount_cap REAL,
+    is_active INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TRIGGER IF NOT EXISTS trg_cancel_order BEFORE UPDATE OF status ON orders
+FOR EACH ROW
+WHEN NEW.status = 'cancelled'
+BEGIN
+    SELECT RAISE(ABORT, 'only placed or confirmed orders can be cancelled')
+     WHERE OLD.status NOT IN ('placed', 'confirmed');
+END;
+

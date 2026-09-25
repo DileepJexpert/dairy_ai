@@ -106,13 +106,25 @@ class LocalBasketStorage {
     }
   }
 
+  bool _isPersisted = true;
+  bool get isPersisted => _isPersisted;
+
+  void setPersistedForTesting(bool value) {
+    _isPersisted = value;
+  }
+
   Future<void> save(List<LocalBasketItem> items) async {
     _memoryCache = List.from(items);
+    if (_storage == null) {
+      return;
+    }
     try {
       final raw = jsonEncode(items.map((i) => i.toJson()).toList());
-      await _storage?.write(key: storageKey, value: raw);
+      await _storage.write(key: storageKey, value: raw);
+      _isPersisted = true;
     } catch (_) {
       // In-memory cache guarantees seamless session operations if storage is restricted
+      _isPersisted = false;
     }
   }
 

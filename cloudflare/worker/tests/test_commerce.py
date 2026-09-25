@@ -96,6 +96,8 @@ class MockEnv:
     def __init__(self, db: MockD1Database):
         self.DB = db
         self.COMPAT_JWT_SECRET = "local-compat-jwt-secret-long-enough"
+        self.ENVIRONMENT = "test"
+        self.ALLOW_TEST_AUTH = True
 
 
 @pytest.fixture
@@ -107,6 +109,11 @@ def d1_db():
     for mig in sorted(MIGRATIONS_DIR.glob("*.sql")):
         script = mig.read_text(encoding="utf-8")
         conn.executescript(script)
+
+    conn.execute(
+        "INSERT OR IGNORE INTO customer_addresses (id, customer_id, recipient_name, phone, address_line1, city, state, pincode, is_default) "
+        "VALUES ('addr-2', 'user-1', 'Alternate Farm', '+919999900000', 'Road 44', 'Anand', 'Gujarat', '388002', 0)"
+    )
 
     db = MockD1Database(conn)
     yield db
@@ -308,3 +315,149 @@ def test_order_cancellation_restores_stock(client, d1_db):
     # Stock is restored to 10
     inv_restored = asyncio.run(d1_db.prepare("SELECT available_units FROM inventory WHERE product_id = 'p-cancel'").first())
     assert inv_restored["available_units"] == 10
+
+    # Double cancellation is rejected with 400 and stock is NOT restored again
+    repeat_cancel = client.post(f"/api/v1/marketplace/orders/{order_id}/cancel")
+    assert repeat_cancel.status_code == 400
+    assert "already cancelled" in repeat_cancel.text.lower()
+    inv_still_10 = asyncio.run(d1_db.prepare("SELECT available_units FROM inventory WHERE product_id = 'p-cancel'").first())
+    assert inv_still_10["available_units"] == 10
+
+
+def test_address_ownership_and_pincode_validation(client, d1_db):
+    asyncio.run(d1_db.prepare(
+        "INSERT OR REPLACE INTO inventory (product_id, title, available_units, price_minor, currency, is_active) "
+        "VALUES ('p-addr-test', 'Ghee for Address Test', 10, 50000, 'INR', 1)"
+    ).run())
+
+    # Seed an address belonging to a different customer (user-999)
+    asyncio.run(d1_db.prepare(
+        "INSERT OR IGNORE INTO customers (id, phone, role) VALUES ('user-999', '+919888877777', 'farmer')"
+    ).run())
+    asyncio.run(d1_db.prepare(
+        "INSERT OR REPLACE INTO customer_addresses (id, customer_id, recipient_name, phone, address_line1, city, state, pincode, is_default) "
+        "VALUES ('addr-other', 'user-999', 'Other Person', '+919888877777', 'Other Road', 'Delhi', 'Delhi', '110001', 1)"
+    ).run())
+
+    # Seed an address with invalid pincode for user-1
+    asyncio.run(d1_db.prepare(
+        "INSERT OR REPLACE INTO customer_addresses (id, customer_id, recipient_name, phone, address_line1, city, state, pincode, is_default) "
+        "VALUES ('addr-bad-pin', 'user-1', 'Test Farmer', '+919999900000', 'Road 1', 'City', 'State', '123', 0)"
+    ).run())
+
+    client.delete("/api/v1/marketplace/cart")
+    client.post("/api/v1/marketplace/cart/items", json={"product_id": "p-addr-test", "quantity": 1})
+
+    # 1. Checkout quote with someone else's address -> 404
+    quote_other = client.post("/api/v1/marketplace/orders/checkout/quote", json={"delivery_address_id": "addr-other"})
+    assert quote_other.status_code == 404
+
+    # 2. Checkout with someone else's address -> 404
+    checkout_other = client.post(
+        "/api/v1/marketplace/orders/checkout",
+        json={"idempotency_key": "addr-check-" + str(uuid.uuid4()), "delivery_address_id": "addr-other"},
+    )
+    assert checkout_other.status_code == 404
+
+    # 3. Checkout with invalid pincode address -> 422
+    checkout_pin = client.post(
+        "/api/v1/marketplace/orders/checkout",
+        json={"idempotency_key": "pin-check-" + str(uuid.uuid4()), "delivery_address_id": "addr-bad-pin"},
+    )
+    assert checkout_pin.status_code == 422
+    assert "pincode" in checkout_pin.text.lower()
+
+
+def test_coupon_discount_calculation_and_validation(client, d1_db):
+    asyncio.run(d1_db.prepare(
+        "INSERT OR REPLACE INTO inventory (product_id, title, available_units, price_minor, currency, is_active) "
+        "VALUES ('p-coupon-test', 'Ghee for Coupon', 20, 60000, 'INR', 1)"  # ₹600
+    ).run())
+
+    client.delete("/api/v1/marketplace/cart")
+    client.post("/api/v1/marketplace/cart/items", json={"product_id": "p-coupon-test", "quantity": 1})
+
+    # Valid coupon MILTERRA10 (10% off min order 499): 10% of 600 = 60
+    q = client.post(
+        "/api/v1/marketplace/orders/checkout/quote",
+        json={"coupon_code": "MILTERRA10", "delivery_address_id": "addr-1"},
+    )
+    assert q.status_code == 200
+    data = q.json()["data"]
+    assert data["subtotal"] == 600.0
+    assert data["discount"] == 60.0
+    assert data["delivery_fee"] == 0.0  # free over 500
+    assert data["total"] == 540.0
+    assert data["total_amount"] == 540.0
+    assert data["is_prelaunch_interest"] is False
+
+    # Invalid coupon code -> 422
+    bad_q = client.post(
+        "/api/v1/marketplace/orders/checkout/quote",
+        json={"coupon_code": "INVALID99", "delivery_address_id": "addr-1"},
+    )
+    assert bad_q.status_code == 422
+
+    # Checkout with valid coupon applies discount and saves order
+    resp = client.post(
+        "/api/v1/marketplace/orders/checkout",
+        json={
+            "idempotency_key": "coupon-order-" + str(uuid.uuid4()),
+            "delivery_address_id": "addr-1",
+            "coupon_code": "MILTERRA10",
+            "expected_total": 540.0,
+        },
+    )
+    assert resp.status_code == 201
+    assert resp.json()["data"]["total"] == 540.0
+
+
+def test_auth_guard_blocks_test_header_when_not_in_test_environment(client):
+    app.state.env.ENVIRONMENT = "production"
+    app.state.env.ALLOW_TEST_AUTH = False
+
+    # Attempt to bypass using x-test-customer-id
+    resp = client.get("/api/v1/marketplace/cart", headers={"x-test-customer-id": "user-1"})
+    assert resp.status_code == 401
+    assert "Authentication required" in resp.text
+
+    # Restore test environment for remaining tests
+    app.state.env.ENVIRONMENT = "test"
+    app.state.env.ALLOW_TEST_AUTH = True
+
+
+def test_payment_capabilities_and_link_contract(client, d1_db):
+    # Payment capabilities
+    cap_resp = client.get("/api/v1/marketplace/orders/payment-capabilities")
+    assert cap_resp.status_code == 200
+    cap_data = cap_resp.json()["data"]
+    assert cap_data["is_prelaunch_interest"] is False
+    assert cap_data["online_payment_available"] is True
+
+    # Create an order with UPI payment method
+    asyncio.run(d1_db.prepare(
+        "INSERT OR REPLACE INTO inventory (product_id, title, available_units, price_minor, currency, is_active) "
+        "VALUES ('p-pay-test', 'Ghee for Pay Link', 5, 50000, 'INR', 1)"
+    ).run())
+
+    client.delete("/api/v1/marketplace/cart")
+    client.post("/api/v1/marketplace/cart/items", json={"product_id": "p-pay-test", "quantity": 1})
+
+    order_res = client.post(
+        "/api/v1/marketplace/orders/checkout",
+        json={
+            "idempotency_key": "pay-order-" + str(uuid.uuid4()),
+            "delivery_address_id": "addr-1",
+            "payment_method": "upi",
+        },
+    )
+    assert order_res.status_code == 201
+    order_id = order_res.json()["data"]["id"]
+
+    # Request payment link
+    link_res = client.post(f"/api/v1/marketplace/orders/{order_id}/payment-link")
+    assert link_res.status_code == 200
+    link_data = link_res.json()["data"]
+    assert "razorpay" in link_data["url"]
+    assert link_data["order_id"] == order_id
+

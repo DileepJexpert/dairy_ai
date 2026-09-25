@@ -305,13 +305,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ref.invalidate(checkoutQuoteProvider(
             _quoteKey(cart, ref.read(appliedCouponProvider))));
       }
+      final isPersisted = ref.read(localBasketStorageProvider).isPersisted;
+      final savedMessage = isPersisted
+          ? 'Your basket has been saved.'
+          : 'Your basket is stored in memory for this session only; storage could not be saved.';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: storeError,
             duration: const Duration(seconds: 5),
             content: Text(
-              'Checkout is temporarily unavailable. Your basket has been saved. (${dioErrorMessage(e)})',
+              'Checkout is temporarily unavailable. $savedMessage (${dioErrorMessage(e)})',
             ),
             action: SnackBarAction(
               label: 'Retry',
@@ -322,13 +326,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         );
       }
     } catch (e) {
+      final isPersisted = ref.read(localBasketStorageProvider).isPersisted;
+      final savedMessage = isPersisted
+          ? 'Your basket has been saved.'
+          : 'Your basket is stored in memory for this session only; storage could not be saved.';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: storeError,
             duration: const Duration(seconds: 5),
-            content: const Text(
-                'Checkout is temporarily unavailable. Your basket has been saved.'),
+            content: Text(
+                'Checkout is temporarily unavailable. $savedMessage'),
             action: SnackBarAction(
               label: 'Retry',
               textColor: Colors.white,
@@ -1330,10 +1338,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Your basket has been saved. Please retry verifying prices and delivery.',
-                    style: TextStyle(
+                  Text(
+                    ref.watch(localBasketStorageProvider).isPersisted
+                        ? 'Your basket has been saved. Please retry verifying prices and delivery.'
+                        : 'Your basket is stored in memory for this session only. Please retry verifying prices and delivery.',
+                    style: const TextStyle(
                       color: Color(0xff7f1d1d),
                       fontSize: 11,
                     ),

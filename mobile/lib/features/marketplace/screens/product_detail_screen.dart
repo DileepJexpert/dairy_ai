@@ -129,22 +129,18 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         },
       );
     }
-    if (ref.read(currentUserProvider) == null) {
-      final destination = checkout
-          ? '/marketplace/checkout'
-          : GoRouterState.of(context).uri.toString();
-      context.go(
-        Uri(path: '/login', queryParameters: {'next': destination}).toString(),
-      );
-      return;
-    }
-
     setState(() => _busy = true);
     try {
       await ref.read(cartProvider.notifier).add(p.id, quantity ?? _quantity, p);
       if (!mounted) return;
       if (checkout) {
-        context.push('/marketplace/checkout');
+        if (ref.read(currentUserProvider) == null) {
+          context.go(
+            Uri(path: '/login', queryParameters: {'next': '/marketplace/checkout'}).toString(),
+          );
+        } else {
+          context.push('/marketplace/checkout');
+        }
       } else {
         await showStoreCart(context);
       }

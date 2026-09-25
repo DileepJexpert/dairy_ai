@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../auth/providers/auth_provider.dart';
 import '../../cart/providers/cart_provider.dart';
 import '../models/product_models.dart';
 import '../providers/product_provider.dart';
@@ -298,10 +297,6 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
           p.minOrderQuantity,
           p.price,
         );
-    if (ref.read(currentUserProvider) == null) {
-      context.go('/login?next=/shop/product/${p.id}');
-      return;
-    }
     setState(() => _adding.add(p.id));
     try {
       await ref.read(cartProvider.notifier).add(p.id, p.minOrderQuantity, p);

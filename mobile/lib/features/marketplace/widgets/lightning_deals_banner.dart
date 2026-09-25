@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../auth/providers/auth_provider.dart';
 import '../../cart/providers/cart_provider.dart';
 import '../providers/merchandising_provider.dart';
 import 'store_product_card.dart';
@@ -48,12 +47,6 @@ class LightningDealsRail extends ConsumerWidget {
                                       onOpen: (p) =>
                                           context.push('/shop/product/${p.id}'),
                                       onAdd: (p) async {
-                                        if (ref.read(currentUserProvider) ==
-                                            null) {
-                                          context.push(
-                                              '/login?next=/shop/product/${p.id}');
-                                          return;
-                                        }
                                         try {
                                           await ref
                                               .read(cartProvider.notifier)

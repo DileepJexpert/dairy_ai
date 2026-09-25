@@ -311,6 +311,7 @@ class Product {
       (publicationStatus ?? 'published').toLowerCase() == 'published';
 
   bool get canPurchase => !isConcept && !isDraft && isPublished;
+  String? get primaryImage => media.isNotEmpty ? media.first : null;
   bool get isFeatured =>
       specifications['is_featured'] == true ||
       specifications['featured'] == true;

@@ -7,6 +7,7 @@ import '../providers/cart_provider.dart';
 import '../../marketplace/models/product_models.dart';
 import '../../marketplace/providers/product_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../../core/analytics_service.dart';
 
 Future<void> showStoreCart(BuildContext context) async {
@@ -216,8 +217,11 @@ class _CartDrawer extends ConsumerWidget {
                                              'subtotal': cart.subtotal,
                                            },
                                          );
-                                     Navigator.pop(
-                                         context, '/marketplace/checkout');
+                                     final destination =
+                                         ref.read(currentUserProvider) == null
+                                             ? '/login?next=/marketplace/checkout'
+                                             : '/marketplace/checkout';
+                                     Navigator.pop(context, destination);
                                    },
                                   child: Text(
                                     'Proceed to Checkout (${cart.itemCount} items)',

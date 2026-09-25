@@ -8,6 +8,7 @@ import '../../marketplace/models/product_models.dart';
 import '../../marketplace/providers/product_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
 import '../../marketplace/widgets/store_product_card.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../../core/analytics_service.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
@@ -831,7 +832,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         'subtotal': cart.subtotal,
                       },
                     );
-                context.push('/marketplace/checkout');
+                final destination =
+                    ref.read(currentUserProvider) == null
+                        ? '/login?next=/marketplace/checkout'
+                        : '/marketplace/checkout';
+                context.push(destination);
               },
               child: Text(
                 'Proceed to Buy (${cart.itemCount} items)',

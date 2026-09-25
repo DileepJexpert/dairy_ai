@@ -107,10 +107,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       ref
           .read(analyticsServiceProvider)
           .trackCheckoutStep('checkout_screen_opened');
+      try {
+        await ref.read(cartProvider.notifier).reconcileWithBackend();
+      } catch (_) {
+        // Outage presented cleanly via quoteState retry UI
+      }
     });
   }
 
@@ -277,7 +282,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       _checkoutKey = null;
 
       ref.read(appliedCouponProvider.notifier).removeCoupon();
-      ref.read(cartProvider.notifier).refresh();
+      await ref.read(cartProvider.notifier).clear();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -304,17 +309,31 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: storeError,
-            content: Text('Order failed: ${dioErrorMessage(e)}'),
+            duration: const Duration(seconds: 5),
+            content: Text(
+              'Checkout is temporarily unavailable. Your basket has been saved. (${dioErrorMessage(e)})',
+            ),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () => _checkout(),
+            ),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             backgroundColor: storeError,
-            content: Text(
-                'Unable to complete order. Please verify cart items and try again.'),
+            duration: const Duration(seconds: 5),
+            content: const Text(
+                'Checkout is temporarily unavailable. Your basket has been saved.'),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () => _checkout(),
+            ),
           ),
         );
       }
@@ -1286,12 +1305,63 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ),
           const SizedBox(height: 12),
           if (quoteState?.hasError == true) ...[
-            Text('Unable to quote checkout: ${quoteState!.error}',
-                style: const TextStyle(color: storeError, fontSize: 12)),
-            TextButton(
-              onPressed: () => ref.invalidate(checkoutQuoteProvider(quoteKey)),
-              child: const Text('Retry quote'),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xfffef2f2),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xfff87171)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.cloud_off_outlined,
+                          size: 16, color: Color(0xffdc2626)),
+                      SizedBox(width: 6),
+                      Text(
+                        'Checkout is temporarily unavailable',
+                        style: TextStyle(
+                          color: Color(0xff991b1b),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Your basket has been saved. Please retry verifying prices and delivery.',
+                    style: TextStyle(
+                      color: Color(0xff7f1d1d),
+                      fontSize: 11,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 32,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xffb91c1c),
+                        side: const BorderSide(color: Color(0xfff87171)),
+                      ),
+                      onPressed: () {
+                        ref
+                            .read(cartProvider.notifier)
+                            .refresh(throwOnError: false);
+                        ref.invalidate(checkoutQuoteProvider(quoteKey));
+                      },
+                      icon: const Icon(Icons.refresh, size: 14),
+                      label: const Text('Retry Verification',
+                          style: TextStyle(
+                              fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(height: 12),
           ],
           const Text(
             'By placing your order, you agree to Milterra\'s Conditions of Use & Sale.',

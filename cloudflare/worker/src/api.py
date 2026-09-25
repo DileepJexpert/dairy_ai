@@ -15,9 +15,11 @@ from compat import (
     verify_access_token,
     verify_razorpay_signature,
 )
+from commerce import commerce_router
 
 
-app = FastAPI(title="Milterra Worker compatibility proof")
+app = FastAPI(title="Milterra Worker compatibility and commerce API")
+app.include_router(commerce_router)
 
 
 @app.get("/health")

@@ -1,0 +1,19 @@
+# Copy to a private staging config, replace the D1 ID and storefront origin,
+# then supply JWT/provider secrets through Wrangler secret commands.
+# This example is intentionally not deployable as committed.
+name = "milterra-api-staging"
+main = "src/main.py"
+compatibility_date = "2026-09-25"
+compatibility_flags = ["python_workers"]
+workers_dev = true
+
+[vars]
+ENVIRONMENT = "staging"
+ALLOW_TEST_AUTH = false
+CORS_ORIGINS = "https://replace-with-your-staging-pages-host.example.invalid"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "milterra-staging"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"

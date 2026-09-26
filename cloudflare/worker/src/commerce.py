@@ -12,6 +12,8 @@ from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from compat import verify_access_token
+
 
 commerce_router = APIRouter(prefix="/api/v1/marketplace", tags=["commerce"])
 
@@ -28,47 +30,40 @@ def _d1_rows(result: Any) -> list[dict[str, Any]]:
     return rows.to_py() if hasattr(rows, "to_py") else list(rows)
 
 
-def _require_auth(request: Request) -> dict[str, Any]:
-    """Verify JWT access token from Authorization header.
-    
-    Test header x-test-customer-id is strictly permitted only when
-    ALLOW_TEST_AUTH is True AND ENVIRONMENT is 'test'.
-    """
+async def _require_auth(request: Request) -> dict[str, Any]:
+    """Verify an access token and load its current customer from D1."""
     env = _env(request)
-    
-    # 1. Check if explicit test environment permits test-bypass header
+
     is_test_env = getattr(env, "ENVIRONMENT", "") == "test"
     allow_test_auth = getattr(env, "ALLOW_TEST_AUTH", False) is True
     if is_test_env and allow_test_auth:
         test_user_id = request.headers.get("x-test-customer-id")
         if test_user_id:
-            return {"id": test_user_id, "role": "farmer", "phone": "+919999900000"}
+            customer_id = test_user_id
+        else:
+            customer_id = None
+    else:
+        customer_id = None
 
-    # 2. In all non-test environments or when no test header is provided, require valid JWT
-    authorization = request.headers.get("authorization", "")
-    secret = getattr(env, "COMPAT_JWT_SECRET", None) or getattr(env, "JWT_SECRET", None)
-    if not secret:
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "Authentication service is improperly configured (missing JWT secret)",
-        )
+    if customer_id is None:
+        authorization = request.headers.get("authorization", "")
+        secret = getattr(env, "COMPAT_JWT_SECRET", None) or getattr(env, "JWT_SECRET", None)
+        if not secret:
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Authentication is not configured")
+        if not authorization.startswith("Bearer "):
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Authentication required")
+        try:
+            claims = verify_access_token(authorization[7:].strip(), secret)
+        except jwt.InvalidTokenError as exc:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid access token") from exc
+        customer_id = str(claims["sub"])
 
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Authentication required")
-
-    token = authorization[7:].strip()
-    try:
-        payload = jwt.decode(token, secret, algorithms=["HS256"])
-        customer_id = str(payload.get("sub", ""))
-        if not customer_id:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token missing customer ID")
-        return {
-            "id": customer_id,
-            "role": str(payload.get("role", "farmer")),
-            "phone": str(payload.get("phone", "")),
-        }
-    except jwt.InvalidTokenError as exc:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid access token") from exc
+    customer = await env.DB.prepare(
+        "SELECT id, phone, role, is_active FROM customers WHERE id = ?"
+    ).bind(customer_id).first()
+    if not customer or not customer["is_active"]:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Customer not found or inactive")
+    return {"id": customer["id"], "role": customer["role"], "phone": customer["phone"]}
 
 
 def _normalize_lines(
@@ -176,19 +171,37 @@ async def _verify_address(db: Any, customer_id: str, address_id: str) -> dict[st
     return addr
 
 
+async def _delivery_fee_minor(db: Any, address: dict[str, Any]) -> int:
+    coverage = await db.prepare(
+        "SELECT is_serviceable, delivery_fee_minor FROM serviceable_pincodes WHERE pincode = ?"
+    ).bind(address["pincode"]).first()
+    if not coverage or not coverage["is_serviceable"]:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            f"Delivery is not currently available for pincode {address['pincode']}",
+        )
+    return int(coverage["delivery_fee_minor"])
+
+
+def _require_supported_payment_method(payment_method: str) -> None:
+    # This D1 slice has no provider settlement, webhook or refund path yet.
+    if payment_method != "cod":
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Online payment is unavailable on this API",
+        )
+
+
 async def _validate_coupon(db: Any, coupon_code: str | None, subtotal: float) -> tuple[str | None, float]:
     if not coupon_code or not coupon_code.strip():
         return None, 0.0
 
     code = coupon_code.strip().upper()
-    try:
-        rows = await db.prepare(
-            """SELECT code, description, discount_type, discount_value, min_order_value, max_discount_cap, is_active
-               FROM coupons WHERE code = ?"""
-        ).bind(code).all()
-        records = _d1_rows(rows)
-    except Exception:
-        records = []
+    rows = await db.prepare(
+        """SELECT code, description, discount_type, discount_value, min_order_value, max_discount_cap, is_active
+           FROM coupons WHERE code = ?"""
+    ).bind(code).all()
+    records = _d1_rows(rows)
 
     if records:
         c = records[0]
@@ -209,19 +222,7 @@ async def _validate_coupon(db: Any, coupon_code: str | None, subtotal: float) ->
             disc = min(subtotal, val)
             return code, round(disc, 2)
 
-    # Fallback for default known coupons if coupons table hasn't been migrated or populated yet
-    if code == "MILTERRA10":
-        if subtotal < 499.0:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Minimum order value for coupon 'MILTERRA10' is ₹499")
-        disc = min((subtotal * 10.0) / 100.0, 250.0)
-        return code, round(disc, 2)
-    elif code == "FARMER50":
-        if subtotal < 299.0:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Minimum order value for coupon 'FARMER50' is ₹299")
-        disc = min(subtotal, 50.0)
-        return code, round(disc, 2)
-    else:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Invalid coupon code '{code}'")
+    raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Invalid coupon code '{code}'")
 
 
 
@@ -261,7 +262,7 @@ async def get_inventory_status(product_id: str, request: Request) -> dict:
 
 @commerce_router.get("/cart")
 async def get_cart(request: Request) -> dict:
-    customer = _require_auth(request)
+    customer = await _require_auth(request)
     db = _env(request).DB
     
     rows = await db.prepare(
@@ -303,7 +304,7 @@ async def get_cart(request: Request) -> dict:
 
 @commerce_router.post("/cart/items", status_code=status.HTTP_201_CREATED)
 async def add_cart_item(payload: CartItemInput, request: Request) -> dict:
-    customer = _require_auth(request)
+    customer = await _require_auth(request)
     db = _env(request).DB
 
     # Verify product exists in inventory
@@ -326,7 +327,7 @@ async def add_cart_item(payload: CartItemInput, request: Request) -> dict:
 
 @commerce_router.put("/cart/items/{item_id}")
 async def update_cart_item(item_id: str, payload: CartItemUpdateInput, request: Request) -> dict:
-    customer = _require_auth(request)
+    customer = await _require_auth(request)
     db = _env(request).DB
 
     if payload.quantity <= 0:
@@ -364,7 +365,7 @@ async def update_cart_item(item_id: str, payload: CartItemUpdateInput, request: 
 
 @commerce_router.delete("/cart/items/{item_id}")
 async def remove_cart_item(item_id: str, request: Request) -> dict:
-    customer = _require_auth(request)
+    customer = await _require_auth(request)
     db = _env(request).DB
     await db.prepare("DELETE FROM cart_items WHERE (id = ? OR product_id = ?) AND customer_id = ?").bind(item_id, item_id, customer["id"]).run()
     return {"success": True, "data": {}, "message": "Item removed"}
@@ -372,7 +373,7 @@ async def remove_cart_item(item_id: str, request: Request) -> dict:
 
 @commerce_router.delete("/cart")
 async def clear_cart(request: Request) -> dict:
-    customer = _require_auth(request)
+    customer = await _require_auth(request)
     db = _env(request).DB
     await db.prepare("DELETE FROM cart_items WHERE customer_id = ?").bind(customer["id"]).run()
     return {"success": True, "data": {}, "message": "Cart cleared"}
@@ -384,7 +385,7 @@ async def clear_cart(request: Request) -> dict:
 
 @commerce_router.get("/addresses")
 async def get_addresses(request: Request) -> dict:
-    customer = _require_auth(request)
+    customer = await _require_auth(request)
     db = _env(request).DB
     rows = await db.prepare(
         """SELECT id, customer_id, recipient_name, phone, address_line1, address_line2,
@@ -411,17 +412,12 @@ async def get_addresses(request: Request) -> dict:
 
 @commerce_router.post("/addresses", status_code=status.HTTP_201_CREATED)
 async def create_address(payload: AddressInput, request: Request) -> dict:
-    customer = _require_auth(request)
+    customer = await _require_auth(request)
     db = _env(request).DB
 
     pincode = payload.pincode.strip()
     if len(pincode) != 6 or not pincode.isdigit():
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Invalid pincode; must be 6 digits")
-
-    # Ensure customer row exists
-    await db.prepare(
-        "INSERT OR IGNORE INTO customers (id, phone, role) VALUES (?, ?, ?)"
-    ).bind(customer["id"], customer.get("phone", "+919999900000"), customer.get("role", "farmer")).run()
 
     addr_id = str(uuid.uuid4())
     if payload.is_default:
@@ -464,7 +460,7 @@ async def create_address(payload: AddressInput, request: Request) -> dict:
 
 @commerce_router.put("/addresses/{address_id}")
 async def update_address(address_id: str, payload: dict[str, Any], request: Request) -> dict:
-    customer = _require_auth(request)
+    customer = await _require_auth(request)
     db = _env(request).DB
 
     existing = await db.prepare("SELECT id FROM customer_addresses WHERE id = ? AND customer_id = ?").bind(address_id, customer["id"]).first()
@@ -480,7 +476,7 @@ async def update_address(address_id: str, payload: dict[str, Any], request: Requ
 
 @commerce_router.delete("/addresses/{address_id}")
 async def delete_address(address_id: str, request: Request) -> dict:
-    customer = _require_auth(request)
+    customer = await _require_auth(request)
     db = _env(request).DB
     await db.prepare("DELETE FROM customer_addresses WHERE id = ? AND customer_id = ?").bind(address_id, customer["id"]).run()
     return {"success": True, "data": {}, "message": "Address deleted"}
@@ -494,12 +490,14 @@ async def delete_address(address_id: str, request: Request) -> dict:
 @commerce_router.post("/checkout/quote")
 async def checkout_quote(payload: CheckoutQuoteInput, request: Request) -> dict:
     """Calculate authoritative checkout quote against live D1 inventory, delivery rules & coupons."""
-    customer = _require_auth(request)
+    customer = await _require_auth(request)
     db = _env(request).DB
 
-    # 1. Verify address ownership and pincode if delivery_address_id is provided
-    if payload.delivery_address_id:
-        await _verify_address(db, customer["id"], payload.delivery_address_id)
+    _require_supported_payment_method(payload.payment_method)
+    if not payload.delivery_address_id:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Delivery address is required")
+    address = await _verify_address(db, customer["id"], payload.delivery_address_id)
+    delivery_fee_minor = await _delivery_fee_minor(db, address)
 
     # 2. Fetch cart items
     rows = await db.prepare(
@@ -533,9 +531,8 @@ async def checkout_quote(payload: CheckoutQuoteInput, request: Request) -> dict:
             "line_total": line_total_minor / 100.0,
         })
 
-    # Standard Milterra delivery rule: free delivery over ₹500, else ₹50
     subtotal = subtotal_minor / 100.0
-    delivery_fee = 0.0 if subtotal >= 500.0 else 50.0
+    delivery_fee = delivery_fee_minor / 100.0
 
     # Coupon validation
     coupon_code, discount = await _validate_coupon(db, payload.coupon_code, subtotal)
@@ -567,12 +564,13 @@ async def checkout_quote(payload: CheckoutQuoteInput, request: Request) -> dict:
 @commerce_router.post("/checkout", status_code=status.HTTP_201_CREATED)
 async def checkout(payload: CheckoutInput, request: Request) -> dict:
     """Execute atomic batch reservation and order creation in D1."""
-    customer = _require_auth(request)
+    customer = await _require_auth(request)
     db = _env(request).DB
     customer_id = customer["id"]
 
-    # 1. Verify delivery address ownership and 6-digit pincode
-    await _verify_address(db, customer_id, payload.delivery_address_id)
+    _require_supported_payment_method(payload.payment_method)
+    address = await _verify_address(db, customer_id, payload.delivery_address_id)
+    delivery_fee_minor = await _delivery_fee_minor(db, address)
 
     # 2. Compute request fingerprint and check for existing order (Idempotent replay guard)
     fingerprint = checkout_fingerprint(
@@ -633,8 +631,6 @@ async def checkout(payload: CheckoutInput, request: Request) -> dict:
         subtotal_minor += r["price_minor"] * r["quantity"]
 
     subtotal = subtotal_minor / 100.0
-    delivery_fee = 0.0 if subtotal >= 500.0 else 50.0
-    delivery_fee_minor = int(round(delivery_fee * 100))
 
     # Validate coupon if provided
     _, discount = await _validate_coupon(db, payload.coupon_code, subtotal)
@@ -686,7 +682,7 @@ async def checkout(payload: CheckoutInput, request: Request) -> dict:
             """INSERT INTO orders (id, customer_id, reservation_id, idempotency_key, checkout_request_fingerprint,
                                    address_id, subtotal_minor, delivery_fee_minor, discount_minor, total_minor,
                                    currency, status, payment_status, payment_method)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'INR', 'placed', 'pending', ?)"""
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'INR', 'confirmed', 'pending', ?)"""
         ).bind(
             order_id,
             customer_id,
@@ -764,7 +760,7 @@ async def checkout(payload: CheckoutInput, request: Request) -> dict:
         "success": True,
         "data": {
             "id": order_id,
-            "status": "placed",
+            "status": "confirmed",
             "payment_status": "pending",
             "total": total_minor / 100.0,
             "total_amount": total_minor / 100.0,
@@ -782,24 +778,18 @@ async def checkout(payload: CheckoutInput, request: Request) -> dict:
 @commerce_router.get("/orders/payment-capabilities")
 async def payment_capabilities(request: Request) -> dict:
     """Return payment capabilities for Flutter client."""
-    env = _env(request)
-    online_available = bool(
-        getattr(env, "RAZORPAY_KEY_ID", None) and getattr(env, "RAZORPAY_KEY_SECRET", None)
-    )
-    if getattr(env, "ENVIRONMENT", "") in ("local", "test", "development"):
-        online_available = True
     return {
         "success": True,
         "data": {
             "is_prelaunch_interest": False,
-            "online_payment_available": online_available,
+            "online_payment_available": False,
         },
     }
 
 
 @commerce_router.get("/orders/{order_id}")
 async def get_order_details(order_id: str, request: Request) -> dict:
-    customer = _require_auth(request)
+    customer = await _require_auth(request)
     db = _env(request).DB
 
     order_row = await db.prepare(
@@ -852,11 +842,11 @@ async def get_order_details(order_id: str, request: Request) -> dict:
 
 @commerce_router.post("/orders/{order_id}/cancel")
 async def cancel_order(order_id: str, request: Request) -> dict:
-    customer = _require_auth(request)
+    customer = await _require_auth(request)
     db = _env(request).DB
 
     order_row = await db.prepare(
-        "SELECT id, customer_id, status, reservation_id FROM orders WHERE id = ?"
+        "SELECT id, customer_id, status, payment_status, reservation_id FROM orders WHERE id = ?"
     ).bind(order_id).first()
 
     if not order_row:
@@ -873,6 +863,8 @@ async def cancel_order(order_id: str, request: Request) -> dict:
             status.HTTP_400_BAD_REQUEST,
             f"Cannot cancel order in '{order_row['status']}' status; only placed or confirmed orders can be cancelled",
         )
+    if order_row["payment_status"] != "pending":
+        raise HTTPException(status.HTTP_409_CONFLICT, "Payment must be reconciled before cancellation")
 
     # Fetch lines to restore inventory
     lines_rows = await db.prepare("SELECT product_id, quantity FROM order_lines WHERE order_id = ?").bind(order_id).all()
@@ -908,7 +900,7 @@ async def cancel_order(order_id: str, request: Request) -> dict:
 @commerce_router.post("/orders/{order_id}/payment-link")
 async def checkout_payment_link(order_id: str, request: Request) -> dict:
     """Issue hosted payment link for online checkout."""
-    customer = _require_auth(request)
+    customer = await _require_auth(request)
     db = _env(request).DB
 
     order = await db.prepare(
@@ -927,14 +919,4 @@ async def checkout_payment_link(order_id: str, request: Request) -> dict:
     if order["payment_status"] != "pending":
         raise HTTPException(status.HTTP_409_CONFLICT, "This order no longer needs payment")
 
-    payment_url = f"https://checkout.razorpay.com/v1/milterra_pay/{order_id}"
-    return {
-        "success": True,
-        "data": {
-            "order_id": order_id,
-            "url": payment_url,
-            "payment_status": order["payment_status"],
-            "amount": order["total_minor"] / 100.0,
-        },
-    }
-
+    raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Online payment is unavailable on this API")

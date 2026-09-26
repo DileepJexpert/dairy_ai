@@ -10,10 +10,12 @@ import asyncio
 import json
 import sqlite3
 import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 import httpx
+import jwt
 import pytest
 
 from api import app
@@ -110,10 +112,18 @@ def d1_db():
         script = mig.read_text(encoding="utf-8")
         conn.executescript(script)
 
+    conn.execute("INSERT INTO customers (id, phone, full_name, role) VALUES ('user-1', '+919999900000', 'Test Farmer', 'farmer')")
+    conn.execute(
+        "INSERT INTO customer_addresses (id, customer_id, recipient_name, phone, address_line1, city, state, pincode, is_default) "
+        "VALUES ('addr-1', 'user-1', 'Test Farmer', '+919999900000', 'Farm 12', 'Anand', 'Gujarat', '388001', 1)"
+    )
     conn.execute(
         "INSERT OR IGNORE INTO customer_addresses (id, customer_id, recipient_name, phone, address_line1, city, state, pincode, is_default) "
         "VALUES ('addr-2', 'user-1', 'Alternate Farm', '+919999900000', 'Road 44', 'Anand', 'Gujarat', '388002', 0)"
     )
+    conn.execute("INSERT INTO serviceable_pincodes (pincode, city, state, is_serviceable, delivery_fee_minor) VALUES ('388001', 'Anand', 'Gujarat', 1, 0)")
+    conn.execute("INSERT INTO serviceable_pincodes (pincode, city, state, is_serviceable, delivery_fee_minor) VALUES ('388002', 'Anand', 'Gujarat', 1, 5000)")
+    conn.execute("INSERT INTO coupons (code, discount_type, discount_value, min_order_value, max_discount_cap) VALUES ('MILTERRA10', 'percentage', 10, 499, 250)")
 
     db = MockD1Database(conn)
     yield db
@@ -180,14 +190,14 @@ def test_checkout_quote_calculation(client, d1_db):
     client.post("/api/v1/marketplace/cart/items", json={"product_id": "p-q1", "quantity": 1})
 
     # Quote under ₹500 has ₹50 delivery fee
-    q1 = client.post("/api/v1/marketplace/orders/checkout/quote", json={"payment_method": "cod"}).json()["data"]
+    q1 = client.post("/api/v1/marketplace/orders/checkout/quote", json={"payment_method": "cod", "delivery_address_id": "addr-2"}).json()["data"]
     assert q1["subtotal"] == 400.0
     assert q1["delivery_fee"] == 50.0
     assert q1["total_amount"] == 450.0
 
     # Add second item to exceed ₹500 -> free delivery
     client.post("/api/v1/marketplace/cart/items", json={"product_id": "p-q1", "quantity": 1})
-    q2 = client.post("/api/v1/marketplace/orders/checkout/quote", json={"payment_method": "cod"}).json()["data"]
+    q2 = client.post("/api/v1/marketplace/orders/checkout/quote", json={"payment_method": "cod", "delivery_address_id": "addr-1"}).json()["data"]
     assert q2["subtotal"] == 800.0
     assert q2["delivery_fee"] == 0.0
     assert q2["total_amount"] == 800.0
@@ -213,7 +223,7 @@ def test_atomic_checkout_order_creation_and_idempotency(client, d1_db):
     resp1 = client.post("/api/v1/marketplace/orders/checkout", json=req_body)
     assert resp1.status_code == 201
     order = resp1.json()["data"]
-    assert order["status"] == "placed"
+    assert order["status"] == "confirmed"
     assert order["total_amount"] == 1600.0
 
     # Verify inventory was decremented from 5 to 3
@@ -426,13 +436,13 @@ def test_auth_guard_blocks_test_header_when_not_in_test_environment(client):
     app.state.env.ALLOW_TEST_AUTH = True
 
 
-def test_payment_capabilities_and_link_contract(client, d1_db):
+def test_unimplemented_online_payment_fails_closed(client, d1_db):
     # Payment capabilities
     cap_resp = client.get("/api/v1/marketplace/orders/payment-capabilities")
     assert cap_resp.status_code == 200
     cap_data = cap_resp.json()["data"]
     assert cap_data["is_prelaunch_interest"] is False
-    assert cap_data["online_payment_available"] is True
+    assert cap_data["online_payment_available"] is False
 
     # Create an order with UPI payment method
     asyncio.run(d1_db.prepare(
@@ -451,13 +461,85 @@ def test_payment_capabilities_and_link_contract(client, d1_db):
             "payment_method": "upi",
         },
     )
-    assert order_res.status_code == 201
-    order_id = order_res.json()["data"]["id"]
+    assert order_res.status_code == 503
+    assert asyncio.run(d1_db.prepare("SELECT COUNT(*) AS n FROM orders").first())["n"] == 0
+    assert asyncio.run(d1_db.prepare("SELECT available_units FROM inventory WHERE product_id = 'p-pay-test'").first())["available_units"] == 5
 
-    # Request payment link
-    link_res = client.post(f"/api/v1/marketplace/orders/{order_id}/payment-link")
-    assert link_res.status_code == 200
-    link_data = link_res.json()["data"]
-    assert "razorpay" in link_data["url"]
-    assert link_data["order_id"] == order_id
 
+def test_refresh_token_and_inactive_customer_cannot_access_cart(client, d1_db):
+    env = app.state.env
+    env.ENVIRONMENT = "production"
+    env.ALLOW_TEST_AUTH = False
+    claims = {
+        "sub": "user-1", "role": "admin", "type": "refresh",
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=10),
+    }
+    refresh = jwt.encode(claims, env.COMPAT_JWT_SECRET, algorithm="HS256")
+    response = client.get("/api/v1/marketplace/cart", headers={"Authorization": f"Bearer {refresh}", "x-test-customer-id": ""})
+    assert response.status_code == 401
+
+    claims["type"] = "access"
+    access = jwt.encode(claims, env.COMPAT_JWT_SECRET, algorithm="HS256")
+    response = client.get("/api/v1/marketplace/cart", headers={"Authorization": f"Bearer {access}", "x-test-customer-id": ""})
+    assert response.status_code == 200
+    asyncio.run(d1_db.prepare("UPDATE customers SET is_active = 0 WHERE id = 'user-1'").run())
+    response = client.get("/api/v1/marketplace/cart", headers={"Authorization": f"Bearer {access}", "x-test-customer-id": ""})
+    assert response.status_code == 401
+
+
+def test_unknown_pincode_rejected_before_order(client, d1_db):
+    asyncio.run(d1_db.prepare(
+        "INSERT INTO customer_addresses (id, customer_id, recipient_name, phone, address_line1, city, state, pincode) "
+        "VALUES ('addr-uncovered', 'user-1', 'Test', '+919999900000', 'Road', 'City', 'State', '201305')"
+    ).run())
+    response = client.post("/api/v1/marketplace/orders/checkout/quote", json={"delivery_address_id": "addr-uncovered"})
+    assert response.status_code == 422
+    assert "not currently available" in response.text
+
+
+def test_cors_only_allows_configured_storefront_origin(client):
+    app.state.env.CORS_ORIGINS = "https://shop.example.test"
+    allowed = client.options(
+        "/api/v1/marketplace/cart",
+        headers={"Origin": "https://shop.example.test", "Access-Control-Request-Method": "GET"},
+    )
+    assert allowed.status_code == 204
+    assert allowed.headers["access-control-allow-origin"] == "https://shop.example.test"
+    assert "Authorization" in allowed.headers["access-control-allow-headers"]
+    denied = client.options(
+        "/api/v1/marketplace/cart",
+        headers={"Origin": "https://evil.example.test", "Access-Control-Request-Method": "GET"},
+    )
+    assert denied.status_code == 403
+    assert "access-control-allow-origin" not in denied.headers
+
+
+def test_paid_order_cannot_be_cancelled_without_refund_flow(client, d1_db):
+    asyncio.run(d1_db.prepare(
+        "INSERT INTO inventory (product_id, title, available_units, price_minor, currency) "
+        "VALUES ('p-paid-cancel', 'Test', 2, 10000, 'INR')"
+    ).run())
+    client.post("/api/v1/marketplace/cart/items", json={"product_id": "p-paid-cancel", "quantity": 1})
+    order = client.post(
+        "/api/v1/marketplace/orders/checkout",
+        json={"idempotency_key": str(uuid.uuid4()), "delivery_address_id": "addr-1"},
+    ).json()["data"]
+    asyncio.run(d1_db.prepare("UPDATE orders SET payment_status = 'paid' WHERE id = ?").bind(order["id"]).run())
+    response = client.post(f"/api/v1/marketplace/orders/{order['id']}/cancel")
+    assert response.status_code == 409
+    assert asyncio.run(d1_db.prepare("SELECT available_units FROM inventory WHERE product_id = 'p-paid-cancel'").first())["available_units"] == 1
+
+
+def test_disabled_coupon_cannot_be_applied(client, d1_db):
+    asyncio.run(d1_db.prepare("UPDATE coupons SET is_active = 0 WHERE code = 'MILTERRA10'").run())
+    asyncio.run(d1_db.prepare(
+        "INSERT INTO inventory (product_id, title, available_units, price_minor, currency) "
+        "VALUES ('p-disabled-coupon', 'Test', 1, 60000, 'INR')"
+    ).run())
+    client.post("/api/v1/marketplace/cart/items", json={"product_id": "p-disabled-coupon", "quantity": 1})
+    response = client.post(
+        "/api/v1/marketplace/orders/checkout/quote",
+        json={"delivery_address_id": "addr-1", "coupon_code": "MILTERRA10"},
+    )
+    assert response.status_code == 422
+    assert "no longer active" in response.text

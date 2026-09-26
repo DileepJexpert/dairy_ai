@@ -22,6 +22,35 @@ app = FastAPI(title="Milterra Worker compatibility and commerce API")
 app.include_router(commerce_router)
 
 
+@app.middleware("http")
+async def storefront_cors(request: Request, call_next):
+    """Allow only explicitly configured storefront origins, including preflight."""
+    origin = request.headers.get("origin")
+    env = request.scope.get("env") or getattr(request.app.state, "env", None)
+    configured = getattr(env, "CORS_ORIGINS", "") or ""
+    allowed = {value.strip().rstrip("/") for value in configured.split(",") if value.strip()}
+    valid_origin = bool(origin and origin in allowed and origin != "*")
+    if request.method == "OPTIONS" and request.headers.get("access-control-request-method"):
+        if not valid_origin:
+            return JSONResponse({"detail": "Origin not allowed"}, status_code=403)
+        requested_method = request.headers["access-control-request-method"].upper()
+        if requested_method not in {"GET", "POST", "PUT", "PATCH", "DELETE"}:
+            return JSONResponse({"detail": "Method not allowed"}, status_code=405)
+        response = JSONResponse({}, status_code=204)
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE"
+        response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+        response.headers["Access-Control-Max-Age"] = "600"
+    else:
+        response = await call_next(request)
+    if request.url.path.startswith("/api/v1/marketplace/"):
+        response.headers["Cache-Control"] = "no-store"
+    if valid_origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        vary = response.headers.get("Vary", "")
+        response.headers["Vary"] = f"{vary}, Origin" if vary else "Origin"
+    return response
+
+
 @app.get("/health")
 async def health_check() -> JSONResponse:
     # Exact request and response contract from backend/app/main.py.

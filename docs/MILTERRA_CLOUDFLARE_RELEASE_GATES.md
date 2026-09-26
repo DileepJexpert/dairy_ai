@@ -30,6 +30,8 @@ The current Worker is a **local COD commerce proof**, not the live API. Keep the
 
 ## Production cutover and rollback
 
+The purchased `milterrafoods.com` domain now serves the existing Pages browsing preview with HTTPS. Its `www` alias is also configured and returns HTTP 200 over HTTPS. This domain connection is not a backend or commerce cutover. Deployments to the `milterra-staging` project now change the website on the purchased domain; isolate unfinished work in a separate preview deployment/project.
+
 After staging passes, back up authoritative data, establish a write freeze or change capture for orders/inventory/customers, import final deltas, and verify counts. Deploy backward-compatible database/API changes before the frontend. Switch only the tested Milterra API routes, observe errors/orders/payments and retain the legacy backend until settlement and shipment records reconcile. Roll back frontend/API routing to the legacy service if acceptance fails; do not replay paid orders or replace inventory with an older seed. Reconcile provider and courier operations before any data rollback.
 
 Pages site assets are deployed: 93 files, Cloudflare success confirmation, homepage HTTP 200 and browser rendering with images verified on 26 September 2026. The root response revalidates its cache. Wrangler login succeeded with account/user read, Pages write and background access after user approval. Backend authorization, Milterra D1/Worker resources, private imports and provider sandbox access remain pending. No API or database migration has been deployed remotely; commerce acceptance is incomplete.

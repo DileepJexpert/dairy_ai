@@ -26,6 +26,12 @@ Last updated: 26 September 2026. Source plan: [milterra-cloudflare-development-b
 
 The current API remains the commerce authority until the replacement passes its own integration and staging checks. A local prototype is not a production deployment.
 
+## Purchased domain deployment
+
+On 26 September 2026, the user completed registration of `milterrafoods.com`. The apex and `www.milterrafoods.com` were added as custom domains on the existing `milterra-staging` Pages project, with Cloudflare-managed CNAME records targeting `milterra-staging.pages.dev`. The apex is Active with SSL enabled; normal HTTPS returned HTTP 200 and the homepage rendered in the browser at `https://milterrafoods.com/#/shop`. The `www` hostname also returned HTTP 200 over HTTPS after verification, and the apex catalogue pointer returned HTTP 200.
+
+This serves the existing browsing preview on the purchased domain. It does not deploy the Python Worker or D1, change the intentionally invalid API origin in the current build, or enable login, checkout, payment or shipping. The Pages project name remains `milterra-staging`; further deployments to this project now affect the purchased domain too. Keep future unfinished changes on a separate preview deployment/project until verified.
+
 ## Findings that affect the next slices
 
 - Python FastAPI, D1, Pillow, PyJWT and an outbound authenticated HTTP request work together in the tested local Workers runtime. The probe is **not** proof that the full legacy backend can bundle or run unchanged. Cloudflare's Python Workers currently do not support async SQLAlchemy ORM; replace that data layer explicitly.

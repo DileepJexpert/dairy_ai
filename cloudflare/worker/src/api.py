@@ -63,7 +63,9 @@ async def health_check() -> JSONResponse:
 @app.get("/ready")
 async def readiness_check(request: Request) -> JSONResponse:
     try:
-        await _env(request).DB.prepare("SELECT 1 AS ready").first()
+        db = _env(request).DB
+        for table in ("customers", "inventory", "orders", "coupons", "serviceable_pincodes"):
+            await db.prepare(f"SELECT 1 FROM {table} LIMIT 1").first()
     except Exception:
         return JSONResponse(
             {"success": False, "message": "Database unavailable"},
@@ -77,7 +79,7 @@ async def readiness_check(request: Request) -> JSONResponse:
 
 
 def _env(request: Request):
-    return request.scope["env"]
+    return request.scope.get("env") or getattr(request.app.state, "env", None)
 
 
 def _d1_rows(result) -> list[dict]:

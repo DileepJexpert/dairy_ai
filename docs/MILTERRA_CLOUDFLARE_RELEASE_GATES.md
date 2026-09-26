@@ -4,7 +4,7 @@ The current Worker is a **local COD commerce proof**, not the live API. Keep the
 
 ## Verified locally on 26 September 2026
 
-- The Worker tests pass with a disposable SQLite/D1-compatible schema (`22 passed`). This is not a remote D1 concurrency test.
+- The Worker tests pass with a disposable SQLite/D1-compatible schema (`23 passed`). This is not a remote D1 concurrency test. `/ready` reports unavailable when a required commerce table is missing.
 - Checkout now requires an active D1 customer, an owned address and a serviceable PIN with a configured delivery fee. Missing coverage rejects checkout. Online payment returns unavailable until a provider-issued link and payment lifecycle exist.
 - The browser CORS handler permits only origins in `CORS_ORIGINS`; Pages `_headers` revalidates the app shell/current catalogue pointer and makes versioned catalogue snapshots immutable.
 - The Python Worker dry-run bundle passed (524 modules, about 3.15 MiB gzip). The Flutter release web build passed and copied `_headers`; its main JavaScript output was 5,298,449 bytes before transfer compression. Cold-visit timing remains unmeasured.
@@ -32,4 +32,4 @@ The current Worker is a **local COD commerce proof**, not the live API. Keep the
 
 After staging passes, back up authoritative data, establish a write freeze or change capture for orders/inventory/customers, import final deltas, and verify counts. Deploy backward-compatible database/API changes before the frontend. Switch only the tested Milterra API routes, observe errors/orders/payments and retain the legacy backend until settlement and shipment records reconcile. Roll back frontend/API routing to the legacy service if acceptance fails; do not replay paid orders or replace inventory with an older seed. Reconcile provider and courier operations before any data rollback.
 
-The user must provide Cloudflare account access (or an appropriately scoped deployment token), staging resource IDs/domain and provider sandbox access for remote acceptance. The current workspace has none of these, so no remote deployment or live-payment claim is possible yet.
+The user confirmed Cloudflare account access is not available yet. Account access (or an appropriately scoped deployment token), staging resource IDs/domain and provider sandbox access are needed for remote acceptance. The current workspace has none of these, so no remote deployment or live-payment claim is possible yet.

@@ -156,6 +156,14 @@ def test_inventory_status_lookup(client):
         assert data["in_stock"] is True
 
 
+def test_readiness_rejects_migration_drift(client, d1_db):
+    assert client.get("/ready").status_code == 200
+    asyncio.run(d1_db.prepare("DROP TABLE coupons").run())
+    response = client.get("/ready")
+    assert response.status_code == 503
+    assert response.headers["cache-control"] == "no-store"
+
+
 def test_cart_add_and_get(client, d1_db):
     # Ensure product p-test exists
     asyncio.run(d1_db.prepare(

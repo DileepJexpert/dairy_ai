@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:file_selector/file_selector.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -1055,12 +1056,34 @@ TOTAL: ${storeMoney(total)}
       appBar: AppBar(
         backgroundColor: const Color(0xff0d1b15),
         foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back to Admin Control Panel',
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/admin/ecommerce'),
+        ),
         title: Text(title),
         actions: [
           IconButton(
-              tooltip: 'Refresh orders',
-              onPressed: () => ref.invalidate(operationsOrdersProvider),
-              icon: const Icon(Icons.refresh))
+            tooltip: 'Admin Control Panel',
+            icon: const Icon(Icons.dashboard_outlined),
+            onPressed: () => context.go('/admin/ecommerce'),
+          ),
+          IconButton(
+            tooltip: 'Serviceable Pincodes',
+            icon: const Icon(Icons.pin_drop_outlined),
+            onPressed: () => context.go('/admin/pincodes'),
+          ),
+          IconButton(
+            tooltip: 'Customer Storefront',
+            icon: const Icon(Icons.storefront_outlined),
+            onPressed: () => context.go('/shop'),
+          ),
+          IconButton(
+            tooltip: 'Refresh orders',
+            onPressed: () => ref.invalidate(operationsOrdersProvider),
+            icon: const Icon(Icons.refresh),
+          ),
         ],
       ),
       body: content,

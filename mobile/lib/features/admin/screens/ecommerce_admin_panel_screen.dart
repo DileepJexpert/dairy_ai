@@ -1558,6 +1558,11 @@ class _EcommerceAdminPanelScreenState
             ),
           ),
           IconButton(
+            tooltip: 'Order Fulfillment & COD Remittance',
+            icon: const Icon(Icons.local_shipping_outlined),
+            onPressed: () => context.push('/admin/commerce/orders'),
+          ),
+          IconButton(
             tooltip: 'View Customer Storefront',
             icon: const Icon(Icons.storefront_outlined),
             onPressed: () => context.push('/shop'),

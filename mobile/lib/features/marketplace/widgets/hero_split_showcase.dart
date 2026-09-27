@@ -655,10 +655,10 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
                         constraints: const BoxConstraints(
-                          maxHeight: 220,
-                          maxWidth: 250,
+                          maxHeight: 235,
+                          maxWidth: 280,
                         ),
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(16),
@@ -677,7 +677,7 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                           child: ProductArtwork(
                             product: matchedProduct,
                             showCaption: true,
-                            fit: BoxFit.contain,
+                            fit: BoxFit.cover,
                           ),
                         ),
                       ),
@@ -759,10 +759,10 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
                         constraints: const BoxConstraints(
-                          maxHeight: 145,
-                          maxWidth: 160,
+                          maxHeight: 150,
+                          maxWidth: 175,
                         ),
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
@@ -781,7 +781,7 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                           child: ProductArtwork(
                             product: matchedProduct,
                             showCaption: true,
-                            fit: BoxFit.contain,
+                            fit: BoxFit.cover,
                           ),
                         ),
                       ),

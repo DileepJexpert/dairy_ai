@@ -939,16 +939,16 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                                   ),
                             const SizedBox(width: 6),
                             Text(
-                              widget.isFarmerHub ? 'katixo' : 'milterra',
+                              widget.isFarmerHub ? 'katixo' : 'milterrafoods',
                               style: StoreType.logo.copyWith(
                                 color: storeWhite,
-                                fontSize: isMobile ? 23 : 26,
+                                fontSize: isMobile ? 22 : 25,
                               ),
                             ),
                             Padding(
                               padding: const EdgeInsets.only(top: 6),
                               child: Text(
-                                  widget.isFarmerHub ? '.farmer' : '.in',
+                                  widget.isFarmerHub ? '.farmer' : '.com',
                                   style: const TextStyle(
                                       color: storeGold,
                                       fontSize: 11,
@@ -1379,7 +1379,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                 hintText: widget.searchHint ??
                     (widget.isFarmerHub
                         ? 'Search Katixo (e.g. Chaff Cutter, Milking Machine, Feeds)...'
-                        : 'Search Milterra.in (e.g. A2 Cow Ghee, Paneer)...'),
+                        : 'Search milterrafoods.com (e.g. A2 Cow Ghee, Paneer)...'),
                 hintStyle:
                     const TextStyle(color: Color(0xff777777), fontSize: 12),
                 filled: true,
@@ -2268,7 +2268,7 @@ class StoreFooter extends ConsumerWidget {
                           Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('milterra.in',
+                                Text('milterrafoods.com',
                                     style: StoreType.logo
                                         .copyWith(color: storeWhite)),
                                 const SizedBox(height: 8),

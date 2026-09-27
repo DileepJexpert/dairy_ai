@@ -154,7 +154,11 @@ void main() {
       dioProvider.overrideWithValue(dio),
       savedForLaterProvider
           .overrideWith((ref) => SavedForLaterNotifier(ref, enabled: false)),
-      cartProvider.overrideWith((ref) => CartNotifier(dio, null, false))
+      cartProvider.overrideWith((ref) => CartNotifier(
+            dio: dio,
+            storage: LocalBasketStorage(),
+            ref: ref,
+          ))
     ]);
     addTearDown(container.dispose);
     final item = CartItem.fromJson({

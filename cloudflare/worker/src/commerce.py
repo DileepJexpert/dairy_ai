@@ -5,12 +5,14 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from typing import Any, Iterable
+from datetime import datetime, timezone
+from typing import Any, Iterable, Literal
 
 import jwt
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, AliasChoices, ConfigDict
+from customer_auth import require_session
 
 from compat import verify_access_token
 
@@ -30,9 +32,45 @@ def _d1_rows(result: Any) -> list[dict[str, Any]]:
     return rows.to_py() if hasattr(rows, "to_py") else list(rows)
 
 
-async def _require_auth(request: Request) -> dict[str, Any]:
-    """Verify an access token and load its current customer from D1."""
+def _test_commerce(env):
+    return (getattr(env, "TEST_COMMERCE_ENABLED", "false") == "true"
+            and getattr(env, "LIVE_COD_ENABLED", "false") != "true"
+            and getattr(env, "ENVIRONMENT", "") in ("staging", "test", "local"))
+
+
+def _live_cod_pincodes(env) -> set[str]:
+    raw = getattr(env, "LIVE_COD_PINCODES", "")
+    pincodes = [pin.strip() for pin in raw.split(",")]
+    if not pincodes or any(len(pin) != 6 or not pin.isdigit() for pin in pincodes):
+        return set()
+    return set(pincodes)
+
+
+def _live_cod(env) -> bool:
+    return (getattr(env, "LIVE_COD_ENABLED", "false") == "true"
+            and getattr(env, "TEST_COMMERCE_ENABLED", "false") != "true"
+            and getattr(env, "CUSTOMER_AUTH_ENABLED", "false") == "true"
+            and bool(_live_cod_pincodes(env)))
+
+
+def _pincode_enabled(env, pincode: str) -> bool:
+    return _test_commerce(env) or (_live_cod(env) and pincode in _live_cod_pincodes(env))
+
+
+async def _require_auth(
+    request: Request,
+    allowed_roles: set[str] | list[str] | tuple[str, ...] | None = None,
+) -> dict[str, Any]:
+    """Verify an access token and load its current customer from D1, optionally enforcing roles."""
     env = _env(request)
+
+    if getattr(env, "CUSTOMER_AUTH_ENABLED", "false") == "true":
+        if not (_test_commerce(env) or _live_cod(env)):
+            raise HTTPException(503, "Checkout is currently unavailable. Please try again later.")
+        user = await require_session(request)
+        if allowed_roles and user.get("role") not in allowed_roles:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Insufficient permissions")
+        return user
 
     is_test_env = getattr(env, "ENVIRONMENT", "") == "test"
     allow_test_auth = getattr(env, "ALLOW_TEST_AUTH", False) is True
@@ -59,11 +97,14 @@ async def _require_auth(request: Request) -> dict[str, Any]:
         customer_id = str(claims["sub"])
 
     customer = await env.DB.prepare(
-        "SELECT id, phone, role, is_active FROM customers WHERE id = ?"
+        "SELECT id, phone, role, full_name, is_active FROM customers WHERE id = ?"
     ).bind(customer_id).first()
     if not customer or not customer["is_active"]:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Customer not found or inactive")
-    return {"id": customer["id"], "role": customer["role"], "phone": customer["phone"]}
+    if allowed_roles and customer.get("role") not in allowed_roles:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Insufficient permissions")
+    return {"id": customer["id"], "role": customer["role"], "phone": customer["phone"], "full_name": customer.get("full_name", "")}
+
 
 
 def _normalize_lines(
@@ -140,13 +181,16 @@ class CartItemUpdateInput(BaseModel):
 
 
 class AddressInput(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     recipient_name: str = Field(min_length=1, max_length=128)
     phone: str = Field(min_length=8, max_length=20)
     address_line1: str = Field(min_length=1, max_length=256)
     address_line2: str | None = None
-    city: str = Field(min_length=1, max_length=128)
+    city: str = Field(min_length=1, max_length=128, validation_alias=AliasChoices("city", "village_or_city"))
     state: str = Field(min_length=1, max_length=128)
-    pincode: str = Field(min_length=6, max_length=6)
+    pincode: str = Field(pattern=r"^[0-9]{6}$", validation_alias=AliasChoices("pincode", "postal_code"))
+    district: str = Field(default="", max_length=128)
+    landmark: str | None = Field(default=None, max_length=256)
     is_default: bool = False
 
 
@@ -171,7 +215,13 @@ async def _verify_address(db: Any, customer_id: str, address_id: str) -> dict[st
     return addr
 
 
-async def _delivery_fee_minor(db: Any, address: dict[str, Any]) -> int:
+async def _delivery_fee_minor(db: Any, address: dict[str, Any], env: Any) -> int:
+    if (getattr(env, "CUSTOMER_AUTH_ENABLED", "false") == "true"
+            and not _pincode_enabled(env, address["pincode"])):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            f"Delivery is not currently available for pincode {address['pincode']}",
+        )
     coverage = await db.prepare(
         "SELECT is_serviceable, delivery_fee_minor FROM serviceable_pincodes WHERE pincode = ?"
     ).bind(address["pincode"]).first()
@@ -287,6 +337,9 @@ async def get_cart(request: Request) -> dict:
             "title": r["title"],
             "quantity": r["quantity"],
             "price": price,
+            "price_when_added": price,
+            "current_price": price,
+            "price_changed": False,
             "line_total": line_total,
             "in_stock": r["available_units"] >= r["quantity"],
             "available_quantity": r["available_units"],
@@ -295,6 +348,7 @@ async def get_cart(request: Request) -> dict:
     return {
         "success": True,
         "data": {
+            "id": customer["id"],
             "items": items,
             "item_count": total_count,
             "subtotal": subtotal_minor / 100.0,
@@ -383,102 +437,63 @@ async def clear_cart(request: Request) -> dict:
 # Customer Delivery Addresses Routes
 # -----------------------------------------------------------------------------
 
+def _address_data(row):
+    return {**row, "village_or_city": row["city"], "postal_code": row["pincode"], "is_default": bool(row["is_default"])}
+
+
 @commerce_router.get("/addresses")
-async def get_addresses(request: Request) -> dict:
+async def get_addresses(request: Request):
+    customer = await _require_auth(request)
+    rows = await _env(request).DB.prepare("SELECT * FROM customer_addresses WHERE customer_id = ? ORDER BY is_default DESC, created_at DESC").bind(customer["id"]).all()
+    return {"success": True, "data": [_address_data(r) for r in _d1_rows(rows)]}
+
+
+@commerce_router.post("/addresses", status_code=201)
+async def create_address(payload: AddressInput, request: Request):
     customer = await _require_auth(request)
     db = _env(request).DB
-    rows = await db.prepare(
-        """SELECT id, customer_id, recipient_name, phone, address_line1, address_line2,
-                  city, state, pincode, is_default, created_at
-           FROM customer_addresses WHERE customer_id = ? ORDER BY is_default DESC, created_at DESC"""
-    ).bind(customer["id"]).all()
-    records = _d1_rows(rows)
-    out = []
-    for r in records:
-        out.append({
-            "id": r["id"],
-            "recipient_name": r["recipient_name"],
-            "phone": r["phone"],
-            "address_line1": r["address_line1"],
-            "address_line2": r["address_line2"],
-            "city": r["city"],
-            "state": r["state"],
-            "pincode": r["pincode"],
-            "postal_code": r["pincode"],
-            "is_default": bool(r["is_default"]),
-        })
-    return {"success": True, "data": out}
-
-
-@commerce_router.post("/addresses", status_code=status.HTTP_201_CREATED)
-async def create_address(payload: AddressInput, request: Request) -> dict:
-    customer = await _require_auth(request)
-    db = _env(request).DB
-
-    pincode = payload.pincode.strip()
-    if len(pincode) != 6 or not pincode.isdigit():
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Invalid pincode; must be 6 digits")
-
-    addr_id = str(uuid.uuid4())
+    address_id = str(uuid.uuid4())
+    statements = []
     if payload.is_default:
-        await db.prepare("UPDATE customer_addresses SET is_default = 0 WHERE customer_id = ?").bind(customer["id"]).run()
-
-    await db.prepare(
-        """INSERT INTO customer_addresses (id, customer_id, recipient_name, phone, address_line1,
-                                           address_line2, city, state, pincode, is_default)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
-    ).bind(
-        addr_id,
-        customer["id"],
-        payload.recipient_name,
-        payload.phone,
-        payload.address_line1,
-        payload.address_line2,
-        payload.city,
-        payload.state,
-        pincode,
-        1 if payload.is_default else 0,
-    ).run()
-
-    return {
-        "success": True,
-        "data": {
-            "id": addr_id,
-            "recipient_name": payload.recipient_name,
-            "phone": payload.phone,
-            "address_line1": payload.address_line1,
-            "address_line2": payload.address_line2,
-            "city": payload.city,
-            "state": payload.state,
-            "pincode": pincode,
-            "postal_code": pincode,
-            "is_default": payload.is_default,
-        },
-        "message": "Address created",
-    }
+        statements.append(db.prepare("UPDATE customer_addresses SET is_default=0 WHERE customer_id=?").bind(customer["id"]))
+    statements.append(db.prepare("""INSERT INTO customer_addresses
+        (id, customer_id, recipient_name, phone, address_line1, address_line2, city, state, pincode, is_default, district, landmark)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""").bind(address_id, customer["id"], payload.recipient_name, payload.phone, payload.address_line1, payload.address_line2, payload.city, payload.state, payload.pincode, int(payload.is_default), payload.district, payload.landmark))
+    await db.batch(statements)
+    return {"success": True, "data": _address_data({"id": address_id, **payload.model_dump()})}
 
 
 @commerce_router.put("/addresses/{address_id}")
-async def update_address(address_id: str, payload: dict[str, Any], request: Request) -> dict:
+async def update_address(address_id: str, payload: dict[str, Any], request: Request):
     customer = await _require_auth(request)
     db = _env(request).DB
-
-    existing = await db.prepare("SELECT id FROM customer_addresses WHERE id = ? AND customer_id = ?").bind(address_id, customer["id"]).first()
+    existing = await db.prepare("SELECT * FROM customer_addresses WHERE id=? AND customer_id=?").bind(address_id, customer["id"]).first()
     if not existing:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Address not found")
-
-    if payload.get("is_default") is True:
-        await db.prepare("UPDATE customer_addresses SET is_default = 0 WHERE customer_id = ?").bind(customer["id"]).run()
-        await db.prepare("UPDATE customer_addresses SET is_default = 1 WHERE id = ?").bind(address_id).run()
-
-    return {"success": True, "message": "Address updated"}
+        raise HTTPException(404, "Address not found")
+    # Alias normalization before validation; never accept ownership from input.
+    values = dict(payload)
+    if "postal_code" in values: values["pincode"] = values.pop("postal_code")
+    if "village_or_city" in values: values["city"] = values.pop("village_or_city")
+    try:
+        data = AddressInput.model_validate({**existing, **values})
+    except ValueError:
+        raise HTTPException(422, "Invalid address details")
+    statements = []
+    if data.is_default:
+        statements.append(db.prepare("UPDATE customer_addresses SET is_default=0 WHERE customer_id=?").bind(customer["id"]))
+    statements.append(db.prepare("""UPDATE customer_addresses SET recipient_name=?, phone=?, address_line1=?, address_line2=?, city=?, state=?, pincode=?, is_default=?, district=?, landmark=? WHERE id=? AND customer_id=?""").bind(data.recipient_name, data.phone, data.address_line1, data.address_line2, data.city, data.state, data.pincode, int(data.is_default), data.district, data.landmark, address_id, customer["id"]))
+    await db.batch(statements)
+    return {"success": True, "data": _address_data({"id": address_id, **data.model_dump()})}
 
 
 @commerce_router.delete("/addresses/{address_id}")
-async def delete_address(address_id: str, request: Request) -> dict:
+async def delete_address(address_id: str, request: Request):
     customer = await _require_auth(request)
     db = _env(request).DB
-    await db.prepare("DELETE FROM customer_addresses WHERE id = ? AND customer_id = ?").bind(address_id, customer["id"]).run()
+    await db.batch([
+        db.prepare("UPDATE orders SET address_id=NULL WHERE address_id=? AND customer_id=? AND address_snapshot <> '{}'").bind(address_id, customer["id"]),
+        db.prepare("DELETE FROM customer_addresses WHERE id=? AND customer_id=?").bind(address_id, customer["id"]),
+    ])
     return {"success": True, "data": {}, "message": "Address deleted"}
 
 
@@ -497,7 +512,7 @@ async def checkout_quote(payload: CheckoutQuoteInput, request: Request) -> dict:
     if not payload.delivery_address_id:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Delivery address is required")
     address = await _verify_address(db, customer["id"], payload.delivery_address_id)
-    delivery_fee_minor = await _delivery_fee_minor(db, address)
+    delivery_fee_minor = await _delivery_fee_minor(db, address, _env(request))
 
     # 2. Fetch cart items
     rows = await db.prepare(
@@ -569,10 +584,8 @@ async def checkout(payload: CheckoutInput, request: Request) -> dict:
     customer_id = customer["id"]
 
     _require_supported_payment_method(payload.payment_method)
-    address = await _verify_address(db, customer_id, payload.delivery_address_id)
-    delivery_fee_minor = await _delivery_fee_minor(db, address)
-
-    # 2. Compute request fingerprint and check for existing order (Idempotent replay guard)
+    # A successful order must remain replayable even if its delivery coverage or
+    # saved address changes after the first request.
     fingerprint = checkout_fingerprint(
         customer_id=customer_id,
         idempotency_key=payload.idempotency_key,
@@ -593,23 +606,10 @@ async def checkout(payload: CheckoutInput, request: Request) -> dict:
                 status.HTTP_409_CONFLICT,
                 "Idempotency key was already used for a different checkout request"
             )
-        # Idempotent replay: return existing order without decrementing stock again
-        return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content={
-                "success": True,
-                "data": {
-                    "id": existing_order_row["id"],
-                    "status": existing_order_row["status"],
-                    "payment_status": existing_order_row["payment_status"],
-                    "total": existing_order_row["total_minor"] / 100.0,
-                    "total_amount": existing_order_row["total_minor"] / 100.0,
-                    "payment_method": payload.payment_method,
-                    "is_prelaunch_interest": False,
-                },
-                "message": "Order replayed from existing idempotency record",
-            },
-        )
+        return JSONResponse(status_code=200, content=await get_order_details(existing_order_row["id"], request))
+
+    address = await _verify_address(db, customer_id, payload.delivery_address_id)
+    delivery_fee_minor = await _delivery_fee_minor(db, address, _env(request))
 
     # 3. Fetch current cart items joined with inventory
     rows = await db.prepare(
@@ -698,6 +698,8 @@ async def checkout(payload: CheckoutInput, request: Request) -> dict:
         )
     )
 
+    statements.append(db.prepare("UPDATE orders SET is_test_order=? WHERE id=?").bind(int(_test_commerce(_env(request))), order_id))
+
     # Step E: Insert Order Lines
     for r in cart_records:
         line_id = str(uuid.uuid4())
@@ -721,6 +723,13 @@ async def checkout(payload: CheckoutInput, request: Request) -> dict:
     statements.append(
         db.prepare("DELETE FROM cart_items WHERE customer_id = ?").bind(customer_id)
     )
+    # Step G: Record initial order milestone
+    statements.append(
+        db.prepare(
+            """INSERT INTO order_events (id, order_id, status, title, location, remarks)
+               VALUES (?, ?, 'CONFIRMED', 'Order Placed & Confirmed', 'Online Store', 'Your order has been received and verified for fulfillment.')"""
+        ).bind(str(uuid.uuid4()), order_id)
+    )
 
     # 6. Execute D1 batch atomically
     try:
@@ -742,33 +751,11 @@ async def checkout(payload: CheckoutInput, request: Request) -> dict:
                         status.HTTP_409_CONFLICT,
                         "Idempotency conflict: a concurrent order was placed with the same key but different parameters",
                     ) from exc
-                return {
-                    "success": True,
-                    "data": {
-                        "id": winner["id"],
-                        "status": winner.get("status", "placed"),
-                        "total": winner.get("total_minor", total_minor) / 100.0,
-                        "total_amount": winner.get("total_minor", total_minor) / 100.0,
-                        "is_prelaunch_interest": False,
-                    },
-                    "message": "Order replayed from concurrent transaction",
-                }
+                return JSONResponse(status_code=200, content=await get_order_details(winner["id"], request))
             raise HTTPException(status.HTTP_409_CONFLICT, "Idempotency conflict") from exc
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Order placement failed: {err_msg}") from exc
 
-    return {
-        "success": True,
-        "data": {
-            "id": order_id,
-            "status": "confirmed",
-            "payment_status": "pending",
-            "total": total_minor / 100.0,
-            "total_amount": total_minor / 100.0,
-            "payment_method": payload.payment_method,
-            "is_prelaunch_interest": False,
-        },
-        "message": "Order placed successfully",
-    }
+    return await get_order_details(order_id, request)
 
 
 # -----------------------------------------------------------------------------
@@ -783,61 +770,74 @@ async def payment_capabilities(request: Request) -> dict:
         "data": {
             "is_prelaunch_interest": False,
             "online_payment_available": False,
+            "test_mode": _test_commerce(_env(request)),
         },
     }
 
 
-@commerce_router.get("/orders/{order_id}")
-async def get_order_details(order_id: str, request: Request) -> dict:
+async def _order_data(db, row):
+    lines = _d1_rows(await db.prepare("SELECT * FROM order_lines WHERE order_id=?").bind(row["id"]).all())
+    state = row["status"].upper()
+    timeline = []
+    try:
+        events = _d1_rows(await db.prepare(
+            "SELECT id, status, title, location, remarks, created_at FROM order_events WHERE order_id=? ORDER BY created_at ASC"
+        ).bind(row["id"]).all())
+        timeline = [{
+            "id": ev["id"],
+            "time": ev["created_at"],
+            "title": ev["title"],
+            "location": ev.get("location") or "",
+            "remarks": ev.get("remarks") or "",
+            "status": ev["status"].upper(),
+        } for ev in events]
+    except Exception:
+        timeline = []
+    carrier = row.get("carrier") if "carrier" in row and row["carrier"] else "Not assigned"
+    tracking = row.get("tracking_number") if "tracking_number" in row and row["tracking_number"] else ""
+    return {
+        "id": row["id"], "status": state, "payment_status": row["payment_status"].upper(),
+        "payment_method": row["payment_method"], "created_at": row["created_at"],
+        "subtotal": row["subtotal_minor"] / 100, "delivery_fee": row["delivery_fee_minor"] / 100,
+        "discount": row["discount_minor"] / 100, "total": row["total_minor"] / 100,
+        "total_amount": row["total_minor"] / 100, "currency": "INR",
+        "is_prelaunch_interest": False, "is_test_order": bool(row["is_test_order"]),
+        "address": json.loads(row["address_snapshot"]),
+        "items": [{"product_id": x["product_id"], "title": x["product_title"],
+                   "quantity": x["quantity"], "unit_price": x["unit_price_minor"] / 100,
+                   "line_total": x["total_minor"] / 100, "fulfillment_status": state} for x in lines],
+        "carrier": carrier, "tracking_number": tracking, "timeline": timeline,
+    }
+
+
+@commerce_router.get("/orders")
+async def list_orders(request: Request):
     customer = await _require_auth(request)
     db = _env(request).DB
+    rows = _d1_rows(await db.prepare("SELECT * FROM orders WHERE customer_id=? ORDER BY created_at DESC LIMIT 100").bind(customer["id"]).all())
+    return {"success": True, "data": [await _order_data(db, row) for row in rows]}
 
-    order_row = await db.prepare(
-        """SELECT id, customer_id, status, payment_status, payment_method,
-                  subtotal_minor, delivery_fee_minor, discount_minor, total_minor,
-                  currency, created_at
-           FROM orders WHERE id = ?"""
-    ).bind(order_id).first()
 
-    if not order_row:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
+@commerce_router.get("/orders/operations")
+async def list_operations_orders(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
+    db = _env(request).DB
+    rows = _d1_rows(await db.prepare(
+        "SELECT * FROM orders WHERE status != 'cancelled' ORDER BY created_at DESC LIMIT 100"
+    ).all())
+    return {"success": True, "data": [await _order_data(db, row) for row in rows]}
 
-    if order_row["customer_id"] != customer["id"] and customer.get("role") != "admin":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Access denied")
-
-    line_rows = await db.prepare(
-        """SELECT id, product_id, product_title, quantity, unit_price_minor, total_minor
-           FROM order_lines WHERE order_id = ?"""
-    ).bind(order_id).all()
-
-    lines = []
-    for l in _d1_rows(line_rows):
-        lines.append({
-            "product_id": l["product_id"],
-            "title": l["product_title"],
-            "quantity": l["quantity"],
-            "unit_price": l["unit_price_minor"] / 100.0,
-            "total_price": l["total_minor"] / 100.0,
-        })
-
-    return {
-        "success": True,
-        "data": {
-            "id": order_row["id"],
-            "status": order_row["status"],
-            "payment_status": order_row["payment_status"],
-            "payment_method": order_row["payment_method"],
-            "subtotal": order_row["subtotal_minor"] / 100.0,
-            "delivery_fee": order_row["delivery_fee_minor"] / 100.0,
-            "discount": order_row["discount_minor"] / 100.0,
-            "total": order_row["total_minor"] / 100.0,
-            "total_amount": order_row["total_minor"] / 100.0,
-            "currency": order_row["currency"],
-            "is_prelaunch_interest": False,
-            "created_at": order_row["created_at"],
-            "items": lines,
-        },
-    }
+@commerce_router.get("/orders/{order_id}")
+async def get_order_details(order_id: str, request: Request):
+    customer = await _require_auth(request)
+    db = _env(request).DB
+    if customer.get("role") in ("admin", "vendor", "super_admin"):
+        row = await db.prepare("SELECT * FROM orders WHERE id=?").bind(order_id).first()
+    else:
+        row = await db.prepare("SELECT * FROM orders WHERE id=? AND customer_id=?").bind(order_id, customer["id"]).first()
+    if not row:
+        raise HTTPException(404, "Order not found")
+    return {"success": True, "data": await _order_data(db, row)}
 
 
 @commerce_router.post("/orders/{order_id}/cancel")
@@ -852,7 +852,7 @@ async def cancel_order(order_id: str, request: Request) -> dict:
     if not order_row:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
 
-    if order_row["customer_id"] != customer["id"] and customer.get("role") != "admin":
+    if order_row["customer_id"] != customer["id"] and customer.get("role") not in ("admin", "super_admin"):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Access denied")
 
     if order_row["status"] == "cancelled":
@@ -869,7 +869,9 @@ async def cancel_order(order_id: str, request: Request) -> dict:
     # Fetch lines to restore inventory
     lines_rows = await db.prepare("SELECT product_id, quantity FROM order_lines WHERE order_id = ?").bind(order_id).all()
     statements = [
-        db.prepare("UPDATE orders SET status = 'cancelled' WHERE id = ?").bind(order_id),
+        db.prepare(
+            "UPDATE orders SET status = 'cancelled' WHERE id = ?"
+        ).bind(order_id)
     ]
     if order_row.get("reservation_id"):
         statements.append(
@@ -881,16 +883,29 @@ async def cancel_order(order_id: str, request: Request) -> dict:
                 "UPDATE inventory SET available_units = available_units + ?, updated_at = CURRENT_TIMESTAMP WHERE product_id = ?"
             ).bind(l["quantity"], l["product_id"])
         )
+    statements.append(
+        db.prepare(
+            """INSERT INTO order_events (id, order_id, status, title, location, remarks)
+               VALUES (?, ?, 'CANCELLED', 'Order Cancelled', '', 'Order cancelled and reserved stock restored.')"""
+        ).bind(str(uuid.uuid4()), order_id)
+    )
 
     try:
         await db.batch(statements)
     except Exception as exc:
         err_msg = str(exc)
-        if "only placed or confirmed" in err_msg.lower() or "abort" in err_msg.lower():
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Order cannot be cancelled") from exc
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Cancellation failed: {err_msg}") from exc
+        current = await db.prepare("SELECT status FROM orders WHERE id = ?").bind(order_id).first()
+        current_st = current["status"] if current else "unknown"
+        if current_st == "cancelled":
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Order is already cancelled") from exc
+        if current_st not in ("placed", "confirmed"):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"Cannot cancel order in '{current_st}' status; only placed or confirmed orders can be cancelled",
+            ) from exc
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Cancellation cleanup failed: {err_msg}") from exc
 
-    return {"success": True, "message": "Order cancelled and stock restored"}
+    return await get_order_details(order_id, request)
 
 
 # -----------------------------------------------------------------------------
@@ -910,7 +925,7 @@ async def checkout_payment_link(order_id: str, request: Request) -> dict:
     if not order:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
 
-    if order["customer_id"] != customer["id"] and customer.get("role") != "admin":
+    if order["customer_id"] != customer["id"] and customer.get("role") not in ("admin", "super_admin"):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Access denied")
 
     if order["status"] == "cancelled" or order["payment_method"] == "cod":
@@ -920,3 +935,427 @@ async def checkout_payment_link(order_id: str, request: Request) -> dict:
         raise HTTPException(status.HTTP_409_CONFLICT, "This order no longer needs payment")
 
     raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Online payment is unavailable on this API")
+
+
+@commerce_router.get("/locations")
+async def locations():
+    from location_master import DATA
+    return DATA
+
+
+@commerce_router.get("/pincode/check")
+async def check_pincode(pincode: str, request: Request):
+    env = _env(request)
+    row = await env.DB.prepare("SELECT * FROM serviceable_pincodes WHERE pincode=?").bind(pincode).first()
+    if not row or not _pincode_enabled(env, pincode):
+        return {"pincode": pincode, "is_serviceable": False, "message": "Delivery is not currently available for this pincode."}
+    return {**row, "is_serviceable": bool(row["is_serviceable"]), "delivery_fee": row["delivery_fee_minor"] / 100, "expected_delivery_text": "Delivery available" if row["is_serviceable"] else "Delivery is not currently available for this pincode.", "express_available": False}
+
+
+@commerce_router.get("/pincode/lookup")
+async def lookup_pincode(pincode: str, request: Request):
+    row = await _env(request).DB.prepare("SELECT city,state FROM serviceable_pincodes WHERE pincode=?").bind(pincode).first()
+    if not row:
+        raise HTTPException(404, "PIN not in local coverage; enter location manually")
+    city_lower = row["city"].lower()
+    district = "Gautam Buddha Nagar" if "noida" in city_lower else ("New Delhi" if "delhi" in city_lower else row["city"])
+    return {**row, "pincode": pincode, "district": district}
+
+
+@commerce_router.get("/coupons")
+async def list_coupons(request: Request):
+    await _require_auth(request)
+    rows = await _env(request).DB.prepare("SELECT * FROM coupons WHERE is_active=1").all()
+    return {"success": True, "data": _d1_rows(rows)}
+
+
+# -----------------------------------------------------------------------------
+# Seller Order Operations (Pack, Dispatch, Track, Deliver, COD Remittance)
+# -----------------------------------------------------------------------------
+
+class FulfillmentUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    status: Literal["PACKED", "SHIPPED", "DISPATCHED", "OUT_FOR_DELIVERY", "DELIVERED"]
+    carrier: str = Field(default="", max_length=100)
+    tracking_number: str = Field(default="", max_length=100)
+    location: str = Field(default="", max_length=200)
+    remarks: str = Field(default="", max_length=800)
+
+
+
+
+VALID_FULFILLMENT_TRANSITIONS: dict[str, set[str]] = {
+    "placed": {"packed"},
+    "confirmed": {"packed"},
+    "packed": {"shipped"},
+    "shipped": {"out_for_delivery", "delivered"},
+    "out_for_delivery": {"delivered"},
+    "delivered": set(),
+    "cancelled": set(),
+}
+
+
+@commerce_router.put("/orders/operations/{order_id}")
+async def update_order_fulfillment(order_id: str, data: FulfillmentUpdate, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
+    db = _env(request).DB
+    order = await db.prepare("SELECT * FROM orders WHERE id=?").bind(order_id).first()
+    if not order:
+        raise HTTPException(404, "Order not found")
+
+    current_status = order["status"].lower()
+    if current_status == "cancelled":
+        raise HTTPException(status.HTTP_409_CONFLICT, "Cannot fulfill a cancelled order")
+    if current_status == "delivered":
+        raise HTTPException(status.HTTP_409_CONFLICT, "Order is already delivered and cannot be modified")
+
+    raw_target = data.status.upper()
+    target_lower = "shipped" if raw_target in ("SHIPPED", "DISPATCHED") else raw_target.lower()
+
+    valid_targets = VALID_FULFILLMENT_TRANSITIONS.get(current_status, set())
+    if target_lower not in valid_targets:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Cannot transition order from '{current_status}' to '{target_lower}'. Valid next states: {sorted(list(valid_targets)) or 'none'}",
+        )
+
+    now = datetime.now(timezone.utc).isoformat()
+    carrier = data.carrier.strip() or order.get("carrier") or ""
+    tracking = data.tracking_number.strip() or order.get("tracking_number") or ""
+    location = data.location.strip()
+    remarks = data.remarks.strip()
+
+    event_title = ""
+    event_remarks = remarks
+    statements = []
+
+    if target_lower == "packed":
+        statements.append(
+            db.prepare("UPDATE orders SET status='packed' WHERE id=?").bind(order_id)
+        )
+        event_title = "Order Packed"
+        if not event_remarks:
+            event_remarks = "Items carefully packed and sealed for transit."
+        if not location:
+            location = "Milterra Facility"
+    elif target_lower == "shipped":
+        if not carrier or not tracking:
+            raise HTTPException(422, "Carrier and tracking number are required to dispatch")
+        statements.append(
+            db.prepare(
+                "UPDATE orders SET status='shipped', carrier=?, tracking_number=?, dispatched_at=? WHERE id=?"
+            ).bind(carrier, tracking, now, order_id)
+        )
+        event_title = f"Dispatched with {carrier}"
+        if not event_remarks:
+            event_remarks = f"Handed over to courier. AWB / Tracking: {tracking}"
+        if not location:
+            location = "Logistics Hub"
+    elif target_lower == "out_for_delivery":
+        statements.append(
+            db.prepare("UPDATE orders SET status='out_for_delivery' WHERE id=?").bind(order_id)
+        )
+        event_title = "Out for Delivery"
+        if not event_remarks:
+            event_remarks = "Package is out for delivery with the courier agent."
+    elif target_lower == "delivered":
+        statements.append(
+            db.prepare("UPDATE orders SET status='delivered', delivered_at=? WHERE id=?").bind(now, order_id)
+        )
+        event_title = "Delivered"
+        if not event_remarks:
+            event_remarks = "Package successfully delivered to customer."
+
+    # Both status update and milestone event executed in ONE atomic batch
+    statements.append(
+        db.prepare(
+            """INSERT INTO order_events (id, order_id, status, title, location, remarks)
+               VALUES (?, ?, ?, ?, ?, ?)"""
+        ).bind(str(uuid.uuid4()), order_id, raw_target, event_title, location, event_remarks)
+    )
+
+    try:
+        await db.batch(statements)
+    except Exception as exc:
+        err_msg = str(exc)
+        current = await db.prepare("SELECT status FROM orders WHERE id=?").bind(order_id).first()
+        current_status = current["status"] if current else "unknown"
+        if any(keyword in err_msg.lower() for keyword in ["cannot modify", "cannot pack", "cannot ship", "cannot mark out", "cannot deliver"]):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"Order status conflict: {err_msg} (current status: '{current_status}')",
+            ) from exc
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Fulfillment update failed: {err_msg}") from exc
+
+    updated = await db.prepare("SELECT * FROM orders WHERE id=?").bind(order_id).first()
+    return {"success": True, "data": await _order_data(db, updated)}
+
+
+class CodSettlementRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    remittance_reference: str = Field(min_length=3, max_length=100)
+
+
+@commerce_router.post("/orders/admin/cod/{order_id}/collect")
+async def settle_cod_payment(order_id: str, data: CodSettlementRequest, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    ref = data.remittance_reference.strip()
+
+    order = await db.prepare("SELECT * FROM orders WHERE id=?").bind(order_id).first()
+    if not order:
+        raise HTTPException(404, "Order not found")
+    if order["payment_method"] != "cod":
+        raise HTTPException(409, "A COD order is required for cash collection")
+    if order["status"] != "delivered":
+        raise HTTPException(409, "Record courier delivery before COD remittance")
+
+    # Idempotent match: already settled with this exact reference
+    if order["payment_status"] == "paid":
+        if order.get("remittance_reference") == ref:
+            return {"success": True, "data": await _order_data(db, order)}
+        raise HTTPException(409, "COD has already been settled with another reference")
+
+    # Both payment_status update and remittance event MUST execute in one atomic batch
+    statements = [
+        db.prepare(
+            """UPDATE orders SET payment_status='paid', remittance_reference=?
+               WHERE id=?"""
+        ).bind(ref, order_id),
+        db.prepare(
+            """INSERT INTO order_events (id, order_id, status, title, location, remarks)
+               VALUES (?, ?, 'PAID', 'COD Remittance Recorded', '', ?)"""
+        ).bind(str(uuid.uuid4()), order_id, f"Remittance reference: {ref}")
+    ]
+
+    try:
+        await db.batch(statements)
+    except Exception as exc:
+        err_msg = str(exc)
+        current = await db.prepare("SELECT id, status, payment_status, remittance_reference FROM orders WHERE id=?").bind(order_id).first()
+        if not current:
+            raise HTTPException(404, "Order not found") from exc
+        if current["payment_status"] == "paid":
+            if current.get("remittance_reference") == ref:
+                return {"success": True, "data": await _order_data(db, current)}
+            raise HTTPException(409, "COD has already been settled with another reference") from exc
+        if current["status"] != "delivered":
+            raise HTTPException(409, "Record courier delivery before COD remittance") from exc
+        if "already paid" in err_msg.lower():
+            raise HTTPException(409, "COD order is already paid") from exc
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"COD settlement failed: {err_msg}") from exc
+
+    updated = await db.prepare("SELECT * FROM orders WHERE id=?").bind(order_id).first()
+    return {"success": True, "data": await _order_data(db, updated)}
+
+
+# -----------------------------------------------------------------------------
+# Customer Support & Store Help
+# -----------------------------------------------------------------------------
+
+class SupportTicketInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    subject: str = Field(min_length=3, max_length=200)
+    message: str = Field(min_length=10, max_length=4000)
+
+
+class SupportTicketUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    status: Literal["OPEN", "IN_PROGRESS", "CLOSED"]
+    reply: str = Field(min_length=1, max_length=4000)
+
+
+@commerce_router.get("/help")
+async def get_help(request: Request):
+    db = _env(request).DB
+    row = None
+    try:
+        row = await db.prepare("SELECT content FROM store_help WHERE key='help'").first()
+    except Exception:
+        pass
+    if row and row.get("content"):
+        try:
+            return {"success": True, "data": json.loads(row["content"])}
+        except Exception:
+            pass
+    return {
+        "success": True,
+        "data": {
+            "contact_message": "For any questions about your orders, deliveries, or farm-direct products, submit an enquiry below or reach our team.",
+            "faqs": [
+                {"category": "Ordering", "question": "How does Cash on Delivery (COD) work?", "answer": "You can place your order online and pay the delivery courier in cash or via UPI QR when your package arrives at your doorstep."},
+                {"category": "Delivery", "question": "Which locations do you currently deliver to?", "answer": "We currently deliver to serviceable pincodes across select partner regions. Use our pincode check during checkout to verify coverage for your address."},
+                {"category": "Quality", "question": "How are Milterra dairy products packaged?", "answer": "All products are securely packed from our partner suppliers for safe transit to your location."},
+                {"category": "Returns", "question": "What is your return and cancellation policy?", "answer": "Orders can be cancelled directly from your account page before dispatch. For questions or issues with a delivered order, contact our support team through the Help & Support section."},
+            ],
+        },
+    }
+
+
+@commerce_router.put("/admin/help")
+async def update_help(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    body = await request.json()
+    db = _env(request).DB
+    await db.prepare(
+        "INSERT OR REPLACE INTO store_help (key, content) VALUES ('help', ?)"
+    ).bind(json.dumps(body)).run()
+    return {"success": True, "data": body}
+
+
+@commerce_router.post("/support", status_code=201)
+async def create_support_ticket(data: SupportTicketInput, request: Request):
+    customer = await _require_auth(request)
+    db = _env(request).DB
+    ticket_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    await db.prepare(
+        """INSERT INTO support_tickets (id, customer_id, subject, message, status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, 'OPEN', ?, ?)"""
+    ).bind(ticket_id, customer["id"], data.subject.strip(), data.message.strip(), now, now).run()
+    return {
+        "success": True,
+        "data": {
+            "id": ticket_id,
+            "subject": data.subject.strip(),
+            "message": data.message.strip(),
+            "status": "OPEN",
+            "reply": None,
+            "created_at": now,
+        },
+    }
+
+
+@commerce_router.get("/support")
+async def list_support_tickets(request: Request):
+    customer = await _require_auth(request)
+    db = _env(request).DB
+    rows = _d1_rows(await db.prepare(
+        "SELECT id, subject, message, status, reply, created_at FROM support_tickets WHERE customer_id=? ORDER BY created_at DESC LIMIT 100"
+    ).bind(customer["id"]).all())
+    return {"success": True, "data": rows}
+
+
+@commerce_router.get("/admin/support")
+async def list_admin_support_tickets(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    rows = _d1_rows(await db.prepare(
+        """SELECT t.id, t.customer_id, t.subject, t.message, t.status, t.reply, t.created_at, c.phone AS customer_phone
+           FROM support_tickets t JOIN customers c ON c.id = t.customer_id
+           ORDER BY t.created_at DESC LIMIT 500"""
+    ).all())
+    return {"success": True, "data": rows}
+
+
+@commerce_router.patch("/admin/support/{ticket_id}")
+async def reply_support_ticket(ticket_id: str, data: SupportTicketUpdate, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    now = datetime.now(timezone.utc).isoformat()
+    row = await db.prepare("SELECT * FROM support_tickets WHERE id=?").bind(ticket_id).first()
+    if not row:
+        raise HTTPException(404, "Support ticket not found")
+    await db.prepare(
+        "UPDATE support_tickets SET status=?, reply=?, updated_at=? WHERE id=?"
+    ).bind(data.status, data.reply.strip(), now, ticket_id).run()
+    return {
+        "success": True,
+        "data": {
+            "id": ticket_id,
+            "subject": row["subject"],
+            "message": row["message"],
+            "status": data.status,
+            "reply": data.reply.strip(),
+            "created_at": row["created_at"],
+        },
+    }
+
+
+class ProfileUpdateInput(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str | None = Field(default=None, max_length=128)
+    village: str | None = Field(default="", max_length=128)
+    district: str | None = Field(default="", max_length=128)
+    state: str | None = Field(default="", max_length=128)
+    language: str | None = Field(default="en", max_length=10)
+    notify_health: bool = True
+    notify_vaccination: bool = True
+    notify_consultation: bool = True
+    notify_payment: bool = True
+
+
+@commerce_router.get("/profile")
+async def get_profile(request: Request) -> dict:
+    """Load authenticated customer profile details and communication preferences."""
+    customer = await _require_auth(request)
+    db = _env(request).DB
+    customer_id = customer["id"]
+
+    prof_row = await db.prepare(
+        "SELECT village, district, state, language, notify_health, notify_vaccination, notify_consultation, notify_payment "
+        "FROM customer_profiles WHERE customer_id = ?"
+    ).bind(customer_id).first()
+
+    return {
+        "success": True,
+        "data": {
+            "id": customer_id,
+            "name": customer.get("full_name") or "",
+            "phone": customer.get("phone") or "",
+            "village": prof_row["village"] if prof_row else "",
+            "district": prof_row["district"] if prof_row else "",
+            "state": prof_row["state"] if prof_row else "",
+            "language": prof_row["language"] if prof_row else "en",
+            "notify_health": bool(prof_row["notify_health"]) if prof_row else True,
+            "notify_vaccination": bool(prof_row["notify_vaccination"]) if prof_row else True,
+            "notify_consultation": bool(prof_row["notify_consultation"]) if prof_row else True,
+            "notify_payment": bool(prof_row["notify_payment"]) if prof_row else True,
+        },
+    }
+
+
+@commerce_router.put("/profile")
+async def update_profile(payload: ProfileUpdateInput, request: Request) -> dict:
+    """Update authenticated customer display name and profile preferences."""
+    customer = await _require_auth(request)
+    db = _env(request).DB
+    customer_id = customer["id"]
+
+    statements = []
+    if payload.name is not None:
+        statements.append(
+            db.prepare("UPDATE customers SET full_name = ? WHERE id = ?").bind(payload.name.strip(), customer_id)
+        )
+
+    statements.append(
+        db.prepare(
+            """INSERT INTO customer_profiles (
+                customer_id, village, district, state, language,
+                notify_health, notify_vaccination, notify_consultation, notify_payment, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+            ON CONFLICT(customer_id) DO UPDATE SET
+                village = excluded.village,
+                district = excluded.district,
+                state = excluded.state,
+                language = excluded.language,
+                notify_health = excluded.notify_health,
+                notify_vaccination = excluded.notify_vaccination,
+                notify_consultation = excluded.notify_consultation,
+                notify_payment = excluded.notify_payment,
+                updated_at = excluded.updated_at"""
+        ).bind(
+            customer_id,
+            (payload.village or "").strip(),
+            (payload.district or "").strip(),
+            (payload.state or "").strip(),
+            (payload.language or "en").strip(),
+            1 if payload.notify_health else 0,
+            1 if payload.notify_vaccination else 0,
+            1 if payload.notify_consultation else 0,
+            1 if payload.notify_payment else 0,
+        )
+    )
+
+    await db.batch(statements)
+    return {"success": True, "message": "Profile updated successfully"}

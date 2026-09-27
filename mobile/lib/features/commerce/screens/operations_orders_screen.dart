@@ -19,8 +19,9 @@ final operationsOrdersProvider =
 });
 
 class OperationsOrdersScreen extends ConsumerWidget {
-  const OperationsOrdersScreen({super.key, required this.title});
+  const OperationsOrdersScreen({super.key, required this.title, this.embedded = false});
   final String title;
+  final bool embedded;
 
   Future<void> collectCod(BuildContext context, WidgetRef ref, String orderId) async {
     final reference = TextEditingController();
@@ -696,20 +697,8 @@ TOTAL: ${storeMoney(total)}
     );
   }
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Scaffold(
-        backgroundColor: storeCream,
-        appBar: AppBar(
-          backgroundColor: const Color(0xff0d1b15),
-          foregroundColor: Colors.white,
-          title: Text(title),
-          actions: [
-            IconButton(
-                tooltip: 'Refresh orders',
-                onPressed: () => ref.invalidate(operationsOrdersProvider),
-                icon: const Icon(Icons.refresh))
-          ],
-        ),
-        body: ref.watch(operationsOrdersProvider).when(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final content = ref.watch(operationsOrdersProvider).when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(
                   child:
@@ -1057,6 +1046,24 @@ TOTAL: ${storeMoney(total)}
                         );
                       },
                     ),
-            ),
-      );
+            );
+    if (embedded) {
+      return content;
+    }
+    return Scaffold(
+      backgroundColor: storeCream,
+      appBar: AppBar(
+        backgroundColor: const Color(0xff0d1b15),
+        foregroundColor: Colors.white,
+        title: Text(title),
+        actions: [
+          IconButton(
+              tooltip: 'Refresh orders',
+              onPressed: () => ref.invalidate(operationsOrdersProvider),
+              icon: const Icon(Icons.refresh))
+        ],
+      ),
+      body: content,
+    );
+  }
 }

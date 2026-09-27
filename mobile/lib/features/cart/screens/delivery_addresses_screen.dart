@@ -8,7 +8,9 @@ import '../widgets/address_location_fields.dart';
 import '../../marketplace/widgets/store_design.dart';
 
 class DeliveryAddressesScreen extends ConsumerWidget {
-  const DeliveryAddressesScreen({super.key});
+  const DeliveryAddressesScreen({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,8 +22,9 @@ class DeliveryAddressesScreen extends ConsumerWidget {
       body: Column(
         children: [
           // Store Top Header & Navigation
-          const StoreHeader(currentCategory: 'All'),
-          const StoreCategoryNavigation(selected: 'Your Addresses'),
+          if (!embedded) const StoreHeader(currentCategory: 'All'),
+          if (!embedded)
+            const StoreCategoryNavigation(selected: 'Your Addresses'),
 
           // Main Addresses Container
           Expanded(
@@ -42,9 +45,10 @@ class DeliveryAddressesScreen extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 // Breadcrumbs and Cart quick-return row
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                Wrap(
+                                  alignment: WrapAlignment.spaceBetween,
+                                  spacing: 16,
+                                  runSpacing: 12,
                                   children: [
                                     Wrap(
                                       crossAxisAlignment:
@@ -282,7 +286,7 @@ class DeliveryAddressesScreen extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      const StoreFooter(),
+                      if (!embedded) const StoreFooter(),
                     ],
                   ),
                 );

@@ -19,6 +19,8 @@ import 'package:dairy_ai/features/marketplace/providers/product_provider.dart';
 import 'package:dairy_ai/features/marketplace/screens/product_list_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/product_detail_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/customer_account_screen.dart';
+import 'package:dairy_ai/features/marketplace/widgets/account_workspace.dart';
+import 'package:dairy_ai/features/cart/services/local_basket_storage.dart';
 
 const products = [
   Product(
@@ -107,7 +109,11 @@ Future<GoRouter> openStore(WidgetTester tester,
         path: '/login',
         builder: (_, __) => const Scaffold(body: Text('Sign in to continue'))),
     GoRoute(
-        path: '/account', builder: (_, __) => const CustomerAccountScreen()),
+        path: '/account',
+        builder: (_, state) => CustomerAccountScreen(
+              section:
+                  AccountSection.parse(state.uri.queryParameters['section']),
+            )),
     GoRoute(
         path: '/marketplace/addresses',
         builder: (_, __) => const Scaffold(body: Text('Address destination'))),
@@ -139,6 +145,12 @@ Future<GoRouter> openStore(WidgetTester tester,
     }),
     for (final p in catalogue)
       productDetailProvider(p.id).overrideWith((ref) async => p),
+    localBasketStorageProvider
+        .overrideWithValue(LocalBasketStorage(storage: null)),
+    staticCatalogueProvider.overrideWith((ref) async {
+      if (fail) throw Exception('offline');
+      return null;
+    }),
   ], child: MaterialApp.router(theme: StoreTheme.light, routerConfig: router)));
   await tester.pumpAndSettle();
   return router;
@@ -149,7 +161,10 @@ Dio accountTestClient() {
   dio.interceptors.add(InterceptorsWrapper(onRequest: (request, handler) {
     handler.resolve(Response(requestOptions: request, data: {
       'success': true,
-      'data': request.path.contains('wishlist') ? [] : {'items': []}
+      'data': request.path.contains('wishlist') ||
+              request.path.contains('addresses')
+          ? []
+          : {'items': []}
     }));
   }));
   return dio;
@@ -171,15 +186,15 @@ void main() {
       expect(find.text('Your lists'), findsOneWidget);
       await tester.tap(find.text('Account overview'));
       await tester.pumpAndSettle();
-      expect(
-          find.text(
-              'Manage your orders, delivery details, saved products, and account.'),
+      expect(find.text('Everything for your shopping, in one place.'),
           findsOneWidget);
       expect(find.text('Delivery addresses'), findsWidgets);
-      await tester.tap(
-          find.byKey(const ValueKey('account-tile-/marketplace/addresses')));
+      await tester
+          .ensureVisible(find.byKey(const ValueKey('account-card-addresses')));
+      await tester.tap(find.byKey(const ValueKey('account-card-addresses')));
       await tester.pumpAndSettle();
-      expect(find.text('Address destination'), findsOneWidget);
+      expect(find.byKey(const ValueKey('back-to-account')), findsOneWidget);
+      expect(find.text('Your Addresses'), findsWidgets);
       expect(tester.takeException(), isNull);
     });
   }
@@ -294,12 +309,12 @@ void main() {
     expect(find.text('Subtotal (3 items):'), findsOneWidget);
     expect(find.text('₹2,397'), findsOneWidget);
     tester
-        .widget<FilledButton>(find.byKey(const ValueKey('detail-add-to-cart')))
+        .widget<FilledButton>(find.byKey(const ValueKey('detail-buy-now')))
         .onPressed!();
     await tester.pumpAndSettle();
     expect(find.text('Sign in to continue'), findsOneWidget);
     expect(router.routeInformationProvider.value.uri.queryParameters['next'],
-        '/marketplace/product/cow500');
+        '/marketplace/checkout');
   });
 
   testWidgets('Pack choice navigates to the matching real product',
@@ -427,7 +442,7 @@ void main() {
   testWidgets('API failure offers retry instead of demo products',
       (tester) async {
     await openStore(tester, fail: true);
-    expect(find.text('We couldn’t load the collection'), findsOneWidget);
+    expect(find.text('The published catalogue and live shop could not be loaded. Please retry.'), findsOneWidget);
     expect(find.text('Try again'), findsOneWidget);
     expect(find.byKey(const ValueKey('catalogue-open-paneer')), findsNothing);
   });

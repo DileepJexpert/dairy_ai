@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../marketplace/widgets/store_loading_layout.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -33,7 +34,10 @@ final liveOrderTrackingProvider = FutureProvider.autoDispose
 });
 
 class OrderTrackingScreen extends ConsumerStatefulWidget {
-  const OrderTrackingScreen({super.key, required this.orderId});
+  const OrderTrackingScreen(
+      {super.key, required this.orderId, this.embedded = false});
+
+  final bool embedded;
 
   final String orderId;
 
@@ -303,15 +307,21 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   @override
   Widget build(BuildContext context) {
     final order = ref.watch(orderDetailProvider(widget.orderId));
+    final loadState = ref.watch(orderLoadStateProvider);
 
     return Scaffold(
       backgroundColor: storeCream,
       body: Column(
         children: [
-          const StoreHeader(currentCategory: 'All'),
-          const StoreCategoryNavigation(selected: 'Your Orders'),
-          if (ref.watch(orderLoadStateProvider).isLoading)
-            const LinearProgressIndicator(),
+          if (!widget.embedded) const StoreHeader(currentCategory: 'All'),
+          if (!widget.embedded)
+            const StoreCategoryNavigation(selected: 'Your Orders'),
+          SizedBox(
+            height: 3,
+            child: loadState.isLoading
+                ? const LinearProgressIndicator(minHeight: 3)
+                : null,
+          ),
           if (ref.watch(orderLoadStateProvider).hasError)
             ListTile(
                 title: const Text('Order could not be loaded.'),
@@ -320,24 +330,30 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                         ref.read(ordersNotifierProvider.notifier).refresh(),
                     child: const Text('Retry'))),
           Expanded(
-            child: order == null
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.receipt_long_outlined,
-                            size: 48, color: storeMuted),
-                        const SizedBox(height: 12),
-                        const Text('Order not found', style: StoreType.heading),
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: () => context.go('/marketplace/orders'),
-                          child: const Text('Back to your orders'),
-                        ),
-                      ],
-                    ),
-                  )
-                : _buildOrderContent(context, ref, order),
+            child: order == null && loadState.isLoading
+                ? const StoreLoadingLayout()
+                : order == null && loadState.hasError
+                    ? const SizedBox.expand()
+                    : order == null
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.receipt_long_outlined,
+                                    size: 48, color: storeMuted),
+                                const SizedBox(height: 12),
+                                const Text('Order not found',
+                                    style: StoreType.heading),
+                                const SizedBox(height: 8),
+                                TextButton(
+                                  onPressed: () =>
+                                      context.go('/marketplace/orders'),
+                                  child: const Text('Back to your orders'),
+                                ),
+                              ],
+                            ),
+                          )
+                        : _buildOrderContent(context, ref, order),
           ),
         ],
       ),
@@ -672,7 +688,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                   ),
                 ),
               ),
-              const StoreFooter(),
+              if (!widget.embedded) const StoreFooter(),
             ],
           ),
         );

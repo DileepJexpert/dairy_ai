@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/store_loading_layout.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -136,7 +137,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       if (checkout) {
         if (ref.read(currentUserProvider) == null) {
           context.go(
-            Uri(path: '/login', queryParameters: {'next': '/marketplace/checkout'}).toString(),
+            Uri(
+                path: '/login',
+                queryParameters: {'next': '/marketplace/checkout'}).toString(),
           );
         } else {
           context.push('/marketplace/checkout');
@@ -202,7 +205,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             // Content Area
             Expanded(
               child: result.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const StoreLoadingLayout(),
                 error: (_, __) => Center(
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     const Text('This product could not be loaded.',
@@ -775,11 +778,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               style: TextStyle(fontSize: 12, color: Color(0xff565959))),
           const SizedBox(height: 2),
           const Text(
-            'EMI starts at ₹125/month. No Cost EMI available',
+            'Cash on Delivery available',
             style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xff007185)),
+                color: storeGreen),
           ),
         ] else ...[
           const Chip(label: Text('Concept Preview · In Development')),
@@ -1378,19 +1381,19 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   Widget _buildAmazonOffersStrip() {
     final offers = [
       (
-        'Bank Offer',
-        'Upto ₹100 instant discount on select credit/debit cards',
-        Icons.credit_card_outlined
+        'Farm Fresh Direct',
+        'Direct from verified dairy farmers, no middlemen',
+        Icons.agriculture_outlined
       ),
       (
-        'Partner Offer',
-        'Get 5% cashback with Milterra Wallet & Balance',
-        Icons.account_balance_wallet_outlined
+        '100% Pure & Natural',
+        'Zero preservatives, additives, or chemicals',
+        Icons.verified_outlined
       ),
       (
-        'No Cost EMI',
-        'Avail No Cost EMI on orders above ₹3,000 with major banks',
-        Icons.calendar_today_outlined
+        'Quality Guaranteed',
+        'Lab-tested purity with cold-chain packaging',
+        Icons.health_and_safety_outlined
       ),
     ];
 
@@ -1399,11 +1402,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       children: [
         const Row(
           children: [
-            Icon(Icons.local_offer_outlined,
-                size: 16, color: Color(0xffcc0c39)),
+            Icon(Icons.verified_user_outlined,
+                size: 16, color: storeGreen),
             SizedBox(width: 6),
             Text(
-              'Offers & Promotions',
+              'Milterra Assurances',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,

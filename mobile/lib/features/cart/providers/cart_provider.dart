@@ -147,7 +147,8 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
         quantity: item.quantity,
         priceWhenAdded: item.priceWhenAdded ?? price,
         currentPrice: price,
-        inStock: product != null ? (!product.stockKnown || product.inStock) : true,
+        inStock:
+            product != null ? (!product.stockKnown || product.inStock) : true,
         lineTotal: lineTotal,
         vendorName:
             product?.vendor?['business_name']?.toString() ?? 'Milterra Dairy',
@@ -204,9 +205,12 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
       // - Delete items removed locally while offline
       // - Sync missing items to server
       // - Sync offline quantity updates to server
-      final localItemMap = {for (final item in localItems) item.productId: item};
-      final serverItemMap =
-          {for (final item in serverCart.items) item.productId: item};
+      final localItemMap = {
+        for (final item in localItems) item.productId: item
+      };
+      final serverItemMap = {
+        for (final item in serverCart.items) item.productId: item
+      };
       bool syncedPending = false;
 
       // 1. Delete server items not present in localItems (offline deletions)
@@ -412,18 +416,17 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
         Cart.fromJson(Map<String, dynamic>.from(body['data'] as Map));
 
     final localItemMap = {for (final item in localItems) item.productId: item};
-    final serverItemMap =
-        {for (final item in serverCart.items) item.productId: item};
+    final serverItemMap = {
+      for (final item in serverCart.items) item.productId: item
+    };
 
     bool needsReload = false;
 
     // 1. If an item exists on server but was deleted locally while offline, delete it from server
     for (final serverItem in serverCart.items) {
       if (!localItemMap.containsKey(serverItem.productId)) {
-        try {
-          await _dio.delete('/marketplace/cart/items/${serverItem.id}');
-          needsReload = true;
-        } catch (_) {}
+        await _dio.delete('/marketplace/cart/items/${serverItem.id}');
+        needsReload = true;
       }
     }
 
@@ -438,12 +441,10 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
         });
         needsReload = true;
       } else if (serverItem.quantity != localItem.quantity) {
-        try {
-          await _dio.put('/marketplace/cart/items/${serverItem.id}', data: {
-            'quantity': localItem.quantity,
-          });
-          needsReload = true;
-        } catch (_) {}
+        await _dio.put('/marketplace/cart/items/${serverItem.id}', data: {
+          'quantity': localItem.quantity,
+        });
+        needsReload = true;
       }
     }
 

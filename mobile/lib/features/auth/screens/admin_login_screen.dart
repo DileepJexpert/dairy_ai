@@ -13,6 +13,6 @@ class AdminLoginScreen extends StatelessWidget {
         heading: 'Milterra administration',
         description:
             'Continue with the mobile number assigned to your admin account.',
-        initialPhone: '9999900000',
+        initialPhone: '9839769808',
       );
 }

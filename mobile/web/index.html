@@ -40,6 +40,8 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
-  <script src="flutter_bootstrap.js" async></script>
+  <!-- Inline the generated loader so a cached external bootstrap cannot pin
+       returning visitors to a previous API configuration. -->
+  <script>{{flutter_bootstrap_js}}</script>
 </body>
 </html>

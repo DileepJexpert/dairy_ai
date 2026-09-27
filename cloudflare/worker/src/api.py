@@ -16,10 +16,12 @@ from compat import (
     verify_razorpay_signature,
 )
 from commerce import commerce_router
+from customer_auth import auth_router
 
 
 app = FastAPI(title="Milterra Worker compatibility and commerce API")
 app.include_router(commerce_router)
+app.include_router(auth_router)
 
 
 @app.middleware("http")
@@ -30,6 +32,11 @@ async def storefront_cors(request: Request, call_next):
     configured = getattr(env, "CORS_ORIGINS", "") or ""
     allowed = {value.strip().rstrip("/") for value in configured.split(",") if value.strip()}
     valid_origin = bool(origin and origin in allowed and origin != "*")
+    if request.url.path.startswith("/api/v1/auth/"):
+        if origin and not valid_origin:
+            return JSONResponse({"detail": "Origin not allowed"}, status_code=403)
+        if request.method == "POST" and len(await request.body()) > 8192:
+            return JSONResponse({"detail": "Request too large"}, status_code=413)
     if request.method == "OPTIONS" and request.headers.get("access-control-request-method"):
         if not valid_origin:
             return JSONResponse({"detail": "Origin not allowed"}, status_code=403)
@@ -42,7 +49,7 @@ async def storefront_cors(request: Request, call_next):
         response.headers["Access-Control-Max-Age"] = "600"
     else:
         response = await call_next(request)
-    if request.url.path.startswith("/api/v1/marketplace/"):
+    if request.url.path.startswith(("/api/v1/marketplace/", "/api/v1/auth/")):
         response.headers["Cache-Control"] = "no-store"
     if valid_origin:
         response.headers["Access-Control-Allow-Origin"] = origin
@@ -66,6 +73,9 @@ async def readiness_check(request: Request) -> JSONResponse:
         db = _env(request).DB
         for table in ("customers", "inventory", "orders", "coupons", "serviceable_pincodes"):
             await db.prepare(f"SELECT 1 FROM {table} LIMIT 1").first()
+        if getattr(_env(request), "CUSTOMER_AUTH_ENABLED", "false") == "true":
+            for table in ("customer_credentials", "customer_sessions", "auth_rate_limits"):
+                await db.prepare(f"SELECT 1 FROM {table} LIMIT 1").first()
     except Exception:
         return JSONResponse(
             {"success": False, "message": "Database unavailable"},

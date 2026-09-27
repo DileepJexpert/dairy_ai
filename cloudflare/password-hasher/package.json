@@ -1,0 +1,7 @@
+{
+  "name": "milterra-private-password-hasher",
+  "private": true,
+  "type": "module",
+  "scripts": {"test": "node --test test-kdf.mjs"},
+  "dependencies": {"@noble/hashes": "2.0.1"}
+}

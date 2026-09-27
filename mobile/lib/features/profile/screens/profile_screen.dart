@@ -322,7 +322,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 title: const Text('Milterra Wallet & Milk Payouts',
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 subtitle: const Text(
-                    '₹4,850 Available · Milk earnings & store credit'),
+                    'Check wallet availability and transaction history'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.push('/balance'),
               ),

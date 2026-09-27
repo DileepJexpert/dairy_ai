@@ -10,6 +10,11 @@ workers_dev = true
 [vars]
 ENVIRONMENT = "staging"
 ALLOW_TEST_AUTH = false
+CUSTOMER_AUTH_ENABLED = "false"
+TEST_COMMERCE_ENABLED = "false" # Only staging/local/test; no real payment or dispatch
+LIVE_COD_ENABLED = "false" # Mutually exclusive with TEST_COMMERCE_ENABLED
+LIVE_COD_PINCODES = "" # Explicit six-digit delivery PIN allowlist; every PIN also needs an active D1 delivery rule
+# Enable customer auth only after runtime acceptance and setting AUTH_SECRET.
 CORS_ORIGINS = "https://replace-with-your-staging-pages-host.example.invalid"
 
 [[d1_databases]]
@@ -17,3 +22,8 @@ binding = "DB"
 database_name = "milterra-staging"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "migrations"
+
+# Deploy the private password-hasher Worker before enabling customer accounts.
+# [[services]]
+# binding = "PASSWORD_HASHER"
+# service = "milterra-password-hasher"

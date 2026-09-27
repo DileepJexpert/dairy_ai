@@ -15,6 +15,7 @@ import '../providers/coupon_provider.dart';
 import '../providers/order_repository.dart';
 import '../widgets/address_location_fields.dart';
 import '../../marketplace/widgets/store_design.dart';
+import '../../marketplace/widgets/store_loading_layout.dart';
 import '../../../core/analytics_service.dart';
 
 typedef CheckoutQuoteKey = ({
@@ -335,8 +336,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           SnackBar(
             backgroundColor: storeError,
             duration: const Duration(seconds: 5),
-            content: Text(
-                'Checkout is temporarily unavailable. $savedMessage'),
+            content: Text('Checkout is temporarily unavailable. $savedMessage'),
             action: SnackBarAction(
               label: 'Retry',
               textColor: Colors.white,
@@ -410,7 +410,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     Icon(Icons.lock_outline, size: 18, color: storeMuted),
                     SizedBox(width: 6),
                     Text(
-                      'Pre-launch checkout',
+                      'Secure checkout',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
@@ -426,12 +426,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           // Main Content
           Expanded(
             child: addresses.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const StoreLoadingLayout(checkout: true),
               error: (e, _) => Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('$e', style: StoreType.body),
+                    const Text('Delivery addresses could not be loaded.',
+                        style: StoreType.body),
                     const SizedBox(height: 12),
                     OutlinedButton(
                       onPressed: () => ref
@@ -1062,7 +1063,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             title: 'Cash on Delivery',
             subtitle: isPrelaunch
                 ? 'Register that you would prefer to pay after delivery'
-                : 'Pay the courier on delivery',
+                : 'Pay when your order is delivered',
             icon: Icons.payments_outlined,
           ),
           if (isPrelaunch || onlineAvailable)
@@ -1605,7 +1606,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Pre-launch interest checkout · No payment collected',
+                    'Review your delivery address and order total before placing your order',
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,

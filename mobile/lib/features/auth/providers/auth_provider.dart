@@ -112,7 +112,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final accessToken = body['access_token'] as String;
         final profileResponse = await Dio(
           BaseOptions(
-            baseUrl: AppConstants.baseUrl,
+            baseUrl: AppConstants.authBaseUrl,
             headers: {'Authorization': 'Bearer $accessToken'},
           ),
         ).get('/auth/me');
@@ -205,7 +205,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
       final profileResponse = await Dio(
         BaseOptions(
-          baseUrl: AppConstants.baseUrl,
+          baseUrl: AppConstants.authBaseUrl,
           headers: {'Authorization': 'Bearer $accessToken'},
         ),
       ).get('/auth/me');
@@ -238,7 +238,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
     try {
       final response = await Dio(
-        BaseOptions(baseUrl: AppConstants.baseUrl),
+        BaseOptions(baseUrl: AppConstants.authBaseUrl),
       ).post('/auth/refresh', data: {
         'refresh_token': refreshToken,
       });
@@ -259,6 +259,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// Clear tokens and reset to unauthenticated.
   Future<void> logout() async {
+    if (AppConstants.separateCustomerAuth) {
+      final refresh = await _storage.getRefreshToken();
+      if (refresh != null) {
+        try {
+          await _dio.post('/auth/logout', data: {'refresh_token': refresh});
+        } on DioException {
+          // Always clear this device even if the server cannot be reached.
+        }
+      }
+    }
     await _storage.clearAll();
     state = const AuthState.unauthenticated();
   }

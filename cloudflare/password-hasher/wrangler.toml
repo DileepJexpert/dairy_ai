@@ -1,0 +1,13 @@
+name = "milterra-password-hasher"
+main = "src/index.js"
+compatibility_date = "2026-09-25"
+workers_dev = false
+preview_urls = false
+
+[[durable_objects.bindings]]
+name = "KDF"
+class_name = "PasswordKdf"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PasswordKdf"]

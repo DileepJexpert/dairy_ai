@@ -9,7 +9,9 @@ import '../providers/cart_provider.dart';
 import '../providers/wishlist_provider.dart';
 
 class WishlistScreen extends ConsumerStatefulWidget {
-  const WishlistScreen({super.key});
+  const WishlistScreen({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   ConsumerState<WishlistScreen> createState() => _WishlistScreenState();
@@ -78,8 +80,9 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
       body: Column(
         children: [
           // Store Header & Category Bar
-          const StoreHeader(currentCategory: 'All'),
-          const StoreCategoryNavigation(selected: 'Wishlist'),
+          if (!widget.embedded) const StoreHeader(currentCategory: 'All'),
+          if (!widget.embedded)
+            const StoreCategoryNavigation(selected: 'Wishlist'),
           if (ref.watch(wishlistLoadingProvider))
             const LinearProgressIndicator(),
           if (ref.watch(wishlistErrorProvider) != null)
@@ -191,7 +194,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
                           ),
                         ),
                       ),
-                      const StoreFooter(),
+                      if (!widget.embedded) const StoreFooter(),
                     ],
                   ),
                 );

@@ -11,13 +11,18 @@ final deliveryAddressesProvider = StateNotifierProvider<DeliveryAddressNotifier,
 class DeliveryAddressNotifier
     extends StateNotifier<AsyncValue<List<DeliveryAddress>>> {
   DeliveryAddressNotifier(this._dio, {bool enabled = true})
-      : super(const AsyncValue.data([])) {
+      : super(
+            enabled ? const AsyncValue.loading() : const AsyncValue.data([])) {
     if (enabled) refresh();
   }
 
   final Dio _dio;
 
   Future<void> refresh() async {
+    if (!mounted) return;
+    // Keep existing addresses visible during refresh, but never show an empty
+    // address form while the initial request (or a failed request's retry) runs.
+    if (!state.hasValue) state = const AsyncValue.loading();
     try {
       final body = (await _dio.get('/marketplace/addresses')).data
           as Map<String, dynamic>;

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'shopping_navigation.dart';
+import 'store_route.dart';
+import '../features/marketplace/widgets/account_workspace.dart';
+import '../core/constants.dart';
 import '../features/commerce/screens/commerce_categories_screen.dart';
 import '../features/commerce/screens/commerce_products_screen.dart';
 import '../features/commerce/screens/commerce_orders_screen.dart';
@@ -62,6 +65,7 @@ import 'package:dairy_ai/features/vendor/screens/vendor_products_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/vendor_reviews_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/vendor_coupons_screen.dart';
 import 'package:dairy_ai/features/vendor/screens/seller_onboarding_screen.dart';
+import 'package:dairy_ai/features/vendor/screens/seller_portal_screen.dart';
 
 // Cooperative screens
 import 'package:dairy_ai/features/cooperative/screens/cooperative_dashboard_screen.dart';
@@ -154,6 +158,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           location.startsWith('/admin/commerce');
 
       final isSellerArea = location == '/seller/dashboard' ||
+          location == '/seller/portal' ||
           location == '/vendor-dashboard' ||
           location == '/vendor-orders' ||
           location == '/vendor-profile' ||
@@ -262,6 +267,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (isAuthenticated &&
           (state.matchedLocation == '/login' ||
               state.matchedLocation == '/register')) {
+        if (AppConstants.separateCustomerAuth) {
+          final next = state.uri.queryParameters['next'];
+          return next != null && next.isNotEmpty
+              ? shoppingReturnPath(next)
+              : '/account';
+        }
         final next = state.uri.queryParameters['next'];
         if (next != null && next.isNotEmpty) {
           return shoppingReturnPath(next);
@@ -274,7 +285,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: '/', redirect: (_, __) => '/shop'),
-      GoRoute(
+      StoreRoute(
         path: '/shop/product/:productId',
         builder: (context, state) => ProductDetailScreen(
           productId: state.pathParameters['productId']!,
@@ -335,8 +346,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         redirect: (context, state) =>
             '/marketplace/orders/${state.pathParameters['orderId']}',
       ),
-      GoRoute(
+      StoreRoute(
         path: '/balance',
+        redirect: (_, __) => AppConstants.separateCustomerAuth
+            ? '/account?section=wallet'
+            : null,
         builder: (context, state) => const MilterraWalletScreen(),
       ),
       GoRoute(
@@ -359,13 +373,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/marketplace/wallet',
         redirect: (_, __) => '/balance',
       ),
-      GoRoute(
+      StoreRoute(
         path: '/profile',
         builder: (context, state) => const ProfileScreen(),
       ),
-      GoRoute(
+      StoreRoute(
         path: '/account',
-        builder: (context, state) => const CustomerAccountScreen(),
+        builder: (context, state) => CustomerAccountScreen(
+          section: AccountSection.parse(state.uri.queryParameters['section']),
+          orderId: state.uri.queryParameters['order'],
+        ),
       ),
       GoRoute(
         path: '/shop/profile',
@@ -375,7 +392,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/shop/account',
         redirect: (_, __) => '/account',
       ),
-      GoRoute(
+      StoreRoute(
         path: '/shop/deals',
         builder: (_, __) => const DealsScreen(),
       ),
@@ -383,7 +400,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/marketplace/deals',
         redirect: (_, __) => '/shop/deals',
       ),
-      GoRoute(
+      StoreRoute(
         path: '/shop',
         builder: (_, state) {
           final isFarmer = state.uri.queryParameters['store'] == 'farmer';
@@ -398,8 +415,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           return ProductListScreen(
             key: ValueKey(state.uri.toString()),
             initialQuery: state.uri.queryParameters['query'] ?? '',
-            initialCategory:
-                state.uri.queryParameters['category'] ?? 'All Organic Essentials',
+            initialCategory: state.uri.queryParameters['category'] ??
+                'All Organic Essentials',
           );
         },
       ),
@@ -412,8 +429,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/admin/commerce/orders',
           builder: (_, __) => const CommerceOrdersScreen()),
-      GoRoute(
+      StoreRoute(
         path: '/wishlist',
+        redirect: (_, __) => AppConstants.separateCustomerAuth &&
+                ref.read(currentUserProvider) != null
+            ? '/account?section=wishlist'
+            : null,
         builder: (context, state) => const WishlistScreen(),
       ),
       GoRoute(
@@ -424,7 +445,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/marketplace/wishlist',
         redirect: (_, __) => '/wishlist',
       ),
-      GoRoute(
+      StoreRoute(
         path: '/about',
         builder: (context, state) => const AboutMilterraScreen(),
       ),
@@ -432,7 +453,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/shop/about',
         redirect: (_, __) => '/about',
       ),
-      GoRoute(
+      StoreRoute(
         path: '/earth',
         builder: (context, state) => const MilterraEarthScreen(),
       ),
@@ -444,24 +465,28 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/marketplace/earth',
         redirect: (_, __) => '/earth',
       ),
-      GoRoute(
+      StoreRoute(
         path: '/help',
+        redirect: (_, __) => AppConstants.separateCustomerAuth &&
+                ref.read(currentUserProvider) != null
+            ? '/account?section=help'
+            : null,
         builder: (context, state) => const HelpSupportScreen(),
       ),
       GoRoute(
         path: '/shop/help',
         redirect: (_, __) => '/help',
       ),
-      GoRoute(
+      StoreRoute(
         path: '/register',
         builder: (context, state) => const LoginScreen(initialTab: 1),
       ),
       // ---- Auth routes (no shell) ----
-      GoRoute(
+      StoreRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
       ),
-      GoRoute(
+      StoreRoute(
         path: '/reset-password',
         builder: (context, state) => ResetPasswordScreen(
           token: state.uri.queryParameters['token'] ?? '',
@@ -574,28 +599,36 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) =>
             const ProductListScreen(category: ProductCategory.equipment),
       ),
-      GoRoute(
+      StoreRoute(
         path: '/marketplace/product/:productId',
         builder: (context, state) => ProductDetailScreen(
           productId: state.pathParameters['productId']!,
         ),
       ),
-      GoRoute(
+      StoreRoute(
         path: '/marketplace/cart',
         builder: (context, state) => const CartScreen(),
       ),
-      GoRoute(
+      StoreRoute(
         path: '/marketplace/addresses',
+        redirect: (_, __) => ref.read(currentUserProvider) != null
+            ? '/account?section=addresses'
+            : null,
         builder: (context, state) => const DeliveryAddressesScreen(),
       ),
-      GoRoute(
+      StoreRoute(
           path: '/marketplace/checkout',
           builder: (context, state) => const CheckoutScreen()),
-      GoRoute(
+      StoreRoute(
           path: '/marketplace/orders',
+          redirect: (_, __) => '/account?section=orders',
           builder: (context, state) => const OrdersScreen()),
-      GoRoute(
+      StoreRoute(
           path: '/marketplace/orders/:orderId',
+          redirect: (_, state) => Uri(path: '/account', queryParameters: {
+                'section': 'orders',
+                'order': state.pathParameters['orderId']!,
+              }).toString(),
           builder: (context, state) => OrderTrackingScreen(
                 orderId: state.pathParameters['orderId']!,
               )),
@@ -980,6 +1013,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/seller/dashboard',
         redirect: (_, __) => '/vendor-dashboard',
+      ),
+      GoRoute(
+        path: '/seller/portal',
+        builder: (context, state) => const SellerPortalScreen(),
       ),
     ],
   );

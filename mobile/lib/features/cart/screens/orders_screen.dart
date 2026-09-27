@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../providers/order_repository.dart';
 import '../../marketplace/widgets/store_design.dart';
+import '../../marketplace/widgets/store_loading_layout.dart';
 
 final orderSearchProvider = StateProvider.autoDispose<String>((ref) => '');
 final ordersProvider = Provider.autoDispose<List<StoreOrder>>((ref) {
@@ -19,21 +20,28 @@ final ordersProvider = Provider.autoDispose<List<StoreOrder>>((ref) {
 });
 
 class OrdersScreen extends ConsumerWidget {
-  const OrdersScreen({super.key});
+  const OrdersScreen({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final orders = ref.watch(ordersProvider);
+    final loadState = ref.watch(orderLoadStateProvider);
 
     return Scaffold(
       backgroundColor: storeCream,
       body: Column(
         children: [
           // Amazon Top Navigation
-          const StoreHeader(currentCategory: 'All'),
-          const StoreCategoryNavigation(selected: 'Your Orders'),
-          if (ref.watch(orderLoadStateProvider).isLoading)
-            const LinearProgressIndicator(),
+          if (!embedded) const StoreHeader(currentCategory: 'All'),
+          if (!embedded) const StoreCategoryNavigation(selected: 'Your Orders'),
+          SizedBox(
+            height: 3,
+            child: loadState.isLoading
+                ? const LinearProgressIndicator(minHeight: 3)
+                : null,
+          ),
           if (ref.watch(orderLoadStateProvider).hasError)
             ListTile(
                 title: const Text('Orders could not be loaded.'),
@@ -140,7 +148,12 @@ class OrdersScreen extends ConsumerWidget {
                                 const SizedBox(height: 20),
 
                                 // Orders List or Empty State
-                                if (orders.isEmpty)
+                                if (orders.isEmpty && loadState.isLoading)
+                                  const SizedBox(
+                                      height: 430, child: StoreLoadingLayout())
+                                else if (orders.isEmpty && loadState.hasError)
+                                  const SizedBox(height: 240)
+                                else if (orders.isEmpty)
                                   _buildEmptyOrders(context)
                                 else
                                   ListView.separated(
@@ -160,7 +173,7 @@ class OrdersScreen extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      const StoreFooter(),
+                      if (!embedded) const StoreFooter(),
                     ],
                   ),
                 );

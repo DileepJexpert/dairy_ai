@@ -6,7 +6,9 @@ import '../../marketplace/widgets/store_design.dart';
 import '../providers/wallet_provider.dart';
 
 class MilterraWalletScreen extends ConsumerStatefulWidget {
-  const MilterraWalletScreen({super.key});
+  const MilterraWalletScreen({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   ConsumerState<MilterraWalletScreen> createState() =>
@@ -36,8 +38,9 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
       body: Column(
         children: [
           // Amazon-grade Store Header & Navigation
-          const StoreHeader(currentCategory: 'All'),
-          const StoreCategoryNavigation(selected: 'Wallet & Balance'),
+          if (!widget.embedded) const StoreHeader(currentCategory: 'All'),
+          if (!widget.embedded)
+            const StoreCategoryNavigation(selected: 'Wallet & Balance'),
           ListTile(
               title: Text(ref.watch(milterraWalletProvider).message),
               trailing: IconButton(
@@ -127,7 +130,7 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
                           ),
                         ),
                       ),
-                      const StoreFooter(),
+                      if (!widget.embedded) const StoreFooter(),
                     ],
                   ),
                 );
@@ -318,8 +321,7 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
       children: [
         _actionCard(
           title: 'Shop Milterra',
-          subtitle:
-              'Choose an available payment method at checkout.',
+          subtitle: 'Choose an available payment method at checkout.',
           icon: Icons.shopping_bag_outlined,
           buttonText: 'Shop the Marketplace →',
           onTap: () => context.go('/shop'),
@@ -328,8 +330,7 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
         ),
         _actionCard(
           title: 'Bank Payout — Not Enabled',
-          subtitle:
-              'Bank withdrawals are not available.',
+          subtitle: 'Bank withdrawals are not available.',
           icon: Icons.account_balance_outlined,
           buttonText: 'Withdraw to Bank',
           onTap: _openWithdrawDialog,

@@ -144,8 +144,8 @@ class StoreOrder {
         isPrelaunchInterest: j['is_prelaunch_interest'] == true,
         id: j['id'].toString(),
         createdAt: j['created_at'].toString(),
-        status: j['status'].toString(),
-        paymentStatus: j['payment_status'].toString(),
+        status: j['status'].toString().toUpperCase(),
+        paymentStatus: j['payment_status'].toString().toUpperCase(),
         cancellationStatus: j['cancellation_status']?.toString(),
         paymentMethod: j['payment_method']?.toString() ?? 'Not specified',
         carrier: j['carrier']?.toString().isNotEmpty == true
@@ -237,8 +237,10 @@ class StoreOrder {
       };
 }
 
-final orderLoadStateProvider =
-    StateProvider<AsyncValue<void>>((ref) => const AsyncData(null));
+final orderLoadStateProvider = StateProvider<AsyncValue<void>>((ref) =>
+    ref.watch(currentUserProvider) == null
+        ? const AsyncData(null)
+        : const AsyncLoading());
 
 class OrderNotifier extends StateNotifier<List<StoreOrder>> {
   OrderNotifier(this.ref, {bool enabled = true}) : super([]) {

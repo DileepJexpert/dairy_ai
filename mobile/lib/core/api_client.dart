@@ -7,6 +7,7 @@ import 'package:dairy_ai/core/storage.dart';
 /// Creates and configures a [Dio] HTTP client with auth token injection,
 /// automatic token refresh, and standardised error handling.
 Dio createDioClient(SecureStorageService storage) {
+  Future<bool>? refreshInFlight;
   final dio = Dio(
     BaseOptions(
       baseUrl: AppConstants.baseUrl,
@@ -23,6 +24,25 @@ Dio createDioClient(SecureStorageService storage) {
   dio.interceptors.add(
     InterceptorsWrapper(
       onRequest: (options, handler) async {
+        final authRequest = options.path.startsWith('/auth/') ||
+            options.path.startsWith('${AppConstants.apiVersion}/auth/');
+        if (authRequest) {
+          options.baseUrl = AppConstants.authBaseUrl;
+        } else if (AppConstants.separateCustomerAuth &&
+            Uri.parse(AppConstants.apiBaseUrl).host.endsWith('.invalid')) {
+          return handler.reject(DioException(
+            requestOptions: options,
+            type: DioExceptionType.badResponse,
+            response: Response(
+              requestOptions: options,
+              statusCode: 503,
+              data: {
+                'detail':
+                    'This feature is not available yet. You can browse products and manage your sign-in.'
+              },
+            ),
+          ));
+        }
         if (options.path.startsWith('/') && !options.path.startsWith('http')) {
           final baseUri = Uri.tryParse(options.baseUrl);
           if (baseUri != null) {
@@ -46,11 +66,19 @@ Dio createDioClient(SecureStorageService storage) {
       },
       onError: (error, handler) async {
         // Attempt refresh on 401
-        if (error.response?.statusCode == 401) {
-          final refreshed = await _tryRefreshToken(dio, storage);
+        final path = error.requestOptions.path;
+        final credentialsRequest =
+            path.contains('/auth/') && !path.endsWith('/auth/me');
+        if (error.response?.statusCode == 401 &&
+            !credentialsRequest &&
+            error.requestOptions.extra['authRetried'] != true) {
+          refreshInFlight ??= _tryRefreshToken(dio, storage);
+          final refreshed = await refreshInFlight!;
+          refreshInFlight = null;
           if (refreshed) {
             final token = await storage.getAccessToken();
             final opts = error.requestOptions;
+            opts.extra['authRetried'] = true;
             opts.headers['Authorization'] = 'Bearer $token';
             try {
               final response = await dio.fetch(opts);
@@ -138,7 +166,7 @@ Future<bool> _tryRefreshToken(
     if (refreshToken == null) return false;
 
     final response = await Dio(
-      BaseOptions(baseUrl: AppConstants.baseUrl),
+      BaseOptions(baseUrl: AppConstants.authBaseUrl),
     ).post(
       '/auth/refresh',
       data: {'refresh_token': refreshToken},

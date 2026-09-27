@@ -1,187 +1,214 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
+import '../../../core/constants.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../cart/screens/orders_screen.dart';
+import '../../cart/screens/order_tracking_screen.dart';
+import '../../cart/screens/delivery_addresses_screen.dart';
+import '../../cart/screens/wishlist_screen.dart';
+import '../../finance/screens/milterra_wallet_screen.dart';
 import '../widgets/store_design.dart';
+import '../widgets/account_workspace.dart';
+import 'help_support_screen.dart';
 
-/// Storefront entry point for customer-owned pages.
+/// One persistent customer workspace; section URLs remain shareable and work
+/// with browser Back, while the sidebar and visited panels stay mounted.
 class CustomerAccountScreen extends ConsumerWidget {
-  const CustomerAccountScreen({super.key});
+  const CustomerAccountScreen(
+      {super.key, this.section = AccountSection.overview, this.orderId});
+  final AccountSection section;
+  final String? orderId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    final firstName = user?.name?.trim().split(' ').first;
-    final greeting = firstName == null || firstName.isEmpty
-        ? 'Your account'
-        : 'Hello, $firstName';
+    final name = user?.name?.trim();
+    final greeting =
+        name == null || name.isEmpty ? 'Your account' : 'Hello, $name';
+    void select(AccountSection value) => context.go(Uri(
+            path: '/account',
+            queryParameters: value == AccountSection.overview
+                ? null
+                : {'section': value.name})
+        .toString());
+
+    Widget panel(AccountSection value) => switch (value) {
+          AccountSection.overview => _overview(context, greeting, select),
+          AccountSection.orders => Column(children: [
+              if (orderId != null)
+                Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                        onPressed: () => select(AccountSection.orders),
+                        icon: const Icon(Icons.arrow_back, size: 18),
+                        label: const Text('Back to orders'))),
+              Expanded(
+                  child:
+                      IndexedStack(index: orderId == null ? 0 : 1, children: [
+                const OrdersScreen(embedded: true),
+                if (orderId != null)
+                  OrderTrackingScreen(
+                      key: ValueKey(orderId),
+                      orderId: orderId!,
+                      embedded: true),
+              ])),
+            ]),
+          AccountSection.addresses =>
+            const DeliveryAddressesScreen(embedded: true),
+          AccountSection.profile =>
+            ListView(padding: const EdgeInsets.all(24), children: [
+              const Text('Personal information', style: StoreType.heading),
+              const SizedBox(height: 8),
+              const Text('Details for your signed-in account.',
+                  style: TextStyle(color: storeMuted)),
+              const SizedBox(height: 24),
+              _detail(
+                  'Name', name == null || name.isEmpty ? 'Not provided' : name),
+              _detail('Mobile number', user?.phone ?? 'Not provided'),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                  onPressed: () => context.push('/profile'),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Edit profile')),
+            ]),
+          AccountSection.wallet => AppConstants.separateCustomerAuth
+              ? const _UnavailablePanel(
+                  icon: Icons.account_balance_wallet_outlined,
+                  title: 'Wallet is currently unavailable',
+                  message:
+                      'Wallet balance and transaction history are currently unavailable.')
+              : const MilterraWalletScreen(embedded: true),
+          AccountSection.wishlist => AppConstants.separateCustomerAuth
+              ? const _UnavailablePanel(
+                  icon: Icons.favorite_border,
+                  title: 'Wishlist is currently unavailable',
+                  message:
+                      'You can keep products in your basket while browsing.')
+              : const WishlistScreen(embedded: true),
+          AccountSection.help => const HelpSupportScreen(embedded: true),
+        };
 
     return Scaffold(
-      backgroundColor: storeCream,
-      body: Column(
-        children: [
+        backgroundColor: storeCream,
+        body: Column(children: [
           const StoreHeader(currentCategory: 'All'),
-          const StoreCategoryNavigation(selected: 'Your Account'),
           Expanded(
-            child: LayoutBuilder(builder: (context, constraints) {
-              final mobile = constraints.maxWidth < StoreLayout.tablet;
-              return SingleChildScrollView(
-                child: Column(
-                  children: [
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                            maxWidth: StoreLayout.maxWidth),
-                        child: Padding(
-                          padding: EdgeInsets.all(mobile ? 16 : 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              TextButton(
-                                onPressed: () => context.go('/shop'),
-                                child: const Text('Milterra › Your Account'),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(greeting, style: StoreType.title),
-                              const SizedBox(height: 6),
-                              const Text(
-                                'Manage your orders, delivery details, saved products, and account.',
-                                style: TextStyle(color: storeMuted),
-                              ),
-                              const SizedBox(height: 24),
-                              Wrap(
-                                spacing: 16,
-                                runSpacing: 16,
-                                children: [
-                                  _tile(
-                                      context,
-                                      constraints.maxWidth,
-                                      Icons.inventory_2_outlined,
-                                      'Orders & returns',
-                                      'Track orders and request a cancellation or return.',
-                                      '/marketplace/orders'),
-                                  _tile(
-                                      context,
-                                      constraints.maxWidth,
-                                      Icons.location_on_outlined,
-                                      'Delivery addresses',
-                                      'Add, edit, or select your delivery address.',
-                                      '/marketplace/addresses'),
-                                  _tile(
-                                      context,
-                                      constraints.maxWidth,
-                                      Icons.favorite_border,
-                                      'Wishlist',
-                                      'See the products in your wishlist.',
-                                      '/wishlist'),
-                                  _tile(
-                                      context,
-                                      constraints.maxWidth,
-                                      Icons.bookmark_border,
-                                      'Saved for later',
-                                      'Resume items you moved out of your cart.',
-                                      '/marketplace/cart'),
-                                  _tile(
-                                      context,
-                                      constraints.maxWidth,
-                                      Icons.account_balance_wallet_outlined,
-                                      'Wallet & history',
-                                      'Check wallet availability and transaction history.',
-                                      '/balance'),
-                                  _tile(
-                                      context,
-                                      constraints.maxWidth,
-                                      Icons.person_outline,
-                                      'Your profile',
-                                      'Update your name and account preferences.',
-                                      '/profile'),
-                                  _tile(
-                                      context,
-                                      constraints.maxWidth,
-                                      Icons.help_outline,
-                                      'Help & support',
-                                      'Get help with an order or your account.',
-                                      '/help'),
-                                ],
-                              ),
-                              const SizedBox(height: 24),
-                              OutlinedButton.icon(
-                                onPressed: () async {
-                                  await ref
-                                      .read(authProvider.notifier)
-                                      .logout();
-                                  if (context.mounted) context.go('/shop');
-                                },
-                                icon: const Icon(Icons.logout),
-                                label: const Text('Sign out'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const StoreFooter(),
-                  ],
-                ),
-              );
-            }),
-          ),
-        ],
-      ),
-    );
+              child: AccountWorkspace(
+            key: ValueKey(user?.id),
+            section: section,
+            name: greeting,
+            onSelect: select,
+            panelBuilder: panel,
+            onShop: () => context.go('/shop'),
+            onSignOut: () async {
+              await ref.read(authProvider.notifier).logout();
+              if (context.mounted) context.go('/login');
+            },
+          )),
+        ]));
   }
 
-  Widget _tile(BuildContext context, double viewportWidth, IconData icon,
-      String title, String subtitle, String route) {
-    final width = viewportWidth < StoreLayout.tablet
-        ? viewportWidth - 32
-        : viewportWidth < 1150
-            ? (viewportWidth - 64) / 2
-            : (StoreLayout.maxWidth - 80) / 3;
-    return SizedBox(
-      width: width,
-      child: Material(
-        color: storeWhite,
-        borderRadius: BorderRadius.circular(StoreLayout.radius),
-        child: InkWell(
-          key: ValueKey('account-tile-$route'),
-          onTap: () => context.push(route),
-          borderRadius: BorderRadius.circular(StoreLayout.radius),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 118),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              border: Border.all(color: storeBorder),
-              borderRadius: BorderRadius.circular(StoreLayout.radius),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(icon, color: storeGreen, size: 28),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title,
-                          style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700,
-                              color: storeGreen)),
-                      const SizedBox(height: 6),
-                      Text(subtitle,
-                          style:
-                              const TextStyle(fontSize: 13, color: storeMuted)),
-                    ],
+  Widget _detail(String label, String value) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: const TextStyle(color: storeMuted, fontSize: 13)),
+          const SizedBox(height: 6),
+          Text(value, style: StoreType.body),
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+        ]),
+      );
+
+  Widget _overview(BuildContext context, String greeting,
+          ValueChanged<AccountSection> select) =>
+      SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(greeting, style: StoreType.title),
+            const SizedBox(height: 8),
+            const Text('Everything for your shopping, in one place.',
+                style: TextStyle(color: storeMuted)),
+            const SizedBox(height: 24),
+            LayoutBuilder(builder: (context, bounds) {
+              final columns = bounds.maxWidth >= 700 ? 2 : 1;
+              return Wrap(spacing: 16, runSpacing: 16, children: [
+                for (final value in AccountSection.values
+                    .where((s) => s != AccountSection.overview))
+                  SizedBox(
+                    width: (bounds.maxWidth - (columns - 1) * 16) / columns,
+                    child: Material(
+                      color: storeWhite,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: const BorderSide(color: storeBorder)),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        key: ValueKey('account-card-${value.name}'),
+                        onTap: () => select(value),
+                        child: Padding(
+                            padding: const EdgeInsets.all(18),
+                            child: Row(children: [
+                              Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                      color: const Color(0xffeaf2ef),
+                                      borderRadius: BorderRadius.circular(10)),
+                                  child: Icon(value.icon,
+                                      color: storeGreen, size: 22)),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                  child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                    Text(value.label,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700)),
+                                    const SizedBox(height: 6),
+                                    Text(value.description,
+                                        style: const TextStyle(
+                                            color: storeMuted, fontSize: 12))
+                                  ])),
+                              const Icon(Icons.chevron_right,
+                                  size: 18, color: storeMuted),
+                            ])),
+                      ),
+                    ),
                   ),
-                ),
-                const Icon(Icons.chevron_right, color: storeMuted),
-              ],
-            ),
-          ),
+              ]);
+            }),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+                onPressed: () => context.go('/shop'),
+                icon: const Icon(Icons.shopping_bag_outlined),
+                label: const Text('Continue shopping')),
+          ],
         ),
-      ),
-    );
-  }
+      );
+}
+
+class _UnavailablePanel extends StatelessWidget {
+  const _UnavailablePanel(
+      {required this.icon, required this.title, required this.message});
+  final IconData icon;
+  final String title;
+  final String message;
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 40, color: storeGreen),
+            const SizedBox(height: 20),
+            Text(title, style: StoreType.heading),
+            const SizedBox(height: 12),
+            Text(message,
+                style: const TextStyle(color: storeMuted, height: 1.6)),
+          ],
+        ),
+      );
 }

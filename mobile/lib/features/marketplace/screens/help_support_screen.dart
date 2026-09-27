@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../widgets/support_panel.dart';
 
 class HelpSupportScreen extends ConsumerStatefulWidget {
-  const HelpSupportScreen({super.key});
+  const HelpSupportScreen({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   ConsumerState<HelpSupportScreen> createState() => _HelpSupportScreenState();
@@ -47,8 +49,9 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
         backgroundColor: storeCream,
         body: Column(
           children: [
-            const StoreHeader(currentCategory: 'All'),
-            const StoreCategoryNavigation(selected: 'Customer Care & Help'),
+            if (!widget.embedded) const StoreHeader(currentCategory: 'All'),
+            if (!widget.embedded)
+              const StoreCategoryNavigation(selected: 'Customer Care & Help'),
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
@@ -66,36 +69,36 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                               _buildBackAndBreadcrumbs(context),
                               const SizedBox(height: 20),
 
-                            // Hero Header & Search Bar
-                            _buildHelpHeader(),
-                            const SizedBox(height: 28),
+                              // Hero Header & Search Bar
+                              _buildHelpHeader(),
+                              const SizedBox(height: 28),
 
-                            // Quick Action Tiles
-                            _buildQuickActionCards(context),
-                            const SizedBox(height: 36),
+                              // Quick Action Tiles
+                              _buildQuickActionCards(context),
+                              const SizedBox(height: 36),
 
-                            // FAQ Section
-                            _buildFaqSection(filteredFaqs),
-                            const SizedBox(height: 40),
+                              // FAQ Section
+                              _buildFaqSection(filteredFaqs),
+                              const SizedBox(height: 40),
 
-                            // Contact Channels Card
-                            _buildContactChannelsCard(),
-                            const SizedBox(height: 28),
-                          ],
+                              // Contact Channels Card
+                              _buildContactChannelsCard(),
+                              const SizedBox(height: 28),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const StoreFooter(),
-                ],
+                    if (!widget.embedded) const StoreFooter(),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildBackAndBreadcrumbs(BuildContext context) {
     return Container(
@@ -148,7 +151,8 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
             ),
           ),
           const SizedBox(width: 14),
-          const Text('│', style: TextStyle(color: Color(0xffcbd5e1), fontSize: 14)),
+          const Text('│',
+              style: TextStyle(color: Color(0xffcbd5e1), fontSize: 14)),
           const SizedBox(width: 14),
           Expanded(
             child: Wrap(
@@ -165,7 +169,8 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                     ),
                   ),
                 ),
-                const Text(' › ', style: TextStyle(fontSize: 12.5, color: storeMuted)),
+                const Text(' › ',
+                    style: TextStyle(fontSize: 12.5, color: storeMuted)),
                 InkWell(
                   onTap: () => context.go('/shop'),
                   child: const Text(
@@ -177,7 +182,8 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                     ),
                   ),
                 ),
-                const Text(' › ', style: TextStyle(fontSize: 12.5, color: storeMuted)),
+                const Text(' › ',
+                    style: TextStyle(fontSize: 12.5, color: storeMuted)),
                 const Text(
                   'Customer Care & Help',
                   style: TextStyle(

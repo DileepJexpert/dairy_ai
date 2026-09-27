@@ -231,7 +231,7 @@ def test_atomic_checkout_order_creation_and_idempotency(client, d1_db):
     resp1 = client.post("/api/v1/marketplace/orders/checkout", json=req_body)
     assert resp1.status_code == 201
     order = resp1.json()["data"]
-    assert order["status"] == "confirmed"
+    assert order["status"] == "CONFIRMED"
     assert order["total_amount"] == 1600.0
 
     # Verify inventory was decremented from 5 to 3
@@ -532,7 +532,7 @@ def test_paid_order_cannot_be_cancelled_without_refund_flow(client, d1_db):
         "/api/v1/marketplace/orders/checkout",
         json={"idempotency_key": str(uuid.uuid4()), "delivery_address_id": "addr-1"},
     ).json()["data"]
-    asyncio.run(d1_db.prepare("UPDATE orders SET payment_status = 'paid' WHERE id = ?").bind(order["id"]).run())
+    asyncio.run(d1_db.prepare("UPDATE orders SET payment_method = 'card', payment_status = 'paid' WHERE id = ?").bind(order["id"]).run())
     response = client.post(f"/api/v1/marketplace/orders/{order['id']}/cancel")
     assert response.status_code == 409
     assert asyncio.run(d1_db.prepare("SELECT available_units FROM inventory WHERE product_id = 'p-paid-cancel'").first())["available_units"] == 1

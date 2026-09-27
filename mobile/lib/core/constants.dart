@@ -8,7 +8,14 @@ class AppConstants {
   static const String appTagline = 'A little goodness, every day.';
 
   // API
-  static const String _envBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+  static const String _envBaseUrl =
+      String.fromEnvironment('API_BASE_URL', defaultValue: '');
+  // Allows verified customer auth to launch before the commerce API cutover.
+  static const String authApiOrigin =
+      String.fromEnvironment('AUTH_API_BASE_URL', defaultValue: '');
+  static bool get separateCustomerAuth => authApiOrigin.isNotEmpty;
+  static String get authBaseUrl =>
+      '${separateCustomerAuth ? authApiOrigin : apiBaseUrl}$apiVersion';
 
   static String get apiBaseUrl {
     if (_envBaseUrl.isNotEmpty) return _envBaseUrl;

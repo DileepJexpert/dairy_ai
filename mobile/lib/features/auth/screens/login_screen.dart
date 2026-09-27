@@ -1,3 +1,4 @@
+import '../../../app/shopping_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -11,7 +12,8 @@ import '../../marketplace/widgets/store_design.dart';
 import '../models/auth_state.dart';
 import '../providers/auth_provider.dart';
 
-const _demoUiEnabled = bool.fromEnvironment('ENABLE_DEMO_UI', defaultValue: false);
+const _demoUiEnabled =
+    bool.fromEnvironment('ENABLE_DEMO_UI', defaultValue: false);
 
 /// Customers use password login; staff OTP login requires real SMS in production.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -108,38 +110,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           .read(authProvider.notifier)
           .requestPasswordReset(identifier);
       if (!mounted) return;
-      final resetUrl = data['reset_url']?.toString();
+      final token = data['reset_token'] as String?;
+      if (token != null && token.isNotEmpty) {
+        context.go('/reset-password?token=' + token);
+        return;
+      }
       final emailSent = data['email_sent'] == true;
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Password reset requested'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(emailSent
-                  ? 'A reset link was sent to the email saved on this account.'
-                  : resetUrl != null
-                      ? 'Local development mode generated this reset link. No email service is configured.'
-                      : 'If the account exists, reset instructions will be sent to its saved email.'),
-              if (resetUrl != null) ...[
-                const SizedBox(height: 12),
-                SelectableText(resetUrl,
-                    style: const TextStyle(fontSize: 11, color: storeGreen)),
-              ],
-            ],
-          ),
+          content: Text(emailSent
+              ? 'A reset link was sent to the email saved on this account.'
+              : 'If the account exists, reset instructions will be sent to its saved email.'),
           actions: [
-            if (resetUrl != null)
-              TextButton.icon(
-                onPressed: () async {
-                  await Clipboard.setData(ClipboardData(text: resetUrl));
-                  if (dialogContext.mounted) Navigator.pop(dialogContext);
-                },
-                icon: const Icon(Icons.copy, size: 16),
-                label: const Text('Copy local reset link'),
-              ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Close'),
@@ -230,6 +214,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           );
         },
         authenticated: (user) {
+          if (AppConstants.separateCustomerAuth) {
+            final nextPath = widget.nextPath ??
+                GoRouterState.of(context).uri.queryParameters['next'];
+            context.go(nextPath != null && nextPath.isNotEmpty
+                ? shoppingReturnPath(nextPath)
+                : '/account');
+            return;
+          }
           final routeNext = widget.nextPath ??
               GoRouterState.of(context).uri.queryParameters['next'];
           if (routeNext != null && routeNext.isNotEmpty) {
@@ -291,82 +283,84 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             const SizedBox(height: 16),
                             // Never publish known demo credentials in a release build.
-                            if (kDebugMode && _demoUiEnabled) Container(
-                              margin: const EdgeInsets.only(bottom: 20),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xfff8fafc),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xffe2e8f0)),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Row(
-                                    children: [
-                                      Icon(Icons.bolt,
-                                          size: 18, color: storeDarkGreenNav),
-                                      SizedBox(width: 6),
-                                      Text(
-                                        'Quick Demo Accounts (1-Click Autofill)',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                          color: storeDarkGreenNav,
+                            if (kDebugMode && _demoUiEnabled)
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 20),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xfff8fafc),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                      color: const Color(0xffe2e8f0)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Row(
+                                      children: [
+                                        Icon(Icons.bolt,
+                                            size: 18, color: storeDarkGreenNav),
+                                        SizedBox(width: 6),
+                                        Text(
+                                          'Quick Demo Accounts (1-Click Autofill)',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                            color: storeDarkGreenNav,
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    'Click any role to autofill phone & password for instant testing:',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: storeMuted,
+                                      ],
                                     ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: [
-                                      _buildDemoChip(
-                                        label: '🛡️ Admin',
-                                        phone: '9999900000',
-                                        password: 'Password@123',
-                                        color: const Color(0xff047857),
-                                        bgColor: const Color(0xffecfdf5),
-                                        borderColor: const Color(0xffa7f3d0),
+                                    const SizedBox(height: 4),
+                                    const Text(
+                                      'Click any role to autofill phone & password for instant testing:',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: storeMuted,
                                       ),
-                                      _buildDemoChip(
-                                        label: '👤 Customer',
-                                        phone: '9820112345',
-                                        password: 'Password@123',
-                                        color: const Color(0xff1d4ed8),
-                                        bgColor: const Color(0xffeff6ff),
-                                        borderColor: const Color(0xffbfdbfe),
-                                      ),
-                                      _buildDemoChip(
-                                        label: '🏪 Seller',
-                                        phone: '9999900090',
-                                        password: 'Password@123',
-                                        color: const Color(0xffb45309),
-                                        bgColor: const Color(0xfffffbeb),
-                                        borderColor: const Color(0xfffde68a),
-                                      ),
-                                      _buildDemoChip(
-                                        label: '🚜 Farmer',
-                                        phone: '9876500001',
-                                        password: 'Password@123',
-                                        color: const Color(0xff4338ca),
-                                        bgColor: const Color(0xffeef2ff),
-                                        borderColor: const Color(0xffc7d2fe),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        _buildDemoChip(
+                                          label: '🛡️ Admin',
+                                          phone: '9999900000',
+                                          password: 'Password@123',
+                                          color: const Color(0xff047857),
+                                          bgColor: const Color(0xffecfdf5),
+                                          borderColor: const Color(0xffa7f3d0),
+                                        ),
+                                        _buildDemoChip(
+                                          label: '👤 Customer',
+                                          phone: '9820112345',
+                                          password: 'Password@123',
+                                          color: const Color(0xff1d4ed8),
+                                          bgColor: const Color(0xffeff6ff),
+                                          borderColor: const Color(0xffbfdbfe),
+                                        ),
+                                        _buildDemoChip(
+                                          label: '🏪 Seller',
+                                          phone: '9999900090',
+                                          password: 'Password@123',
+                                          color: const Color(0xffb45309),
+                                          bgColor: const Color(0xfffffbeb),
+                                          borderColor: const Color(0xfffde68a),
+                                        ),
+                                        _buildDemoChip(
+                                          label: '🚜 Farmer',
+                                          phone: '9876500001',
+                                          password: 'Password@123',
+                                          color: const Color(0xff4338ca),
+                                          bgColor: const Color(0xffeef2ff),
+                                          borderColor: const Color(0xffc7d2fe),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
                             if (!_usesOtp && _createAccount) ...[
                               TextFormField(
                                 controller: _nameController,
@@ -410,11 +404,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 controller: _emailController,
                                 keyboardType: TextInputType.emailAddress,
                                 autofillHints: const [AutofillHints.email],
-                                decoration: const InputDecoration(
-                                  labelText: 'Email for password recovery',
+                                decoration: InputDecoration(
+                                  labelText: AppConstants.separateCustomerAuth
+                                      ? 'Email for sign-in'
+                                      : 'Email for password recovery',
                                   hintText: 'you@gmail.com',
-                                  prefixIcon: Icon(Icons.email_outlined),
-                                  border: OutlineInputBorder(),
+                                  prefixIcon: const Icon(Icons.email_outlined),
+                                  border: const OutlineInputBorder(),
                                 ),
                                 validator: (value) {
                                   final email = value?.trim() ?? '';
@@ -533,11 +529,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     ? 'Already have an account? Sign in'
                                     : 'New to Milterra? Create an account'),
                               ),
-                              const Text(
-                                'Your phone identifies the account; email is used only for recovery and launch follow-up. No SMS is sent.',
+                              Text(
+                                AppConstants.separateCustomerAuth
+                                    ? 'Use your phone, username or email to sign in. Phone and email are not verified. Password recovery is not available yet; keep your password safe.'
+                                    : 'Your phone identifies the account; email is used only for recovery and launch follow-up. No SMS is sent.',
                                 textAlign: TextAlign.center,
-                                style:
-                                    TextStyle(fontSize: 12, color: storeMuted),
+                                style: const TextStyle(
+                                    fontSize: 12, color: storeMuted),
                               ),
                             ] else ...[
                               const SizedBox(height: 16),

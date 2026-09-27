@@ -55,7 +55,7 @@ class _CampaignTheme {
         combined.contains('save') ||
         combined.contains('%')) {
       return const _CampaignTheme(
-        defaultBadge: 'LIMITED DEAL',
+        defaultBadge: '⚡ DEAL OF THE DAY',
         icon: Icons.local_fire_department_rounded,
         backgroundGradient: [
           Color(0xfffff7ed),
@@ -70,7 +70,7 @@ class _CampaignTheme {
         glowColor: Color(0xffea580c),
         ctaGradientStart: Color(0xffea580c),
         ctaGradientEnd: Color(0xffc2410c),
-        ctaText: 'Claim Deal',
+        ctaText: 'Grab Deal',
       );
     }
 
@@ -95,7 +95,7 @@ class _CampaignTheme {
         glowColor: Color(0xff22c55e),
         ctaGradientStart: Color(0xff15803d),
         ctaGradientEnd: Color(0xff166534),
-        ctaText: 'Explore Now',
+        ctaText: 'Shop Now',
       );
     }
 

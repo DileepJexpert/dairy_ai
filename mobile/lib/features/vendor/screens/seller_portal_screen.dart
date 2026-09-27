@@ -6,6 +6,7 @@ import '../../marketplace/models/product_models.dart';
 import '../../marketplace/models/marketplace_models.dart';
 import '../../marketplace/providers/product_provider.dart';
 import '../../admin/providers/admin_marketplace_provider.dart';
+import '../../commerce/screens/operations_orders_screen.dart';
 import '../providers/seller_portal_provider.dart';
 
 class SellerPortalScreen extends ConsumerStatefulWidget {
@@ -40,38 +41,51 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
     final myOffers =
         adminState.offers.where((o) => o.sellerId == currentSeller.id).toList();
 
-    return Scaffold(
-      backgroundColor: const Color(0xfff8fafc),
-      appBar: AppBar(
-        backgroundColor: storeDarkGreenNav,
-        foregroundColor: Colors.white,
-        title: Row(
-          children: [
-            const Icon(Icons.storefront, color: storeAmber, size: 22),
-            const SizedBox(width: 8),
-            Text('${currentSeller.businessName} · Seller Central',
-                style:
-                    const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: const Color(0xfff8fafc),
+        appBar: AppBar(
+          backgroundColor: storeDarkGreenNav,
+          foregroundColor: Colors.white,
+          title: Row(
+            children: [
+              const Icon(Icons.storefront, color: storeAmber, size: 22),
+              const SizedBox(width: 8),
+              Text('${currentSeller.businessName} · Seller Central',
+                  style:
+                      const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          bottom: const TabBar(
+            indicatorColor: storeAmber,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            tabs: [
+              Tab(icon: Icon(Icons.inventory_2_outlined), text: 'Offers & Catalog'),
+              Tab(icon: Icon(Icons.local_shipping_outlined), text: 'Orders & Fulfillment'),
+            ],
+          ),
+          actions: [
+            IconButton(
+              tooltip: 'View Marketplace Store',
+              icon: const Icon(Icons.storefront_outlined),
+              onPressed: () => context.push('/shop'),
+            ),
+            IconButton(
+              tooltip: 'Switch Seller / Logout',
+              icon: const Icon(Icons.logout),
+              onPressed: () {
+                ref.read(sellerPortalProvider.notifier).logout();
+                context.go('/seller/login');
+              },
+            ),
           ],
         ),
-        actions: [
-          IconButton(
-            tooltip: 'View Marketplace Store',
-            icon: const Icon(Icons.storefront_outlined),
-            onPressed: () => context.push('/shop'),
-          ),
-          IconButton(
-            tooltip: 'Switch Seller / Logout',
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-              ref.read(sellerPortalProvider.notifier).logout();
-              context.go('/seller/login');
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        body: TabBarView(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -287,7 +301,8 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
           ],
         ),
       ),
-    );
+      const OperationsOrdersScreen(title: 'Seller orders', embedded: true),
+    ])));
   }
 
   Widget _kpiCard(String label, String value, IconData icon, Color color) =>

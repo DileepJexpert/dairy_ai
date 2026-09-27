@@ -34,7 +34,7 @@ class CustomerAccountScreen extends ConsumerWidget {
         .toString());
 
     Widget panel(AccountSection value) => switch (value) {
-          AccountSection.overview => _overview(context, greeting, select),
+          AccountSection.overview => _overview(context, greeting, select, user),
           AccountSection.orders => Column(children: [
               if (orderId != null)
                 Align(
@@ -121,7 +121,7 @@ class CustomerAccountScreen extends ConsumerWidget {
       );
 
   Widget _overview(BuildContext context, String greeting,
-          ValueChanged<AccountSection> select) =>
+          ValueChanged<AccountSection> select, dynamic user) =>
       SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -132,6 +132,58 @@ class CustomerAccountScreen extends ConsumerWidget {
             const Text('Everything for your shopping, in one place.',
                 style: TextStyle(color: storeMuted)),
             const SizedBox(height: 24),
+            if (user?.role == 'admin' || user?.role == 'super_admin') ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xff0d1b15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: storeGreen,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text('ADMIN',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12)),
+                    ),
+                    const SizedBox(width: 16),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Admin Control Panel Available',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16)),
+                          SizedBox(height: 4),
+                          Text(
+                              'Manage orders across all customers, store catalogue, pincodes & support.',
+                              style: TextStyle(
+                                  color: Color(0xff94a3b8), fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(backgroundColor: storeGreen),
+                      onPressed: () => context.go('/admin/ecommerce'),
+                      icon: const Icon(Icons.dashboard_outlined),
+                      label: const Text('Open Admin Portal'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
             LayoutBuilder(builder: (context, bounds) {
               final columns = bounds.maxWidth >= 700 ? 2 : 1;
               return Wrap(spacing: 16, runSpacing: 16, children: [

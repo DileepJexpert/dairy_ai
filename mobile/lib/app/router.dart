@@ -267,7 +267,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (isAuthenticated &&
           (state.matchedLocation == '/login' ||
               state.matchedLocation == '/register')) {
-        if (AppConstants.separateCustomerAuth) {
+        if (AppConstants.separateCustomerAuth && !isAdmin && !isSeller) {
           final next = state.uri.queryParameters['next'];
           return next != null && next.isNotEmpty
               ? shoppingReturnPath(next)

@@ -682,7 +682,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                         const SizedBox(height: 24),
 
                         // 4. NEED HELP CARD
-                        _buildSupportCard(context),
+                        _buildSupportCard(context, order),
                       ],
                     ),
                   ),
@@ -1524,52 +1524,203 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     );
   }
 
-  Widget _buildSupportCard(BuildContext context) {
+  Future<void> _openWhatsAppSupport(String orderId) async {
+    final text = Uri.encodeComponent(
+        'Hello Milterra Support, I need help with my Order #$orderId.');
+    final uri = Uri.parse('https://wa.me/919839769808?text=$text');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (_) {
+      await launchUrl(uri, mode: LaunchMode.platformDefault);
+    }
+  }
+
+  Future<void> _showSupportOptionsDialog(
+      BuildContext context, String orderId) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.headset_mic_outlined, color: storeGreen),
+            SizedBox(width: 10),
+            Text(
+              'Milterra Support Center',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xff25d366).withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.chat_bubble, color: Color(0xff25d366)),
+              ),
+              title: const Text('WhatsApp Instant Chat',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              subtitle: const Text(
+                  'Connect with support on WhatsApp (Fastest response)',
+                  style: TextStyle(fontSize: 12)),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+              onTap: () {
+                Navigator.pop(dialogCtx);
+                _openWhatsAppSupport(orderId);
+              },
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: storeGreen.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.phone, color: storeGreen),
+              ),
+              title: const Text('Call Customer Support',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              subtitle: const Text('+91 9839769808 / Toll-free: 1800 233 4567',
+                  style: TextStyle(fontSize: 12)),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+              onTap: () async {
+                Navigator.pop(dialogCtx);
+                final uri = Uri.parse('tel:+919839769808');
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri);
+                }
+              },
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: storeOrange.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.email_outlined, color: storeOrange),
+              ),
+              title: const Text('Email Support',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              subtitle: const Text('support@milterra.in',
+                  style: TextStyle(fontSize: 12)),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+              onTap: () async {
+                Navigator.pop(dialogCtx);
+                final text = Uri.encodeComponent(
+                    'Assistance request for Order #$orderId');
+                final uri = Uri.parse(
+                    'mailto:support@milterra.in?subject=Order%20%23$orderId%20Support&body=$text');
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri);
+                }
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSupportCard(BuildContext context, StoreOrder order) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: const Color(0xfff7faf9),
         borderRadius: BorderRadius.circular(StoreLayout.radius),
         border: Border.all(color: storeBorder),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.help_outline, color: storeGreen, size: 28),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Need help with this order?',
-                    style: TextStyle(
-                        fontSize: 14,
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: storeGreen.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.help_outline, color: storeGreen, size: 24),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Need help with this order?',
+                      style: TextStyle(
+                        fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: storeGreen)),
-                SizedBox(height: 2),
-                Text(
-                    'Contact Milterra 24/7 Dairy Customer Support for delivery queries or product replacements.',
-                    style: TextStyle(fontSize: 12, color: storeMuted)),
-              ],
-            ),
+                        color: storeGreen,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Connect directly on WhatsApp or call Milterra 24/7 Support for quick resolution.',
+                      style: TextStyle(fontSize: 12, color: storeMuted),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: storeGreen),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text(
-                        'Support line: +91 1800 233 4567 | support@milterra.in')),
-              );
-            },
-            child: const Text('Contact Us',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: storeGreen,
-                    fontWeight: FontWeight.bold)),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xff25d366), // WhatsApp Green
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+                onPressed: () => _openWhatsAppSupport(order.id),
+                icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                label: const Text(
+                  'Chat on WhatsApp',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+              ),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: storeGreen),
+                  foregroundColor: storeGreen,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                ),
+                onPressed: () => _showSupportOptionsDialog(context, order.id),
+                icon: const Icon(Icons.support_agent, size: 18),
+                label: const Text(
+                  'Contact Us',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
           ),
         ],
       ),

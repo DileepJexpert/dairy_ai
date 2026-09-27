@@ -1359,3 +1359,40 @@ async def update_profile(payload: ProfileUpdateInput, request: Request) -> dict:
 
     await db.batch(statements)
     return {"success": True, "message": "Profile updated successfully"}
+
+
+@commerce_router.get("/admin/commerce")
+@commerce_router.get("/vendor/commerce")
+async def get_admin_commerce_dashboard(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
+    db = _env(request).DB
+
+    coupons_rows = await db.prepare("SELECT * FROM coupons").all()
+    coupons = _d1_rows(coupons_rows)
+
+    events_rows = await db.prepare("SELECT * FROM order_events ORDER BY created_at DESC LIMIT 100").all()
+    audit_logs = [
+        {
+            "id": e["id"],
+            "user_role": "admin",
+            "user_identifier": "system",
+            "action": e.get("status", "update").lower(),
+            "entity_type": "order",
+            "entity_id": e.get("order_id", ""),
+            "details": f"{e.get('title', '')} - {e.get('remarks', '')}".strip(" -"),
+            "timestamp": e.get("created_at", datetime.now(timezone.utc).isoformat()),
+        }
+        for e in _d1_rows(events_rows)
+    ]
+
+    return {
+        "success": True,
+        "data": {
+            "sellers": [],
+            "offers": [],
+            "coupons": coupons,
+            "batch_certificates": [],
+            "audit_logs": audit_logs,
+        },
+    }
+

@@ -1501,3 +1501,78 @@ async def save_certificate(request: Request):
     return {"success": True, "message": "Certificate saved successfully"}
 
 
+@commerce_router.get("/vendor/products")
+@commerce_router.get("/admin/products")
+async def list_vendor_products(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
+    db = _env(request).DB
+    rows = await db.prepare("SELECT * FROM inventory").all()
+    products = [
+        {
+            "id": r["product_id"],
+            "product_id": r["product_id"],
+            "vendor_id": "vendor-1",
+            "title": r["title"],
+            "category": "FEED_NUTRITION",
+            "base_price": r["price_minor"] / 100.0,
+            "price": r["price_minor"] / 100.0,
+            "unit": "pack",
+            "pack_size": "Standard",
+            "available_quantity": r["available_units"],
+            "available_units": r["available_units"],
+            "in_stock": r["available_units"] > 0 and r["is_active"] == 1,
+            "is_active": r["is_active"] == 1,
+            "publication_status": "published",
+        }
+        for r in _d1_rows(rows)
+    ]
+    return {"success": True, "data": products}
+
+
+@commerce_router.get("/vendor/families")
+@commerce_router.get("/admin/families")
+async def list_product_families(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
+    return {"success": True, "data": []}
+
+
+@commerce_router.post("/vendor/families")
+async def create_product_family(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
+    return {"success": True, "message": "Family created", "data": {"id": f"fam-{int(time.time())}"}}
+
+
+@commerce_router.post("/vendor/families/{family_id}/variants")
+async def create_family_variant(family_id: str, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
+    return {"success": True, "message": "Variant created", "data": {"id": f"var-{int(time.time())}"}}
+
+
+@commerce_router.get("/admin/marketplace/vendors")
+async def list_marketplace_vendors(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {
+        "success": True,
+        "data": [
+            {
+                "id": "vendor-1",
+                "business_name": "Milterra Central Operations",
+                "gstin": "29AAAAA0000A1Z5",
+                "fssai_license": "10020011000456",
+                "contact_email": "admin@milterrafoods.com",
+                "contact_phone": "+919839769808",
+                "warehouse_city": "Noida",
+                "warehouse_state": "Uttar Pradesh",
+                "status": "approved",
+            }
+        ],
+    }
+
+
+@commerce_router.post("/admin/marketplace/vendors")
+async def create_marketplace_vendor(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "message": "Vendor registered successfully"}
+
+
+

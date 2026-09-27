@@ -640,29 +640,47 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                 ),
                 const SizedBox(width: 14),
 
-                // Right product image column (elevated pedestal with soft glow)
+                // Right product image column (prominent, un-cropped showcase card with direct click-to-view)
                 Expanded(
                   flex: 53,
                   child: Center(
-                    child: Container(
-                      constraints: const BoxConstraints(
-                        maxHeight: 180,
-                        maxWidth: 190,
-                      ),
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        shape: BoxShape.circle,
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x0a000000),
-                            blurRadius: 16,
-                            offset: Offset(0, 4),
+                    child: InkWell(
+                      onTap: () {
+                        if (slide.targetRoute.startsWith('/')) {
+                          context.go(slide.targetRoute);
+                        } else if (widget.onExploreCategory != null) {
+                          widget.onExploreCategory!(slide.category);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        constraints: const BoxConstraints(
+                          maxHeight: 220,
+                          maxWidth: 250,
+                        ),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                              color: storeBorder.withValues(alpha: 0.8)),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x12000000),
+                              blurRadius: 18,
+                              offset: Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: ProductArtwork(
+                            product: matchedProduct,
+                            showCaption: true,
+                            fit: BoxFit.contain,
                           ),
-                        ],
+                        ),
                       ),
-                      child: ProductArtwork(
-                          product: matchedProduct, showCaption: true),
                     ),
                   ),
                 ),
@@ -736,18 +754,37 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                 Expanded(
                   flex: 48,
                   child: Center(
-                    child: Container(
-                      constraints: const BoxConstraints(
-                        maxHeight: 125,
-                        maxWidth: 130,
+                    child: InkWell(
+                      onTap: () => context.go(slide.targetRoute),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        constraints: const BoxConstraints(
+                          maxHeight: 145,
+                          maxWidth: 160,
+                        ),
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: storeBorder.withValues(alpha: 0.8)),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x0a000000),
+                              blurRadius: 10,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: ProductArtwork(
+                            product: matchedProduct,
+                            showCaption: true,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
                       ),
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        shape: BoxShape.circle,
-                      ),
-                      child: ProductArtwork(
-                          product: matchedProduct, showCaption: true),
                     ),
                   ),
                 ),

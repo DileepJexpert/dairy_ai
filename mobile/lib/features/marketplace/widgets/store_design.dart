@@ -2196,10 +2196,12 @@ class ProductArtwork extends StatelessWidget {
       this.kind = 'Cow ghee',
       this.pack = '500 ml',
       this.showCaption = true,
+      this.fit = BoxFit.contain,
       this.imageIndex = 0});
   final Product? product;
   final String kind, pack;
   final bool showCaption;
+  final BoxFit fit;
   final int imageIndex;
   @override
   Widget build(BuildContext context) {
@@ -2210,7 +2212,7 @@ class ProductArtwork extends StatelessWidget {
             StoreImages.category(p != null ? storeCategory(p) : kind);
     final remote = src != null &&
         (src.startsWith('https://') || src.startsWith('http://'));
-    final image = StoreMediaImage(source: src);
+    final image = StoreMediaImage(source: src, fit: fit);
     return Column(children: [
       Expanded(child: SizedBox(width: double.infinity, child: image)),
       if (showCaption && src != null && !remote)

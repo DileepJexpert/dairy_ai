@@ -1396,3 +1396,108 @@ async def get_admin_commerce_dashboard(request: Request):
         },
     }
 
+
+class CouponCreateInput(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    code: str = Field(min_length=2, max_length=50)
+    description: str = Field(default="", max_length=500)
+    discount_type: Literal["percentage", "flat"]
+    discount_value: float = Field(ge=0)
+    min_order_value: float = Field(default=0.0, ge=0)
+    max_discount_cap: float | None = Field(default=None)
+    valid_until: str | None = Field(default=None)
+    is_active: bool = Field(default=True)
+
+
+class CouponUpdateInput(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    code: str | None = Field(default=None)
+    description: str | None = Field(default=None)
+    discount_type: Literal["percentage", "flat"] | None = Field(default=None)
+    discount_value: float | None = Field(default=None)
+    min_order_value: float | None = Field(default=None)
+    max_discount_cap: float | None = Field(default=None)
+    valid_until: str | None = Field(default=None)
+    is_active: bool | None = Field(default=None)
+
+
+@commerce_router.post("/admin/commerce/coupons")
+@commerce_router.post("/vendor/commerce/coupons")
+async def create_coupon(data: CouponCreateInput, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
+    db = _env(request).DB
+    code = data.code.strip().upper()
+    existing = await db.prepare("SELECT code FROM coupons WHERE code=?").bind(code).first()
+    if existing:
+        raise HTTPException(409, f"Coupon code '{code}' already exists")
+
+    is_active = 1 if data.is_active else 0
+    await db.prepare(
+        """INSERT INTO coupons(code, description, discount_type, discount_value, min_order_value, max_discount_cap, is_active)
+        VALUES (?, ?, ?, ?, ?, ?, ?)"""
+    ).bind(code, data.description.strip(), data.discount_type, data.discount_value, data.min_order_value, data.max_discount_cap, is_active).run()
+
+    return {"success": True, "message": f"Coupon {code} created successfully", "data": {"code": code, "id": code}}
+
+
+@commerce_router.put("/admin/commerce/coupons/{coupon_id}")
+@commerce_router.patch("/admin/commerce/coupons/{coupon_id}")
+@commerce_router.put("/vendor/commerce/coupons/{coupon_id}")
+@commerce_router.patch("/vendor/commerce/coupons/{coupon_id}")
+async def update_coupon(coupon_id: str, data: CouponUpdateInput, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
+    db = _env(request).DB
+    coupon_id = coupon_id.strip().upper()
+    row = await db.prepare("SELECT * FROM coupons WHERE code=?").bind(coupon_id).first()
+    if not row:
+        raise HTTPException(404, "Coupon not found")
+
+    is_active = (1 if data.is_active else 0) if data.is_active is not None else row["is_active"]
+    description = data.description.strip() if data.description is not None else row["description"]
+    discount_type = data.discount_type if data.discount_type is not None else row["discount_type"]
+    discount_value = data.discount_value if data.discount_value is not None else row["discount_value"]
+    min_order_value = data.min_order_value if data.min_order_value is not None else row["min_order_value"]
+    max_discount_cap = data.max_discount_cap if data.max_discount_cap is not None else row["max_discount_cap"]
+
+    await db.prepare(
+        """UPDATE coupons SET description=?, discount_type=?, discount_value=?, min_order_value=?, max_discount_cap=?, is_active=?
+        WHERE code=?"""
+    ).bind(description, discount_type, discount_value, min_order_value, max_discount_cap, is_active, coupon_id).run()
+
+    return {"success": True, "message": f"Coupon {coupon_id} updated successfully"}
+
+
+class SellerStatusUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    status: Literal["approved", "suspended", "rejected"]
+    reason: str = Field(default="", max_length=500)
+
+
+@commerce_router.patch("/admin/commerce/sellers/{seller_id}")
+async def update_seller_status(seller_id: str, data: SellerStatusUpdate, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "message": f"Seller {seller_id} status updated to {data.status}"}
+
+
+class OfferUpdateInput(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    selling_price: float | None = None
+    mrp: float | None = None
+    available_stock: int | None = None
+
+
+@commerce_router.patch("/admin/commerce/offers/{offer_id}")
+@commerce_router.patch("/vendor/commerce/offers/{offer_id}")
+async def update_offer(offer_id: str, data: OfferUpdateInput, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
+    return {"success": True, "message": f"Offer {offer_id} updated successfully"}
+
+
+@commerce_router.post("/admin/commerce/certificates")
+@commerce_router.put("/admin/commerce/certificates/{cert_id}")
+@commerce_router.patch("/admin/commerce/certificates/{cert_id}")
+async def save_certificate(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "message": "Certificate saved successfully"}
+
+

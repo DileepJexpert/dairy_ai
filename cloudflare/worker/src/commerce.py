@@ -1518,11 +1518,20 @@ async def list_vendor_products(request: Request):
             "price": r["price_minor"] / 100.0,
             "unit": "pack",
             "pack_size": "Standard",
+            "description": r["title"],
             "available_quantity": r["available_units"],
             "available_units": r["available_units"],
+            "min_order_quantity": 1,
             "in_stock": r["available_units"] > 0 and r["is_active"] == 1,
             "is_active": r["is_active"] == 1,
             "publication_status": "published",
+            "media": [],
+            "specifications": {},
+            "taxonomy": None,
+            "vendor": {
+                "id": "vendor-1",
+                "business_name": "Milterra Central Operations",
+            },
         }
         for r in _d1_rows(rows)
     ]

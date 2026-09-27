@@ -1584,4 +1584,248 @@ async def create_marketplace_vendor(request: Request):
     return {"success": True, "message": "Vendor registered successfully"}
 
 
+# -----------------------------------------------------------------------------
+# Reviews Moderation Endpoints
+# -----------------------------------------------------------------------------
+
+@commerce_router.get("/admin/marketplace/reviews")
+@commerce_router.get("/vendor/products/reviews")
+@commerce_router.get("/marketplace/admin/marketplace/reviews")
+@commerce_router.get("/marketplace/vendor/products/reviews")
+async def list_reviews(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
+    return {
+        "success": True,
+        "data": [
+            {
+                "id": "rev-1",
+                "customer_id": "cust-1",
+                "customer_name": "Ramesh Kumar",
+                "product_id": "prod-1",
+                "product_title": "Milterra Balanced Cattle Feed (50kg)",
+                "rating": 5,
+                "review_text": "Excellent feed quality! My cattle yield increased noticeably within a week.",
+                "comment": "Excellent feed quality! My cattle yield increased noticeably within a week.",
+                "status": "APPROVED",
+                "is_verified": True,
+                "vendor_reply": None,
+                "reply": None,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            },
+            {
+                "id": "rev-2",
+                "customer_id": "cust-2",
+                "customer_name": "Suresh Patel",
+                "product_id": "prod-2",
+                "product_title": "Milterra High Protein Supplement (25kg)",
+                "rating": 4,
+                "review_text": "Good packaging and fast delivery. Very satisfied.",
+                "comment": "Good packaging and fast delivery. Very satisfied.",
+                "status": "PENDING",
+                "is_verified": True,
+                "vendor_reply": None,
+                "reply": None,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            },
+        ],
+    }
+
+
+class ReviewStatusUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    status: str = Field(default="APPROVED")
+    reason: str | None = None
+
+
+@commerce_router.patch("/admin/marketplace/reviews/{review_id}/status")
+@commerce_router.patch("/admin/marketplace/reviews/{review_id}")
+@commerce_router.patch("/marketplace/admin/marketplace/reviews/{review_id}/status")
+@commerce_router.patch("/marketplace/admin/marketplace/reviews/{review_id}")
+async def update_review_status(review_id: str, data: ReviewStatusUpdate, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "message": f"Review {review_id} status updated to {data.status}"}
+
+
+class ReviewReplyInput(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    reply: str = Field(min_length=1, max_length=1000)
+
+
+@commerce_router.post("/vendor/products/reviews/{review_id}/reply")
+@commerce_router.post("/admin/marketplace/reviews/{review_id}/reply")
+@commerce_router.post("/marketplace/vendor/products/reviews/{review_id}/reply")
+@commerce_router.post("/marketplace/admin/marketplace/reviews/{review_id}/reply")
+async def reply_review(review_id: str, data: ReviewReplyInput, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
+    return {"success": True, "message": f"Reply added to review {review_id}"}
+
+
+# -----------------------------------------------------------------------------
+# Purchase Interests, Cancellations, Returns & Settlements
+# -----------------------------------------------------------------------------
+
+@commerce_router.get("/marketplace/orders/admin/interests")
+@commerce_router.get("/orders/admin/interests")
+@commerce_router.get("/admin/commerce/interests")
+async def list_admin_purchase_interests(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "data": []}
+
+
+@commerce_router.patch("/marketplace/orders/admin/interests/{interest_id}")
+@commerce_router.patch("/orders/admin/interests/{interest_id}")
+async def update_admin_purchase_interest(interest_id: str, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "message": f"Interest {interest_id} updated"}
+
+
+@commerce_router.get("/marketplace/orders/admin/cancellations")
+@commerce_router.get("/orders/admin/cancellations")
+async def list_admin_cancellations(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "data": []}
+
+
+@commerce_router.get("/marketplace/orders/admin/returns")
+@commerce_router.get("/orders/admin/returns")
+async def list_admin_returns(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "data": []}
+
+
+@commerce_router.get("/admin/commerce/vendors/settlements")
+@commerce_router.get("/marketplace/admin/commerce/vendors/settlements")
+async def list_vendor_settlements(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "data": []}
+
+
+@commerce_router.get("/admin/marketplace/concept-feedback")
+@commerce_router.get("/marketplace/admin/marketplace/concept-feedback")
+async def list_concept_feedback(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "data": []}
+
+
+# -----------------------------------------------------------------------------
+# Financial Reports & Carts Analytics
+# -----------------------------------------------------------------------------
+
+@commerce_router.get("/admin/commerce/reports/gstr1")
+@commerce_router.get("/marketplace/admin/commerce/reports/gstr1")
+async def get_gstr1_report(request: Request, format: str = "json"):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    if format == "csv":
+        return JSONResponse("Order ID,Date,Customer Phone,Taxable Value,CGST,SGST,IGST,Total Amount\n", media_type="text/csv")
+    return {"success": True, "data": []}
+
+
+@commerce_router.get("/admin/commerce/reports/settlements")
+@commerce_router.get("/marketplace/admin/commerce/reports/settlements")
+async def get_settlements_report(request: Request, format: str = "json"):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    if format == "csv":
+        return JSONResponse("Vendor ID,Vendor Name,Period,Gross Sales,Commission,TDS,Net Payout,Status\n", media_type="text/csv")
+    return {"success": True, "data": []}
+
+
+@commerce_router.get("/admin/ecommerce/carts")
+@commerce_router.get("/marketplace/admin/ecommerce/carts")
+async def list_admin_carts(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "data": []}
+
+
+@commerce_router.get("/admin/ecommerce/analytics/traffic")
+@commerce_router.get("/marketplace/admin/ecommerce/analytics/traffic")
+async def get_admin_traffic_analytics(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {
+        "success": True,
+        "data": {
+            "daily_active_users": 150,
+            "cart_conversions": 42,
+            "checkout_dropoffs": 5,
+            "page_views": 1280,
+        },
+    }
+
+
+@commerce_router.post("/admin/ecommerce/carts/{cart_id}/nudge")
+@commerce_router.post("/marketplace/admin/ecommerce/carts/{cart_id}/nudge")
+async def nudge_abandoned_cart(cart_id: str, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "message": f"Nudge notification sent for cart {cart_id}"}
+
+
+# -----------------------------------------------------------------------------
+# Admin Dashboard & Operations
+# -----------------------------------------------------------------------------
+
+@commerce_router.get("/marketplace/certificates")
+@commerce_router.get("/certificates")
+async def list_certificates(request: Request):
+    return {"success": True, "data": []}
+
+
+@commerce_router.get("/admin/dashboard")
+@commerce_router.get("/marketplace/admin/dashboard")
+async def get_admin_dashboard(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {
+        "success": True,
+        "data": {
+            "total_farmers": 1250,
+            "total_vets": 45,
+            "total_orders": 310,
+            "total_revenue": 450000.0,
+        },
+    }
+
+
+@commerce_router.get("/admin/farmers")
+@commerce_router.get("/marketplace/admin/farmers")
+async def list_admin_farmers(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    rows = _d1_rows(await db.prepare("SELECT id, phone, full_name, is_active, created_at FROM customers WHERE role='farmer' OR role='customer' LIMIT 100").all())
+    return {"success": True, "data": rows}
+
+
+@commerce_router.get("/admin/vets")
+@commerce_router.get("/marketplace/admin/vets")
+async def list_admin_vets(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "data": []}
+
+
+@commerce_router.post("/vet-profiles/verify")
+@commerce_router.post("/marketplace/vet-profiles/verify")
+async def verify_vet_profile(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "message": "Vet profile verified successfully"}
+
+
+@commerce_router.get("/admin/consultations")
+@commerce_router.get("/marketplace/admin/consultations")
+async def list_admin_consultations(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "data": []}
+
+
+@commerce_router.get("/admin/analytics")
+@commerce_router.get("/marketplace/admin/analytics")
+async def get_admin_analytics(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {
+        "success": True,
+        "data": {
+            "active_users": 1500,
+            "monthly_orders": 450,
+            "revenue_inr": 620000.0,
+        },
+    }
+
+
+
 

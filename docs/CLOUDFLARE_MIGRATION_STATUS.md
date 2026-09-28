@@ -4,6 +4,8 @@ Last updated: 28 September 2026. Source plan: [milterra-cloudflare-development-b
 
 ### Isolated courier/COD-refund simulator — 28 September 2026
 
+The [flow-preview design and test guide](MILTERRA_FLOW_PREVIEW.md) explains why this is separate, how the simulator is gated, and how another tester can run cancellation, delivery, COD collection, return/refund, and failed-delivery browser checks.
+
 Added a test-only Worker router and migration `0012_simulated_fulfillment.sql` for a simulated courier and simulated COD money ledger. Admins can dispatch a packed `is_test_order=1` order with a fake `SIM-AWB` reference, advance delivery or open a failed-delivery RTO case, record fake COD collection, then complete a customer return with a fake refund reference and inventory restock. The existing customer cancellation path handles unpaid orders before packing and issues no refund. Simulated events and references are explicitly labelled, and collection/refund ledger entries commit atomically with the order updates. Routes return 404 unless an isolated test-commerce environment explicitly sets `SIMULATION_ENABLED=true`; the live COD settings keep the simulator inaccessible.
 
 **Local evidence:** seven focused API tests and all 61 Worker tests passed in the local SQLite-backed D1 mock, including separate customer/admin roles, cancellation/no-refund, full delivered-return-refund flow, RTO, environment gating and simulated collection rollback. A Cloudflare Python Worker dry-run bundled the simulator successfully (527 modules, 12,034.33 KiB / 3,179.41 KiB gzip). Focused Dart analysis found no errors or warnings (four pre-existing style info notices); the preview web release build passed.

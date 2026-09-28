@@ -7,8 +7,7 @@ import '../providers/product_provider.dart';
 import '../widgets/store_design.dart';
 import '../widgets/storefront_highlight_strip.dart';
 import '../widgets/store_product_card.dart';
-import '../widgets/hero_split_showcase.dart';
-import '../models/hero_showcase_config.dart';
+import '../widgets/storefront_hero.dart';
 import '../../cart/widgets/store_cart_drawer.dart';
 import '../../commerce/models/taxonomy.dart';
 import '../../commerce/providers/commerce_provider.dart';
@@ -369,7 +368,10 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                       _category == 'All' ||
                                       _category ==
                                           'All Organic Essentials')) ...[
-                                _hero(size.maxWidth),
+                                StorefrontHero(
+                                  screenWidth: size.maxWidth,
+                                  onExploreCategory: _browse,
+                                ),
                                 const SizedBox(height: 20),
                               ],
 
@@ -691,61 +693,6 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             ),
         ],
       ),
-    );
-  }
-
-  Widget _hero(double screenWidth) {
-    final allGroups = storeProductGroups(ref
-            .watch(productsProvider(null))
-            .valueOrNull
-            ?.where((p) => !p.isConcept)
-            .toList() ??
-        []);
-    // Sort product groups so that MILTERRA A2 Cow Bilona Ghee leads first,
-    // followed by Murrah Buffalo Ghee, Fresh Dairy, and then Pantry products.
-    allGroups.sort((a, b) {
-      final pA = a.first;
-      final pB = b.first;
-      int score(Product p) {
-        final t = p.title.toLowerCase();
-        final c = storeCategory(p).toLowerCase();
-        if (t.contains('a2') && t.contains('cow') && t.contains('ghee')) {
-          return 0;
-        }
-        if (t.contains('bilona') && t.contains('ghee')) return 1;
-        if (t.contains('ghee')) return 2;
-        if (c.contains('ghee')) return 3;
-        if (t.contains('milk') ||
-            t.contains('paneer') ||
-            t.contains('mattha')) {
-          return 4;
-        }
-        if (t.contains('mustard') || t.contains('oil')) return 5;
-        if (t.contains('honey') || t.contains('atta')) return 6;
-        return 10;
-      }
-
-      return score(pA).compareTo(score(pB));
-    });
-
-    return HeroSplitShowcase(
-      screenWidth: screenWidth,
-      onExploreCategory: _browse,
-      productSlides: allGroups.take(4).map((g) {
-        final p = g.first;
-        return HeroProductSlide(
-            id: p.id,
-            category: storeCategory(p),
-            badge:
-                p.title.toLowerCase().contains('ghee') ? 'HERITAGE BILONA' : '',
-            name: p.title,
-            packSize: p.packSize ?? p.unit,
-            price: p.price,
-            description: p.description ?? '',
-            imagePath:
-                p.media.firstOrNull ?? StoreImages.productArtwork(p) ?? '',
-            targetRoute: '/shop/product/${p.id}');
-      }).toList(),
     );
   }
 

@@ -1,8 +1,14 @@
 # Milterra Cloudflare migration status
 
-Last updated: 27 September 2026. Source plan: [milterra-cloudflare-development-brief.md](../milterra-cloudflare-development-brief.md). This is the handoff tracker for the next implementation agent. Update each row with source, tests, and staging evidence before marking it complete.
+Last updated: 28 September 2026. Source plan: [milterra-cloudflare-development-brief.md](../milterra-cloudflare-development-brief.md). This is the handoff tracker for the next implementation agent. Update each row with source, tests, and staging evidence before marking it complete.
 
 ## Implementation plan
+
+### Configurable full-product landing hero — 28 September 2026
+
+The storefront keeps its existing split hero and surrounding landing-page layout. `mobile/assets/catalogue/home_hero.json` now chooses the featured product IDs, display order, dedicated hero images and optional illustrative-image notes. `StorefrontHero` resolves names, sizes, prices and destinations from the published catalogue and is the single renderer slot for a future style change. The product hero uses `BoxFit.contain`, so complete package artwork is visible instead of cropping a tall lifestyle photo. This release changes the Pages frontend only; Worker, D1, payment and order configuration are unchanged.
+
+Validation: all four configured product IDs and image assets were checked against the bundled catalogue and asset directory. Focused Flutter analysis found no issues, 80 Flutter tests passed, and the release web build passed. Local browser checks showed the full ghee jar and mustard-oil bottle at desktop width and the bottle at a narrow mobile width. Pages deployment `903298f9.milterra-staging.pages.dev` serves the apex and www domains; both `main.dart.js` responses returned 200 and matched the local SHA-256 `7FA0C5174DDAB1438871EA2D55E395F130282B39B7968151502D5BBEF247C94D`. A fresh domain browser load showed both product slides without console errors. Browser proofs `milterra-full-ghee-hero.png` and `milterra-full-oil-hero.png` are saved in the task visualization directory.
 
 ### Restricted real COD checkout — 27 September 2026
 

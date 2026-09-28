@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "product_slides": [
+    {
+      "product_id": "ffd7186f-6cee-4b8e-9a87-6af173aabffd",
+      "hero_image": "assets/store/cow-ghee.png",
+      "image_note": "Illustrative packaging"
+    },
+    {
+      "product_id": "54b52256-c0d6-436c-b8aa-737b35ab1636",
+      "hero_image": "assets/store/sarso-oil.jpg",
+      "image_note": "Illustrative presentation"
+    },
+    {
+      "product_id": "ad431721-27f9-477b-85ce-53def61d7f36",
+      "hero_image": "assets/store/buffalo-ghee.png",
+      "image_note": "Illustrative packaging"
+    },
+    {
+      "product_id": "b20f6def-861a-4ba7-b7fa-dab5f4504278",
+      "hero_image": "assets/store/paneer.png",
+      "image_note": "Illustrative packaging"
+    }
+  ]
+}

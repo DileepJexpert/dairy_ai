@@ -14,6 +14,7 @@ class HeroProductSlide {
     required this.description,
     this.shortBenefit,
     required this.imagePath,
+    this.imageNote,
     required this.targetRoute,
     this.accentColor,
   });
@@ -47,6 +48,9 @@ class HeroProductSlide {
 
   /// Asset path or network URL
   final String imagePath;
+
+  /// Optional disclosure for illustrative merchandising artwork.
+  final String? imageNote;
 
   /// Route to navigate on tap
   final String targetRoute;
@@ -130,8 +134,7 @@ const List<HeroFarmStory> defaultHeroFarmStories = [
   HeroFarmStory(
     id: 'story-bilona',
     title: 'Traditional Wooden Bilona Churning',
-    caption:
-        'Whole cultured curd churned bidirectionally with wooden valona.',
+    caption: 'Whole cultured curd churned bidirectionally with wooden valona.',
     storyBadge: 'THE BILONA METHOD',
     posterPath: 'assets/store/farm-bilona.jpg',
     videoUrl: null,

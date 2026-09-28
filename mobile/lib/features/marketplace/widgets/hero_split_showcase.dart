@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../models/hero_showcase_config.dart';
-import '../models/product_models.dart';
 import 'store_design.dart';
 
 /// Full-width two-column split hero combining shopping with farm storytelling:
@@ -527,15 +526,6 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
   }
 
   Widget _buildProductSlide(HeroProductSlide slide, {required bool isDesktop}) {
-    final matchedProduct = Product(
-        id: slide.id,
-        vendorId: '',
-        title: slide.name,
-        category: ProductCategory.feedNutrition,
-        price: slide.price,
-        unit: slide.packSize,
-        media: slide.imagePath.isEmpty ? [] : [slide.imagePath]);
-
     return Padding(
       padding: EdgeInsets.fromLTRB(
         isDesktop ? 60 : 48,
@@ -656,9 +646,9 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                       child: Container(
                         constraints: const BoxConstraints(
                           maxHeight: 235,
-                          maxWidth: 280,
+                          maxWidth: 175,
                         ),
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(16),
@@ -674,11 +664,7 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: ProductArtwork(
-                            product: matchedProduct,
-                            showCaption: true,
-                            fit: BoxFit.cover,
-                          ),
+                          child: _buildHeroImage(slide),
                         ),
                       ),
                     ),
@@ -760,9 +746,9 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                       child: Container(
                         constraints: const BoxConstraints(
                           maxHeight: 150,
-                          maxWidth: 175,
+                          maxWidth: 115,
                         ),
-                        padding: const EdgeInsets.all(4),
+                        padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
@@ -778,11 +764,7 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: ProductArtwork(
-                            product: matchedProduct,
-                            showCaption: true,
-                            fit: BoxFit.cover,
-                          ),
+                          child: _buildHeroImage(slide),
                         ),
                       ),
                     ),
@@ -790,6 +772,30 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _buildHeroImage(HeroProductSlide slide) {
+    final note = slide.imageNote?.trim();
+    return Column(
+      children: [
+        Expanded(
+          child: SizedBox(
+            width: double.infinity,
+            child:
+                StoreMediaImage(source: slide.imagePath, fit: BoxFit.contain),
+          ),
+        ),
+        if (note != null && note.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: Text(
+              note,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 9, color: storeMuted),
+            ),
+          ),
+      ],
     );
   }
 

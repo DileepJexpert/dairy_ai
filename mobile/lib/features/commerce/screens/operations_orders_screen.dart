@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/constants.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
 import '../../admin/providers/admin_marketplace_provider.dart';
@@ -22,6 +23,33 @@ class OperationsOrdersScreen extends ConsumerWidget {
       {super.key, required this.title, this.embedded = false});
   final String title;
   final bool embedded;
+
+  Future<void> simulateAction(BuildContext context, WidgetRef ref,
+      String orderId, String action) async {
+    final path = '/marketplace/orders/admin/simulator/$orderId';
+    try {
+      if (action == 'dispatch' || action == 'collect') {
+        await ref.read(dioProvider).post('$path/$action');
+      } else {
+        await ref.read(dioProvider).post('$path/event', data: {
+          'event': action,
+          if (action == 'DELIVERY_FAILED')
+            'reason': 'Simulated delivery failure for flow testing',
+        });
+      }
+      ref.invalidate(operationsOrdersProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Test event recorded. No courier or money was involved.'),
+        ));
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(commerceError(error))));
+      }
+    }
+  }
 
   Future<void> collectCod(
       BuildContext context, WidgetRef ref, String orderId) async {
@@ -1003,6 +1031,8 @@ TOTAL: ${storeMoney(total)}
 
                     final hasReturnCase = order['return_case'] is Map &&
                         (order['return_case'] as Map)['status'] != 'rejected';
+                    final simulatedOrder = AppConstants.flowSimulation &&
+                        order['is_test_order'] == true;
                     final canFulfill = !hasReturnCase &&
                         [
                           'PENDING',
@@ -1278,7 +1308,7 @@ TOTAL: ${storeMoney(total)}
                                         onPressed: () => _showPackingSlipDialog(
                                             context, order),
                                       ),
-                                      if (!hasReturnCase &&
+                                      if (!simulatedOrder && !hasReturnCase &&
                                           (status == 'SHIPPED' ||
                                               status == 'DISPATCHED' ||
                                               status == 'OUT_FOR_DELIVERY'))
@@ -1291,7 +1321,10 @@ TOTAL: ${storeMoney(total)}
                                           onPressed: () => openReturnToOrigin(
                                               context, ref, orderId),
                                         ),
-                                      if (canFulfill)
+                                      if (canFulfill &&
+                                          (!simulatedOrder ||
+                                              status == 'CONFIRMED' ||
+                                              status == 'PENDING'))
                                         FilledButton.icon(
                                           style: FilledButton.styleFrom(
                                             backgroundColor: storeGreen,
@@ -1306,7 +1339,50 @@ TOTAL: ${storeMoney(total)}
                                           onPressed: () =>
                                               update(context, ref, order),
                                         ),
-                                      if (order['payment_method'] == 'cod' &&
+                                      if (simulatedOrder && !hasReturnCase &&
+                                          status == 'PACKED')
+                                        OutlinedButton.icon(
+                                          icon: const Icon(Icons.science_outlined),
+                                          label: const Text('Simulate dispatch'),
+                                          onPressed: () => simulateAction(
+                                              context, ref, orderId, 'dispatch'),
+                                        ),
+                                      if (simulatedOrder && !hasReturnCase &&
+                                          status == 'SHIPPED')
+                                        OutlinedButton.icon(
+                                          icon: const Icon(Icons.science_outlined),
+                                          label: const Text('Simulate out for delivery'),
+                                          onPressed: () => simulateAction(context,
+                                              ref, orderId, 'OUT_FOR_DELIVERY'),
+                                        ),
+                                      if (simulatedOrder && !hasReturnCase &&
+                                          status == 'OUT_FOR_DELIVERY')
+                                        OutlinedButton.icon(
+                                          icon: const Icon(Icons.science_outlined),
+                                          label: const Text('Simulate delivery'),
+                                          onPressed: () => simulateAction(
+                                              context, ref, orderId, 'DELIVERED'),
+                                        ),
+                                      if (simulatedOrder && !hasReturnCase &&
+                                          (status == 'SHIPPED' ||
+                                              status == 'OUT_FOR_DELIVERY'))
+                                        TextButton.icon(
+                                          icon: const Icon(Icons.warning_amber_outlined),
+                                          label: const Text('Simulate failed delivery'),
+                                          onPressed: () => simulateAction(context,
+                                              ref, orderId, 'DELIVERY_FAILED'),
+                                        ),
+                                      if (simulatedOrder && !hasReturnCase &&
+                                          status == 'DELIVERED' &&
+                                          order['payment_status'] == 'PENDING')
+                                        OutlinedButton.icon(
+                                          icon: const Icon(Icons.science_outlined),
+                                          label: const Text('Simulate COD collection'),
+                                          onPressed: () => simulateAction(
+                                              context, ref, orderId, 'collect'),
+                                        ),
+                                      if (!simulatedOrder &&
+                                          order['payment_method'] == 'cod' &&
                                           order['payment_status'] ==
                                               'PENDING' &&
                                           status == 'DELIVERED' &&

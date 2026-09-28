@@ -1,0 +1,26 @@
+# Copy to an ignored local config after creating a NEW preview D1.
+# Never point this at the D1 serving milterrafoods.com.
+name = "milterra-api-flow-preview"
+main = "src/main.py"
+compatibility_date = "2026-09-25"
+compatibility_flags = ["python_workers"]
+workers_dev = true
+
+[vars]
+ENVIRONMENT = "staging"
+ALLOW_TEST_AUTH = false
+CUSTOMER_AUTH_ENABLED = "true"
+TEST_COMMERCE_ENABLED = "true"
+LIVE_COD_ENABLED = "false"
+SIMULATION_ENABLED = "true"
+CORS_ORIGINS = "https://milterra-flow-preview.pages.dev"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "milterra-flow-preview"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[services]]
+binding = "PASSWORD_HASHER"
+service = "milterra-password-hasher"

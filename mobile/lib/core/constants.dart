@@ -6,6 +6,8 @@ class AppConstants {
 
   static const String appName = 'Milterra';
   static const String appTagline = 'A little goodness, every day.';
+  static const bool flowSimulation =
+      bool.fromEnvironment('FLOW_SIMULATION', defaultValue: false);
 
   // API
   static const String _envBaseUrl =

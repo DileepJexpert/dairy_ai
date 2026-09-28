@@ -17,11 +17,13 @@ from compat import (
     verify_razorpay_signature,
 )
 from commerce import commerce_router
+from simulation import simulation_router
 from customer_auth import auth_router
 
 
 app = FastAPI(title="Milterra Worker compatibility and commerce API")
 app.include_router(commerce_router)
+app.include_router(simulation_router)
 app.include_router(auth_router)
 
 # The existing Flutter admin client calls /api/v1/admin/* and /api/v1/vendor/*,
@@ -95,6 +97,9 @@ async def readiness_check(request: Request) -> JSONResponse:
         if getattr(_env(request), "CUSTOMER_AUTH_ENABLED", "false") == "true":
             for table in ("customer_credentials", "customer_sessions", "auth_rate_limits"):
                 await db.prepare(f"SELECT 1 FROM {table} LIMIT 1").first()
+        if (getattr(_env(request), "SIMULATION_ENABLED", "false") == "true"
+                and getattr(_env(request), "TEST_COMMERCE_ENABLED", "false") == "true"):
+            await db.prepare("SELECT 1 FROM simulated_money_movements LIMIT 1").first()
     except Exception:
         return JSONResponse(
             {"success": False, "message": "Database unavailable"},

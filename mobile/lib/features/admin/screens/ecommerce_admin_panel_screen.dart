@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/constants.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
 import '../../marketplace/models/marketplace_models.dart';
@@ -216,6 +217,8 @@ class _EcommerceAdminPanelScreenState
     final reason = order['return_reason']?.toString() ?? 'Damage/Quality';
     final remarks = order['return_remarks']?.toString() ?? '';
     final paymentCollected = order['payment_status'] == 'PAID';
+    final simulatedRefund = AppConstants.flowSimulation &&
+        order['is_test_order'] == true && paymentCollected;
     var action =
         paymentCollected ? 'confirm_received_refund' : 'confirm_received';
     final refCtrl = TextEditingController();
@@ -283,7 +286,9 @@ class _EcommerceAdminPanelScreenState
                             ? 'confirm_received_refund'
                             : 'confirm_received',
                         child: Text(paymentCollected
-                            ? 'Confirm item received and COD refund completed'
+                            ? (simulatedRefund
+                                ? 'Simulate received item and COD refund'
+                                : 'Confirm item received and COD refund completed')
                             : 'Confirm item received (no COD collected)'),
                       ),
                       const DropdownMenuItem(
@@ -297,7 +302,7 @@ class _EcommerceAdminPanelScreenState
                   ),
                   const SizedBox(height: 14),
                   if (action != 'reject') ...[
-                    if (paymentCollected)
+                    if (paymentCollected && !simulatedRefund)
                       TextField(
                         controller: refCtrl,
                         decoration: const InputDecoration(
@@ -348,23 +353,32 @@ class _EcommerceAdminPanelScreenState
                       setDialog(() => saving = true);
                       try {
                         final dio = ref.read(dioProvider);
+                        final simulate = simulatedRefund && action != 'reject';
                         final res = await dio.post(
-                          '/marketplace/orders/admin/returns/$orderId/process',
-                          data: {
-                            'action': action,
-                            'refund_reference': refCtrl.text.trim(),
-                            'remarks': remarksCtrl.text.trim(),
-                            'restock_inventory': restockInventory,
-                          },
-                        );
+                            simulate
+                                ? '/marketplace/orders/admin/simulator/$orderId/refund'
+                                : '/marketplace/orders/admin/returns/$orderId/process',
+                            data: simulate
+                                ? {
+                                    'remarks': remarksCtrl.text.trim(),
+                                    'restock_inventory': restockInventory,
+                                  }
+                                : {
+                                    'action': action,
+                                    'refund_reference': refCtrl.text.trim(),
+                                    'remarks': remarksCtrl.text.trim(),
+                                    'restock_inventory': restockInventory,
+                                  });
                         if (dCtx.mounted) Navigator.pop(dCtx);
                         if (!mounted) return;
                         ref.invalidate(adminReturnsProvider);
                         ref.invalidate(adminCancellationsProvider);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(res.data['message']?.toString() ??
-                                'Return processed successfully'),
+                            content: Text(simulate
+                                ? 'Test refund recorded. No money was sent.'
+                                : res.data['message']?.toString() ??
+                                    'Return processed successfully'),
                             backgroundColor: storeGreen,
                           ),
                         );

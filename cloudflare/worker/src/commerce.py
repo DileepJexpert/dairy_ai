@@ -2158,7 +2158,7 @@ async def open_rto_case(order_id: str, data: ReturnReasonInput, request: Request
 @commerce_router.get("/orders/admin/returns")
 async def list_admin_returns(request: Request):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
-    rows = await _env(request).DB.prepare("""SELECT r.*, o.total_minor, o.payment_status,
+    rows = await _env(request).DB.prepare("""SELECT r.*, o.total_minor, o.payment_status, o.is_test_order,
         c.phone AS customer_phone FROM order_return_cases r JOIN orders o ON o.id=r.order_id
         JOIN customers c ON c.id=o.customer_id ORDER BY r.created_at DESC LIMIT 100""").all()
     return {"success": True, "data": [{"id": row["order_id"], "case_id": row["id"],
@@ -2166,7 +2166,8 @@ async def list_admin_returns(request: Request):
         "return_status": ("RTO_DELIVERED" if row["kind"] == "rto" else "RETURN_COMPLETED")
         if row["status"] == "received" else ("RETURN_REJECTED" if row["status"] == "rejected"
         else ("RTO_REQUESTED" if row["kind"] == "rto" else "RETURN_REQUESTED")),
-        "payment_status": row["payment_status"].upper(), "customer_phone": row["customer_phone"],
+        "payment_status": row["payment_status"].upper(), "is_test_order": bool(row["is_test_order"]),
+        "customer_phone": row["customer_phone"],
         "total": row["total_minor"] / 100} for row in _d1_rows(rows)]}
 
 

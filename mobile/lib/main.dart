@@ -101,6 +101,27 @@ class _DairyAIAppState extends ConsumerState<DairyAIApp> {
       theme: StoreTheme.light,
       debugShowCheckedModeBanner: false,
       routerConfig: router,
+      builder: (context, child) => AppConstants.flowSimulation
+          ? Column(children: [
+              const Material(
+                color: Color(0xffffe7a3),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    child: Text(
+                      'MILTERRA TEST PREVIEW · No courier booking, cash collection or refund',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: Color(0xff173a30),
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(child: child ?? const SizedBox.shrink()),
+            ])
+          : child ?? const SizedBox.shrink(),
     );
   }
 }

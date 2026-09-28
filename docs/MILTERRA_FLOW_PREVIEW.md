@@ -1,6 +1,6 @@
 # Milterra order-flow preview: purpose, design, and test guide
 
-Updated 29 September 2026. **Retired:** the separate Pages project, Worker, D1 database, and local preview credentials were deleted at the owner's request. The URL and manual steps below are historical evidence, **not a currently runnable test**. The real site at `milterrafoods.com` remains available and its simulator is disabled. See [the migration tracker](CLOUDFLARE_MIGRATION_STATUS.md) for the verified cleanup and the same-site test-order direction.
+Updated 29 September 2026. **Retired:** the separate Pages project, Worker, D1 database, and local preview credentials were deleted at the owner's request. The URL and manual steps below are historical evidence, **not a currently runnable test**. The owner then enabled the same simulator on the existing site in whole-site test mode. Use the [current same-site test guide](MILTERRA_TEST_MODE.md); the old preview URL remains unavailable.
 
 The previous separate test preview was served at `milterra-flow-preview.pages.dev`. This guide records why it was created and how it was tested before retirement.
 

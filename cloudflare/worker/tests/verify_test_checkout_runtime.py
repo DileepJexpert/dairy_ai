@@ -12,12 +12,13 @@ import uuid
 parser = argparse.ArgumentParser()
 parser.add_argument('--base-url', required=True)
 parser.add_argument('--product-id', required=True)
+parser.add_argument('--origin', default='https://milterrafoods.com')
 args = parser.parse_args()
 token = None
 
 
 def call(path, body=None, method=None):
-    headers = {'Content-Type':'application/json', 'User-Agent':'Milterra-Checkout-Acceptance/1.0', 'Origin':'https://auth-preview.milterra-staging.pages.dev'}
+    headers = {'Content-Type':'application/json', 'User-Agent':'Milterra-Checkout-Acceptance/1.0', 'Origin':args.origin}
     if token: headers['Authorization'] = 'Bearer ' + token
     request = urllib.request.Request(args.base_url+'/api/v1/'+path,
         data=json.dumps(body).encode() if body is not None else None,
@@ -29,6 +30,10 @@ def call(path, body=None, method=None):
         print('HTTP', e.code, path, flush=True)
         return e.code, json.loads(e.read())
 
+
+status, capabilities = call('marketplace/orders/payment-capabilities')
+assert status == 200 and capabilities['data']['test_mode'] is True
+assert capabilities['data']['online_payment_available'] is False
 
 suffix=uuid.uuid4().hex[:10]
 status,pair=call('auth/register-password', {'phone':'9'+str(secrets.randbelow(10**9)).zfill(9),

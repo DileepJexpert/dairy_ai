@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -39,23 +40,59 @@ def _test_commerce(env):
             and getattr(env, "ENVIRONMENT", "") in ("staging", "test", "local"))
 
 
-def _live_cod_pincodes(env) -> set[str]:
-    raw = getattr(env, "LIVE_COD_PINCODES", "")
-    pincodes = [pin.strip() for pin in raw.split(",")]
-    if not pincodes or any(len(pin) != 6 or not pin.isdigit() for pin in pincodes):
-        return set()
-    return set(pincodes)
-
-
 def _live_cod(env) -> bool:
     return (getattr(env, "LIVE_COD_ENABLED", "false") == "true"
             and getattr(env, "TEST_COMMERCE_ENABLED", "false") != "true"
-            and getattr(env, "CUSTOMER_AUTH_ENABLED", "false") == "true"
-            and bool(_live_cod_pincodes(env)))
+            and getattr(env, "CUSTOMER_AUTH_ENABLED", "false") == "true")
 
 
-def _pincode_enabled(env, pincode: str) -> bool:
-    return _test_commerce(env) or (_live_cod(env) and pincode in _live_cod_pincodes(env))
+def _indian_pincode_format(pincode: str) -> bool:
+    # Format only: PIN existence and courier reach are separate checks.
+    return bool(re.fullmatch(r"[1-8][0-9]{5}", pincode))
+
+
+async def _delivery_policy(db: Any, pincode: str, env: Any) -> dict[str, Any]:
+    if not _indian_pincode_format(pincode):
+        return {"is_serviceable": False, "cod_available": False,
+                "prepaid_available": False, "delivery_fee_minor": 0}
+    hint = await db.prepare(
+        "SELECT city, state, is_serviceable, delivery_fee_minor, delivery_days_min, delivery_days_max "
+        "FROM serviceable_pincodes WHERE pincode=?"
+    ).bind(pincode).first()
+    if _test_commerce(env) or getattr(env, "CUSTOMER_AUTH_ENABLED", "false") != "true":
+        enabled = bool(hint and hint["is_serviceable"])
+        return {"pincode": pincode, "city": hint["city"] if hint else "",
+                "state": hint["state"] if hint else "", "is_serviceable": enabled,
+                "cod_available": enabled, "prepaid_available": False,
+                "delivery_fee_minor": int(hint["delivery_fee_minor"]) if hint else 0,
+                "delivery_days_min": hint["delivery_days_min"] if hint else None,
+                "delivery_days_max": hint["delivery_days_max"] if hint else None}
+    if not _live_cod(env):
+        return {"pincode": pincode, "is_serviceable": False,
+                "cod_available": False, "prepaid_available": False,
+                "delivery_fee_minor": 0}
+    default = await db.prepare(
+        "SELECT cod_default_enabled, prepaid_default_enabled, delivery_fee_minor "
+        "FROM delivery_policy WHERE id=1"
+    ).first()
+    rule = await db.prepare(
+        "SELECT cod_enabled, prepaid_enabled, delivery_fee_minor, city, state "
+        "FROM delivery_pincode_rules WHERE pincode=?"
+    ).bind(pincode).first()
+    if not default:
+        raise HTTPException(503, "Delivery policy is unavailable")
+    cod = bool(rule["cod_enabled"] if rule and rule["cod_enabled"] is not None
+               else default["cod_default_enabled"])
+    fee = int(rule["delivery_fee_minor"] if rule and rule["delivery_fee_minor"] is not None
+              else default["delivery_fee_minor"])
+    # A configured prepaid rule does not make an unintegrated gateway safe.
+    prepaid_policy = bool(rule["prepaid_enabled"] if rule and rule["prepaid_enabled"] is not None
+                          else default["prepaid_default_enabled"])
+    return {"pincode": pincode, "city": (rule["city"] if rule and rule["city"] else hint["city"] if hint else ""),
+            "state": (rule["state"] if rule and rule["state"] else hint["state"] if hint else ""),
+            "is_serviceable": cod, "cod_available": cod, "prepaid_available": False,
+            "prepaid_policy_enabled": prepaid_policy, "delivery_fee_minor": fee,
+            "delivery_days_min": None, "delivery_days_max": None}
 
 
 async def _require_auth(
@@ -217,19 +254,11 @@ async def _verify_address(db: Any, customer_id: str, address_id: str) -> dict[st
 
 
 async def _delivery_fee_minor(db: Any, address: dict[str, Any], env: Any) -> int:
-    if (getattr(env, "CUSTOMER_AUTH_ENABLED", "false") == "true"
-            and not _pincode_enabled(env, address["pincode"])):
+    coverage = await _delivery_policy(db, address["pincode"], env)
+    if not coverage["cod_available"]:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
-            f"Delivery is not currently available for pincode {address['pincode']}",
-        )
-    coverage = await db.prepare(
-        "SELECT is_serviceable, delivery_fee_minor FROM serviceable_pincodes WHERE pincode = ?"
-    ).bind(address["pincode"]).first()
-    if not coverage or not coverage["is_serviceable"]:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-            f"Delivery is not currently available for pincode {address['pincode']}",
+            f"Cash on delivery is not currently available for pincode {address['pincode']}",
         )
     return int(coverage["delivery_fee_minor"])
 
@@ -1003,10 +1032,12 @@ async def locations():
 @commerce_router.get("/pincode/check")
 async def check_pincode(pincode: str, request: Request):
     env = _env(request)
-    row = await env.DB.prepare("SELECT * FROM serviceable_pincodes WHERE pincode=?").bind(pincode).first()
-    if not row or not _pincode_enabled(env, pincode):
-        return {"pincode": pincode, "is_serviceable": False, "message": "Delivery is not currently available for this pincode."}
-    return {**row, "is_serviceable": bool(row["is_serviceable"]), "delivery_fee": row["delivery_fee_minor"] / 100, "expected_delivery_text": "Delivery available" if row["is_serviceable"] else "Delivery is not currently available for this pincode.", "express_available": False}
+    row = await _delivery_policy(env.DB, pincode, env)
+    if not row["is_serviceable"]:
+        return {**row, "message": "Cash on delivery is not currently available for this pincode."}
+    return {**row, "delivery_fee": row["delivery_fee_minor"] / 100,
+            "expected_delivery_text": "Delivery availability is confirmed when your order is reviewed",
+            "express_available": False}
 
 
 @commerce_router.get("/pincode/lookup")
@@ -1017,6 +1048,117 @@ async def lookup_pincode(pincode: str, request: Request):
     city_lower = row["city"].lower()
     district = "Gautam Buddha Nagar" if "noida" in city_lower else ("New Delhi" if "delhi" in city_lower else row["city"])
     return {**row, "pincode": pincode, "district": district}
+
+
+class DeliveryPolicyUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    cod_default_enabled: bool
+    delivery_fee_minor: int = Field(ge=0, le=100000)
+    prepaid_default_enabled: bool = False
+
+
+class PincodeRuleInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    pincode: str = Field(pattern=r"^[1-8][0-9]{5}$")
+    cod_enabled: bool | None = None
+    prepaid_enabled: bool | None = None
+    delivery_fee_minor: int | None = Field(default=None, ge=0, le=100000)
+    city: str = Field(default="", max_length=128)
+    state: str = Field(default="", max_length=128)
+
+
+class PincodeRuleUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    cod_enabled: bool | None = None
+    prepaid_enabled: bool | None = None
+    delivery_fee_minor: int | None = Field(default=None, ge=0, le=100000)
+    city: str | None = Field(default=None, max_length=128)
+    state: str | None = Field(default=None, max_length=128)
+
+
+@commerce_router.get("/admin/delivery-policy")
+async def get_admin_delivery_policy(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    row = await db.prepare("SELECT * FROM delivery_policy WHERE id=1").first()
+    if not row:
+        raise HTTPException(503, "Delivery policy is unavailable")
+    return {"success": True, "data": {**row, "cod_default_enabled": bool(row["cod_default_enabled"]),
+            "prepaid_default_enabled": bool(row["prepaid_default_enabled"]),
+            "online_payment_available": False}}
+
+
+@commerce_router.put("/admin/delivery-policy")
+async def update_admin_delivery_policy(data: DeliveryPolicyUpdate, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    await db.prepare("UPDATE delivery_policy SET cod_default_enabled=?, delivery_fee_minor=?, "
+                     "prepaid_default_enabled=?, updated_at=CURRENT_TIMESTAMP WHERE id=1").bind(
+        int(data.cod_default_enabled), data.delivery_fee_minor, int(data.prepaid_default_enabled)).run()
+    return await get_admin_delivery_policy(request)
+
+
+@commerce_router.get("/admin/pincodes")
+async def list_admin_pincode_rules(request: Request, query: str = "", per_page: int = 100):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    if per_page < 1 or per_page > 500 or len(query) > 128:
+        raise HTTPException(422, "Invalid search or page size")
+    db = _env(request).DB
+    rows = _d1_rows(await db.prepare(
+        "SELECT * FROM delivery_pincode_rules WHERE pincode LIKE ? OR city LIKE ? OR state LIKE ? "
+        "ORDER BY pincode LIMIT ?"
+    ).bind(f"%{query.strip()}%", f"%{query.strip()}%", f"%{query.strip()}%", per_page).all())
+    return {"success": True, "data": [{**r, "cod_enabled": r["cod_enabled"] is not None and bool(r["cod_enabled"]),
+             "prepaid_enabled": r["prepaid_enabled"] is not None and bool(r["prepaid_enabled"])} for r in rows]}
+
+
+@commerce_router.post("/admin/pincodes", status_code=201)
+async def create_admin_pincode_rule(data: PincodeRuleInput, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    if data.cod_enabled is None and data.prepaid_enabled is None and data.delivery_fee_minor is None:
+        raise HTTPException(422, "At least one override is required")
+    db = _env(request).DB
+    if await db.prepare("SELECT pincode FROM delivery_pincode_rules WHERE pincode=?").bind(data.pincode).first():
+        raise HTTPException(409, "PIN override already exists")
+    await db.prepare(
+        "INSERT INTO delivery_pincode_rules (pincode,cod_enabled,prepaid_enabled,delivery_fee_minor,city,state) "
+        "VALUES (?,?,?,?,?,?)"
+    ).bind(data.pincode, int(data.cod_enabled) if data.cod_enabled is not None else None,
+           int(data.prepaid_enabled) if data.prepaid_enabled is not None else None,
+           data.delivery_fee_minor, data.city.strip(), data.state.strip()).run()
+    return {"success": True, "data": data.model_dump()}
+
+
+@commerce_router.put("/admin/pincodes/{pincode}")
+async def update_admin_pincode_rule(pincode: str, data: PincodeRuleUpdate, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    if not _indian_pincode_format(pincode):
+        raise HTTPException(422, "Invalid Indian PIN format")
+    db = _env(request).DB
+    row = await db.prepare("SELECT * FROM delivery_pincode_rules WHERE pincode=?").bind(pincode).first()
+    if not row:
+        raise HTTPException(404, "PIN override not found")
+    values = data.model_dump(exclude_unset=True)
+    merged = {k: values.get(k, row[k]) for k in
+              ("cod_enabled", "prepaid_enabled", "delivery_fee_minor", "city", "state")}
+    if all(merged[k] is None for k in ("cod_enabled", "prepaid_enabled", "delivery_fee_minor")):
+        raise HTTPException(422, "At least one override is required")
+    await db.prepare("UPDATE delivery_pincode_rules SET cod_enabled=?,prepaid_enabled=?,delivery_fee_minor=?,"
+                     "city=?,state=?,updated_at=CURRENT_TIMESTAMP WHERE pincode=?").bind(
+        int(merged["cod_enabled"]) if merged["cod_enabled"] is not None else None,
+        int(merged["prepaid_enabled"]) if merged["prepaid_enabled"] is not None else None,
+        merged["delivery_fee_minor"], merged["city"], merged["state"], pincode).run()
+    return {"success": True, "data": {"pincode": pincode, **merged}}
+
+
+@commerce_router.delete("/admin/pincodes/{pincode}")
+async def delete_admin_pincode_rule(pincode: str, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    if not await db.prepare("SELECT pincode FROM delivery_pincode_rules WHERE pincode=?").bind(pincode).first():
+        raise HTTPException(404, "PIN override not found")
+    await db.prepare("DELETE FROM delivery_pincode_rules WHERE pincode=?").bind(pincode).run()
+    return {"success": True}
 
 
 @commerce_router.get("/coupons")

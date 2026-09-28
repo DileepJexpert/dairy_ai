@@ -51,7 +51,7 @@ def test_customer_session_checkout_round_trip(auth_client):
     assert client.get('/api/v1/marketplace/cart').status_code == 503
 
 
-def test_live_cod_order_is_real_and_restricted_to_confirmed_pincode(auth_client):
+def test_live_cod_order_is_real_and_restricted_to_database_policy(auth_client):
     client, conn = auth_client
     token = register(client).json()['access_token']
     client.headers['Authorization'] = 'Bearer ' + token
@@ -59,7 +59,6 @@ def test_live_cod_order_is_real_and_restricted_to_confirmed_pincode(auth_client)
     env.ENVIRONMENT = 'staging'
     env.TEST_COMMERCE_ENABLED = 'false'
     env.LIVE_COD_ENABLED = 'true'
-    env.LIVE_COD_PINCODES = '201305'
     conn.execute("INSERT INTO inventory VALUES ('live-cod-item', 'COD item', 2, 12345, 'INR', 1, CURRENT_TIMESTAMP)")
     conn.execute("INSERT OR REPLACE INTO serviceable_pincodes(pincode,city,state,is_serviceable,delivery_fee_minor) VALUES ('201305','Noida','Uttar Pradesh',1,0)")
     conn.execute("INSERT OR REPLACE INTO serviceable_pincodes(pincode,city,state,is_serviceable,delivery_fee_minor) VALUES ('110001','New Delhi','Delhi',1,4000)")
@@ -111,17 +110,24 @@ def test_live_cod_order_is_real_and_restricted_to_confirmed_pincode(auth_client)
     assert conn.execute("SELECT available_units FROM inventory WHERE product_id='live-cod-item'").fetchone()[0] == 2
 
 
-def test_live_cod_requires_valid_exclusive_configuration(auth_client):
-    client, _ = auth_client
+def test_live_cod_uses_database_policy_not_old_pincode_allowlist(auth_client):
+    client, conn = auth_client
     token = register(client).json()['access_token']
     client.headers['Authorization'] = 'Bearer ' + token
     env = app.state.env
     env.ENVIRONMENT = 'staging'
     env.LIVE_COD_ENABLED = 'true'
     env.TEST_COMMERCE_ENABLED = 'false'
-    for invalid_pincodes in ('', '201305,invalid', '12345'):
-        env.LIVE_COD_PINCODES = invalid_pincodes
-        assert client.get('/api/v1/marketplace/cart').status_code == 503
-    env.LIVE_COD_PINCODES = '201305'
+    for old_allowlist in ('', '201305,invalid', '12345'):
+        env.LIVE_COD_PINCODES = old_allowlist
+        assert client.get('/api/v1/marketplace/cart').status_code == 200
+    assert client.get('/api/v1/marketplace/pincode/check?pincode=400001').json()['is_serviceable'] is False
+    conn.execute('UPDATE delivery_policy SET cod_default_enabled=1, delivery_fee_minor=9900 WHERE id=1')
+    response = client.get('/api/v1/marketplace/pincode/check?pincode=400001').json()
+    assert response['cod_available'] is True and response['delivery_fee'] == 99
+    assert client.get('/api/v1/marketplace/pincode/check?pincode=999999').json()['is_serviceable'] is False
+    conn.execute("INSERT INTO delivery_pincode_rules(pincode,cod_enabled) VALUES('400001',0)")
+    assert client.get('/api/v1/marketplace/pincode/check?pincode=400001').json()['cod_available'] is False
+    assert client.get('/api/v1/marketplace/pincode/check?pincode=201305').json()['delivery_fee'] == 0
     env.TEST_COMMERCE_ENABLED = 'true'
     assert client.get('/api/v1/marketplace/cart').status_code == 503

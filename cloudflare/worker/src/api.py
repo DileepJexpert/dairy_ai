@@ -71,7 +71,8 @@ async def health_check() -> JSONResponse:
 async def readiness_check(request: Request) -> JSONResponse:
     try:
         db = _env(request).DB
-        for table in ("customers", "inventory", "orders", "coupons", "serviceable_pincodes"):
+        for table in ("customers", "inventory", "orders", "coupons", "serviceable_pincodes",
+                      "delivery_policy", "delivery_pincode_rules"):
             await db.prepare(f"SELECT 1 FROM {table} LIMIT 1").first()
         if getattr(_env(request), "CUSTOMER_AUTH_ENABLED", "false") == "true":
             for table in ("customer_credentials", "customer_sessions", "auth_rate_limits"):

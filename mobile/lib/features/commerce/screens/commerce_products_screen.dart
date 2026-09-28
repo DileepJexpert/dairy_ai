@@ -141,9 +141,8 @@ class _CommerceProductsScreenState
               controller: stockCtrl,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: 'Total warehouse stock (optional)',
-                helperText:
-                    'Includes reserved units. Leave blank to keep stock.',
+                labelText: 'Available stock (optional)',
+                helperText: 'Sellable units only. Leave blank to keep stock.',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -183,6 +182,7 @@ class _CommerceProductsScreenState
                 });
                 ref.invalidate(productsProvider);
                 ref.invalidate(productDetailProvider);
+                ref.invalidate(liveInventoryProvider);
                 if (ctx.mounted) {
                   Navigator.pop(ctx);
                 }
@@ -302,7 +302,7 @@ class _CommerceProductsScreenState
                     'base_price': price,
                     if (compare != null) 'compare_at_price': compare,
                     'initial_stock': stock,
-                    'publication_status': 'published',
+                    'publication_status': 'draft',
                   },
                 );
                 if (vRes.data is Map &&
@@ -543,7 +543,6 @@ class _CommerceProductsScreenState
   // Add Entire Product Family & Initial Variants
   // ---------------------------------------------------------------------------
 
-
   void _showAddProductFamilyDialog() {
     final titleCtrl = TextEditingController();
     final brandCtrl = TextEditingController(text: 'Milterra Pure');
@@ -684,39 +683,52 @@ class _CommerceProductsScreenState
                                 items: const [
                                   DropdownMenuItem(
                                       value: 'Artisanal Dairy & Cultured',
-                                      child: Text('🧈 Artisanal Dairy & Cultured',
+                                      child: Text(
+                                          '🧈 Artisanal Dairy & Cultured',
                                           overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
-                                      value: 'Fresh Living Harvest (Microgreens)',
-                                      child: Text('🌱 Fresh Living Harvest (Microgreens)',
+                                      value:
+                                          'Fresh Living Harvest (Microgreens)',
+                                      child: Text(
+                                          '🌱 Fresh Living Harvest (Microgreens)',
                                           overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
-                                      value: 'Wood-Pressed Oils & Pure Sweeteners',
-                                      child: Text('🌻 Wood-Pressed Oils & Pure Sweeteners',
+                                      value:
+                                          'Wood-Pressed Oils & Pure Sweeteners',
+                                      child: Text(
+                                          '🌻 Wood-Pressed Oils & Pure Sweeteners',
                                           overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
-                                      value: 'Stone-Ground Chakki Atta & Flours',
-                                      child: Text('🌾 Stone-Ground Chakki Atta & Flours',
+                                      value:
+                                          'Stone-Ground Chakki Atta & Flours',
+                                      child: Text(
+                                          '🌾 Stone-Ground Chakki Atta & Flours',
                                           overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
                                       value: 'Terroir Salts & Native Spices',
-                                      child: Text('🧂 Terroir Salts & Native Spices',
+                                      child: Text(
+                                          '🧂 Terroir Salts & Native Spices',
                                           overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
                                       value: 'Apartment Balcony & Living Soil',
-                                      child: Text('🪴 Apartment Balcony & Living Soil',
+                                      child: Text(
+                                          '🪴 Apartment Balcony & Living Soil',
                                           overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
-                                      value: 'Pure Aloe Vera & Living Botanicals',
-                                      child: Text('🌵 Pure Aloe Vera & Living Botanicals',
+                                      value:
+                                          'Pure Aloe Vera & Living Botanicals',
+                                      child: Text(
+                                          '🌵 Pure Aloe Vera & Living Botanicals',
                                           overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
                                       value: 'Curated Kitchen & Wellness Boxes',
-                                      child: Text('🎁 Curated Kitchen & Wellness Boxes',
+                                      child: Text(
+                                          '🎁 Curated Kitchen & Wellness Boxes',
                                           overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
                                       value: 'Puja & Hawan Samagri',
-                                      child: Text('🪔 Puja & Hawan: Sacred Essentials',
+                                      child: Text(
+                                          '🪔 Puja & Hawan: Sacred Essentials',
                                           overflow: TextOverflow.ellipsis)),
                                   DropdownMenuItem(
                                       value: 'Dairy Foods',
@@ -1015,7 +1027,7 @@ class _CommerceProductsScreenState
                                 'collection':
                                     department == 'Dairy Foods' ? 'Ghee' : null,
                                 'description': descCtrl.text.trim(),
-                                'is_published': true,
+                                'is_published': false,
                                 'vendor_id': _selectedVendorId,
                               },
                             );
@@ -1068,7 +1080,7 @@ class _CommerceProductsScreenState
                                   if (compare != null)
                                     'compare_at_price': compare,
                                   'initial_stock': stock,
-                                  'publication_status': 'published',
+                                  'publication_status': 'draft',
                                 },
                               );
                               if (vRes.data is Map &&
@@ -1093,8 +1105,8 @@ class _CommerceProductsScreenState
                               price: price,
                               compareAtPrice: compare,
                               stockQuantity: stock,
-                              inStock: stock > 0,
-                              publicationStatus: 'published',
+                              inStock: false,
+                              publicationStatus: 'draft',
                             );
                             builtVariants.add(variantObj);
 
@@ -1115,12 +1127,12 @@ class _CommerceProductsScreenState
                                     ? descCtrl.text.trim()
                                     : 'Certified Milterra Pure Dairy Product.',
                                 familyId: familyId,
-                                publicationStatus: 'published',
+                                publicationStatus: 'draft',
                                 taxonomy: {
                                   'department_name': department,
                                   'category_name': department,
                                 },
-                                inStock: stock > 0,
+                                inStock: false,
                                 availableQuantity: stock,
                                 minOrderQuantity: 1,
                               ),
@@ -1141,7 +1153,7 @@ class _CommerceProductsScreenState
                                 : 'Authentic Milterra farm-fresh quality.',
                             variants: builtVariants,
                             isOrganic: isOrganic,
-                            isPublished: true,
+                            isPublished: false,
                             purityGrade: purityCtrl.text.trim(),
                             fssaiLicense: fssaiCtrl.text.trim(),
                           );
@@ -1158,12 +1170,12 @@ class _CommerceProductsScreenState
                           messenger.showSnackBar(
                             SnackBar(
                               content: Text(
-                                  'Created Product Family "$title" with ${builtVariants.length} variants!'),
+                                  'Saved "$title" with ${builtVariants.length} draft variants. Publish the catalogue before selling.'),
                               backgroundColor: storeGreen,
                             ),
                           );
                         },
-                        child: const Text('Save & Publish Product Family',
+                        child: const Text('Save Product Family Draft',
                             style: TextStyle(
                                 fontWeight: FontWeight.bold, fontSize: 14)),
                       ),
@@ -2032,9 +2044,9 @@ class _CommerceProductsScreenState
                       controller: stockCtrl,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
-                          labelText: 'Total warehouse stock (optional)',
+                          labelText: 'Available stock (optional)',
                           helperText:
-                              'Includes reserved units. Leave blank to keep stock.',
+                              'Sellable units only. Leave blank to keep stock.',
                           border: OutlineInputBorder()))
                 ]),
                 actions: [
@@ -2072,6 +2084,7 @@ class _CommerceProductsScreenState
                                   });
                               ref.invalidate(productsProvider);
                               ref.invalidate(productDetailProvider);
+                              ref.invalidate(liveInventoryProvider);
                               await _fetchBackendData();
                               if (ctx.mounted) {
                                 Navigator.pop(ctx);

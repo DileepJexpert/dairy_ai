@@ -6,6 +6,7 @@ import hashlib
 import json
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any, Iterable, Literal
 
 import jwt
@@ -248,7 +249,7 @@ async def _validate_coupon(db: Any, coupon_code: str | None, subtotal: float) ->
 
     code = coupon_code.strip().upper()
     rows = await db.prepare(
-        """SELECT code, description, discount_type, discount_value, min_order_value, max_discount_cap, is_active
+        """SELECT code, description, discount_type, discount_value, min_order_value, max_discount_cap, is_active, valid_until
            FROM coupons WHERE code = ?"""
     ).bind(code).all()
     records = _d1_rows(rows)
@@ -257,6 +258,8 @@ async def _validate_coupon(db: Any, coupon_code: str | None, subtotal: float) ->
         c = records[0]
         if not c.get("is_active", 1):
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Coupon '{code}' is no longer active")
+        if _coupon_expired(c.get("valid_until")):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Coupon '{code}' has expired")
         min_order = float(c.get("min_order_value") or 0.0)
         if subtotal < min_order:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Minimum order value for coupon '{code}' is ₹{min_order:.0f}")
@@ -275,10 +278,53 @@ async def _validate_coupon(db: Any, coupon_code: str | None, subtotal: float) ->
     raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Invalid coupon code '{code}'")
 
 
+def _money_minor(value: float, label: str) -> int:
+    try:
+        amount = Decimal(str(value))
+        if not amount.is_finite() or amount <= 0 or amount > Decimal("10000000"):
+            raise InvalidOperation
+        minor = amount * 100
+        if minor != minor.to_integral_value(rounding=ROUND_HALF_UP):
+            raise InvalidOperation
+        return int(minor)
+    except (InvalidOperation, ValueError, TypeError) as exc:
+        raise HTTPException(422, f"{label} must be a positive amount with at most two decimal places") from exc
+
+
+def _coupon_expired(value: str | None) -> bool:
+    if not value:
+        return False
+    expiry = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if expiry.tzinfo is None:
+        expiry = expiry.replace(tzinfo=timezone.utc)
+    return expiry <= datetime.now(timezone.utc)
+
+
+def _coupon_view(row: dict[str, Any]) -> dict[str, Any]:
+    return {**row, "id": row["code"], "is_active": bool(row["is_active"]),
+            "usage_count": row.get("usage_count", 0)}
+
+
+def _validate_coupon_value(discount_type: str, discount_value: float) -> None:
+    value = Decimal(str(discount_value))
+    if not value.is_finite() or value <= 0 or (discount_type == "percentage" and value > 100):
+        raise HTTPException(422, "Coupon value must be positive and percentage discounts cannot exceed 100%")
+
+
 
 # -----------------------------------------------------------------------------
 # Inventory & Stock Routes
 # -----------------------------------------------------------------------------
+
+@commerce_router.get("/inventory")
+async def list_live_inventory(request: Request):
+    rows = await _env(request).DB.prepare("""SELECT i.product_id, i.price_minor, i.available_units, i.is_active,
+        p.mrp_minor FROM inventory i LEFT JOIN inventory_pricing p ON p.product_id=i.product_id""").all()
+    return {"success": True, "data": [{"product_id": row["product_id"],
+        "price": row["price_minor"] / 100, "available_quantity": row["available_units"],
+        "is_active": bool(row["is_active"]),
+        "mrp": row["mrp_minor"] / 100 if row["mrp_minor"] is not None else None}
+        for row in _d1_rows(rows)]}
 
 @commerce_router.get("/inventory/{product_id}")
 async def get_inventory_status(product_id: str, request: Request) -> dict:
@@ -507,6 +553,8 @@ async def checkout_quote(payload: CheckoutQuoteInput, request: Request) -> dict:
     """Calculate authoritative checkout quote against live D1 inventory, delivery rules & coupons."""
     customer = await _require_auth(request)
     db = _env(request).DB
+    if not await db.prepare("SELECT id FROM commerce_sellers WHERE id='vendor-1' AND status='approved'").first():
+        raise HTTPException(503, "Ordering is temporarily unavailable")
 
     _require_supported_payment_method(payload.payment_method)
     if not payload.delivery_address_id:
@@ -608,6 +656,9 @@ async def checkout(payload: CheckoutInput, request: Request) -> dict:
             )
         return JSONResponse(status_code=200, content=await get_order_details(existing_order_row["id"], request))
 
+    if not await db.prepare("SELECT id FROM commerce_sellers WHERE id='vendor-1' AND status='approved'").first():
+        raise HTTPException(503, "Ordering is temporarily unavailable")
+
     address = await _verify_address(db, customer_id, payload.delivery_address_id)
     delivery_fee_minor = await _delivery_fee_minor(db, address, _env(request))
 
@@ -633,7 +684,7 @@ async def checkout(payload: CheckoutInput, request: Request) -> dict:
     subtotal = subtotal_minor / 100.0
 
     # Validate coupon if provided
-    _, discount = await _validate_coupon(db, payload.coupon_code, subtotal)
+    applied_coupon, discount = await _validate_coupon(db, payload.coupon_code, subtotal)
     discount_minor = int(round(discount * 100))
 
     total_minor = max(0, subtotal_minor + delivery_fee_minor - discount_minor)
@@ -723,6 +774,10 @@ async def checkout(payload: CheckoutInput, request: Request) -> dict:
     statements.append(
         db.prepare("DELETE FROM cart_items WHERE customer_id = ?").bind(customer_id)
     )
+    if applied_coupon:
+        statements.append(db.prepare(
+            "UPDATE coupons SET usage_count = usage_count + 1 WHERE code = ?"
+        ).bind(applied_coupon))
     # Step G: Record initial order milestone
     statements.append(
         db.prepare(
@@ -795,6 +850,7 @@ async def _order_data(db, row):
         timeline = []
     carrier = row.get("carrier") if "carrier" in row and row["carrier"] else "Not assigned"
     tracking = row.get("tracking_number") if "tracking_number" in row and row["tracking_number"] else ""
+    return_case = await db.prepare("SELECT kind,status,reason,remarks,restocked FROM order_return_cases WHERE order_id=?").bind(row["id"]).first()
     return {
         "id": row["id"], "status": state, "payment_status": row["payment_status"].upper(),
         "payment_method": row["payment_method"], "created_at": row["created_at"],
@@ -807,6 +863,7 @@ async def _order_data(db, row):
                    "quantity": x["quantity"], "unit_price": x["unit_price_minor"] / 100,
                    "line_total": x["total_minor"] / 100, "fulfillment_status": state} for x in lines],
         "carrier": carrier, "tracking_number": tracking, "timeline": timeline,
+        "return_case": return_case,
     }
 
 
@@ -966,7 +1023,8 @@ async def lookup_pincode(pincode: str, request: Request):
 async def list_coupons(request: Request):
     await _require_auth(request)
     rows = await _env(request).DB.prepare("SELECT * FROM coupons WHERE is_active=1").all()
-    return {"success": True, "data": _d1_rows(rows)}
+    return {"success": True, "data": [_coupon_view(row) for row in _d1_rows(rows)
+            if not _coupon_expired(row.get("valid_until"))]}
 
 
 # -----------------------------------------------------------------------------
@@ -1008,6 +1066,9 @@ async def update_order_fulfillment(order_id: str, data: FulfillmentUpdate, reque
         raise HTTPException(status.HTTP_409_CONFLICT, "Cannot fulfill a cancelled order")
     if current_status == "delivered":
         raise HTTPException(status.HTTP_409_CONFLICT, "Order is already delivered and cannot be modified")
+    active_return = await db.prepare("SELECT id FROM order_return_cases WHERE order_id=? AND status!='rejected'").bind(order_id).first()
+    if active_return:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Order has an active return or failed-delivery case")
 
     raw_target = data.status.upper()
     target_lower = "shipped" if raw_target in ("SHIPPED", "DISPATCHED") else raw_target.lower()
@@ -1080,7 +1141,7 @@ async def update_order_fulfillment(order_id: str, data: FulfillmentUpdate, reque
         err_msg = str(exc)
         current = await db.prepare("SELECT status FROM orders WHERE id=?").bind(order_id).first()
         current_status = current["status"] if current else "unknown"
-        if any(keyword in err_msg.lower() for keyword in ["cannot modify", "cannot pack", "cannot ship", "cannot mark out", "cannot deliver"]):
+        if any(keyword in err_msg.lower() for keyword in ["cannot modify", "cannot pack", "cannot ship", "cannot mark out", "cannot deliver", "return or failed-delivery case"]):
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
                 f"Order status conflict: {err_msg} (current status: '{current_status}')",
@@ -1109,6 +1170,8 @@ async def settle_cod_payment(order_id: str, data: CodSettlementRequest, request:
         raise HTTPException(409, "A COD order is required for cash collection")
     if order["status"] != "delivered":
         raise HTTPException(409, "Record courier delivery before COD remittance")
+    if await db.prepare("SELECT id FROM order_return_cases WHERE order_id=? AND status!='rejected'").bind(order_id).first():
+        raise HTTPException(409, "Resolve the return case before recording COD remittance")
 
     # Idempotent match: already settled with this exact reference
     if order["payment_status"] == "paid":
@@ -1368,13 +1431,24 @@ async def get_admin_commerce_dashboard(request: Request):
     db = _env(request).DB
 
     coupons_rows = await db.prepare("SELECT * FROM coupons").all()
-    coupons = _d1_rows(coupons_rows)
+    coupons = [_coupon_view(row) for row in _d1_rows(coupons_rows)]
+    sellers = _d1_rows(await db.prepare("SELECT * FROM commerce_sellers ORDER BY created_at").all())
+    inventory = _d1_rows(await db.prepare("""SELECT i.*, p.mrp_minor FROM inventory i
+        LEFT JOIN inventory_pricing p ON p.product_id=i.product_id ORDER BY i.title""").all())
+    offers = [{"id": row["product_id"], "product_id": row["product_id"],
+               "seller_id": "vendor-1", "seller_name": "Milterra", "seller_sku": row["product_id"],
+               "mrp": (row["mrp_minor"] or row["price_minor"]) / 100,
+               "selling_price": row["price_minor"] / 100,
+               "available_stock": row["available_units"],
+               "offer_status": "active" if row["is_active"] else "inactive"} for row in inventory]
+    certificates = [_certificate_view(row) for row in _d1_rows(
+        await db.prepare("SELECT b.*, i.title AS product_title FROM batch_certificates b JOIN inventory i ON i.product_id=b.product_id ORDER BY b.test_date DESC").all())]
 
     events_rows = await db.prepare("SELECT * FROM order_events ORDER BY created_at DESC LIMIT 100").all()
     audit_logs = [
         {
             "id": e["id"],
-            "user_role": "admin",
+            "user_role": "system",
             "user_identifier": "system",
             "action": e.get("status", "update").lower(),
             "entity_type": "order",
@@ -1388,10 +1462,10 @@ async def get_admin_commerce_dashboard(request: Request):
     return {
         "success": True,
         "data": {
-            "sellers": [],
-            "offers": [],
+            "sellers": sellers,
+            "offers": offers,
             "coupons": coupons,
-            "batch_certificates": [],
+            "batch_certificates": certificates,
             "audit_logs": audit_logs,
         },
     }
@@ -1404,8 +1478,8 @@ class CouponCreateInput(BaseModel):
     discount_type: Literal["percentage", "flat"]
     discount_value: float = Field(ge=0)
     min_order_value: float = Field(default=0.0, ge=0)
-    max_discount_cap: float | None = Field(default=None)
-    valid_until: str | None = Field(default=None)
+    max_discount_cap: float | None = Field(default=None, ge=0)
+    valid_until: datetime | None = Field(default=None)
     is_active: bool = Field(default=True)
 
 
@@ -1414,10 +1488,10 @@ class CouponUpdateInput(BaseModel):
     code: str | None = Field(default=None)
     description: str | None = Field(default=None)
     discount_type: Literal["percentage", "flat"] | None = Field(default=None)
-    discount_value: float | None = Field(default=None)
-    min_order_value: float | None = Field(default=None)
-    max_discount_cap: float | None = Field(default=None)
-    valid_until: str | None = Field(default=None)
+    discount_value: float | None = Field(default=None, ge=0)
+    min_order_value: float | None = Field(default=None, ge=0)
+    max_discount_cap: float | None = Field(default=None, ge=0)
+    valid_until: datetime | None = Field(default=None)
     is_active: bool | None = Field(default=None)
 
 
@@ -1425,6 +1499,7 @@ class CouponUpdateInput(BaseModel):
 @commerce_router.post("/vendor/commerce/coupons")
 async def create_coupon(data: CouponCreateInput, request: Request):
     await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
+    _validate_coupon_value(data.discount_type, data.discount_value)
     db = _env(request).DB
     code = data.code.strip().upper()
     existing = await db.prepare("SELECT code FROM coupons WHERE code=?").bind(code).first()
@@ -1433,9 +1508,10 @@ async def create_coupon(data: CouponCreateInput, request: Request):
 
     is_active = 1 if data.is_active else 0
     await db.prepare(
-        """INSERT INTO coupons(code, description, discount_type, discount_value, min_order_value, max_discount_cap, is_active)
-        VALUES (?, ?, ?, ?, ?, ?, ?)"""
-    ).bind(code, data.description.strip(), data.discount_type, data.discount_value, data.min_order_value, data.max_discount_cap, is_active).run()
+        """INSERT INTO coupons(code, description, discount_type, discount_value, min_order_value, max_discount_cap, is_active, valid_until)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)"""
+    ).bind(code, data.description.strip(), data.discount_type, data.discount_value, data.min_order_value,
+           data.max_discount_cap, is_active, data.valid_until.isoformat() if data.valid_until else None).run()
 
     return {"success": True, "message": f"Coupon {code} created successfully", "data": {"code": code, "id": code}}
 
@@ -1456,15 +1532,22 @@ async def update_coupon(coupon_id: str, data: CouponUpdateInput, request: Reques
     description = data.description.strip() if data.description is not None else row["description"]
     discount_type = data.discount_type if data.discount_type is not None else row["discount_type"]
     discount_value = data.discount_value if data.discount_value is not None else row["discount_value"]
+    _validate_coupon_value(discount_type, discount_value)
     min_order_value = data.min_order_value if data.min_order_value is not None else row["min_order_value"]
     max_discount_cap = data.max_discount_cap if data.max_discount_cap is not None else row["max_discount_cap"]
+    new_code = data.code.strip().upper() if data.code is not None else coupon_id
+    if len(new_code) < 2 or len(new_code) > 50:
+        raise HTTPException(422, "Coupon code must have 2 to 50 characters")
+    if new_code != coupon_id and await db.prepare("SELECT code FROM coupons WHERE code=?").bind(new_code).first():
+        raise HTTPException(409, "Coupon code already exists")
+    valid_until = (data.valid_until.isoformat() if data.valid_until else None) if "valid_until" in data.model_fields_set else row["valid_until"]
 
     await db.prepare(
-        """UPDATE coupons SET description=?, discount_type=?, discount_value=?, min_order_value=?, max_discount_cap=?, is_active=?
+        """UPDATE coupons SET code=?, description=?, discount_type=?, discount_value=?, min_order_value=?, max_discount_cap=?, is_active=?, valid_until=?
         WHERE code=?"""
-    ).bind(description, discount_type, discount_value, min_order_value, max_discount_cap, is_active, coupon_id).run()
+    ).bind(new_code, description, discount_type, discount_value, min_order_value, max_discount_cap, is_active, valid_until, coupon_id).run()
 
-    return {"success": True, "message": f"Coupon {coupon_id} updated successfully"}
+    return {"success": True, "message": f"Coupon {new_code} updated successfully"}
 
 
 class SellerStatusUpdate(BaseModel):
@@ -1476,29 +1559,94 @@ class SellerStatusUpdate(BaseModel):
 @commerce_router.patch("/admin/commerce/sellers/{seller_id}")
 async def update_seller_status(seller_id: str, data: SellerStatusUpdate, request: Request):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    row = await db.prepare("SELECT id FROM commerce_sellers WHERE id=?").bind(seller_id).first()
+    if not row:
+        raise HTTPException(404, "Seller not found")
+    await db.prepare("UPDATE commerce_sellers SET status=? WHERE id=?").bind(data.status, seller_id).run()
     return {"success": True, "message": f"Seller {seller_id} status updated to {data.status}"}
 
 
 class OfferUpdateInput(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
     selling_price: float | None = None
     mrp: float | None = None
-    available_stock: int | None = None
+    available_stock: int | None = Field(default=None, ge=0)
 
 
 @commerce_router.patch("/admin/commerce/offers/{offer_id}")
 @commerce_router.patch("/vendor/commerce/offers/{offer_id}")
 async def update_offer(offer_id: str, data: OfferUpdateInput, request: Request):
     await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
-    return {"success": True, "message": f"Offer {offer_id} updated successfully"}
+    if not any(value is not None for value in (data.selling_price, data.mrp, data.available_stock)):
+        raise HTTPException(422, "Provide a price or available stock")
+    db = _env(request).DB
+    row = await db.prepare("""SELECT i.product_id, i.price_minor, p.mrp_minor, i.available_units
+        FROM inventory i LEFT JOIN inventory_pricing p ON p.product_id=i.product_id
+        WHERE i.product_id=?""").bind(offer_id).first()
+    if not row:
+        raise HTTPException(404, "Product not found")
+    price_minor = _money_minor(data.selling_price, "Selling price") if data.selling_price is not None else row["price_minor"]
+    mrp_minor = _money_minor(data.mrp, "MRP") if data.mrp is not None else row.get("mrp_minor")
+    if mrp_minor is not None and mrp_minor < price_minor:
+        raise HTTPException(422, "MRP cannot be below selling price")
+    available = data.available_stock if data.available_stock is not None else row["available_units"]
+    statements = [db.prepare("""UPDATE inventory SET price_minor=?, available_units=?, updated_at=CURRENT_TIMESTAMP
+                        WHERE product_id=?""").bind(price_minor, available, offer_id)]
+    if data.mrp is not None:
+        statements.append(db.prepare("""INSERT INTO inventory_pricing(product_id,mrp_minor) VALUES(?,?)
+            ON CONFLICT(product_id) DO UPDATE SET mrp_minor=excluded.mrp_minor""").bind(offer_id, mrp_minor))
+    await db.batch(statements)
+    return {"success": True, "data": {"id": offer_id, "selling_price": price_minor / 100,
+            "mrp": mrp_minor / 100 if mrp_minor is not None else None, "available_stock": available}}
+
+
+def _certificate_view(row: dict[str, Any]) -> dict[str, Any]:
+    return {**row, "category": "", "test_parameters": json.loads(row["test_parameters"])}
+
+
+class CertificateInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    product_id: str
+    batch_number: str = Field(min_length=1, max_length=100)
+    test_date: datetime
+    laboratory: str = Field(min_length=1, max_length=200)
+    fssai_license: str = Field(default="", max_length=100)
+    purity_percent: float | None = Field(default=None, ge=0, le=100)
+    test_parameters: dict[str, str] = Field(default_factory=dict)
+    status: Literal["PENDING_REVIEW", "CERTIFIED", "REJECTED"] = "PENDING_REVIEW"
+    certified_by: str = ""
+    remarks: str = ""
+    report_url: str | None = None
 
 
 @commerce_router.post("/admin/commerce/certificates")
 @commerce_router.put("/admin/commerce/certificates/{cert_id}")
 @commerce_router.patch("/admin/commerce/certificates/{cert_id}")
-async def save_certificate(request: Request):
+async def save_certificate(request: Request, data: CertificateInput, cert_id: str | None = None):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
-    return {"success": True, "message": "Certificate saved successfully"}
+    db = _env(request).DB
+    product = await db.prepare("SELECT title FROM inventory WHERE product_id=?").bind(data.product_id).first()
+    if not product:
+        raise HTTPException(404, "Product not found")
+    if cert_id:
+        existing = await db.prepare("SELECT id FROM batch_certificates WHERE id=?").bind(cert_id).first()
+        if not existing:
+            raise HTTPException(404, "Certificate not found")
+        await db.prepare("""UPDATE batch_certificates SET product_id=?, batch_number=?, test_date=?, laboratory=?,
+            fssai_license=?, purity_percent=?, test_parameters=?, status=?, certified_by=?, remarks=?, report_url=? WHERE id=?""").bind(
+            data.product_id, data.batch_number, data.test_date.isoformat(), data.laboratory, data.fssai_license,
+            data.purity_percent, json.dumps(data.test_parameters), data.status, data.certified_by, data.remarks,
+            data.report_url, cert_id).run()
+    else:
+        cert_id = str(uuid.uuid4())
+        await db.prepare("""INSERT INTO batch_certificates(id, product_id, batch_number, test_date, laboratory,
+            fssai_license, purity_percent, test_parameters, status, certified_by, remarks, report_url)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""").bind(cert_id, data.product_id, data.batch_number,
+            data.test_date.isoformat(), data.laboratory, data.fssai_license, data.purity_percent,
+            json.dumps(data.test_parameters), data.status, data.certified_by, data.remarks, data.report_url).run()
+    saved = await db.prepare("SELECT b.*, i.title AS product_title FROM batch_certificates b JOIN inventory i ON i.product_id=b.product_id WHERE b.id=?").bind(cert_id).first()
+    return {"success": True, "data": _certificate_view(saved)}
 
 
 @commerce_router.get("/vendor/products")
@@ -1506,25 +1654,28 @@ async def save_certificate(request: Request):
 async def list_vendor_products(request: Request):
     await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
     db = _env(request).DB
-    rows = await db.prepare("SELECT * FROM inventory").all()
+    rows = await db.prepare("""SELECT i.*, p.mrp_minor, f.department, v.pack_size, v.publication_status
+        FROM inventory i LEFT JOIN inventory_pricing p ON p.product_id=i.product_id
+        LEFT JOIN product_family_variants v ON v.id=i.product_id
+        LEFT JOIN product_families f ON f.id=v.family_id""").all()
     products = [
         {
             "id": r["product_id"],
             "product_id": r["product_id"],
             "vendor_id": "vendor-1",
             "title": r["title"],
-            "category": "FEED_NUTRITION",
+            "category": r["department"] or "Uncategorized",
             "base_price": r["price_minor"] / 100.0,
             "price": r["price_minor"] / 100.0,
             "unit": "pack",
-            "pack_size": "Standard",
+            "pack_size": r["pack_size"] or "",
             "description": r["title"],
             "available_quantity": r["available_units"],
             "available_units": r["available_units"],
             "min_order_quantity": 1,
             "in_stock": r["available_units"] > 0 and r["is_active"] == 1,
             "is_active": r["is_active"] == 1,
-            "publication_status": "published",
+            "publication_status": r["publication_status"] or ("published" if r["is_active"] else "draft"),
             "media": [],
             "specifications": {},
             "taxonomy": None,
@@ -1542,46 +1693,107 @@ async def list_vendor_products(request: Request):
 @commerce_router.get("/admin/families")
 async def list_product_families(request: Request):
     await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
-    return {"success": True, "data": []}
+    db = _env(request).DB
+    families = _d1_rows(await db.prepare("SELECT * FROM product_families ORDER BY created_at DESC").all())
+    variants = _d1_rows(await db.prepare("""SELECT v.*, i.title, i.price_minor, i.available_units, i.is_active
+        FROM product_family_variants v JOIN inventory i ON i.product_id=v.id""").all())
+    by_family: dict[str, list[dict[str, Any]]] = {}
+    for item in variants:
+        by_family.setdefault(item["family_id"], []).append({"id": item["id"], "sku": item["sku"],
+            "pack_size": item["pack_size"], "base_price": item["price_minor"] / 100,
+            "compare_at_price": item["compare_at_price_minor"] / 100 if item["compare_at_price_minor"] is not None else None,
+            "available_quantity": item["available_units"], "in_stock": bool(item["is_active"] and item["available_units"]),
+            "publication_status": item["publication_status"]})
+    return {"success": True, "data": [{"id": fam["id"], "title": fam["title"],
+        "brand": fam["brand"], "department": fam["department"], "collection": fam["collection_name"],
+        "description": fam["description"], "production_method": fam["production_method"],
+        "vendor_id": fam["vendor_id"],
+        "is_published": bool(fam["is_published"]), "is_concept": fam["status"] == "concept_preview",
+        "variants": by_family.get(fam["id"], [])} for fam in families]}
+
+
+class FamilyInput(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    title: str = Field(min_length=2, max_length=200)
+    brand: str = Field(default="Milterra", max_length=100)
+    department: str = Field(default="", max_length=100)
+    collection: str | None = None
+    description: str = ""
+    status: Literal["concept_preview", "draft"] = "draft"
+    is_concept: bool = False
+    is_published: bool = False
+    vendor_id: str = "vendor-1"
+    production_method: str | None = None
+    supporting_documents: dict[str, Any] = Field(default_factory=dict)
 
 
 @commerce_router.post("/vendor/families")
-async def create_product_family(request: Request):
+async def create_product_family(data: FamilyInput, request: Request):
     await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
-    return {"success": True, "message": "Family created", "data": {"id": f"fam-{int(time.time())}"}}
+    if data.is_published:
+        raise HTTPException(422, "New product families are drafts until the catalogue is published")
+    db = _env(request).DB
+    if not await db.prepare("SELECT id FROM commerce_sellers WHERE id=? AND status='approved'").bind(data.vendor_id).first():
+        raise HTTPException(422, "Select the active Milterra seller")
+    family_id = str(uuid.uuid4())
+    await db.prepare("""INSERT INTO product_families(id,title,brand,department,collection_name,description,
+        production_method,supporting_documents,status,vendor_id,is_published)
+        VALUES(?,?,?,?,?,?,?,?,?,?,0)""").bind(family_id, data.title, data.brand, data.department,
+        data.collection, data.description, data.production_method, json.dumps(data.supporting_documents),
+        "concept_preview" if data.is_concept else data.status, data.vendor_id).run()
+    return {"success": True, "data": {"id": family_id, "is_published": False}}
+
+
+class FamilyVariantInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sku: str = Field(min_length=1, max_length=100)
+    pack_size: str = Field(min_length=1, max_length=100)
+    base_price: float = Field(gt=0)
+    compare_at_price: float | None = None
+    initial_stock: int = Field(default=0, ge=0)
+    publication_status: Literal["draft", "published"] = "draft"
 
 
 @commerce_router.post("/vendor/families/{family_id}/variants")
-async def create_family_variant(family_id: str, request: Request):
+async def create_family_variant(family_id: str, data: FamilyVariantInput, request: Request):
     await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
-    return {"success": True, "message": "Variant created", "data": {"id": f"var-{int(time.time())}"}}
+    if data.publication_status == "published":
+        raise HTTPException(422, "New variants are drafts until the catalogue is published")
+    db = _env(request).DB
+    family = await db.prepare("SELECT title,is_published FROM product_families WHERE id=?").bind(family_id).first()
+    if not family:
+        raise HTTPException(404, "Product family not found")
+    if family["is_published"]:
+        raise HTTPException(409, "Publish the product catalogue before making a new variant sellable")
+    price_minor = _money_minor(data.base_price, "Selling price")
+    compare_minor = _money_minor(data.compare_at_price, "Compare price") if data.compare_at_price is not None else None
+    if compare_minor is not None and compare_minor < price_minor:
+        raise HTTPException(422, "Compare price cannot be below selling price")
+    variant_id = str(uuid.uuid4())
+    statements = [
+        db.prepare("INSERT INTO inventory(product_id,title,available_units,price_minor,currency,is_active) VALUES(?,?,?,?, 'INR',0)").bind(
+            variant_id, family["title"] + " " + data.pack_size, data.initial_stock, price_minor),
+        db.prepare("INSERT INTO product_family_variants(id,family_id,sku,pack_size,compare_at_price_minor,publication_status) VALUES(?,?,?,?,?,'draft')").bind(
+            variant_id, family_id, data.sku, data.pack_size, compare_minor),
+    ]
+    if compare_minor is not None:
+        statements.append(db.prepare("INSERT INTO inventory_pricing(product_id,mrp_minor) VALUES(?,?)").bind(
+            variant_id, compare_minor))
+    await db.batch(statements)
+    return {"success": True, "data": {"id": variant_id, "publication_status": "draft"}}
 
 
 @commerce_router.get("/admin/marketplace/vendors")
 async def list_marketplace_vendors(request: Request):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
-    return {
-        "success": True,
-        "data": [
-            {
-                "id": "vendor-1",
-                "business_name": "Milterra Central Operations",
-                "gstin": "29AAAAA0000A1Z5",
-                "fssai_license": "10020011000456",
-                "contact_email": "admin@milterrafoods.com",
-                "contact_phone": "+919839769808",
-                "warehouse_city": "Noida",
-                "warehouse_state": "Uttar Pradesh",
-                "status": "approved",
-            }
-        ],
-    }
+    rows = await _env(request).DB.prepare("SELECT * FROM commerce_sellers ORDER BY created_at").all()
+    return {"success": True, "data": _d1_rows(rows)}
 
 
 @commerce_router.post("/admin/marketplace/vendors")
 async def create_marketplace_vendor(request: Request):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
-    return {"success": True, "message": "Vendor registered successfully"}
+    raise HTTPException(409, "This storefront is configured for a single Milterra seller")
 
 
 # -----------------------------------------------------------------------------
@@ -1594,56 +1806,81 @@ async def create_marketplace_vendor(request: Request):
 @commerce_router.get("/marketplace/vendor/products/reviews")
 async def list_reviews(request: Request):
     await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
-    return {
-        "success": True,
-        "data": [
-            {
-                "id": "rev-1",
-                "customer_id": "cust-1",
-                "customer_name": "Ramesh Kumar",
-                "product_id": "prod-1",
-                "product_title": "Milterra Balanced Cattle Feed (50kg)",
-                "rating": 5,
-                "review_text": "Excellent feed quality! My cattle yield increased noticeably within a week.",
-                "comment": "Excellent feed quality! My cattle yield increased noticeably within a week.",
-                "status": "APPROVED",
-                "is_verified": True,
-                "vendor_reply": None,
-                "reply": None,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            },
-            {
-                "id": "rev-2",
-                "customer_id": "cust-2",
-                "customer_name": "Suresh Patel",
-                "product_id": "prod-2",
-                "product_title": "Milterra High Protein Supplement (25kg)",
-                "rating": 4,
-                "review_text": "Good packaging and fast delivery. Very satisfied.",
-                "comment": "Good packaging and fast delivery. Very satisfied.",
-                "status": "PENDING",
-                "is_verified": True,
-                "vendor_reply": None,
-                "reply": None,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            },
-        ],
-    }
+    rows = await _env(request).DB.prepare("""SELECT r.*, c.full_name AS author_name, i.title AS product_title
+        FROM product_reviews r JOIN customers c ON c.id=r.customer_id
+        JOIN inventory i ON i.product_id=r.product_id ORDER BY r.created_at DESC LIMIT 100""").all()
+    return {"success": True, "data": [_review_view(row) for row in _d1_rows(rows)]}
+
+
+def _review_view(row: dict[str, Any]) -> dict[str, Any]:
+    return {**row, "customer_name": row["author_name"], "review_text": row["content"],
+            "comment": row["content"], "is_approved": row["status"] == "APPROVED",
+            "is_verified": True, "reply": row["vendor_reply"]}
+
+
+class ReviewInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    order_id: str
+    rating: int = Field(ge=1, le=5)
+    headline: str = Field(default="", max_length=150)
+    content: str = Field(min_length=5, max_length=2000)
+
+
+@commerce_router.post("/products/{product_id}/reviews", status_code=201)
+async def create_review(product_id: str, data: ReviewInput, request: Request):
+    customer = await _require_auth(request)
+    db = _env(request).DB
+    order = await db.prepare("""SELECT o.id FROM orders o JOIN order_lines l ON l.order_id=o.id
+        WHERE o.id=? AND o.customer_id=? AND o.status='delivered' AND l.product_id=?""").bind(
+        data.order_id, customer["id"], product_id).first()
+    if not order:
+        raise HTTPException(403, "Only a customer with a delivered order can review this product")
+    review_id = str(uuid.uuid4())
+    try:
+        await db.prepare("""INSERT INTO product_reviews(id,customer_id,product_id,order_id,rating,headline,content)
+            VALUES(?,?,?,?,?,?,?)""").bind(review_id, customer["id"], product_id, data.order_id,
+            data.rating, data.headline, data.content).run()
+    except Exception as exc:
+        if "UNIQUE" in str(exc).upper():
+            raise HTTPException(409, "This order already has a review for the product") from exc
+        raise
+    return {"success": True, "data": {"id": review_id, "status": "PENDING"}}
+
+
+@commerce_router.get("/products/{product_id}/reviews")
+async def list_public_reviews(product_id: str, request: Request):
+    rows = await _env(request).DB.prepare("""SELECT r.*, c.full_name AS author_name, i.title AS product_title
+        FROM product_reviews r JOIN customers c ON c.id=r.customer_id
+        JOIN inventory i ON i.product_id=r.product_id WHERE r.product_id=? AND r.status='APPROVED'
+        ORDER BY r.created_at DESC LIMIT 100""").bind(product_id).all()
+    return {"success": True, "data": [_review_view(row) for row in _d1_rows(rows)]}
 
 
 class ReviewStatusUpdate(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    status: str = Field(default="APPROVED")
+    model_config = ConfigDict(extra="forbid")
+    status: Literal["APPROVED", "REJECTED", "PENDING"] | None = None
+    is_approved: bool | None = None
     reason: str | None = None
+    rejection_reason: str | None = None
 
 
 @commerce_router.patch("/admin/marketplace/reviews/{review_id}/status")
 @commerce_router.patch("/admin/marketplace/reviews/{review_id}")
 @commerce_router.patch("/marketplace/admin/marketplace/reviews/{review_id}/status")
 @commerce_router.patch("/marketplace/admin/marketplace/reviews/{review_id}")
+@commerce_router.patch("/admin/marketplace/reviews/{review_id}/moderation")
 async def update_review_status(review_id: str, data: ReviewStatusUpdate, request: Request):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
-    return {"success": True, "message": f"Review {review_id} status updated to {data.status}"}
+    target = data.status or ("APPROVED" if data.is_approved else "REJECTED" if data.is_approved is False else None)
+    if not target:
+        raise HTTPException(422, "Review status is required")
+    db = _env(request).DB
+    if not await db.prepare("SELECT id FROM product_reviews WHERE id=?").bind(review_id).first():
+        raise HTTPException(404, "Review not found")
+    reason = data.rejection_reason or data.reason
+    await db.prepare("UPDATE product_reviews SET status=?, rejection_reason=? WHERE id=?").bind(
+        target, reason if target == "REJECTED" else None, review_id).run()
+    return {"success": True, "message": f"Review {review_id} status updated to {target}"}
 
 
 class ReviewReplyInput(BaseModel):
@@ -1657,6 +1894,10 @@ class ReviewReplyInput(BaseModel):
 @commerce_router.post("/marketplace/admin/marketplace/reviews/{review_id}/reply")
 async def reply_review(review_id: str, data: ReviewReplyInput, request: Request):
     await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
+    db = _env(request).DB
+    if not await db.prepare("SELECT id FROM product_reviews WHERE id=?").bind(review_id).first():
+        raise HTTPException(404, "Review not found")
+    await db.prepare("UPDATE product_reviews SET vendor_reply=? WHERE id=?").bind(data.reply, review_id).run()
     return {"success": True, "message": f"Reply added to review {review_id}"}
 
 
@@ -1676,21 +1917,141 @@ async def list_admin_purchase_interests(request: Request):
 @commerce_router.patch("/orders/admin/interests/{interest_id}")
 async def update_admin_purchase_interest(interest_id: str, request: Request):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
-    return {"success": True, "message": f"Interest {interest_id} updated"}
+    raise HTTPException(501, "Pre-launch interest follow-up is not active in the live COD store")
 
 
 @commerce_router.get("/marketplace/orders/admin/cancellations")
 @commerce_router.get("/orders/admin/cancellations")
 async def list_admin_cancellations(request: Request):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
-    return {"success": True, "data": []}
+    rows = await _env(request).DB.prepare("""SELECT o.*, c.phone AS customer_phone FROM orders o
+        JOIN customers c ON c.id=o.customer_id WHERE o.status='cancelled'
+        ORDER BY o.created_at DESC LIMIT 100""").all()
+    return {"success": True, "data": [{"id": row["id"], "status": "CANCELLED",
+        "payment_status": row["payment_status"].upper(), "customer_phone": row["customer_phone"],
+        "total": row["total_minor"] / 100, "created_at": row["created_at"],
+        "refund_status": "NOT_REQUIRED" if row["payment_method"] == "cod" else "REVIEW_REQUIRED"}
+        for row in _d1_rows(rows)]}
+
+
+class ReturnReasonInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    reason: str = Field(min_length=5, max_length=300)
+    remarks: str = Field(default="", max_length=800)
+
+
+@commerce_router.post("/orders/{order_id}/return-request", status_code=201)
+@commerce_router.post("/orders/{order_id}/return", status_code=201)
+async def request_customer_return(order_id: str, data: ReturnReasonInput, request: Request):
+    customer = await _require_auth(request)
+    db = _env(request).DB
+    order = await db.prepare("SELECT status FROM orders WHERE id=? AND customer_id=?").bind(order_id, customer["id"]).first()
+    if not order:
+        raise HTTPException(404, "Order not found")
+    if order["status"] != "delivered":
+        raise HTTPException(409, "Return requests are available after delivery")
+    try:
+        await db.prepare("INSERT INTO order_return_cases(id,order_id,kind,reason,remarks) VALUES(?,?,'customer_return',?,?)").bind(
+            str(uuid.uuid4()), order_id, data.reason.strip(), data.remarks.strip()).run()
+    except Exception as exc:
+        if "UNIQUE" in str(exc).upper():
+            raise HTTPException(409, "This order already has a return case") from exc
+        raise
+    return {"success": True, "message": "Return request received for review", "data": {"order_id": order_id, "return_status": "RETURN_REQUESTED"}}
+
+
+@commerce_router.post("/orders/admin/returns/{order_id}/rto", status_code=201)
+async def open_rto_case(order_id: str, data: ReturnReasonInput, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    order = await db.prepare("SELECT status FROM orders WHERE id=?").bind(order_id).first()
+    if not order:
+        raise HTTPException(404, "Order not found")
+    if order["status"] not in ("shipped", "out_for_delivery"):
+        raise HTTPException(409, "RTO can only be opened for an in-transit order")
+    try:
+        await db.batch([
+            db.prepare("INSERT INTO order_return_cases(id,order_id,kind,reason,remarks) VALUES(?,?,'rto',?,?)").bind(
+                str(uuid.uuid4()), order_id, data.reason.strip(), data.remarks.strip()),
+            db.prepare("""INSERT INTO order_events(id,order_id,status,title,remarks)
+                VALUES(?,?,'RTO_REQUESTED','Delivery failed; return to sender opened',?)""").bind(
+                str(uuid.uuid4()), order_id, data.reason.strip()),
+        ])
+    except Exception as exc:
+        if "UNIQUE" in str(exc).upper():
+            raise HTTPException(409, "This order already has a return case") from exc
+        raise
+    return {"success": True, "data": {"order_id": order_id, "return_status": "RTO_REQUESTED"}}
 
 
 @commerce_router.get("/marketplace/orders/admin/returns")
 @commerce_router.get("/orders/admin/returns")
 async def list_admin_returns(request: Request):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
-    return {"success": True, "data": []}
+    rows = await _env(request).DB.prepare("""SELECT r.*, o.total_minor, o.payment_status,
+        c.phone AS customer_phone FROM order_return_cases r JOIN orders o ON o.id=r.order_id
+        JOIN customers c ON c.id=o.customer_id ORDER BY r.created_at DESC LIMIT 100""").all()
+    return {"success": True, "data": [{"id": row["order_id"], "case_id": row["id"],
+        "return_reason": row["reason"], "return_remarks": row["remarks"],
+        "return_status": ("RTO_DELIVERED" if row["kind"] == "rto" else "RETURN_COMPLETED")
+        if row["status"] == "received" else ("RETURN_REJECTED" if row["status"] == "rejected"
+        else ("RTO_REQUESTED" if row["kind"] == "rto" else "RETURN_REQUESTED")),
+        "payment_status": row["payment_status"].upper(), "customer_phone": row["customer_phone"],
+        "total": row["total_minor"] / 100} for row in _d1_rows(rows)]}
+
+
+class ReturnResolutionInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action: Literal["confirm_received_refund", "confirm_received", "reject"]
+    refund_reference: str = Field(default="", max_length=100)
+    remarks: str = Field(default="", max_length=800)
+    restock_inventory: bool = True
+
+
+@commerce_router.post("/marketplace/orders/admin/returns/{order_id}/process")
+@commerce_router.post("/orders/admin/returns/{order_id}/process")
+async def process_return_case(order_id: str, data: ReturnResolutionInput, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    row = await db.prepare("""SELECT r.*, o.payment_status, o.payment_method, o.reservation_id
+        FROM order_return_cases r JOIN orders o ON o.id=r.order_id WHERE r.order_id=?""").bind(order_id).first()
+    if not row:
+        raise HTTPException(404, "Return case not found")
+    if row["status"] != "requested":
+        raise HTTPException(409, "Return case has already been resolved")
+    if data.action == "reject" and not data.remarks.strip():
+        raise HTTPException(422, "A rejection explanation is required")
+    receiving = data.action != "reject"
+    if receiving and row["payment_status"] == "paid":
+        if row["payment_method"] != "cod":
+            raise HTTPException(409, "Online refunds require payment-provider verification")
+        if len(data.refund_reference.strip()) < 3:
+            raise HTTPException(422, "Enter the completed COD refund reference")
+    statements = [db.prepare("""UPDATE order_return_cases SET status=?, remarks=?, refund_reference=?,
+        restocked=?, resolved_at=CURRENT_TIMESTAMP WHERE id=?""").bind(
+        "received" if receiving else "rejected", data.remarks.strip(),
+        data.refund_reference.strip() or None, int(receiving and data.restock_inventory), row["id"])]
+    if receiving and data.restock_inventory:
+        lines = _d1_rows(await db.prepare("SELECT product_id,quantity FROM order_lines WHERE order_id=?").bind(order_id).all())
+        for line in lines:
+            statements.append(db.prepare("UPDATE inventory SET available_units=available_units+?,updated_at=CURRENT_TIMESTAMP WHERE product_id=?").bind(
+                line["quantity"], line["product_id"]))
+        if row["reservation_id"]:
+            statements.append(db.prepare("UPDATE reservations SET status='CANCELLED' WHERE id=?").bind(row["reservation_id"]))
+    if receiving and row["payment_status"] == "paid":
+        statements.append(db.prepare("UPDATE orders SET payment_status='refunded' WHERE id=?").bind(order_id))
+    statements.append(db.prepare("""INSERT INTO order_events(id,order_id,status,title,remarks)
+        VALUES(?,?,?,?,?)""").bind(str(uuid.uuid4()), order_id,
+        "RETURN_RECEIVED" if receiving else "RETURN_REJECTED",
+        "Return received and closed" if receiving else "Return request rejected", data.remarks.strip()))
+    try:
+        await db.batch(statements)
+    except Exception as exc:
+        if "return case already finalized" in str(exc).lower():
+            raise HTTPException(409, "Return case has already been resolved") from exc
+        raise
+    return {"success": True, "data": {"order_id": order_id,
+        "return_status": "RETURN_COMPLETED" if receiving else "RETURN_REJECTED"}}
 
 
 @commerce_router.get("/admin/commerce/vendors/settlements")
@@ -1715,47 +2076,40 @@ async def list_concept_feedback(request: Request):
 @commerce_router.get("/marketplace/admin/commerce/reports/gstr1")
 async def get_gstr1_report(request: Request, format: str = "json"):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
-    if format == "csv":
-        return JSONResponse("Order ID,Date,Customer Phone,Taxable Value,CGST,SGST,IGST,Total Amount\n", media_type="text/csv")
-    return {"success": True, "data": []}
+    raise HTTPException(501, "Tax reporting is not configured; export verified invoices from your accounting system")
 
 
 @commerce_router.get("/admin/commerce/reports/settlements")
 @commerce_router.get("/marketplace/admin/commerce/reports/settlements")
 async def get_settlements_report(request: Request, format: str = "json"):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
-    if format == "csv":
-        return JSONResponse("Vendor ID,Vendor Name,Period,Gross Sales,Commission,TDS,Net Payout,Status\n", media_type="text/csv")
-    return {"success": True, "data": []}
+    raise HTTPException(501, "Vendor settlements do not apply to this single-seller store")
 
 
 @commerce_router.get("/admin/ecommerce/carts")
 @commerce_router.get("/marketplace/admin/ecommerce/carts")
 async def list_admin_carts(request: Request):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
-    return {"success": True, "data": []}
+    rows = await _env(request).DB.prepare("""SELECT c.customer_id, u.phone AS customer_phone,
+        SUM(c.quantity) AS item_count, MAX(c.updated_at) AS updated_at
+        FROM cart_items c JOIN customers u ON u.id=c.customer_id
+        GROUP BY c.customer_id ORDER BY updated_at DESC LIMIT 100""").all()
+    return {"success": True, "data": _d1_rows(rows)}
 
 
 @commerce_router.get("/admin/ecommerce/analytics/traffic")
 @commerce_router.get("/marketplace/admin/ecommerce/analytics/traffic")
 async def get_admin_traffic_analytics(request: Request):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
-    return {
-        "success": True,
-        "data": {
-            "daily_active_users": 150,
-            "cart_conversions": 42,
-            "checkout_dropoffs": 5,
-            "page_views": 1280,
-        },
-    }
+    return {"success": True, "data": {"available": False,
+            "reason": "Visitor and page-view tracking is not configured"}}
 
 
 @commerce_router.post("/admin/ecommerce/carts/{cart_id}/nudge")
 @commerce_router.post("/marketplace/admin/ecommerce/carts/{cart_id}/nudge")
 async def nudge_abandoned_cart(cart_id: str, request: Request):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
-    return {"success": True, "message": f"Nudge notification sent for cart {cart_id}"}
+    raise HTTPException(501, "Customer messaging is not configured; no notification was sent")
 
 
 # -----------------------------------------------------------------------------
@@ -1765,20 +2119,28 @@ async def nudge_abandoned_cart(cart_id: str, request: Request):
 @commerce_router.get("/marketplace/certificates")
 @commerce_router.get("/certificates")
 async def list_certificates(request: Request):
-    return {"success": True, "data": []}
+    rows = await _env(request).DB.prepare("""SELECT b.*, i.title AS product_title FROM batch_certificates b
+        JOIN inventory i ON i.product_id=b.product_id WHERE b.status='CERTIFIED'
+        ORDER BY b.test_date DESC""").all()
+    return {"success": True, "data": [_certificate_view(row) for row in _d1_rows(rows)]}
 
 
 @commerce_router.get("/admin/dashboard")
 @commerce_router.get("/marketplace/admin/dashboard")
 async def get_admin_dashboard(request: Request):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    customers = await db.prepare("SELECT COUNT(*) AS n FROM customers WHERE role IN ('farmer','customer')").first()
+    orders = await db.prepare("""SELECT COUNT(*) AS n,
+        COALESCE(SUM(CASE WHEN payment_status='paid' THEN total_minor ELSE 0 END),0) AS revenue_minor
+        FROM orders WHERE status!='cancelled'""").first()
     return {
         "success": True,
         "data": {
-            "total_farmers": 1250,
-            "total_vets": 45,
-            "total_orders": 310,
-            "total_revenue": 450000.0,
+            "total_farmers": customers["n"],
+            "total_vets": 0,
+            "total_orders": orders["n"],
+            "total_revenue": orders["revenue_minor"] / 100,
         },
     }
 
@@ -1817,15 +2179,18 @@ async def list_admin_consultations(request: Request):
 @commerce_router.get("/marketplace/admin/analytics")
 async def get_admin_analytics(request: Request):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    customers = await db.prepare("SELECT COUNT(*) AS n FROM customers WHERE role IN ('farmer','customer')").first()
+    orders = await db.prepare("""SELECT COUNT(*) AS n,
+        COALESCE(SUM(CASE WHEN payment_status='paid' THEN total_minor ELSE 0 END),0) AS revenue_minor
+        FROM orders WHERE status!='cancelled' AND strftime('%Y-%m',created_at)=strftime('%Y-%m','now')""").first()
     return {
         "success": True,
         "data": {
-            "active_users": 1500,
-            "monthly_orders": 450,
-            "revenue_inr": 620000.0,
+            "active_users": 0,
+            "registered_customers": customers["n"],
+            "visitor_tracking_available": False,
+            "monthly_orders": orders["n"],
+            "revenue_inr": orders["revenue_minor"] / 100,
         },
     }
-
-
-
-

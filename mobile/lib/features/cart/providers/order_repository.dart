@@ -119,6 +119,7 @@ class StoreOrder {
   final double discount;
   final double total;
   final List<OrderTimelineEvent> timeline;
+  final Map<String, dynamic>? returnCase;
 
   const StoreOrder({
     this.isPrelaunchInterest = false,
@@ -138,6 +139,7 @@ class StoreOrder {
     this.discount = 0.0,
     required this.total,
     this.timeline = const [],
+    this.returnCase,
   });
 
   factory StoreOrder.fromMap(Map<String, dynamic> j) => StoreOrder(
@@ -167,6 +169,9 @@ class StoreOrder {
             .map(
                 (e) => OrderTimelineEvent.fromMap(Map<String, dynamic>.from(e)))
             .toList(),
+        returnCase: j['return_case'] is Map
+            ? Map<String, dynamic>.from(j['return_case'] as Map)
+            : null,
       );
 
   int get currentStep {
@@ -195,6 +200,7 @@ class StoreOrder {
     double? discount,
     double? total,
     List<OrderTimelineEvent>? timeline,
+    Map<String, dynamic>? returnCase,
   }) {
     return StoreOrder(
       isPrelaunchInterest: isPrelaunchInterest,
@@ -214,6 +220,7 @@ class StoreOrder {
       discount: discount ?? this.discount,
       total: total ?? this.total,
       timeline: timeline ?? this.timeline,
+      returnCase: returnCase ?? this.returnCase,
     );
   }
 

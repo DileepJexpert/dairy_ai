@@ -494,7 +494,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   return null;
                                 },
                               ),
-                              if (!_createAccount)
+                              if (!_createAccount &&
+                                  !AppConstants.separateCustomerAuth)
                                 Align(
                                   alignment: Alignment.centerRight,
                                   child: TextButton(

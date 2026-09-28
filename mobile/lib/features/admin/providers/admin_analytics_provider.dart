@@ -91,7 +91,8 @@ class AdminAnalyticsState {
       carts: carts ?? this.carts,
       traffic: clearTraffic ? null : traffic ?? this.traffic,
       clickstreamEvents: clickstreamEvents ?? this.clickstreamEvents,
-      sessionsData: clearSessionsData ? null : sessionsData ?? this.sessionsData,
+      sessionsData:
+          clearSessionsData ? null : sessionsData ?? this.sessionsData,
       selectedUserPhone: clearSelectedUserPhone
           ? null
           : selectedUserPhone ?? this.selectedUserPhone,
@@ -231,6 +232,14 @@ class AdminAnalyticsNotifier extends StateNotifier<AdminAnalyticsState> {
     );
     try {
       final response = await _dio.get('/admin/ecommerce/analytics/traffic');
+      if (response.data['data']?['available'] == false) {
+        state = state.copyWith(
+          clearTraffic: true,
+          isLoadingTraffic: false,
+          trafficError: 'Visitor tracking has not been configured yet.',
+        );
+        return;
+      }
       final traffic = TrafficAnalyticsData.fromJson(
         Map<String, dynamic>.from(response.data['data'] as Map),
       );

@@ -9,10 +9,7 @@ double _number(dynamic value) => double.tryParse(value?.toString() ?? '') ?? 0;
 List<Map<String, dynamic>> _rows(Map body, String key) {
   final val = body[key];
   if (val is! List) return const [];
-  return val
-      .whereType<Map>()
-      .map((e) => Map<String, dynamic>.from(e))
-      .toList();
+  return val.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
 }
 
 SellerStatus _sellerStatus(dynamic val) {
@@ -47,13 +44,13 @@ AuditAction _auditAction(dynamic val) {
   if (str.contains('deal')) return AuditAction.dealCreate;
   if (str.contains('approval')) return AuditAction.sellerApproval;
   if (str.contains('suspen')) return AuditAction.sellerSuspension;
-  if (str.contains('catalog') || str.contains('product')) return AuditAction.catalogCreate;
+  if (str.contains('catalog') || str.contains('product'))
+    return AuditAction.catalogCreate;
   return AuditAction.values.firstWhere(
     (e) => e.name.toLowerCase() == str,
     orElse: () => AuditAction.statusChange,
   );
 }
-
 
 class BatchCertificate {
   const BatchCertificate({
@@ -167,7 +164,9 @@ class AdminMarketplaceState {
                   status: _sellerStatus(s['status']),
                   ratingScore: _number(s['rating_score']),
                   commissionRatePercent: _number(s['commission_rate'] ?? 5.0),
-                  createdAt: DateTime.tryParse(s['created_at']?.toString() ?? '') ?? DateTime.now(),
+                  createdAt:
+                      DateTime.tryParse(s['created_at']?.toString() ?? '') ??
+                          DateTime.now(),
                 ))
             .toList(),
         offers: _rows(j, 'offers')
@@ -181,7 +180,8 @@ class AdminMarketplaceState {
                   sellingPrice: _number(o['selling_price']),
                   discountPercent: _number(o['discount_percent']),
                   availableStock: (o['available_stock'] as num?)?.toInt() ?? 0,
-                  lowStockThreshold: (o['low_stock_threshold'] as num?)?.toInt() ?? 5,
+                  lowStockThreshold:
+                      (o['low_stock_threshold'] as num?)?.toInt() ?? 5,
                   deliveryPromise: '',
                   offerStatus: _offerStatus(o['offer_status']),
                   sellerRating: _number(o['seller_rating']),
@@ -199,7 +199,8 @@ class AdminMarketplaceState {
                   maxDiscountCap: c['max_discount_cap'] == null
                       ? null
                       : _number(c['max_discount_cap']),
-                  validUntil: DateTime.tryParse(c['valid_until']?.toString() ?? ''),
+                  validUntil:
+                      DateTime.tryParse(c['valid_until']?.toString() ?? ''),
                   usageCount: (c['usage_count'] as num?)?.toInt() ?? 0,
                   isActive: c['is_active'] == true,
                 ))
@@ -216,7 +217,9 @@ class AdminMarketplaceState {
                   entityType: a['entity_type']?.toString() ?? '',
                   entityId: a['entity_id']?.toString() ?? '',
                   details: a['details']?.toString() ?? '',
-                  timestamp: DateTime.tryParse(a['timestamp']?.toString() ?? '') ?? DateTime.now(),
+                  timestamp:
+                      DateTime.tryParse(a['timestamp']?.toString() ?? '') ??
+                          DateTime.now(),
                 ))
             .toList(),
       );
@@ -270,6 +273,7 @@ class AdminMarketplaceNotifier extends StateNotifier<AdminMarketplaceState> {
       await dio.request(path, data: data, options: Options(method: method));
       ref.invalidate(productsProvider);
       ref.invalidate(productDetailProvider);
+      ref.invalidate(liveInventoryProvider);
       ref.invalidate(familiesProvider);
       ref.invalidate(availableCouponsProvider);
       ref.invalidate(publicCertificatesProvider);
@@ -284,8 +288,8 @@ class AdminMarketplaceNotifier extends StateNotifier<AdminMarketplaceState> {
       _save('$base/sellers/$id', {'status': 'approved'});
   Future<void> suspendSeller(String id, String reason) =>
       _save('$base/sellers/$id', {'status': 'suspended', 'reason': reason});
-  Future<void> updateSellerCommission(String id, double rate) =>
-      _save('/admin/commerce/vendors/$id/commission', {'commission_rate': rate});
+  Future<void> updateSellerCommission(String id, double rate) => _save(
+      '/admin/commerce/vendors/$id/commission', {'commission_rate': rate});
   Future<void> updateOfferPrice(String id, double price, double mrp) =>
       _save('$base/offers/$id', {'selling_price': price, 'mrp': mrp});
   Future<void> updateOfferStock(String id, int stock) =>

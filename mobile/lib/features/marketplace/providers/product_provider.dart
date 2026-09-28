@@ -53,6 +53,38 @@ final staticCatalogueProvider = FutureProvider<StaticCatalogue?>((ref) async {
   return ref.read(staticCatalogueReaderProvider)();
 });
 
+/// Static catalogue renders immediately. Live inventory then updates displayed
+/// price and availability without delaying browsing or checkout navigation.
+final liveInventoryProvider =
+    FutureProvider<Map<String, Map<String, dynamic>>>((ref) async {
+  try {
+    final response = await ref.read(dioProvider).get('/marketplace/inventory');
+    final rows = response.data['data'] as List;
+    return {
+      for (final item in rows.whereType<Map>())
+        item['product_id'].toString(): Map<String, dynamic>.from(item)
+    };
+  } catch (_) {
+    return const {};
+  }
+});
+
+Product _withLiveInventory(
+    Product product, Map<String, Map<String, dynamic>> live) {
+  final row = live[product.id];
+  if (row == null) return product;
+  final price = (row['price'] as num?)?.toDouble() ?? product.price;
+  final stock =
+      (row['available_quantity'] as num?)?.toInt() ?? product.availableQuantity;
+  return product.copyWith(
+    price: price,
+    availableQuantity: stock,
+    inStock: row['is_active'] == true && stock > 0,
+    stockKnown: true,
+    compareAtPrice: (row['mrp'] as num?)?.toDouble() ?? product.compareAtPrice,
+  );
+}
+
 const _legacyStorefrontSkuAliases = <String, String>{
   'mil-ghee-500': 'MIL-GHEE-500',
   'mil-ghee-1000': 'MIL-GHEE-1000',
@@ -103,8 +135,10 @@ final productsProvider = FutureProvider.family<List<Product>, ProductCategory?>(
     (ref, category) async {
   final snapshot = await ref.watch(staticCatalogueProvider.future);
   if (snapshot != null) {
+    final live = ref.watch(liveInventoryProvider).valueOrNull ?? const {};
     final items = snapshot.products
         .where((p) => category == null || p.category == category)
+        .map((p) => _withLiveInventory(p, live))
         .toList();
     final existingFamilies = items.map((p) => p.familyId).toSet();
     items.addAll(snapshot.families
@@ -151,6 +185,7 @@ final productDetailProvider =
     FutureProvider.family<Product, String>((ref, id) async {
   final snapshot = await ref.watch(staticCatalogueProvider.future);
   if (snapshot != null) {
+    final live = ref.watch(liveInventoryProvider).valueOrNull ?? const {};
     final conceptSlug = _legacyConceptSlugs[id];
     final family = conceptSlug != null
         ? snapshot.familyBySlug(conceptSlug)
@@ -165,7 +200,7 @@ final productDetailProvider =
     if (product == null) {
       throw StateError('Product is no longer available.');
     }
-    return product;
+    return _withLiveInventory(product, live);
   }
 
   if (_legacyConceptSlugs.containsKey(id)) {

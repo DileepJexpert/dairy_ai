@@ -1004,39 +1004,42 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                     const Icon(Icons.assignment_return_outlined,
                         color: storeGreen, size: 22),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Need to return or exchange?',
-                            style: TextStyle(
+                            order.returnCase == null
+                                ? 'Need to report an order issue?'
+                                : 'Return case: ${order.returnCase!['status']}',
+                            style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                               color: Color(0xff1e293b),
                             ),
                           ),
-                          Text(
-                            'Report transit damage, broken seal, or quality issue within 48h.',
+                          const Text(
+                            'Request review of damage, packaging, or quality issues.',
                             style: TextStyle(fontSize: 11, color: storeMuted),
                           ),
                         ],
                       ),
                     ),
-                    OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: storeGreen,
-                        side: const BorderSide(color: storeGreen),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
+                    if (order.returnCase == null)
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: storeGreen,
+                          side: const BorderSide(color: storeGreen),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                        ),
+                        onPressed: () => _showReturnRequestDialog(order.id),
+                        child: const Text(
+                          'Request return',
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
                       ),
-                      onPressed: () => _showReturnRequestDialog(order.id),
-                      child: const Text(
-                        'Return / Replace',
-                        style: TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -1658,7 +1661,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                   color: storeGreen.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.help_outline, color: storeGreen, size: 24),
+                child:
+                    const Icon(Icons.help_outline, color: storeGreen, size: 24),
               ),
               const SizedBox(width: 14),
               const Expanded(
@@ -1743,7 +1747,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
               Icon(Icons.assignment_return_outlined, color: storeGreen),
               SizedBox(width: 8),
               Text(
-                'Request Return or Exchange',
+                'Request Return',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ],
@@ -1755,7 +1759,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Select the primary reason for returning this item. Our quality inspection team will review and approve pickup within 24 hours.',
+                  'Tell us why you want to return this order. Our team will review the request and contact you about next steps.',
                   style: TextStyle(fontSize: 12, color: storeMuted),
                 ),
                 const SizedBox(height: 14),

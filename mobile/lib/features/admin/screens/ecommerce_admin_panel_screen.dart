@@ -43,8 +43,9 @@ final adminPurchaseInterestsProvider =
 
 final adminCancellationsProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final response =
-      await ref.watch(dioProvider).get('/marketplace/orders/admin/cancellations');
+  final response = await ref
+      .watch(dioProvider)
+      .get('/marketplace/orders/admin/cancellations');
   final body = response.data;
   if (body is! Map || body['data'] is! List) {
     throw const FormatException('Cancellations response was invalid');
@@ -209,204 +210,14 @@ class _EcommerceAdminPanelScreenState
     notes.dispose();
   }
 
-  Future<void> _processRefundDialog(Map<String, dynamic> order) async {
-    final orderId = order['id']?.toString() ?? '';
-    final orderNumber = order['order_number']?.toString() ?? orderId;
-    final total = double.tryParse(order['total']?.toString() ?? '') ?? 0.0;
-    final refCtrl = TextEditingController();
-    final remarksCtrl = TextEditingController();
-    String action = 'approve';
-    bool restockInventory = true;
-    bool saving = false;
-
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dCtx, setDialog) => AlertDialog(
-          title: Text('Review Cancellation: #$orderNumber'),
-          content: SizedBox(
-            width: 460,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xfff8fafc),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xffe2e8f0)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Order Total: ${storeMoney(total)}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 14)),
-                        const SizedBox(height: 4),
-                        Text('Customer: ${order['customer_phone'] ?? 'N/A'}',
-                            style: const TextStyle(
-                                fontSize: 12, color: Color(0xff64748b))),
-                        if (order['cancellation_reason'] != null &&
-                            order['cancellation_reason'].toString().isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text('Reason: ${order['cancellation_reason']}',
-                              style: const TextStyle(
-                                  fontSize: 12,
-                                  color: storeError,
-                                  fontStyle: FontStyle.italic)),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Moderation Action',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  const SizedBox(height: 6),
-                  SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(
-                          value: 'approve',
-                          label: Text('Confirm completed refund'),
-                          icon: Icon(Icons.check_circle_outline)),
-                      ButtonSegment(
-                          value: 'reject',
-                          label: Text('Reject Request'),
-                          icon: Icon(Icons.cancel_outlined)),
-                    ],
-                    selected: {action},
-                    onSelectionChanged: saving
-                        ? null
-                        : (val) => setDialog(() => action = val.first),
-                  ),
-                  const SizedBox(height: 14),
-                  if (action == 'approve') ...[
-                    const Text(
-                      'Process the full refund in Razorpay first. Once Razorpay shows it as processed, enter its refund ID here to close the order.',
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: refCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Processed Razorpay refund ID',
-                        hintText: 'rfnd_...',
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    CheckboxListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: restockInventory,
-                      onChanged: saving
-                          ? null
-                          : (v) => setDialog(() => restockInventory = v ?? true),
-                      title: const Text('Restock inventory quantities',
-                          style: TextStyle(fontSize: 13)),
-                      subtitle: const Text(
-                          'Adds items back to vendor inventory automatically',
-                          style: TextStyle(fontSize: 11)),
-                      controlAffinity: ListTileControlAffinity.leading,
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: remarksCtrl,
-                    maxLength: 800,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      labelText: action == 'approve'
-                          ? 'Admin remarks (Optional)'
-                          : 'Rejection explanation (Required)',
-                      hintText: action == 'approve'
-                          ? 'Refund processed in Razorpay'
-                          : 'e.g. Package already dispatched with courier',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: saving ? null : () => Navigator.pop(dCtx),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor:
-                    action == 'approve' ? storeGreen : storeError,
-              ),
-              onPressed: saving
-                  ? null
-                  : () async {
-                      if (action == 'reject' &&
-                          remarksCtrl.text.trim().isEmpty) {
-                        ScaffoldMessenger.of(dCtx).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'Please enter an explanation for rejecting this request.')),
-                        );
-                        return;
-                      }
-                      setDialog(() => saving = true);
-                      try {
-                        await ref.read(dioProvider).post(
-                          '/marketplace/orders/admin/refunds/$orderId',
-                          data: {
-                            'action': action,
-                            'refund_reference': refCtrl.text.trim(),
-                            'remarks': remarksCtrl.text.trim(),
-                            'restock_inventory': restockInventory,
-                          },
-                        );
-                        ref.invalidate(adminCancellationsProvider);
-                        ref.read(adminMarketplaceProvider.notifier).refresh();
-                        if (dCtx.mounted) Navigator.pop(dCtx);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(action == 'approve'
-                                  ? 'Processed refund verified; order cancelled.'
-                                  : 'Cancellation request rejected.'),
-                              backgroundColor:
-                                  action == 'approve' ? storeGreen : Colors.orange,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        if (dCtx.mounted) {
-                          setDialog(() => saving = false);
-                        }
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text(commerceError(e)),
-                                backgroundColor: storeError),
-                          );
-                        }
-                      }
-                    },
-              child: Text(saving
-                  ? 'Processing…'
-                  : (action == 'approve'
-                      ? 'Confirm Refund'
-                      : 'Reject Request')),
-            ),
-          ],
-        ),
-      ),
-    );
-    refCtrl.dispose();
-    remarksCtrl.dispose();
-  }
-
   Future<void> _processReturnDialog(Map<String, dynamic> order) async {
     final orderId = order['id']?.toString() ?? '';
     final total = double.tryParse(order['total']?.toString() ?? '0') ?? 0;
     final reason = order['return_reason']?.toString() ?? 'Damage/Quality';
     final remarks = order['return_remarks']?.toString() ?? '';
-    var action = 'confirm_received_refund';
+    final paymentCollected = order['payment_status'] == 'PAID';
+    var action =
+        paymentCollected ? 'confirm_received_refund' : 'confirm_received';
     final refCtrl = TextEditingController();
     final remarksCtrl = TextEditingController();
     var restockInventory = true;
@@ -466,20 +277,16 @@ class _EcommerceAdminPanelScreenState
                       contentPadding:
                           EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
-                    items: const [
+                    items: [
                       DropdownMenuItem(
-                        value: 'confirm_received_refund',
-                        child: Text('Inspect Item & Issue Refund'),
+                        value: paymentCollected
+                            ? 'confirm_received_refund'
+                            : 'confirm_received',
+                        child: Text(paymentCollected
+                            ? 'Confirm item received and COD refund completed'
+                            : 'Confirm item received (no COD collected)'),
                       ),
-                      DropdownMenuItem(
-                        value: 'approve_pickup',
-                        child: Text('Schedule Reverse Pickup with Courier'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'mark_rto',
-                        child: Text('Mark Returned to Origin (RTO)'),
-                      ),
-                      DropdownMenuItem(
+                      const DropdownMenuItem(
                         value: 'reject',
                         child: Text('Reject Return Request'),
                       ),
@@ -489,14 +296,15 @@ class _EcommerceAdminPanelScreenState
                         : (v) => setDialog(() => action = v ?? action),
                   ),
                   const SizedBox(height: 14),
-                  if (action == 'confirm_received_refund') ...[
-                    TextField(
-                      controller: refCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Payment Gateway / Bank Reference (UTR)',
-                        hintText: 'e.g. UPI-REF-98765432 or RAZORPAY_REF',
+                  if (action != 'reject') ...[
+                    if (paymentCollected)
+                      TextField(
+                        controller: refCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Payment Gateway / Bank Reference (UTR)',
+                          hintText: 'e.g. UPI-REF-98765432 or RAZORPAY_REF',
+                        ),
                       ),
-                    ),
                     const SizedBox(height: 10),
                     CheckboxListTile(
                       contentPadding: EdgeInsets.zero,
@@ -599,8 +407,9 @@ class _EcommerceAdminPanelScreenState
     final reason = order['return_reason']?.toString() ?? 'Damage';
     final returnStatus =
         order['return_status']?.toString() ?? 'RETURN_REQUESTED';
-    final isCompleted =
-        returnStatus == 'RETURN_COMPLETED' || returnStatus == 'RTO_DELIVERED';
+    final isCompleted = returnStatus == 'RETURN_COMPLETED' ||
+        returnStatus == 'RTO_DELIVERED' ||
+        returnStatus == 'RETURN_REJECTED';
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -651,8 +460,7 @@ class _EcommerceAdminPanelScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Order Amount: ${storeMoney(total)} · Reason: $reason',
-                style:
-                    const TextStyle(fontSize: 12, color: Color(0xff475569))),
+                style: const TextStyle(fontSize: 12, color: Color(0xff475569))),
             if (order['return_remarks'] != null &&
                 order['return_remarks'].toString().isNotEmpty)
               Text('Remarks: ${order['return_remarks']}',
@@ -1081,20 +889,23 @@ class _EcommerceAdminPanelScreenState
                           0.0,
                           (sum, r) =>
                               sum +
-                              (double.tryParse(r['taxable_amount']?.toString() ?? '') ??
+                              (double.tryParse(
+                                      r['taxable_amount']?.toString() ?? '') ??
                                   0.0));
                       final totalTax = rows.fold<double>(
                           0.0,
                           (sum, r) =>
                               sum +
-                              (double.tryParse(r['total_tax']?.toString() ?? '') ??
+                              (double.tryParse(
+                                      r['total_tax']?.toString() ?? '') ??
                                   0.0));
                       final totalInvoice = rows.fold<double>(
                           0.0,
                           (sum, r) =>
                               sum +
                               (double.tryParse(
-                                      r['total_invoice_amount']?.toString() ?? '') ??
+                                      r['total_invoice_amount']?.toString() ??
+                                          '') ??
                                   0.0));
 
                       return Container(
@@ -1160,13 +971,15 @@ class _EcommerceAdminPanelScreenState
                           0.0,
                           (sum, r) =>
                               sum +
-                              (double.tryParse(r['gross_sales']?.toString() ?? '') ??
+                              (double.tryParse(
+                                      r['gross_sales']?.toString() ?? '') ??
                                   0.0));
                       final totalNet = rows.fold<double>(
                           0.0,
                           (sum, r) =>
                               sum +
-                              (double.tryParse(r['net_payable']?.toString() ?? '') ??
+                              (double.tryParse(
+                                      r['net_payable']?.toString() ?? '') ??
                                   0.0));
                       final totalPending = rows.fold<double>(
                           0.0,
@@ -1273,7 +1086,8 @@ class _EcommerceAdminPanelScreenState
                                       DataCell(Text(r['order_date'] ?? '')),
                                       DataCell(Text(r['shipping_state'] ?? '')),
                                       DataCell(Text(storeMoney(double.tryParse(
-                                              r['taxable_amount']?.toString() ?? '') ??
+                                              r['taxable_amount']?.toString() ??
+                                                  '') ??
                                           0.0))),
                                       DataCell(Text(storeMoney(double.tryParse(
                                               r['cgst']?.toString() ?? '') ??
@@ -1302,9 +1116,11 @@ class _EcommerceAdminPanelScreenState
                                         style: const TextStyle(
                                             fontWeight: FontWeight.bold),
                                       )),
-                                      DataCell(Text('${r['commission_rate_percent']}%')),
+                                      DataCell(Text(
+                                          '${r['commission_rate_percent']}%')),
                                       DataCell(Text(storeMoney(double.tryParse(
-                                              r['gross_sales']?.toString() ?? '') ??
+                                              r['gross_sales']?.toString() ??
+                                                  '') ??
                                           0.0))),
                                       DataCell(Text(storeMoney(double.tryParse(
                                               r['platform_commission']
@@ -1312,24 +1128,27 @@ class _EcommerceAdminPanelScreenState
                                                   '') ??
                                           0.0))),
                                       DataCell(Text(storeMoney(double.tryParse(
-                                              r['net_payable']?.toString() ?? '') ??
+                                              r['net_payable']?.toString() ??
+                                                  '') ??
                                           0.0))),
                                       DataCell(Text(storeMoney(double.tryParse(
-                                              r['total_settled']?.toString() ?? '') ??
+                                              r['total_settled']?.toString() ??
+                                                  '') ??
                                           0.0))),
                                       DataCell(Text(
                                         storeMoney(double.tryParse(
-                                                r['pending_balance']?.toString() ??
+                                                r['pending_balance']
+                                                        ?.toString() ??
                                                     '') ??
                                             0.0),
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           color: (double.tryParse(
-                                                      r['pending_balance']
-                                                              ?.toString() ??
-                                                          '') ??
-                                                  0.0) >
-                                              0
+                                                          r['pending_balance']
+                                                                  ?.toString() ??
+                                                              '') ??
+                                                      0.0) >
+                                                  0
                                               ? const Color(0xffc2410c)
                                               : storeGreen,
                                         ),
@@ -1643,7 +1462,7 @@ class _EcommerceAdminPanelScreenState
           MaterialBanner(content: Text(adminState.error!), actions: [
             TextButton(
                 onPressed: () =>
-                ref.read(adminMarketplaceProvider.notifier).refresh(),
+                    ref.read(adminMarketplaceProvider.notifier).refresh(),
                 child: const Text('Retry'))
           ]),
         Expanded(
@@ -1883,8 +1702,8 @@ class _EcommerceAdminPanelScreenState
                                     const EdgeInsets.symmetric(horizontal: 8)),
                             onPressed: () => _rejectProduct(p),
                             child: const Text('Reject',
-                                style: TextStyle(
-                                    fontSize: 11, color: storeError)),
+                                style:
+                                    TextStyle(fontSize: 11, color: storeError)),
                           ),
                         ],
                         if (isRejected) ...[
@@ -1897,8 +1716,8 @@ class _EcommerceAdminPanelScreenState
                                     const EdgeInsets.symmetric(horizontal: 8)),
                             onPressed: () => _approveProduct(p),
                             child: const Text('Re-approve',
-                                style: TextStyle(
-                                    fontSize: 11, color: storeGreen)),
+                                style:
+                                    TextStyle(fontSize: 11, color: storeGreen)),
                           ),
                         ],
                         const SizedBox(width: 10),
@@ -2071,7 +1890,7 @@ class _EcommerceAdminPanelScreenState
                                 : description,
                             'production_method':
                                 'Proposed formulation; composition and claims require validation before launch.',
-                            'is_published': true,
+                            'is_published': false,
                             'is_concept': true,
                             'supporting_documents': {
                               'subcategory': subcategory,
@@ -2543,10 +2362,9 @@ class _EcommerceAdminPanelScreenState
                         style: FilledButton.styleFrom(
                           backgroundColor: const Color(0xff1e3a8a),
                         ),
-                        icon: const Icon(Icons.file_download_outlined,
-                            size: 18),
-                        label:
-                            const Text('Export GSTR-1 Tax Register (CSV)'),
+                        icon:
+                            const Icon(Icons.file_download_outlined, size: 18),
+                        label: const Text('Export GSTR-1 Tax Register (CSV)'),
                         onPressed: () =>
                             _showFinancialReportDialog(context, 'gstr1'),
                       ),
@@ -2554,13 +2372,11 @@ class _EcommerceAdminPanelScreenState
                         style: FilledButton.styleFrom(
                           backgroundColor: storeGreen,
                         ),
-                        icon: const Icon(
-                            Icons.account_balance_wallet_outlined,
+                        icon: const Icon(Icons.account_balance_wallet_outlined,
                             size: 18),
-                        label: const Text(
-                            'Export Vendor Settlements (CSV)'),
-                        onPressed: () => _showFinancialReportDialog(
-                            context, 'settlements'),
+                        label: const Text('Export Vendor Settlements (CSV)'),
+                        onPressed: () =>
+                            _showFinancialReportDialog(context, 'settlements'),
                       ),
                     ],
                   ),
@@ -2596,8 +2412,7 @@ class _EcommerceAdminPanelScreenState
                 style: FilledButton.styleFrom(backgroundColor: storeGreen),
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('Refresh balances'),
-                onPressed: () =>
-                    ref.invalidate(adminVendorSettlementsProvider),
+                onPressed: () => ref.invalidate(adminVendorSettlementsProvider),
               ),
             ],
           ),
@@ -2685,9 +2500,8 @@ class _EcommerceAdminPanelScreenState
                         ),
                         child: Icon(
                           Icons.account_balance_wallet_outlined,
-                          color: hasPending
-                              ? const Color(0xffb45309)
-                              : storeGreen,
+                          color:
+                              hasPending ? const Color(0xffb45309) : storeGreen,
                         ),
                       ),
                       title: Wrap(
@@ -2740,8 +2554,7 @@ class _EcommerceAdminPanelScreenState
                           backgroundColor: hasPending
                               ? storeGreen.withValues(alpha: 0.12)
                               : const Color(0xfff1f5f9),
-                          foregroundColor:
-                              hasPending ? storeGreen : storeMuted,
+                          foregroundColor: hasPending ? storeGreen : storeMuted,
                         ),
                         icon: const Icon(Icons.payments_outlined, size: 16),
                         label: const Text('Disburse Payout'),
@@ -3058,8 +2871,7 @@ class _EcommerceAdminPanelScreenState
                             icon: const Icon(Icons.delete_outline,
                                 color: storeError, size: 20),
                             tooltip: 'Delete Campaign',
-                            onPressed: () =>
-                                _deletePlacementDialog(placement),
+                            onPressed: () => _deletePlacementDialog(placement),
                           ),
                         ],
                       ),
@@ -3636,14 +3448,14 @@ class _EcommerceAdminPanelScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Cancellation & Refund Requests',
+                    'Cancelled Orders',
                     style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: storeGreen),
                   ),
                   Text(
-                    'Customer cancellation requests for paid orders awaiting admin refund review.',
+                    'COD cancellations are recorded here. No payment was collected for these orders.',
                     style: TextStyle(fontSize: 12, color: storeMuted),
                   ),
                 ],
@@ -3667,7 +3479,8 @@ class _EcommerceAdminPanelScreenState
                     const Icon(Icons.error_outline, color: Colors.red),
                     const SizedBox(width: 12),
                     Expanded(
-                        child: Text('Could not load refund queue: $error')),
+                        child: Text(
+                            'Could not load cancellation history: $error')),
                     TextButton(
                       onPressed: () =>
                           ref.invalidate(adminCancellationsProvider),
@@ -3683,8 +3496,7 @@ class _EcommerceAdminPanelScreenState
                   child: Padding(
                     padding: EdgeInsets.all(20),
                     child: Center(
-                      child: Text(
-                          'No pending refund or cancellation requests. All customer orders are in good standing.'),
+                      child: Text('No cancelled orders.'),
                     ),
                   ),
                 );
@@ -3701,9 +3513,9 @@ class _EcommerceAdminPanelScreenState
                     final order = rows[index];
                     final orderNumber =
                         order['order_number']?.toString() ?? order['id'] ?? '';
-                    final total = double.tryParse(
-                            order['total']?.toString() ?? '') ??
-                        0.0;
+                    final total =
+                        double.tryParse(order['total']?.toString() ?? '') ??
+                            0.0;
                     final reason = order['cancellation_reason']?.toString() ??
                         order['notes']?.toString() ??
                         '';
@@ -3749,7 +3561,7 @@ class _EcommerceAdminPanelScreenState
                                 ? const Color(0xffdcfce7)
                                 : const Color(0xfffef3c7),
                             label: Text(
-                              isRefunded ? 'REFUNDED' : 'PENDING REVIEW',
+                              isRefunded ? 'REFUNDED' : 'NO PAYMENT TAKEN',
                               style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
@@ -3784,17 +3596,7 @@ class _EcommerceAdminPanelScreenState
                           ],
                         ),
                       ),
-                      trailing: isRefunded
-                          ? null
-                          : FilledButton.tonalIcon(
-                              style: FilledButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                              ),
-                              icon: const Icon(Icons.rate_review_outlined,
-                                  size: 16),
-                              label: const Text('Review refund'),
-                              onPressed: () => _processRefundDialog(order),
-                            ),
+                      trailing: null,
                     );
                   },
                 ),
@@ -3817,7 +3619,7 @@ class _EcommerceAdminPanelScreenState
                         color: storeGreen),
                   ),
                   Text(
-                    'Reverse logistics triage: approve courier pickup, inspect damaged goods, or confirm return refunds.',
+                    'Review customer returns and failed deliveries. Record receipt only after the goods arrive.',
                     style: TextStyle(fontSize: 12, color: storeMuted),
                   ),
                 ],
@@ -3849,7 +3651,8 @@ class _EcommerceAdminPanelScreenState
                       child: Column(
                         children: [
                           Icon(Icons.assignment_turned_in_outlined,
-                              size: 44, color: storeGreen.withValues(alpha: 0.5)),
+                              size: 44,
+                              color: storeGreen.withValues(alpha: 0.5)),
                           const SizedBox(height: 8),
                           const Text(
                             'No returns or RTO requests pending triage.',
@@ -4050,7 +3853,7 @@ class _EcommerceAdminPanelScreenState
                         color: storeGreen),
                   ),
                   Text(
-                    'FSSAI, Agmark & Soil Analysis verified batches (${certificates.length} Total)',
+                    'Admin-recorded batch test documents (${certificates.length} total). Verify source reports before marking certified.',
                     style: const TextStyle(fontSize: 12, color: storeMuted),
                   ),
                 ],
@@ -4058,7 +3861,7 @@ class _EcommerceAdminPanelScreenState
               FilledButton.icon(
                 style: FilledButton.styleFrom(backgroundColor: storeGreen),
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('Issue New Batch Certificate'),
+                label: const Text('Add batch test record'),
                 onPressed: () => _showCreateCertificateDialog(),
               ),
             ],
@@ -4242,7 +4045,7 @@ class _EcommerceAdminPanelScreenState
         builder: (ctx) => StatefulBuilder(
             builder: (ctx, update) => AlertDialog(
                   title: Text(existing == null
-                       ? 'Add Batch Certificate'
+                      ? 'Add Batch Certificate'
                       : 'Edit Batch Certificate'),
                   scrollable: true,
                   content: SizedBox(
@@ -4654,7 +4457,8 @@ class _EcommerceAdminPanelScreenState
             const SizedBox(height: 24),
 
             // Full Funnel Drop-off Analysis Card
-            if (sessionsData != null && sessionsData.funnelSteps.isNotEmpty) ...[
+            if (sessionsData != null &&
+                sessionsData.funnelSteps.isNotEmpty) ...[
               _buildConversionFunnelCard(sessionsData),
               const SizedBox(height: 24),
             ],
@@ -4752,7 +4556,8 @@ class _EcommerceAdminPanelScreenState
                   child: CircularProgressIndicator(),
                 ),
               )
-            else if (analyticsState.sessionsError != null && sessionsData == null)
+            else if (analyticsState.sessionsError != null &&
+                sessionsData == null)
               _buildAdminDataState(
                 message: analyticsState.sessionsError!,
                 icon: Icons.cloud_off_outlined,
@@ -5345,8 +5150,7 @@ class _EcommerceAdminPanelScreenState
                       backgroundColor: const Color(0xff25d366),
                       foregroundColor: Colors.white,
                     ),
-                    onPressed: () =>
-                        _showRecoveryNudgeDialog(context, session),
+                    onPressed: () => _showRecoveryNudgeDialog(context, session),
                     icon: const Icon(Icons.chat, size: 16),
                     label: const Text('Send WhatsApp Recovery Offer'),
                   ),
@@ -7125,7 +6929,8 @@ class _EcommerceAdminPanelScreenState
                 reviews.length);
 
         final filtered = reviews.where((r) {
-          if (_reviewStatusFilter == 'approved') return r['is_approved'] == true;
+          if (_reviewStatusFilter == 'approved')
+            return r['is_approved'] == true;
           if (_reviewStatusFilter == 'rejected') {
             return r['is_approved'] == false;
           }
@@ -7205,14 +7010,23 @@ class _EcommerceAdminPanelScreenState
               const SizedBox(height: 20),
               Row(
                 children: [
-                  _buildFilterChip('All (${reviews.length})', 'all',
-                      _reviewStatusFilter, (v) => setState(() => _reviewStatusFilter = v)),
+                  _buildFilterChip(
+                      'All (${reviews.length})',
+                      'all',
+                      _reviewStatusFilter,
+                      (v) => setState(() => _reviewStatusFilter = v)),
                   const SizedBox(width: 8),
-                  _buildFilterChip('Approved ($approvedCount)', 'approved',
-                      _reviewStatusFilter, (v) => setState(() => _reviewStatusFilter = v)),
+                  _buildFilterChip(
+                      'Approved ($approvedCount)',
+                      'approved',
+                      _reviewStatusFilter,
+                      (v) => setState(() => _reviewStatusFilter = v)),
                   const SizedBox(width: 8),
-                  _buildFilterChip('Flagged ($rejectedCount)', 'rejected',
-                      _reviewStatusFilter, (v) => setState(() => _reviewStatusFilter = v)),
+                  _buildFilterChip(
+                      'Flagged ($rejectedCount)',
+                      'rejected',
+                      _reviewStatusFilter,
+                      (v) => setState(() => _reviewStatusFilter = v)),
                 ],
               ),
               const SizedBox(height: 16),

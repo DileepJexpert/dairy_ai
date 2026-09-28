@@ -116,3 +116,12 @@ def test_password_hash_is_salted():
     assert one != two
     assert asyncio.run(verify_password("long-password", one))
     assert not asyncio.run(verify_password("wrong-password", one))
+
+
+def test_public_otp_routes_cannot_create_or_promote_staff(auth_client):
+    client, conn = auth_client
+    before = conn.execute("SELECT COUNT(*) FROM customers WHERE role IN ('admin','super_admin')").fetchone()[0]
+    assert client.post("/api/v1/auth/send-otp", json={"phone": "9876543210"}).status_code == 503
+    assert client.post("/api/v1/auth/verify-otp", json={
+        "phone": "9876543210", "otp": "123456"}).status_code == 503
+    assert conn.execute("SELECT COUNT(*) FROM customers WHERE role IN ('admin','super_admin')").fetchone()[0] == before

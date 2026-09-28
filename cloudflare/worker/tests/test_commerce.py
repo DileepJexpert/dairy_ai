@@ -395,6 +395,17 @@ def test_coupon_discount_calculation_and_validation(client, d1_db):
     client.delete("/api/v1/marketplace/cart")
     client.post("/api/v1/marketplace/cart/items", json={"product_id": "p-coupon-test", "quantity": 1})
 
+    coupon_quote = client.post("/api/v1/marketplace/coupons/quote", json={"code": " milterra10 "})
+    assert coupon_quote.status_code == 200, coupon_quote.text
+    assert coupon_quote.json()["data"]["coupon"]["code"] == "MILTERRA10"
+    assert coupon_quote.json()["data"]["discount"] == 60.0
+    assert client.post("/api/v1/marketplace/coupons/quote", json={"code": "271320"}).status_code == 422
+    assert client.post("/api/v1/marketplace/coupons/quote", json={"code": "   "}).status_code == 422
+    d1_db.conn.execute("UPDATE coupons SET min_order_value=700 WHERE code='MILTERRA10'")
+    minimum = client.post("/api/v1/marketplace/coupons/quote", json={"code": "MILTERRA10"})
+    assert minimum.status_code == 422 and "Minimum order value" in minimum.text
+    d1_db.conn.execute("UPDATE coupons SET min_order_value=499 WHERE code='MILTERRA10'")
+
     # Valid coupon MILTERRA10 (10% off min order 499): 10% of 600 = 60
     q = client.post(
         "/api/v1/marketplace/orders/checkout/quote",

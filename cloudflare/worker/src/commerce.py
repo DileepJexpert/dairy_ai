@@ -206,6 +206,10 @@ class CheckoutQuoteInput(BaseModel):
     payment_method: str = "cod"
 
 
+class CouponQuoteInput(BaseModel):
+    code: str = Field(min_length=1, max_length=50)
+
+
 class CheckoutInput(BaseModel):
     idempotency_key: str = Field(min_length=8, max_length=128)
     delivery_address_id: str = Field(min_length=1, max_length=128)
@@ -1167,6 +1171,30 @@ async def list_coupons(request: Request):
     rows = await _env(request).DB.prepare("SELECT * FROM coupons WHERE is_active=1").all()
     return {"success": True, "data": [_coupon_view(row) for row in _d1_rows(rows)
             if not _coupon_expired(row.get("valid_until"))]}
+
+
+@commerce_router.post("/coupons/quote")
+async def quote_coupon(payload: CouponQuoteInput, request: Request):
+    customer = await _require_auth(request)
+    if not payload.code.strip():
+        raise HTTPException(422, "Enter a promo code")
+    db = _env(request).DB
+    rows = await db.prepare(
+        """SELECT c.quantity, i.price_minor, i.available_units, i.is_active
+           FROM cart_items c JOIN inventory i ON i.product_id = c.product_id
+           WHERE c.customer_id = ?"""
+    ).bind(customer["id"]).all()
+    items = _d1_rows(rows)
+    if not items:
+        raise HTTPException(422, "Cart is empty")
+    if any(not item["is_active"] or item["quantity"] > item["available_units"] for item in items):
+        raise HTTPException(422, "Review your cart before applying a coupon")
+    subtotal = sum(item["quantity"] * item["price_minor"] for item in items) / 100.0
+    code, discount = await _validate_coupon(db, payload.code, subtotal)
+    coupon = await db.prepare("SELECT * FROM coupons WHERE code = ?").bind(code).first()
+    return {"success": True, "data": {"coupon": _coupon_view(coupon),
+            "subtotal": subtotal, "discount": discount,
+            "total": round(subtotal - discount, 2)}}
 
 
 # -----------------------------------------------------------------------------

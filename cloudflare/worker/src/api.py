@@ -6,6 +6,7 @@ import httpx
 import jwt
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
 from pydantic import BaseModel, Field
 
 from compat import (
@@ -22,6 +23,23 @@ from customer_auth import auth_router
 app = FastAPI(title="Milterra Worker compatibility and commerce API")
 app.include_router(commerce_router)
 app.include_router(auth_router)
+
+# The existing Flutter admin client calls /api/v1/admin/* and /api/v1/vendor/*,
+# while the D1 commerce router is mounted below /api/v1/marketplace. Preserve
+# those client contracts using the same authenticated endpoint functions.
+existing_routes = {(route.path, method) for route in app.routes if isinstance(route, APIRoute)
+                   for method in route.methods}
+for route in list(app.routes):
+    if not isinstance(route, APIRoute) or not route.path.startswith(
+            ("/api/v1/marketplace/admin/", "/api/v1/marketplace/vendor/")):
+        continue
+    legacy_path = route.path.replace("/api/v1/marketplace/", "/api/v1/", 1)
+    missing_methods = sorted(method for method in route.methods
+                             if (legacy_path, method) not in existing_routes)
+    if missing_methods:
+        app.add_api_route(legacy_path, route.endpoint, methods=missing_methods,
+                          status_code=route.status_code, include_in_schema=False)
+        existing_routes.update((legacy_path, method) for method in missing_methods)
 
 
 @app.middleware("http")

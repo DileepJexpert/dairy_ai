@@ -51,15 +51,25 @@ final availableCouponsProvider =
 class AppliedCouponNotifier extends StateNotifier<StoreCoupon?> {
   AppliedCouponNotifier(this.dio) : super(null);
   final Dio dio;
+  String? lastError;
   Future<bool> applyCoupon(String code, [double? subtotal]) async {
+    lastError = null;
+    if (code.trim().isEmpty) {
+      lastError = 'Enter a promo code.';
+      return false;
+    }
     try {
       final response = await dio.post('/marketplace/coupons/quote',
           data: {'code': code.trim().toUpperCase()});
       if (!mounted) return false;
       state = StoreCoupon.fromJson(response.data['data']['coupon'] as Map);
       return true;
-    } on DioException {
+    } on DioException catch (error) {
       if (mounted) state = null;
+      final detail = error.response?.data;
+      lastError = detail is Map && detail['detail'] is String
+          ? detail['detail'] as String
+          : 'Could not check this code. Please try again.';
       return false;
     }
   }

@@ -974,8 +974,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                     backgroundColor: storeGreen),
                               );
                             } else {
-                              setState(() => _couponError =
-                                  'Invalid code or minimum order not met.');
+                              setState(() => _couponError = ref
+                                      .read(appliedCouponProvider.notifier)
+                                      .lastError ??
+                                  'Could not check this code. Please try again.');
                             }
                           },
                           child: const Text('Apply',
@@ -999,8 +1001,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         child: const Text('Could not load coupons. Retry')),
                   if (ref.watch(availableCouponsProvider).isLoading)
                     const LinearProgressIndicator(),
-                  const Text('Available offers (Tap to apply):',
-                      style: TextStyle(fontSize: 10, color: storeMuted)),
+                  if (ref.watch(availableCouponsProvider).valueOrNull?.isNotEmpty ??
+                      false)
+                    const Text('Available offers (Tap to apply):',
+                        style: TextStyle(fontSize: 10, color: storeMuted)),
+                  if (ref.watch(availableCouponsProvider).valueOrNull?.isEmpty ??
+                      false)
+                    const Text('No offers available right now.',
+                        style: TextStyle(fontSize: 10, color: storeMuted)),
                   const SizedBox(height: 4),
                   Wrap(
                     spacing: 6,
@@ -1023,8 +1031,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                   backgroundColor: storeGreen),
                             );
                           } else {
-                            setState(() => _couponError =
-                                'Min order for ${c.code} is ${storeMoney(c.minOrderAmount)}');
+                            setState(() => _couponError = ref
+                                    .read(appliedCouponProvider.notifier)
+                                    .lastError ??
+                                'Could not check this code. Please try again.');
                           }
                         },
                         child: Container(

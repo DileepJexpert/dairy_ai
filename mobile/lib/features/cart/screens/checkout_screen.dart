@@ -431,14 +431,26 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('Delivery addresses could not be loaded.',
-                        style: StoreType.body),
+                    Text(
+                      e is DioException && e.response?.statusCode == 401
+                          ? 'Your session has expired. Sign in to continue checkout.'
+                          : 'Delivery addresses could not be loaded. Please try again.',
+                      style: StoreType.body,
+                    ),
                     const SizedBox(height: 12),
                     OutlinedButton(
-                      onPressed: () => ref
-                          .read(deliveryAddressesProvider.notifier)
-                          .refresh(),
-                      child: const Text('Try again'),
+                      onPressed: () async {
+                        if (e is DioException && e.response?.statusCode == 401) {
+                          await ref.read(authProvider.notifier).logout();
+                          if (context.mounted) {
+                            context.go('/login?next=%2Fmarketplace%2Fcheckout');
+                          }
+                        } else {
+                          ref.read(deliveryAddressesProvider.notifier).refresh();
+                        }
+                      },
+                      child: Text(e is DioException && e.response?.statusCode == 401
+                          ? 'Sign in again' : 'Try again'),
                     ),
                   ],
                 ),

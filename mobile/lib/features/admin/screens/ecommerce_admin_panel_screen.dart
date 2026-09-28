@@ -6900,14 +6900,14 @@ class _EcommerceAdminPanelScreenState
     return reviewsAsync.when(
       loading: () =>
           const Center(child: CircularProgressIndicator(color: storeGreen)),
-      error: (err, _) => Center(
+      error: (_, __) => Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(Icons.error_outline, size: 48, color: storeError),
             const SizedBox(height: 12),
-            Text('Failed to load reviews: $err',
-                style: const TextStyle(color: storeError)),
+            const Text('Could not load reviews. Please retry.',
+                style: TextStyle(color: storeError)),
             const SizedBox(height: 12),
             FilledButton(
               onPressed: () => ref.invalidate(adminReviewsProvider),
@@ -6918,9 +6918,11 @@ class _EcommerceAdminPanelScreenState
       ),
       data: (reviews) {
         final approvedCount =
-            reviews.where((r) => r['is_approved'] == true).length;
+            reviews.where((r) => r['status'] == 'APPROVED').length;
         final rejectedCount =
-            reviews.where((r) => r['is_approved'] == false).length;
+            reviews.where((r) => r['status'] == 'REJECTED').length;
+        final pendingCount =
+            reviews.where((r) => r['status'] == 'PENDING').length;
         final avgRating = reviews.isEmpty
             ? 0.0
             : (reviews
@@ -6929,10 +6931,14 @@ class _EcommerceAdminPanelScreenState
                 reviews.length);
 
         final filtered = reviews.where((r) {
-          if (_reviewStatusFilter == 'approved')
-            return r['is_approved'] == true;
+          if (_reviewStatusFilter == 'approved') {
+            return r['status'] == 'APPROVED';
+          }
+          if (_reviewStatusFilter == 'pending') {
+            return r['status'] == 'PENDING';
+          }
           if (_reviewStatusFilter == 'rejected') {
-            return r['is_approved'] == false;
+            return r['status'] == 'REJECTED';
           }
           return true;
         }).toList();
@@ -7017,6 +7023,12 @@ class _EcommerceAdminPanelScreenState
                       (v) => setState(() => _reviewStatusFilter = v)),
                   const SizedBox(width: 8),
                   _buildFilterChip(
+                      'Pending ($pendingCount)',
+                      'pending',
+                      _reviewStatusFilter,
+                      (v) => setState(() => _reviewStatusFilter = v)),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(
                       'Approved ($approvedCount)',
                       'approved',
                       _reviewStatusFilter,
@@ -7052,7 +7064,9 @@ class _EcommerceAdminPanelScreenState
   }
 
   Widget _buildReviewCard(Map<String, dynamic> rev) {
-    final isApproved = rev['is_approved'] == true;
+    final status = rev['status']?.toString() ?? 'PENDING';
+    final isApproved = status == 'APPROVED';
+    final isRejected = status == 'REJECTED';
     final rating = (rev['rating'] as num?)?.toInt() ?? 5;
     final productTitle =
         rev['product_title']?.toString() ?? 'Milterra Dairy Product';
@@ -7067,7 +7081,7 @@ class _EcommerceAdminPanelScreenState
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
         side: BorderSide(
-          color: isApproved ? storeBorder : const Color(0xfffecaca),
+          color: isRejected ? const Color(0xfffecaca) : storeBorder,
         ),
       ),
       child: Padding(
@@ -7101,21 +7115,21 @@ class _EcommerceAdminPanelScreenState
                   decoration: BoxDecoration(
                     color: isApproved
                         ? const Color(0xffecfdf5)
-                        : const Color(0xfffef2f2),
+                        : isRejected ? const Color(0xfffef2f2) : const Color(0xfffffbeb),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
                         color: isApproved
                             ? const Color(0xffa7f3d0)
-                            : const Color(0xfffecaca)),
+                            : isRejected ? const Color(0xfffecaca) : const Color(0xfffde68a)),
                   ),
                   child: Text(
-                    isApproved ? 'LIVE' : 'FLAGGED',
+                    isApproved ? 'LIVE' : isRejected ? 'FLAGGED' : 'PENDING',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                       color: isApproved
                           ? const Color(0xff065f46)
-                          : const Color(0xff991b1b),
+                          : isRejected ? const Color(0xff991b1b) : const Color(0xff92400e),
                     ),
                   ),
                 ),
@@ -7153,7 +7167,7 @@ class _EcommerceAdminPanelScreenState
             Text(content,
                 style: const TextStyle(
                     fontSize: 13, height: 1.4, color: Color(0xff1e293b))),
-            if (!isApproved && reason != null && reason.isNotEmpty) ...[
+            if (isRejected && reason != null && reason.isNotEmpty) ...[
               const SizedBox(height: 10),
               Container(
                 width: double.infinity,

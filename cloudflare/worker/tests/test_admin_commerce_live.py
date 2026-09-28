@@ -26,6 +26,13 @@ def _order(client, db, product_id="live-review-item"):
     return result.json()["data"]["id"]
 
 
+def test_legacy_admin_paths_keep_role_checks(client, d1_db):
+    assert client.get("/api/v1/admin/marketplace/reviews").status_code == 403
+    _admin(client, d1_db)
+    assert client.get("/api/v1/admin/marketplace/reviews").status_code == 200
+    assert client.get("/api/v1/vendor/products").status_code == 200
+
+
 def test_admin_stock_price_coupon_and_public_inventory(client, d1_db):
     _admin(client, d1_db)
     product_id = "admin-edit-product"
@@ -94,7 +101,11 @@ def test_delivered_review_moderation_and_certificate_persist(client, d1_db):
     assert review.status_code == 201, review.text
     review_id = review.json()["data"]["id"]
     assert client.get(f"{BASE}/products/review-item-2/reviews").json()["data"] == []
-    assert client.patch(f"{BASE}/admin/marketplace/reviews/{review_id}/moderation",
+    legacy_reviews = client.get("/api/v1/admin/marketplace/reviews")
+    assert legacy_reviews.status_code == 200, legacy_reviews.text
+    assert any(item["id"] == review_id and item["status"] == "PENDING"
+               for item in legacy_reviews.json()["data"])
+    assert client.patch(f"/api/v1/admin/marketplace/reviews/{review_id}/moderation",
         json={"is_approved": True}).status_code == 200
     assert len(client.get(f"{BASE}/products/review-item-2/reviews").json()["data"]) == 1
     assert client.patch(f"{BASE}/admin/marketplace/reviews/absent/moderation",

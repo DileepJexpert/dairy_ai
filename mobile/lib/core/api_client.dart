@@ -186,8 +186,15 @@ Future<bool> _tryRefreshToken(
       }
     }
     return false;
+  } on DioException catch (error) {
+    // A network outage or provider 5xx is not proof that the refresh token is
+    // invalid. Keep it so a later request can retry once service recovers.
+    if (error.response?.statusCode == 401 ||
+        error.response?.statusCode == 403) {
+      await storage.clearAll();
+    }
+    return false;
   } catch (_) {
-    await storage.clearAll();
     return false;
   }
 }

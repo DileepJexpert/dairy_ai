@@ -148,6 +148,26 @@ void main() {
     expect(container.read(appliedCouponProvider)!.calculateDiscount(99), 0);
   });
 
+  test('Coupon rejection preserves the server reason for the cart', () async {
+    final dio = clientWith((request, handler) => handler.reject(DioException(
+          requestOptions: request,
+          type: DioExceptionType.badResponse,
+          response: Response(
+              requestOptions: request,
+              statusCode: 422,
+              data: {'detail': "Invalid coupon code '271320'"}),
+        )));
+    final container = ProviderContainer(overrides: [
+      dioProvider.overrideWithValue(dio),
+      currentUserProvider.overrideWithValue(
+          const UserModel(id: 'u', phone: '1234567890', role: 'farmer'))
+    ]);
+    addTearDown(container.dispose);
+    final notifier = container.read(appliedCouponProvider.notifier);
+    expect(await notifier.applyCoupon('271320'), isFalse);
+    expect(notifier.lastError, "Invalid coupon code '271320'");
+  });
+
   test('Unavailable API never injects hardcoded catalogue products', () async {
     final dio = clientWith((r, h) => h.reject(DioException(requestOptions: r)));
     final container =

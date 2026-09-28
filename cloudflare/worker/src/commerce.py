@@ -72,7 +72,7 @@ async def _delivery_policy(db: Any, pincode: str, env: Any) -> dict[str, Any]:
                 "cod_available": False, "prepaid_available": False,
                 "delivery_fee_minor": 0}
     default = await db.prepare(
-        "SELECT cod_default_enabled, prepaid_default_enabled, delivery_fee_minor "
+        "SELECT cod_default_enabled, prepaid_default_enabled, delivery_fee_minor, free_delivery_above_minor "
         "FROM delivery_policy WHERE id=1"
     ).first()
     rule = await db.prepare(
@@ -92,6 +92,7 @@ async def _delivery_policy(db: Any, pincode: str, env: Any) -> dict[str, Any]:
             "state": (rule["state"] if rule and rule["state"] else hint["state"] if hint else ""),
             "is_serviceable": cod, "cod_available": cod, "prepaid_available": False,
             "prepaid_policy_enabled": prepaid_policy, "delivery_fee_minor": fee,
+            "free_delivery_above_minor": default["free_delivery_above_minor"],
             "delivery_days_min": None, "delivery_days_max": None}
 
 
@@ -257,13 +258,20 @@ async def _verify_address(db: Any, customer_id: str, address_id: str) -> dict[st
     return addr
 
 
-async def _delivery_fee_minor(db: Any, address: dict[str, Any], env: Any) -> int:
+async def _delivery_coverage(db: Any, address: dict[str, Any], env: Any) -> dict[str, Any]:
     coverage = await _delivery_policy(db, address["pincode"], env)
     if not coverage["cod_available"]:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             f"Cash on delivery is not currently available for pincode {address['pincode']}",
         )
+    return coverage
+
+
+def _delivery_fee_minor(coverage: dict[str, Any], subtotal_minor: int) -> int:
+    free_above = coverage.get("free_delivery_above_minor")
+    if free_above is not None and subtotal_minor > int(free_above):
+        return 0
     return int(coverage["delivery_fee_minor"])
 
 
@@ -593,7 +601,7 @@ async def checkout_quote(payload: CheckoutQuoteInput, request: Request) -> dict:
     if not payload.delivery_address_id:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Delivery address is required")
     address = await _verify_address(db, customer["id"], payload.delivery_address_id)
-    delivery_fee_minor = await _delivery_fee_minor(db, address, _env(request))
+    coverage = await _delivery_coverage(db, address, _env(request))
 
     # 2. Fetch cart items
     rows = await db.prepare(
@@ -627,6 +635,7 @@ async def checkout_quote(payload: CheckoutQuoteInput, request: Request) -> dict:
             "line_total": line_total_minor / 100.0,
         })
 
+    delivery_fee_minor = _delivery_fee_minor(coverage, subtotal_minor)
     subtotal = subtotal_minor / 100.0
     delivery_fee = delivery_fee_minor / 100.0
 
@@ -693,7 +702,7 @@ async def checkout(payload: CheckoutInput, request: Request) -> dict:
         raise HTTPException(503, "Ordering is temporarily unavailable")
 
     address = await _verify_address(db, customer_id, payload.delivery_address_id)
-    delivery_fee_minor = await _delivery_fee_minor(db, address, _env(request))
+    coverage = await _delivery_coverage(db, address, _env(request))
 
     # 3. Fetch current cart items joined with inventory
     rows = await db.prepare(
@@ -714,6 +723,7 @@ async def checkout(payload: CheckoutInput, request: Request) -> dict:
         lines.append((r["product_id"], r["quantity"], r["price_minor"]))
         subtotal_minor += r["price_minor"] * r["quantity"]
 
+    delivery_fee_minor = _delivery_fee_minor(coverage, subtotal_minor)
     subtotal = subtotal_minor / 100.0
 
     # Validate coupon if provided
@@ -1058,6 +1068,7 @@ class DeliveryPolicyUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     cod_default_enabled: bool
     delivery_fee_minor: int = Field(ge=0, le=100000)
+    free_delivery_above_minor: int | None = Field(default=None, ge=0)
     prepaid_default_enabled: bool = False
 
 
@@ -1096,9 +1107,16 @@ async def get_admin_delivery_policy(request: Request):
 async def update_admin_delivery_policy(data: DeliveryPolicyUpdate, request: Request):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
     db = _env(request).DB
+    current = await db.prepare("SELECT free_delivery_above_minor FROM delivery_policy WHERE id=1").first()
+    if not current:
+        raise HTTPException(503, "Delivery policy is unavailable")
+    free_above = (data.free_delivery_above_minor
+                  if "free_delivery_above_minor" in data.model_fields_set
+                  else current["free_delivery_above_minor"])
     await db.prepare("UPDATE delivery_policy SET cod_default_enabled=?, delivery_fee_minor=?, "
-                     "prepaid_default_enabled=?, updated_at=CURRENT_TIMESTAMP WHERE id=1").bind(
-        int(data.cod_default_enabled), data.delivery_fee_minor, int(data.prepaid_default_enabled)).run()
+                     "free_delivery_above_minor=?, prepaid_default_enabled=?, updated_at=CURRENT_TIMESTAMP WHERE id=1").bind(
+        int(data.cod_default_enabled), data.delivery_fee_minor,
+        free_above, int(data.prepaid_default_enabled)).run()
     return await get_admin_delivery_policy(request)
 
 

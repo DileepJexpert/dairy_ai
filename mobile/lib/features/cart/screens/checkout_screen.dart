@@ -1037,7 +1037,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ],
           ),
           const Divider(height: 20),
-          Container(
+          if (isPrelaunch || capabilities.isLoading || onlineAvailable)
+            Container(
             width: double.infinity,
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(12),
@@ -1057,9 +1058,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         ? 'Pre-launch preview only: Choose how you would prefer to pay after official launch. No money, UPI request, QR code, or bank details are generated.'
                         : capabilities.isLoading
                             ? 'Checking available payment methods…'
-                            : !onlineAvailable
-                                ? 'Online payment is currently unavailable. You can place a Cash on Delivery order.'
-                                : 'COD is collected on delivery. Online payments open a secure Razorpay checkout after you place the order.',
+                            : 'COD is collected on delivery. Online payments open a secure Razorpay checkout after you place the order.',
                     style: const TextStyle(
                       fontSize: 12,
                       height: 1.35,

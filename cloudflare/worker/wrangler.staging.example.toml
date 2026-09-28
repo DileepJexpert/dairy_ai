@@ -11,10 +11,9 @@ workers_dev = true
 ENVIRONMENT = "staging"
 ALLOW_TEST_AUTH = false
 CUSTOMER_AUTH_ENABLED = "false"
-TEST_COMMERCE_ENABLED = "false" # Only staging/local/test; no real payment or dispatch
-LIVE_COD_ENABLED = "false" # Mutually exclusive with TEST_COMMERCE_ENABLED
-SIMULATION_ENABLED = "false" # Only a separate TEST_COMMERCE preview; never the live COD Worker
-LIVE_COD_PINCODES = "" # Explicit six-digit delivery PIN allowlist; every PIN also needs an active D1 delivery rule
+TEST_COMMERCE_ENABLED = "false" # Mutually exclusive with live COD
+LIVE_COD_ENABLED = "false" # Enable for real COD only after configuring D1 delivery_policy
+SIMULATION_ENABLED = "false" # Disabled on the live COD Worker
 # Enable customer auth only after runtime acceptance and setting AUTH_SECRET.
 CORS_ORIGINS = "https://replace-with-your-staging-pages-host.example.invalid"
 

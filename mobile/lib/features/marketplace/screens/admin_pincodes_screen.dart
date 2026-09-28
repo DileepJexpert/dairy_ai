@@ -58,6 +58,12 @@ class _AdminPincodesScreenState extends ConsumerState<AdminPincodesScreen> {
       text: ((policy['delivery_fee_minor'] as num? ?? 0) / 100)
           .toStringAsFixed(2),
     );
+    final freeAbove = TextEditingController(
+      text: policy['free_delivery_above_minor'] == null
+          ? ''
+          : ((policy['free_delivery_above_minor'] as num) / 100)
+              .toStringAsFixed(2),
+    );
     var busy = false;
     await showDialog<void>(
       context: context,
@@ -66,7 +72,7 @@ class _AdminPincodesScreenState extends ConsumerState<AdminPincodesScreen> {
                 title: const Text('Nationwide delivery default'),
                 content: SizedBox(
                   width: 430,
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
                     SwitchListTile(
                       title: const Text('Cash on delivery across India'),
                       subtitle:
@@ -84,10 +90,20 @@ class _AdminPincodesScreenState extends ConsumerState<AdminPincodesScreen> {
                           border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 12),
+                    TextField(
+                      controller: freeAbove,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                          labelText: 'Free delivery above cart subtotal (₹)',
+                          hintText: 'Blank = no free-delivery threshold',
+                          border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
                     const Text(
                         'Online payment remains unavailable until the payment gateway is integrated.',
                         style: TextStyle(color: storeMuted)),
-                  ]),
+                  ])),
                 ),
                 actions: [
                   TextButton(
@@ -102,6 +118,14 @@ class _AdminPincodesScreenState extends ConsumerState<AdminPincodesScreen> {
                               _error('Enter a delivery fee from ₹0 to ₹1,000.');
                               return;
                             }
+                            final threshold = freeAbove.text.trim().isEmpty
+                                ? null
+                                : double.tryParse(freeAbove.text.trim());
+                            if (freeAbove.text.trim().isNotEmpty &&
+                                (threshold == null || threshold < 0)) {
+                              _error('Enter a valid free-delivery threshold.');
+                              return;
+                            }
                             setDialog(() => busy = true);
                             try {
                               await ref.read(dioProvider).put(
@@ -110,6 +134,9 @@ class _AdminPincodesScreenState extends ConsumerState<AdminPincodesScreen> {
                                     'cod_default_enabled': cod,
                                     'delivery_fee_minor':
                                         (amount * 100).round(),
+                                    'free_delivery_above_minor': threshold == null
+                                        ? null
+                                        : (threshold * 100).round(),
                                     'prepaid_default_enabled':
                                         policy['prepaid_default_enabled'] ==
                                             true,
@@ -127,6 +154,7 @@ class _AdminPincodesScreenState extends ConsumerState<AdminPincodesScreen> {
               )),
     );
     fee.dispose();
+    freeAbove.dispose();
   }
 
   Future<void> _editPin([Map<String, dynamic>? rule]) async {
@@ -236,8 +264,9 @@ class _AdminPincodesScreenState extends ConsumerState<AdminPincodesScreen> {
                                 if (dialog.mounted) Navigator.pop(dialog);
                               } catch (error) {
                                 _error(error);
-                                if (dialog.mounted)
+                                if (dialog.mounted) {
                                   setDialog(() => busy = false);
+                                }
                               }
                             },
                       child: Text(busy ? 'Saving…' : 'Save exception')),
@@ -303,6 +332,7 @@ class _AdminPincodesScreenState extends ConsumerState<AdminPincodesScreen> {
                     : 'Nationwide COD: off'),
                 subtitle: Text(
                     'Default delivery fee ₹${((value['delivery_fee_minor'] as num? ?? 0) / 100).toStringAsFixed(2)}. '
+                    '${value['free_delivery_above_minor'] == null ? '' : 'Free above ₹${((value['free_delivery_above_minor'] as num) / 100).toStringAsFixed(2)}. '}'
                     'Online payment is unavailable. PIN exceptions below take priority.'),
                 trailing: IconButton(
                     icon: const Icon(Icons.edit),

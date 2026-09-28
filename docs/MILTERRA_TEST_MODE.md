@@ -1,5 +1,7 @@
 # Milterra same-site order test mode
 
+**Historical guide, retired 29 September 2026.** The owner requested live COD on the existing domain instead of a whole-site test phase. The banner and test commerce flags described below were removed or disabled. Do not follow the simulation steps on the current site; see the [current deployment tracker](CLOUDFLARE_MIGRATION_STATUS.md#live-cod-storefront-correction--29-september-2026).
+
 Updated 29 September 2026. The owner is testing on [milterrafoods.com](https://milterrafoods.com/#/shop) using the **existing** `milterra-staging` Pages project, `milterra-api-staging` Worker, and `milterra-staging` D1. No extra Cloudflare Pages project, Worker, or database is required. The separate flow preview was deleted.
 
 ## Why this mode exists

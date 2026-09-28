@@ -1,6 +1,8 @@
 # Milterra order-flow preview: purpose, design, and test guide
 
-Updated 28 September 2026. This guide describes the **separate test preview** at [milterra-flow-preview.pages.dev](https://milterra-flow-preview.pages.dev/#/shop). It is not the COD site at `milterrafoods.com`.
+Updated 29 September 2026. **Retired:** the separate Pages project, Worker, D1 database, and local preview credentials were deleted at the owner's request. The URL and manual steps below are historical evidence, **not a currently runnable test**. The real site at `milterrafoods.com` remains available and its simulator is disabled. See [the migration tracker](CLOUDFLARE_MIGRATION_STATUS.md) for the verified cleanup and the same-site test-order direction.
+
+The previous separate test preview was served at `milterra-flow-preview.pages.dev`. This guide records why it was created and how it was tested before retirement.
 
 ## Why it exists
 
@@ -32,9 +34,9 @@ Alternative after fake dispatch: fake delivery failure -> return-to-origin case
   -> admin records receipt/restock; no COD collection or refund.
 ```
 
-## Manual browser test
+## Historical manual browser test (preview no longer exists)
 
-Use [the preview storefront](https://milterra-flow-preview.pages.dev/#/shop), not `milterrafoods.com`. Use fictitious customer and address details; the address PIN must be `201305`. The yellow **MILTERRA TEST PREVIEW** banner should stay visible. Use separate browser profiles or sign out between the customer and admin roles. Do not place a real order or enter bank/payment details.
+These steps described the deleted preview and cannot currently be run. Do not substitute `milterrafoods.com` for the preview URL: its COD orders are real orders. The historical test used fictitious customer and address details with PIN `201305` and a yellow **MILTERRA TEST PREVIEW** banner.
 
 ### A. Unpaid cancellation
 
@@ -59,7 +61,7 @@ Place another order and pack/dispatch it. Choose **Simulate failed delivery** be
 
 If a button is missing, first confirm you are on the **preview URL**, the test banner is visible, you have the correct role, and the order is at the required state. Refresh the order/admin list after each action. A `409` means the transition is not valid for the current order state; a `404` on a simulator route means its safety gates are off or the order is not a test order.
 
-## Automated verification
+## Automated verification of the retained source
 
 From `cloudflare/worker` in PowerShell, the local test suite exercises the state machine, role checks, D1 safety checks, and rollback:
 
@@ -68,7 +70,7 @@ From `cloudflare/worker` in PowerShell, the local test suite exercises the state
 .\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider tests
 ```
 
-The remote acceptance script is deliberately restricted to URLs containing `flow-preview`. It creates synthetic customer accounts and orders in the **preview D1** and prints their IDs; it does not clean those audit records up. It checks registration, COD checkout/cancellation, fake shipment, collection, return, refund, and the customer-visible final status:
+The remote acceptance script is deliberately restricted to URLs containing `flow-preview`. It previously created synthetic accounts and orders in the now-deleted preview D1; it cannot run until an isolated preview is deliberately recreated. It checked registration, COD checkout/cancellation, fake shipment, collection, return, refund, and the customer-visible final status:
 
 ```powershell
 .\.venv\Scripts\python.exe tests/verify_flow_preview_runtime.py `
@@ -77,7 +79,7 @@ The remote acceptance script is deliberately restricted to URLs containing `flow
   --admin-file .wrangler/flow-preview-admin.txt
 ```
 
-Run the remote script only when you intend to add test records to the preview. The latest recorded acceptance consisted of two passing remote runs and a visible homepage/banner check; the **signed-in manual browser walkthrough above has not yet been recorded as passed**. See the dated evidence in [the migration tracker](CLOUDFLARE_MIGRATION_STATUS.md).
+The recorded acceptance consisted of two passing remote runs and a visible homepage/banner check; the **signed-in manual browser walkthrough above was not recorded as passed** before retirement. The local credential file named in the command was removed. See the dated evidence in [the migration tracker](CLOUDFLARE_MIGRATION_STATUS.md).
 
 ## What remains before real external-service acceptance
 

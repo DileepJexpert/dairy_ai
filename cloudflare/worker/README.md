@@ -1,6 +1,8 @@
 # Isolated Cloudflare Python Worker compatibility proof
 
-## Isolated courier and refund simulation (28 September 2026)
+## Isolated courier and refund simulation (28 September 2026; retired)
+
+**Retired 29 September 2026:** the separate preview Pages project, Worker, D1, and local credentials were deleted at the owner's request. The simulator source and local tests remain as a reference, but the commands and preview URL below are not active. Do not enable the global test-commerce flags on the real COD Worker. The [tracker](../../docs/CLOUDFLARE_MIGRATION_STATUS.md) records the cleanup and the proposed per-order same-site test design.
 
 Migration `0012_simulated_fulfillment.sql` adds an append-only **simulated** COD movement ledger. The simulator API is hidden (404) unless all of `ENVIRONMENT=staging|test|local`, `TEST_COMMERCE_ENABLED=true`, `LIVE_COD_ENABLED=false`, and `SIMULATION_ENABLED=true` are set. It additionally requires an authenticated admin and an `is_test_order=1` order. Keep it on a **separate preview Worker and D1**, with a separate Pages origin; the existing `milterra-api-staging` Worker serves the real COD site and must retain `SIMULATION_ENABLED=false`. Use [wrangler.simulator.example.toml](wrangler.simulator.example.toml) as the reviewed template for a new preview configuration. Do not turn the live Worker into test commerce or reuse its D1 for this preview. The simulator never calls a courier, bank or payment provider.
 

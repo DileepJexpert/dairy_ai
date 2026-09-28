@@ -125,3 +125,20 @@ def test_public_otp_routes_cannot_create_or_promote_staff(auth_client):
     assert client.post("/api/v1/auth/verify-otp", json={
         "phone": "9876543210", "otp": "123456"}).status_code == 503
     assert conn.execute("SELECT COUNT(*) FROM customers WHERE role IN ('admin','super_admin')").fetchone()[0] == before
+
+
+def test_existing_staff_account_can_use_password_login(auth_client):
+    client, conn = auth_client
+    staff = conn.execute("""SELECT c.id, a.username FROM customers c
+        JOIN customer_credentials a ON a.customer_id=c.id WHERE c.role='admin'""").fetchone()
+    assert staff is not None
+    conn.execute("UPDATE customer_credentials SET password_hash=? WHERE customer_id=?",
+                 (asyncio.run(hash_password("temporary-test-admin-password")), staff[0]))
+    login = client.post("/api/v1/auth/login-password", json={
+        "identifier": staff[1], "password": "temporary-test-admin-password"})
+    assert login.status_code == 200, login.text
+    assert login.json()["role"] == "admin"
+    profile = client.get("/api/v1/auth/me", headers={
+        "Authorization": "Bearer " + login.json()["access_token"]})
+    assert profile.status_code == 200
+    assert profile.json()["data"]["role"] == "admin"

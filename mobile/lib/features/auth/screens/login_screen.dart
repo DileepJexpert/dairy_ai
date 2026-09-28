@@ -49,7 +49,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _showPassword = false;
   late bool _createAccount;
 
-  bool get _usesOtp {
+  bool get _isStaffRoute {
     final heading = widget.heading.toLowerCase();
     final next = (widget.nextPath ?? '').toLowerCase();
     return heading.contains('admin') ||
@@ -59,6 +59,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         next.contains('seller') ||
         next.contains('vendor');
   }
+
+  bool get _usesOtp => _isStaffRoute && !AppConstants.separateCustomerAuth;
 
   @override
   void initState() {
@@ -246,7 +248,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       backgroundColor: storeCream,
       body: Column(
         children: [
-          const StoreHeader(currentCategory: 'All'),
+          const StoreHeader(
+              currentCategory: 'All', search: SizedBox.shrink()),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
@@ -519,7 +522,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             if (!_usesOtp) ...[
                               const SizedBox(height: 10),
-                              TextButton(
+                              if (!_isStaffRoute) TextButton(
                                 onPressed: loading
                                     ? null
                                     : () => setState(() {
@@ -531,7 +534,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     : 'New to Milterra? Create an account'),
                               ),
                               Text(
-                                AppConstants.separateCustomerAuth
+                                _isStaffRoute && AppConstants.separateCustomerAuth
+                                    ? 'Sign in with the password assigned to your staff account.'
+                                    : AppConstants.separateCustomerAuth
                                     ? 'Use your phone, username or email to sign in. Phone and email are not verified. Password recovery is not available yet; keep your password safe.'
                                     : 'Your phone identifies the account; email is used only for recovery and launch follow-up. No SMS is sent.',
                                 textAlign: TextAlign.center,

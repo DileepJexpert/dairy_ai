@@ -4,6 +4,12 @@ Last updated: 28 September 2026. Source plan: [milterra-cloudflare-development-b
 
 ## Implementation plan
 
+### Frameless product cutouts in landing hero — 28 September 2026
+
+The product side of the split hero now places its image and illustrative note directly on the existing hero background. The nested white card, border and shadow were removed at desktop and mobile widths. Four new transparent hero-only cutouts are selected through `mobile/assets/catalogue/home_hero.json`; original catalogue artwork remains unchanged. The product list and the farm-story side of the landing page are unchanged. The oil bottle is still illustrative artwork and should be replaced with verified final packaging photography when available.
+
+Validation: all four new PNGs have transparent alpha, focused Flutter analysis found no issues, and the release web build passed. Local browser checks showed the complete ghee jar and oil bottle without an inner card at desktop and phone widths. Pages deployment `205e0640.milterra-staging.pages.dev` serves apex and www; both hosts returned 200 for `main.dart.js` and the new cow-ghee cutout, and both response hashes matched the local build. The JavaScript SHA-256 was `D4D0B0591DB1CB62503CDFC26F94BC41F7BE91C3902E857606AC3EF1EE262C09`. A fresh domain browser load showed the new design with no console errors; screenshot `milterra-frameless-hero-live.png` is saved in the task visualization directory. This was a Pages-only release; Worker, D1, payment and order configuration were not changed.
+
 ### Configurable full-product landing hero — 28 September 2026
 
 The storefront keeps its existing split hero and surrounding landing-page layout. `mobile/assets/catalogue/home_hero.json` now chooses the featured product IDs, display order, dedicated hero images and optional illustrative-image notes. `StorefrontHero` resolves names, sizes, prices and destinations from the published catalogue and is the single renderer slot for a future style change. The product hero uses `BoxFit.contain`, so complete package artwork is visible instead of cropping a tall lifestyle photo. This release changes the Pages frontend only; Worker, D1, payment and order configuration are unchanged.

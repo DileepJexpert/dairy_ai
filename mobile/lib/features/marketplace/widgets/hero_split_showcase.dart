@@ -630,7 +630,7 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                 ),
                 const SizedBox(width: 14),
 
-                // Right product image column (prominent, un-cropped showcase card with direct click-to-view)
+                // Right product image column with a direct product cutout.
                 Expanded(
                   flex: 53,
                   child: Center(
@@ -643,29 +643,10 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                         }
                       },
                       borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        constraints: const BoxConstraints(
-                          maxHeight: 235,
-                          maxWidth: 175,
-                        ),
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                              color: storeBorder.withValues(alpha: 0.8)),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x12000000),
-                              blurRadius: 18,
-                              offset: Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: _buildHeroImage(slide),
-                        ),
+                      child: SizedBox(
+                        width: 190,
+                        height: 175,
+                        child: _buildHeroImage(slide),
                       ),
                     ),
                   ),
@@ -743,29 +724,10 @@ class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
                     child: InkWell(
                       onTap: () => context.go(slide.targetRoute),
                       borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        constraints: const BoxConstraints(
-                          maxHeight: 150,
-                          maxWidth: 115,
-                        ),
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                              color: storeBorder.withValues(alpha: 0.8)),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x0a000000),
-                              blurRadius: 10,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: _buildHeroImage(slide),
-                        ),
+                      child: SizedBox(
+                        width: 120,
+                        height: 145,
+                        child: _buildHeroImage(slide),
                       ),
                     ),
                   ),

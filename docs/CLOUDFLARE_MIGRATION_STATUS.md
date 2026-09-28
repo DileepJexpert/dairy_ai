@@ -4,6 +4,12 @@ Last updated: 28 September 2026. Source plan: [milterra-cloudflare-development-b
 
 ## Implementation plan
 
+### Checkout quote feedback for closed PINs — 28 September 2026
+
+For PIN `271320`, the live D1 delivery policy has nationwide COD disabled and no PIN exception. The public `/api/v1/marketplace/pincode/check` response confirms COD unavailable there, so the checkout quote correctly rejects the address and no final delivery-inclusive total exists. The Flutter checkout previously rendered that rejected quote as perpetual “Calculating…”. It now shows the server's rejection reason, marks delivery and order total unavailable, and keeps order placement disabled. The quote cache key also includes the selected address PIN, so editing an address under the same ID requests a fresh quote. Item subtotal remains visible. No delivery fee, coverage rule, order, or payment setting was changed.
+
+Validation: focused Dart analysis passed and both delivery-policy Worker tests passed. The web release build passed and Pages deployment `8040f700.milterra-staging.pages.dev` serves the apex domain; `main.dart.js` returned 200 with SHA-256 `3185862374FEC48334469A51805E0E2F7B7B5D3B147E403CE531EC89E9E6B613`, matching the local build. A signed-in browser checkout was not performed. Opening PIN `271320` or all-India COD awaits the owner's delivery-fee decision; do not infer free delivery from the current zero default fee while COD is disabled.
+
 ### Admin reviews, checkout session handling, and coupon feedback — 28 September 2026
 
 The Flutter admin tabs use `/api/v1/admin/*` and `/api/v1/vendor/*`, while the Worker originally exposed corresponding authenticated routes only under `/api/v1/marketplace/*`. The Worker now registers the client-compatible paths with the same endpoint authorization; the Reviews Moderation tab uses the persisted `PENDING`/`APPROVED`/`REJECTED` values and no longer displays a raw Dio stack trace. An unauthenticated request to the deployed `/api/v1/admin/marketplace/reviews` returns 401 rather than 404. Checkout now offers sign-in when address loading receives 401, and a temporary refresh failure no longer erases stored credentials. The actual HTTP status behind the owner's address screenshot was not captured, so an authenticated browser retry is still needed to confirm that flow.

@@ -20,6 +20,7 @@ import '../../../core/analytics_service.dart';
 
 typedef CheckoutQuoteKey = ({
   String addressId,
+  String addressPincode,
   String paymentMethod,
   String couponCode,
   String cartFingerprint,
@@ -96,6 +97,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   CheckoutQuoteKey _quoteKey(dynamic cart, StoreCoupon? coupon) => (
         addressId: _addressId ?? '',
+        // An address can be edited without changing its ID. A changed PIN must
+        // request a new delivery quote rather than reuse the old family key.
+        addressPincode: ref
+                .read(deliveryAddressesProvider)
+                .valueOrNull
+                ?.where((address) => address.id == _addressId)
+                .firstOrNull
+                ?.postalCode ??
+            '',
         paymentMethod: _paymentMethod,
         couponCode: coupon?.code ?? '',
         cartFingerprint: cart?.items
@@ -1284,6 +1294,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ? null
         : ref.watch(checkoutQuoteProvider(quoteKey));
     final quote = quoteState?.valueOrNull;
+    final quoteError = quoteState?.error;
+    final quoteFailed = quoteState?.hasError == true;
+    final quoteErrorMessage = quoteError is DioException
+        ? dioErrorMessage(quoteError)
+        : 'Please retry verifying your delivery address and basket.';
     final subtotal = quote?.subtotal ?? cart?.subtotal ?? 0.0;
     final discount = quote?.discount ?? 0.0;
     final orderTotal = quote?.total;
@@ -1313,7 +1328,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   _submitting || count == 0 || quote == null ? null : _checkout,
               child: Text(
                 quote == null
-                    ? 'Calculating delivery and total…'
+                    ? quoteFailed
+                        ? 'Review delivery and cart'
+                        : 'Calculating delivery and total…'
                     : _getPaymentButtonLabel(orderTotal!, quote.isPrelaunch),
                 style: const TextStyle(
                   fontSize: 14,
@@ -1325,7 +1342,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          if (quoteState?.hasError == true) ...[
+          if (quoteFailed) ...[
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -1338,11 +1355,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.cloud_off_outlined,
+                      Icon(Icons.error_outline,
                           size: 16, color: Color(0xffdc2626)),
                       SizedBox(width: 6),
                       Text(
-                        'Checkout is temporarily unavailable',
+                        'Cannot calculate delivery and total',
                         style: TextStyle(
                           color: Color(0xff991b1b),
                           fontSize: 12,
@@ -1352,9 +1369,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     ],
                   ),
                   Text(
-                    ref.watch(localBasketStorageProvider).isPersisted
-                        ? 'Your basket has been saved. Please retry verifying prices and delivery.'
-                        : 'Your basket is stored in memory for this session only. Please retry verifying prices and delivery.',
+                    quoteErrorMessage,
                     style: const TextStyle(
                       color: Color(0xff7f1d1d),
                       fontSize: 11,
@@ -1549,7 +1564,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   style: TextStyle(fontSize: 13, color: Color(0xff565959))),
               Text(
                   quote == null
-                      ? 'Calculating…'
+                      ? quoteFailed ? 'Unavailable' : 'Calculating…'
                       : quote.deliveryFee == 0
                           ? 'FREE'
                           : storeMoney(quote.deliveryFee),
@@ -1572,7 +1587,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ),
               ),
               Text(
-                orderTotal == null ? 'Calculating…' : storeMoney(orderTotal),
+                orderTotal == null
+                    ? quoteFailed ? 'Unavailable' : 'Calculating…'
+                    : storeMoney(orderTotal),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,

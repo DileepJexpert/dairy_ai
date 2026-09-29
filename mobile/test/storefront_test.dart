@@ -198,6 +198,19 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+  testWidgets('Signed-out account menu fits its short list on desktop',
+      (tester) async {
+    await openStore(tester, width: 1440);
+    await tester.tap(find.byKey(const ValueKey('store-account-menu')));
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome to Milterra'), findsOneWidget);
+    expect(
+        tester.getSize(find.byKey(const ValueKey('store-account-panel'))).width,
+        lessThan(400));
+    expect(find.text('Sign in'), findsOneWidget);
+    expect(find.text('Create account'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('Desktop account menu opens on hover', (tester) async {
     await openStore(tester, width: 1440, client: accountTestClient());
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
@@ -442,7 +455,10 @@ void main() {
   testWidgets('API failure offers retry instead of demo products',
       (tester) async {
     await openStore(tester, fail: true);
-    expect(find.text('The published catalogue and live shop could not be loaded. Please retry.'), findsOneWidget);
+    expect(
+        find.text(
+            'The published catalogue and live shop could not be loaded. Please retry.'),
+        findsOneWidget);
     expect(find.text('Try again'), findsOneWidget);
     expect(find.byKey(const ValueKey('catalogue-open-paneer')), findsNothing);
   });

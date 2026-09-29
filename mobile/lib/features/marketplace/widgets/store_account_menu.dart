@@ -69,7 +69,12 @@ class _StoreAccountMenuState extends State<StoreAccountMenu> {
   @override
   Widget build(BuildContext context) {
     final availableWidth = MediaQuery.sizeOf(context).width - 24;
-    final menuWidth = math.min(widget.compact ? 344.0 : 860.0, availableWidth);
+    final preferredWidth = widget.compact
+        ? 344.0
+        : widget.signedIn
+            ? 860.0
+            : 360.0;
+    final menuWidth = math.min(preferredWidth, availableWidth);
     final menuHeight = math.max(280.0, MediaQuery.sizeOf(context).height - 110);
     return MenuAnchor(
       controller: _controller,
@@ -88,6 +93,7 @@ class _StoreAccountMenuState extends State<StoreAccountMenu> {
           onEnter: (_) => _closeTimer?.cancel(),
           onExit: _scheduleClose,
           child: SizedBox(
+            key: const ValueKey('store-account-panel'),
             width: menuWidth,
             child: ConstrainedBox(
               constraints: BoxConstraints(maxHeight: menuHeight),

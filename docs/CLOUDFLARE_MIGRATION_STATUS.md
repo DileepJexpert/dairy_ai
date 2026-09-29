@@ -2,6 +2,12 @@
 
 Last updated: 29 September 2026. Source plan: [milterra-cloudflare-development-brief.md](../milterra-cloudflare-development-brief.md). This is the handoff tracker for the next implementation agent. Update each row with source, tests, and staging evidence before marking it complete.
 
+### Account menu and password-field usability — 29 September 2026
+
+The signed-out desktop Account & Lists menu now uses a 360-logical-pixel width for its short action list; the signed-in desktop menu retains its 860-logical-pixel layout, and compact layouts retain their existing width. The customer sign-in password field now offers a Clear password control when populated, with autocorrect and suggestions disabled. The underlying password controller and server authentication flow are unchanged.
+
+Validation: 19 storefront widget tests and two password/admin-login widget tests passed; focused Flutter analysis found no issues; the release web build passed. Cloudflare Pages deployment `dae001ab.milterra-staging.pages.dev` is live. Both `milterrafoods.com` and `www.milterrafoods.com` returned HTTP 200 with `main.dart.js` SHA-256 `481BB61058FF4A0D8C893F7163E61884C5C494EBC68630CD11F6BA3881ED0366`, matching the local build. Fresh browser inspection on the apex showed the compact signed-out menu, and entering then clearing a dummy password on the sign-in page emptied the field. No authentication was submitted, and no Worker, D1, order, or payment setting was changed.
+
 ### Live COD storefront correction — 29 September 2026
 
 The owner clarified that `milterrafoods.com` is the live store even while the owner is its first customer. The prior whole-site test-mode release below is historical and has been superseded. The existing `milterra-api-staging` Worker name and `milterra-staging` D1 name remain for continuity, but its deployed flags are `TEST_COMMERCE_ENABLED=false`, `LIVE_COD_ENABLED=true`, and `SIMULATION_ENABLED=false`; no new orders are test-tagged and simulator routes are disabled. Existing old test-tagged rows were preserved.

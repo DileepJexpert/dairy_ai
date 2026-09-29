@@ -114,7 +114,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
       final token = data['reset_token'] as String?;
       if (token != null && token.isNotEmpty) {
-        context.go('/reset-password?token=' + token);
+        context.go(
+            Uri(path: '/reset-password', queryParameters: {'token': token})
+                .toString());
         return;
       }
       final emailSent = data['email_sent'] == true;
@@ -248,8 +250,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       backgroundColor: storeCream,
       body: Column(
         children: [
-          const StoreHeader(
-              currentCategory: 'All', search: SizedBox.shrink()),
+          const StoreHeader(currentCategory: 'All', search: SizedBox.shrink()),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
@@ -470,6 +471,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               TextFormField(
                                 controller: _passwordController,
                                 obscureText: !_showPassword,
+                                autocorrect: false,
+                                enableSuggestions: false,
                                 autofillHints: _createAccount
                                     ? const [AutofillHints.newPassword]
                                     : const [AutofillHints.password],
@@ -481,12 +484,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       ? 'Use at least 8 characters.'
                                       : null,
                                   border: const OutlineInputBorder(),
-                                  suffixIcon: IconButton(
-                                    onPressed: () => setState(
-                                        () => _showPassword = !_showPassword),
-                                    icon: Icon(_showPassword
-                                        ? Icons.visibility_off_outlined
-                                        : Icons.visibility_outlined),
+                                  suffixIcon:
+                                      ValueListenableBuilder<TextEditingValue>(
+                                    valueListenable: _passwordController,
+                                    builder: (context, value, _) => Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (value.text.isNotEmpty)
+                                          IconButton(
+                                            tooltip: 'Clear password',
+                                            onPressed:
+                                                _passwordController.clear,
+                                            icon: const Icon(Icons.clear),
+                                          ),
+                                        IconButton(
+                                          tooltip: _showPassword
+                                              ? 'Hide password'
+                                              : 'Show password',
+                                          onPressed: () => setState(() =>
+                                              _showPassword = !_showPassword),
+                                          icon: Icon(_showPassword
+                                              ? Icons.visibility_off_outlined
+                                              : Icons.visibility_outlined),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                                 validator: (value) {
@@ -522,23 +544,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             if (!_usesOtp) ...[
                               const SizedBox(height: 10),
-                              if (!_isStaffRoute) TextButton(
-                                onPressed: loading
-                                    ? null
-                                    : () => setState(() {
-                                          _createAccount = !_createAccount;
-                                          _submitted = false;
-                                        }),
-                                child: Text(_createAccount
-                                    ? 'Already have an account? Sign in'
-                                    : 'New to Milterra? Create an account'),
-                              ),
+                              if (!_isStaffRoute)
+                                TextButton(
+                                  onPressed: loading
+                                      ? null
+                                      : () => setState(() {
+                                            _createAccount = !_createAccount;
+                                            _submitted = false;
+                                          }),
+                                  child: Text(_createAccount
+                                      ? 'Already have an account? Sign in'
+                                      : 'New to Milterra? Create an account'),
+                                ),
                               Text(
-                                _isStaffRoute && AppConstants.separateCustomerAuth
+                                _isStaffRoute &&
+                                        AppConstants.separateCustomerAuth
                                     ? 'Sign in with the password assigned to your staff account.'
                                     : AppConstants.separateCustomerAuth
-                                    ? 'Use your phone, username or email to sign in. Phone and email are not verified. Password recovery is not available yet; keep your password safe.'
-                                    : 'Your phone identifies the account; email is used only for recovery and launch follow-up. No SMS is sent.',
+                                        ? 'Use your phone, username or email to sign in. Phone and email are not verified. Password recovery is not available yet; keep your password safe.'
+                                        : 'Your phone identifies the account; email is used only for recovery and launch follow-up. No SMS is sent.',
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
                                     fontSize: 12, color: storeMuted),

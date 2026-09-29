@@ -2,6 +2,12 @@
 
 Last updated: 29 September 2026. Source plan: [milterra-cloudflare-development-brief.md](../milterra-cloudflare-development-brief.md). This is the handoff tracker for the next implementation agent. Update each row with source, tests, and staging evidence before marking it complete.
 
+### Owner-requested D1 account reset — 29 September 2026
+
+The owner explicitly chose to remove customer/admin accounts and related data while retaining the schema, product catalogue, inventory and delivery configuration. A D1 Time Travel bookmark was obtained before the change. The existing `milterra-staging` D1 (which backs the live `milterrafoods.com` store) was cleared of credentials, sessions, addresses, profiles, password resets, carts, orders and their lines/events, returns, reviews, reservations, support tickets, customers and auth rate limits. Post-reset remote counts were zero for all those tables. The 93 inventory rows and 4,418 available units were unchanged, as were the seller and delivery-policy records. The earlier seven-account audit in [MILTERRA_CUSTOMER_DATA_AUDIT.md](MILTERRA_CUSTOMER_DATA_AUDIT.md) is now historical.
+
+The site currently has **no admin account**. Public registration creates a `farmer` account, so the owner must first register a new account and then promote only that owner-confirmed account to `admin` through a controlled D1 update, followed by a fresh login. The old seed migration must not be rerun: its password is exposed in repository history. No Worker, Pages, payment or courier settings changed during the reset.
+
 ### Account menu and password-field usability — 29 September 2026
 
 The signed-out desktop Account & Lists menu now uses a 360-logical-pixel width for its short action list; the signed-in desktop menu retains its 860-logical-pixel layout, and compact layouts retain their existing width. The customer sign-in password field now offers a Clear password control when populated, with autocorrect and suggestions disabled. The underlying password controller and server authentication flow are unchanged.

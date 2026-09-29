@@ -1,6 +1,12 @@
 # Milterra customer data and admin access audit
 
-Read-only snapshot: 29 September 2026. Source: the Cloudflare D1 Console for the database named `milterra-staging`, which currently backs `milterrafoods.com`. These counts can change as the store is used. This file is an inventory and operational note, not a customer-data export.
+Historical read-only snapshot: 29 September 2026, before the owner-requested account reset below. Source: the Cloudflare D1 Console for the database named `milterra-staging`, which currently backs `milterrafoods.com`. This file is an inventory and operational note, not a customer-data export.
+
+## Owner-requested account reset — 29 September 2026
+
+The owner authorized deleting all customer and administrator accounts together with their sessions, credentials, addresses, carts, orders, order lines/events, reservations, reviews, returns, support records and authentication rate-limit rows. The reset ran against the existing live D1; its schema and migrations were retained. Remote verification immediately afterward showed **zero rows in every account-related table**. The product inventory remained at 93 rows and 4,418 available units; one seller, one delivery policy, one delivery-PIN rule and seven serviceable-PIN rows remained. Inventory counts were deliberately not recalculated from deleted historical orders.
+
+There is now **no administrator account**. New registrations use the normal customer role. After the owner registers a new account with a new password, that specific account must be promoted through a controlled D1 operation before it can use the admin panel, and the owner must sign in again for a fresh role-bearing session. Do not rerun the old seeded-admin migration or reuse its exposed password. Cloudflare D1 Time Travel had a pre-reset recovery bookmark; availability depends on the account's retention window. The tables and figures below document the former records and must not be treated as current.
 
 ## Administrator access
 

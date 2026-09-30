@@ -902,6 +902,40 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Top Pre-launch Official Announcement Banner Bar
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xff9a3412), Color(0xffc2410c), Color(0xff9a3412)],
+                  ),
+                ),
+                child: Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.campaign_outlined, color: Colors.white, size: 16),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          'OFFICIAL LAUNCH IN JANUARY 2027  ·  Explore our future product range. Please do not place live orders until official launch!',
+                          style: TextStyle(
+                            fontSize: isMobile ? 10.5 : 12,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: 0.3,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: isMobile ? 2 : 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
               // Top Main Amazon Header Row
               Padding(
                 padding: EdgeInsets.symmetric(

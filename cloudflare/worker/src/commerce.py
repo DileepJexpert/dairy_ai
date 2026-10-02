@@ -2473,3 +2473,318 @@ async def delete_merchandising_placement(placement_id: str, request: Request):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
     return {"success": True, "message": f"Placement {placement_id} deleted"}
 
+
+# =====================================================================
+# WHATSAPP META CLOUD API & BOT INTEGRATION (MOCK & LIVE READY)
+# =====================================================================
+
+MOCK_WHATSAPP_LOGS: list[dict[str, Any]] = []
+
+
+async def _send_whatsapp_meta_message(env: Any, to_phone: str, message_payload: dict[str, Any]) -> dict[str, Any]:
+    """Send outgoing WhatsApp message via Meta Graph API, or log in Mock mode if credentials are missing."""
+    token = getattr(env, "WHATSAPP_TOKEN", "") or ""
+    phone_id = getattr(env, "WHATSAPP_PHONE_NUMBER_ID", "") or ""
+
+    outbound_record = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "to": to_phone,
+        "payload": message_payload,
+        "is_mock": not (token and phone_id)
+    }
+    MOCK_WHATSAPP_LOGS.append(outbound_record)
+    if len(MOCK_WHATSAPP_LOGS) > 200:
+        MOCK_WHATSAPP_LOGS.pop(0)
+
+    if not token or not phone_id:
+        return {"success": True, "mode": "mock", "delivered_to": to_phone, "payload": message_payload}
+
+    url = f"https://graph.facebook.com/v18.0/{phone_id}/messages"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    body = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to_phone,
+        **message_payload
+    }
+    import httpx
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        res = await client.post(url, headers=headers, json=body)
+        if res.status_code not in (200, 201):
+            return {"success": False, "mode": "live", "status_code": res.status_code, "error": res.text}
+        return {"success": True, "mode": "live", "response": res.json()}
+
+
+async def _generate_whatsapp_bot_response(
+    db: Any,
+    from_phone: str,
+    profile_name: str,
+    text: str,
+    button_id: str | None = None,
+    env: Any = None
+) -> dict[str, Any]:
+    """Process incoming WhatsApp message or button tap and return formatted response payload."""
+    clean_text = (text or "").strip().lower()
+    btn = (button_id or "").strip()
+    name = profile_name.strip() if profile_name else "Valued Customer"
+
+    # Check if user has past order in D1 DB
+    phone_digits = re.sub(r"\D", "", from_phone)[-10:]
+    active_order = None
+    if db and phone_digits:
+        try:
+            ord_rows = await db.prepare(
+                "SELECT id, fulfillment_status, total_minor, delivery_city, delivery_pincode "
+                "FROM orders WHERE customer_phone LIKE ? ORDER BY created_at DESC LIMIT 1"
+            ).bind(f"%{phone_digits}").all()
+            records = _d1_rows(ord_rows)
+            if records:
+                active_order = records[0]
+        except Exception:
+            pass
+
+    # 1. GREETING / HI / INTRO MENU
+    if btn == "btn_menu" or any(w in clean_text for w in ["hi", "hello", "hey", "start", "menu", "namaste", "greeting"]):
+        if active_order:
+            order_id = active_order["id"]
+            status_txt = active_order.get("fulfillment_status", "processing").replace("_", " ").title()
+            msg_body = (
+                f"Hi {name}! Welcome back to Milterra Foods 🌿\n\n"
+                f"📦 *Latest Order status* (#{order_id}): **{status_txt}**\n\n"
+                f"How can we help you today?"
+            )
+        else:
+            msg_body = (
+                f"Hi {name}! Welcome to Milterra Foods 🌿\n\n"
+                f"We bring you 100% Pure & Authentic A2 Cow Dairy Products, traditional bilona ghee & artisanal butter.\n\n"
+                f"How can we assist you today?"
+            )
+
+        return {
+            "type": "interactive",
+            "interactive": {
+                "type": "button",
+                "body": {"text": msg_body},
+                "action": {
+                    "buttons": [
+                        {"type": "reply", "reply": {"id": "btn_pincode", "title": "🚚 Shipping & Pincode"}},
+                        {"type": "reply", "reply": {"id": "btn_track", "title": "📦 Track Order"}},
+                        {"type": "reply", "reply": {"id": "btn_products", "title": "🥛 Browse Products"}}
+                    ]
+                }
+            }
+        }
+
+    # 2. PINCODE & DELIVERY SERVICEABILITY QUERY
+    pincode_match = re.search(r"\b([1-8][0-9]{5})\b", clean_text)
+    if btn == "btn_pincode" or pincode_match or any(w in clean_text for w in ["pincode", "delivery", "courier", "shipping", "deliver", "pin"]):
+        if pincode_match:
+            pin = pincode_match.group(1)
+            pol = await _delivery_policy(db, pin, env) if db else {}
+            if pol.get("is_serviceable"):
+                city_name = pol.get("city") or "your area"
+                min_days = pol.get("delivery_days_min") or 1
+                max_days = pol.get("delivery_days_max") or 3
+                reply_text = (
+                    f"✅ **Pincode {pin} ({city_name}) is Serviceable!**\n\n"
+                    f"• *Courier Partner:* Delhivery / BlueDart Express Air\n"
+                    f"• *Estimated Delivery:* {min_days}-{max_days} Business Days\n"
+                    f"• *Free Shipping:* On orders above ₹499\n"
+                    f"• *Packaging:* Insulated glass-safe transit cushions\n\n"
+                    f"Order directly at milterrafoods.com!"
+                )
+            else:
+                reply_text = (
+                    f"🚚 **Pincode {pin} Serviceability Information**\n\n"
+                    f"We ship to {pin} via standard surface courier (3-5 business days).\n"
+                    f"Free shipping available on orders above ₹499!\n\n"
+                    f"Explore our product range at milterrafoods.com!"
+                )
+        else:
+            reply_text = (
+                f"🚚 **Milterra Express Shipping Info**\n\n"
+                f"• *Metro Cities:* 1-2 Business Days via Air Express\n"
+                f"• *All India Coverage:* 3-5 Business Days\n"
+                f"• *Courier Partners:* Delhivery, BlueDart, India Post\n"
+                f"• *Free Delivery:* Orders above ₹499\n\n"
+                f"💡 *Tip:* Reply with your 6-digit Pincode (e.g., '560001') for instant delivery check!"
+            )
+        return {"type": "text", "text": {"body": reply_text}}
+
+    # 3. ORDER TRACKING QUERY
+    ord_id_match = re.search(r"\b(100\d{2}|\d{5})\b", clean_text)
+    if btn == "btn_track" or ord_id_match or any(w in clean_text for w in ["track", "status", "order", "where is"]):
+        target_ord = None
+        if ord_id_match and db:
+            try:
+                found = await db.prepare("SELECT * FROM orders WHERE id=?").bind(ord_id_match.group(1)).first()
+                if found:
+                    target_ord = found
+            except Exception:
+                pass
+        if not target_ord:
+            target_ord = active_order
+
+        if target_ord:
+            o_id = target_ord["id"]
+            st = target_ord.get("fulfillment_status", "processing").replace("_", " ").title()
+            tot = (target_ord.get("total_minor", 0) or 0) / 100.0
+            city = target_ord.get("delivery_city", "Destination")
+            reply_text = (
+                f"📦 *Order #{o_id} Update*\n\n"
+                f"• *Status:* **{st}**\n"
+                f"• *Total Amount:* ₹{tot:.2f}\n"
+                f"• *Destination:* {city}\n\n"
+                f"Track real-time status online at milterrafoods.com!"
+            )
+        else:
+            reply_text = (
+                f"🔍 *Order Lookup*\n\n"
+                f"No recent order was found for phone +{from_phone}.\n\n"
+                f"If you placed an order, please reply with your 5-digit Order ID (e.g., 'Order 10042')!"
+            )
+        return {"type": "text", "text": {"body": reply_text}}
+
+    # 4. PRODUCTS & PACKAGING QUERY
+    if btn == "btn_products" or any(w in clean_text for w in ["product", "ghee", "butter", "price", "glass", "packaging", "shelf"]):
+        reply_text = (
+            f"🥛 *Milterra Pure A2 Product Collection* 🌿\n\n"
+            f"1. *A2 Desi Cow Bilona Ghee (500ml)* — ₹699\n"
+            f"2. *Artisanal Fresh Cultured Butter (250g)* — ₹349\n\n"
+            f"📦 *Packaging Safety:* All glass jars are packed in impact-resistant eco-cushion packaging to ensure 100% safe transit.\n\n"
+            f"Shop online now at milterrafoods.com!"
+        )
+        return {"type": "text", "text": {"body": reply_text}}
+
+    # 5. DEFAULT FALLBACK RESPONSE
+    reply_text = (
+        f"Thank you for contacting Milterra Foods! 🌿\n\n"
+        f"Reply with:\n"
+        f"• **Pincode** (e.g. 560001) for shipping timings\n"
+        f"• **Order ID** for tracking status\n"
+        f"• Or visit **milterrafoods.com**"
+    )
+    return {"type": "text", "text": {"body": reply_text}}
+
+
+# ---------------------------------------------------------------------
+# WHATSAPP WEBHOOK ROUTER ENDPOINTS
+# ---------------------------------------------------------------------
+
+@commerce_router.get("/whatsapp/webhook")
+@commerce_router.get("/admin/whatsapp/webhook")
+async def verify_whatsapp_webhook(request: Request):
+    """Handshake verification endpoint for Meta WhatsApp Cloud API."""
+    params = request.query_params
+    mode = params.get("hub.mode")
+    token = params.get("hub.verify_token")
+    challenge = params.get("hub.challenge")
+
+    env = _env(request)
+    expected_token = getattr(env, "WHATSAPP_VERIFY_TOKEN", "") or "milterra_whatsapp_secret_token"
+
+    if mode == "subscribe" and token == expected_token and challenge:
+        return JSONResponse(content=int(challenge) if challenge.isdigit() else challenge, status_code=200)
+
+    raise HTTPException(status_code=403, detail="Webhook verification failed")
+
+
+@commerce_router.post("/whatsapp/webhook")
+@commerce_router.post("/admin/whatsapp/webhook")
+async def handle_whatsapp_webhook(request: Request):
+    """Receive and process incoming messages from Meta WhatsApp API Webhook."""
+    env = _env(request)
+    db = getattr(env, "DB", None)
+    try:
+        body = await request.json()
+    except Exception:
+        return {"success": False, "error": "Invalid JSON body"}
+
+    outgoing_results = []
+
+    # Process Meta payload structure
+    entries = body.get("entry", [])
+    for entry in entries:
+        changes = entry.get("changes", [])
+        for change in changes:
+            value = change.get("value", {})
+            contacts = value.get("contacts", [])
+            messages = value.get("messages", [])
+
+            # Map contact profile names
+            profile_names = {}
+            for c in contacts:
+                wa_id = c.get("wa_id")
+                prof = c.get("profile", {}).get("name")
+                if wa_id and prof:
+                    profile_names[wa_id] = prof
+
+            for msg in messages:
+                from_phone = msg.get("from", "")
+                name = profile_names.get(from_phone, "Customer")
+                msg_type = msg.get("type", "text")
+
+                text_content = ""
+                button_id = None
+
+                if msg_type == "text":
+                    text_content = msg.get("text", {}).get("body", "")
+                elif msg_type == "interactive":
+                    interactive = msg.get("interactive", {})
+                    if interactive.get("type") == "button_reply":
+                        button_id = interactive.get("button_reply", {}).get("id")
+                        text_content = interactive.get("button_reply", {}).get("title", "")
+                    elif interactive.get("type") == "list_reply":
+                        button_id = interactive.get("list_reply", {}).get("id")
+                        text_content = interactive.get("list_reply", {}).get("title", "")
+
+                if from_phone:
+                    reply_payload = await _generate_whatsapp_bot_response(
+                        db=db,
+                        from_phone=from_phone,
+                        profile_name=name,
+                        text=text_content,
+                        button_id=button_id,
+                        env=env
+                    )
+                    res = await _send_whatsapp_meta_message(env, from_phone, reply_payload)
+                    outgoing_results.append(res)
+
+    return {"success": True, "processed": len(outgoing_results), "outgoing": outgoing_results}
+
+
+@commerce_router.post("/whatsapp/send-mock")
+@commerce_router.post("/admin/whatsapp/send-mock")
+async def send_mock_whatsapp_message(request: Request):
+    """Local simulation endpoint to test WhatsApp bot replies directly without Meta."""
+    env = _env(request)
+    db = getattr(env, "DB", None)
+    data = await request.json()
+
+    phone = data.get("phone", "919839769808")
+    name = data.get("name", "Test User")
+    message = data.get("message", "Hi")
+    button_id = data.get("button_id")
+
+    reply_payload = await _generate_whatsapp_bot_response(
+        db=db,
+        from_phone=phone,
+        profile_name=name,
+        text=message,
+        button_id=button_id,
+        env=env
+    )
+    result = await _send_whatsapp_meta_message(env, phone, reply_payload)
+    return {"success": True, "input": data, "bot_payload": reply_payload, "delivery": result}
+
+
+@commerce_router.get("/admin/whatsapp/logs")
+async def get_whatsapp_logs(request: Request):
+    """Admin endpoint to inspect recent outbound WhatsApp logs."""
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "count": len(MOCK_WHATSAPP_LOGS), "logs": MOCK_WHATSAPP_LOGS}
+
+

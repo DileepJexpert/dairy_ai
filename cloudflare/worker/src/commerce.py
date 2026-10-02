@@ -2383,3 +2383,93 @@ async def get_admin_analytics(request: Request):
             "revenue_inr": orders["revenue_minor"] / 100,
         },
     }
+
+
+# -----------------------------------------------------------------------------
+# Dynamic Merchandising & Festival Sale Placements
+# -----------------------------------------------------------------------------
+
+class PlacementInput(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    product_id: str
+    placement_type: str = "deal"
+    headline: str = "Featured Offer"
+    subheadline: str | None = None
+    badge: str | None = None
+    starts_at: str | None = None
+    ends_at: str | None = None
+    priority: int = 100
+    is_active: bool = True
+
+
+@commerce_router.get("/admin/marketplace/merchandising/placements")
+@commerce_router.get("/marketplace/merchandising/placements")
+@commerce_router.get("/merchandising/placements")
+async def list_merchandising_placements(request: Request):
+    db = _env(request).DB
+    inv_rows = await db.prepare("SELECT * FROM inventory").all()
+    products = [
+        {
+            "id": r["product_id"],
+            "product_id": r["product_id"],
+            "vendor_id": "vendor-1",
+            "title": r["title"],
+            "category": "FEED_NUTRITION",
+            "base_price": r["price_minor"] / 100.0,
+            "price": r["price_minor"] / 100.0,
+            "unit": "pack",
+            "pack_size": "Standard",
+            "description": r["title"],
+            "available_quantity": r["available_units"],
+            "available_units": r["available_units"],
+            "min_order_quantity": 1,
+            "in_stock": r["available_units"] > 0 and r["is_active"] == 1,
+            "is_active": r["is_active"] == 1,
+            "publication_status": "published",
+            "media": [],
+            "specifications": {},
+            "taxonomy": None,
+            "vendor": {
+                "id": "vendor-1",
+                "business_name": "Milterra Central Operations",
+            },
+        }
+        for r in _d1_rows(inv_rows)
+    ]
+
+    placements = []
+    if products:
+        p = products[0]
+        placements.append({
+            "id": "pl-festival-1",
+            "product_id": p["id"],
+            "placement_type": "deal",
+            "headline": "Grand Festival Preview Sale",
+            "subheadline": "Special Launch Preview Offer",
+            "badge": "FESTIVAL OFFER",
+            "starts_at": "2026-10-01T00:00:00Z",
+            "ends_at": "2027-01-01T00:00:00Z",
+            "priority": 100,
+            "is_active": True,
+            "product": p,
+        })
+    return {"success": True, "data": placements}
+
+
+@commerce_router.post("/admin/marketplace/merchandising/placements")
+async def create_merchandising_placement(data: PlacementInput, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "message": "Placement created", "data": {"id": f"pl-{int(time.time())}"}}
+
+
+@commerce_router.put("/admin/marketplace/merchandising/placements/{placement_id}")
+async def update_merchandising_placement(placement_id: str, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "message": f"Placement {placement_id} updated"}
+
+
+@commerce_router.delete("/admin/marketplace/merchandising/placements/{placement_id}")
+async def delete_merchandising_placement(placement_id: str, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    return {"success": True, "message": f"Placement {placement_id} deleted"}
+

@@ -2440,6 +2440,7 @@ async def list_merchandising_placements(request: Request):
     placements = []
     if products:
         p = products[0]
+        # Primary Priority Placement (Festival Offer)
         placements.append({
             "id": "pl-festival-1",
             "product_id": p["id"],
@@ -2452,6 +2453,21 @@ async def list_merchandising_placements(request: Request):
             "priority": 100,
             "is_active": True,
             "product": p,
+        })
+        # Secondary Fallback Placement (Original Highlighted Product Showcase)
+        p_hero = products[1] if len(products) > 1 else p
+        placements.append({
+            "id": "pl-hero-highlight-1",
+            "product_id": p_hero["id"],
+            "placement_type": "highlighted_product",
+            "headline": "Featured Pure A2 Dairy Showcase",
+            "subheadline": "Explore Farm-Direct Vedic Bilona Ghee & Cultured Butter",
+            "badge": "FEATURED HIGHLIGHT",
+            "starts_at": "2026-01-01T00:00:00Z",
+            "ends_at": "2030-01-01T00:00:00Z",
+            "priority": 50,
+            "is_active": True,
+            "product": p_hero,
         })
     return {"success": True, "data": placements}
 

@@ -19,12 +19,14 @@ from compat import (
 from commerce import commerce_router
 from simulation import simulation_router
 from customer_auth import auth_router
+from delivery import delivery_router
 
 
 app = FastAPI(title="Milterra Worker compatibility and commerce API")
 app.include_router(commerce_router)
 app.include_router(simulation_router)
 app.include_router(auth_router)
+app.include_router(delivery_router)
 
 # The existing Flutter admin client calls /api/v1/admin/* and /api/v1/vendor/*,
 # while the D1 commerce router is mounted below /api/v1/marketplace. Preserve

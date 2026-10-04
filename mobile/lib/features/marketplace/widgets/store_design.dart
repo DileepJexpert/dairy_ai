@@ -701,8 +701,8 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                             category: 'Natural Agarbatti & Dhoop',
                             query: 'loban')),
                     const Divider(height: 16),
-                    _sectionHeader('🚜 Katixo Farmer Hub (Machinery & Feed)'),
-                    _drawerTile(context, 'Visit Katixo Farmer Marketplace →',
+                    _sectionHeader('🚜 Farm Machinery & Equipment Hub'),
+                    _drawerTile(context, 'Visit Machinery Marketplace →',
                         () {
                       Navigator.pop(context);
                       context.go('/marketplace');
@@ -947,8 +947,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                   children: [
                     // Brand Logo
                     InkWell(
-                      onTap: () => context
-                          .go(widget.isFarmerHub ? '/marketplace' : '/shop'),
+                      onTap: () => context.go('/shop'),
                       borderRadius: BorderRadius.circular(4),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -956,34 +955,31 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            widget.isFarmerHub
-                                ? const Icon(Icons.agriculture,
-                                    color: storeGold, size: 22)
-                                : ClipOval(
-                                    child: Image.asset(
-                                      'assets/store/milterra-heritage-badge.jpg',
-                                      width: 24,
-                                      height: 24,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => const Icon(
-                                          Icons.spa_outlined,
-                                          color: storeGold,
-                                          size: 22),
-                                    ),
-                                  ),
+                            ClipOval(
+                              child: Image.asset(
+                                'assets/store/milterra-heritage-badge.jpg',
+                                width: 24,
+                                height: 24,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.spa_outlined,
+                                    color: storeGold,
+                                    size: 22),
+                              ),
+                            ),
                             const SizedBox(width: 6),
                             Text(
-                              widget.isFarmerHub ? 'katixo' : 'milterrafoods',
+                              'milterrafoods',
                               style: StoreType.logo.copyWith(
                                 color: storeWhite,
                                 fontSize: isMobile ? 22 : 25,
                               ),
                             ),
-                            Padding(
-                              padding: const EdgeInsets.only(top: 6),
+                            const Padding(
+                              padding: EdgeInsets.only(top: 6),
                               child: Text(
-                                  widget.isFarmerHub ? '.farmer' : '.com',
-                                  style: const TextStyle(
+                                  '.com',
+                                  style: TextStyle(
                                       color: storeGold,
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold)),
@@ -1411,9 +1407,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
               style: const TextStyle(fontSize: 13, color: Color(0xff111111)),
               decoration: InputDecoration(
                 hintText: widget.searchHint ??
-                    (widget.isFarmerHub
-                        ? 'Search Katixo (e.g. Chaff Cutter, Milking Machine, Feeds)...'
-                        : 'Search milterrafoods.com (e.g. A2 Cow Ghee, Paneer)...'),
+                    'Search milterrafoods.com (e.g. A2 Cow Ghee, Paneer, Chaff Cutter)...',
                 hintStyle:
                     const TextStyle(color: Color(0xff777777), fontSize: 12),
                 filled: true,

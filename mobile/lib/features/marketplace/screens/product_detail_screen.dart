@@ -1544,7 +1544,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
     if (isEquipment) {
       attributes = [
-        ('Brand / OEM', p.brand ?? 'Katixo Agri Mechanization'),
+        ('Brand / OEM', p.brand ?? 'Milterra Agri Mechanization'),
         (
           'Power / Motor',
           p.specifications['power']?.toString() ?? '3.0 HP (Heavy Duty)'
@@ -1565,10 +1565,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           '1 Year Manufacturer Warranty + Lifetime Spares Availability'
         ),
         ('Country of Origin', 'India'),
-      ];
+        ];
     } else if (isFeed) {
       attributes = [
-        ('Brand', p.brand ?? 'Katixo Animal Nutrition'),
+        ('Brand', p.brand ?? 'Milterra Animal Nutrition'),
         ('Net Quantity', p.packSize ?? p.unit),
         ('Form / Texture', 'Steam-Conditioned 4mm Pellets / Meal'),
         (

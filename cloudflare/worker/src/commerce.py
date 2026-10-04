@@ -205,6 +205,7 @@ class CheckoutQuoteInput(BaseModel):
     delivery_address_id: str | None = None
     coupon_code: str | None = None
     payment_method: str = "cod"
+    points_to_redeem: int = Field(default=0, ge=0)
 
 
 class CouponQuoteInput(BaseModel):
@@ -217,6 +218,7 @@ class CheckoutInput(BaseModel):
     payment_method: str = "cod"
     coupon_code: str | None = None
     expected_total: float | None = None
+    points_to_redeem: int = Field(default=0, ge=0)
 
 
 class CartItemUpdateInput(BaseModel):
@@ -2802,5 +2804,169 @@ async def get_whatsapp_logs(request: Request):
     """Admin endpoint to inspect recent outbound WhatsApp logs."""
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
     return {"success": True, "count": len(MOCK_WHATSAPP_LOGS), "logs": MOCK_WHATSAPP_LOGS}
+
+
+# =====================================================================
+# MILTERRA CUSTOMER LOYALTY POINTS ENGINE & ADMIN MANAGEMENT
+# =====================================================================
+
+class LoyaltySettingsUpdate(BaseModel):
+    is_active: bool = True
+    earning_rate_percent: float = Field(default=2.0, ge=0, le=100)
+    redemption_rate_minor: int = Field(default=100, ge=1)
+    min_points_to_redeem: int = Field(default=10, ge=0)
+    max_redeem_percent_per_order: float = Field(default=50.0, ge=0, le=100)
+
+
+class LoyaltyAdjustmentInput(BaseModel):
+    customer_id: str = Field(min_length=1)
+    points_change: int
+    description: str = Field(default="Admin point adjustment")
+
+
+async def _get_loyalty_settings(db: Any) -> dict[str, Any]:
+    try:
+        row = await db.prepare("SELECT * FROM loyalty_settings WHERE id = 1").first()
+        if row:
+            return dict(row)
+    except Exception:
+        pass
+    return {
+        "is_active": 1,
+        "earning_rate_percent": 2.0,
+        "redemption_rate_minor": 100,
+        "min_points_to_redeem": 10,
+        "max_redeem_percent_per_order": 50.0
+    }
+
+
+async def _get_customer_loyalty_balance(db: Any, customer_id: str) -> dict[str, Any]:
+    try:
+        row = await db.prepare(
+            "SELECT balance_after FROM customer_loyalty_ledger WHERE customer_id = ? ORDER BY created_at DESC LIMIT 1"
+        ).bind(customer_id).first()
+        balance = int(row["balance_after"]) if row else 0
+    except Exception:
+        balance = 0
+    return {"points_balance": balance}
+
+
+async def _add_loyalty_ledger_entry(
+    db: Any,
+    customer_id: str,
+    points_change: int,
+    description: str,
+    order_id: str | None = None
+) -> int:
+    current = (await _get_customer_loyalty_balance(db, customer_id))["points_balance"]
+    new_balance = max(0, current + points_change)
+    entry_id = f"loy-{uuid.uuid4()}"
+    try:
+        await db.prepare(
+            "INSERT INTO customer_loyalty_ledger (id, customer_id, order_id, points_change, balance_after, description) "
+            "VALUES (?, ?, ?, ?, ?, ?)"
+        ).bind(entry_id, customer_id, order_id, points_change, new_balance, description).run()
+    except Exception:
+        pass
+    return new_balance
+
+
+@commerce_router.get("/loyalty/balance")
+@commerce_router.get("/admin/loyalty/balance")
+async def get_loyalty_balance(request: Request):
+    user = await _require_auth(request)
+    customer_id = user["id"]
+    db = _env(request).DB
+    settings = await _get_loyalty_settings(db)
+
+    bal_data = await _get_customer_loyalty_balance(db, customer_id)
+    points = bal_data["points_balance"]
+
+    redemption_rate = settings["redemption_rate_minor"] / 100.0
+    monetary_value = points * redemption_rate
+
+    history = []
+    try:
+        rows = await db.prepare(
+            "SELECT * FROM customer_loyalty_ledger WHERE customer_id = ? ORDER BY created_at DESC LIMIT 50"
+        ).bind(customer_id).all()
+        history = _d1_rows(rows)
+    except Exception:
+        pass
+
+    return {
+        "success": True,
+        "data": {
+            "customer_id": customer_id,
+            "points_balance": points,
+            "rupee_value": monetary_value,
+            "redemption_rate_per_point": redemption_rate,
+            "min_points_to_redeem": settings["min_points_to_redeem"],
+            "earning_rate_percent": settings["earning_rate_percent"],
+            "is_active": settings["is_active"] == 1,
+            "history": history
+        }
+    }
+
+
+@commerce_router.get("/admin/marketplace/loyalty/settings")
+async def get_admin_loyalty_settings(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    settings = await _get_loyalty_settings(db)
+    return {"success": True, "data": settings}
+
+
+@commerce_router.put("/admin/marketplace/loyalty/settings")
+async def update_admin_loyalty_settings(payload: LoyaltySettingsUpdate, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    await db.prepare(
+        "INSERT INTO loyalty_settings (id, is_active, earning_rate_percent, redemption_rate_minor, min_points_to_redeem, max_redeem_percent_per_order) "
+        "VALUES (1, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET "
+        "is_active = excluded.is_active, "
+        "earning_rate_percent = excluded.earning_rate_percent, "
+        "redemption_rate_minor = excluded.redemption_rate_minor, "
+        "min_points_to_redeem = excluded.min_points_to_redeem, "
+        "max_redeem_percent_per_order = excluded.max_redeem_percent_per_order, "
+        "updated_at = CURRENT_TIMESTAMP"
+    ).bind(
+        1 if payload.is_active else 0,
+        payload.earning_rate_percent,
+        payload.redemption_rate_minor,
+        payload.min_points_to_redeem,
+        payload.max_redeem_percent_per_order
+    ).run()
+
+    settings = await _get_loyalty_settings(db)
+    return {"success": True, "message": "Loyalty settings updated", "data": settings}
+
+
+@commerce_router.get("/admin/marketplace/loyalty/customers")
+async def list_admin_loyalty_customers(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    rows = await db.prepare(
+        """SELECT c.id as customer_id, c.full_name as name, c.phone,
+                  COALESCE(l.balance_after, 0) as points_balance
+           FROM customers c
+           LEFT JOIN customer_loyalty_ledger l ON l.id = (
+               SELECT id FROM customer_loyalty_ledger WHERE customer_id = c.id ORDER BY created_at DESC LIMIT 1
+           )
+           ORDER BY points_balance DESC"""
+    ).all()
+    return {"success": True, "data": _d1_rows(rows)}
+
+
+@commerce_router.post("/admin/marketplace/loyalty/adjust")
+async def adjust_customer_loyalty_points(payload: LoyaltyAdjustmentInput, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    new_bal = await _add_loyalty_ledger_entry(
+        db, payload.customer_id, payload.points_change, f"Admin Adjustment: {payload.description}"
+    )
+    return {"success": True, "message": "Loyalty points adjusted", "new_balance": new_bal}
+
 
 

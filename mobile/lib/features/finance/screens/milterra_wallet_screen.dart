@@ -106,6 +106,10 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
                                 ),
                                 const SizedBox(height: 20),
 
+                                // Customer Loyalty Points Card
+                                _buildLoyaltyPointsCard(isMobile),
+                                const SizedBox(height: 20),
+
                                 // Main Balance Card
                                 _buildTotalBalanceCard(isMobile),
                                 const SizedBox(height: 24),
@@ -613,5 +617,112 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
                     child: const Text('Close'))
               ],
             ));
+  }
+
+  Widget _buildLoyaltyPointsCard(bool isMobile) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xff1b4332), Color(0xff2d6a4f)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.stars_rounded, color: storeGold, size: 24),
+                  SizedBox(width: 8),
+                  Text(
+                    'MILTERRA LOYALTY REWARDS',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: storeGold,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: storeGold.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: storeGold),
+                ),
+                child: const Text(
+                  'Active Program',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: storeGold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Available Loyalty Points',
+            style: TextStyle(fontSize: 13, color: Colors.white70),
+          ),
+          const SizedBox(height: 4),
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                '150',
+                style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(width: 6),
+              Text(
+                'pts',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: storeGold,
+                ),
+              ),
+              SizedBox(width: 14),
+              Text(
+                '(Worth ₹150 discount)',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            '✨ Earn 2% back as points on every completed order. Redeem points during checkout for instant discounts on future purchases!',
+            style: TextStyle(fontSize: 12, color: Colors.white, height: 1.4),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -1914,9 +1914,112 @@ abstract final class StoreImages {
       return p.media.first;
     }
     final title = p.title.toLowerCase();
+    final pack = (p.packSize ?? '').toLowerCase();
+
+    // 1. Tin containers ("tin dabba" / 5L metal canisters)
+    final isTin = title.contains('tin') ||
+        title.contains('dabba') ||
+        title.contains('canister') ||
+        pack.contains('tin');
+    final is5L = title.contains('5000') ||
+        title.contains('5 litre') ||
+        title.contains('5l') ||
+        pack.contains('5000') ||
+        pack.contains('5 litre') ||
+        pack.contains('5 l');
+
+    if (isTin || is5L) {
+      if (title.contains('mustard') || title.contains('sarso')) {
+        return 'assets/store/mustard-oil-tin-5l.jpg';
+      }
+      if (title.contains('peanut') || title.contains('groundnut')) {
+        return 'assets/store/peanut-oil-tin-5l.jpg';
+      }
+      if (title.contains('ghee')) {
+        return 'assets/store/ghee-tin-5l.jpg';
+      }
+    }
+
+    // 3. Fresh Farm Milk & Dairy
+    if (title.contains('milk') || title.contains('doodh')) {
+      if (title.contains('buffalo') || title.contains('murrah')) {
+        return 'assets/store/milk-buffalo-bottle-1l.jpg';
+      }
+      return 'assets/store/milk-cow-bottle-1l.jpg';
+    }
+    if (title.contains('paneer')) {
+      return 'assets/store/paneer.png';
+    }
     if (title.contains('butter') || title.contains('makhan')) {
       return 'assets/store/white-butter-concept.png';
     }
+    if (title.contains('chhachh') ||
+        title.contains('chaas') ||
+        title.contains('mattha') ||
+        title.contains('buttermilk')) {
+      return 'assets/store/farm-pasture.jpg';
+    }
+
+    // 4. Curd Chillies & Dhoop
+    if (title.contains('mor milagai') ||
+        title.contains('curd chilli') ||
+        title.contains('curd chillies')) {
+      return 'assets/store/curd-chillies.jpg';
+    }
+    if (title.contains('dhoop') ||
+        title.contains('agarbatti') ||
+        title.contains('incense')) {
+      return 'assets/store/panchagavya-dhoop.jpg';
+    }
+    if (title.contains('shata') || title.contains('washed ghee')) {
+      return 'assets/store/shata-dhauta-ghrita.jpg';
+    }
+
+    // 5. Ghee Varieties by size, process & infusion
+    if (title.contains('ghee') || title.contains('ghrita')) {
+      if (title.contains('single-farm') || title.contains('single farm')) {
+        return 'assets/store/ghee-single-farm.jpg';
+      }
+      if (title.contains('full moon') ||
+          title.contains('purnima') ||
+          title.contains('moon')) {
+        return 'assets/store/ghee-full-moon.jpg';
+      }
+      if (title.contains('hawan') || title.contains('yajna')) {
+        return 'assets/store/hawan-ghee-1l.jpg';
+      }
+      if (title.contains('tulsi')) {
+        return 'assets/store/milterra-tulsi-ghee.webp';
+      }
+      if (title.contains('brahmi')) {
+        return 'assets/store/milterra-brahmi-ghee.webp';
+      }
+      if (title.contains('ashwa')) {
+        return 'assets/store/milterra-ashwagandha-ghee.webp';
+      }
+      if (title.contains('buffalo') || title.contains('murrah')) {
+        return 'assets/store/buffalo-ghee.png';
+      }
+      if (title.contains('250') ||
+          title.contains('trial') ||
+          pack.contains('250')) {
+        return 'assets/store/ghee-jar-250ml.jpg';
+      }
+      if (title.contains('1000') ||
+          title.contains('1 litre') ||
+          title.contains('1l') ||
+          title.contains('kitchen jar') ||
+          pack.contains('1000') ||
+          pack.contains('1 litre') ||
+          pack.contains('1 l')) {
+        return 'assets/store/ghee-jar-1l.jpg';
+      }
+      if (title.contains('500') || pack.contains('500')) {
+        return 'assets/store/ghee-jar-500ml.jpg';
+      }
+      return 'assets/store/ghee-jar-500ml.jpg';
+    }
+
     final isEarth = p.taxonomy?['is_earth'] == true ||
         title.contains('earth') ||
         title.contains('vermicompost') ||
@@ -1945,25 +2048,20 @@ abstract final class StoreImages {
         p.taxonomy?['department_name'] == 'Puja & Hawan Samagri' ||
         title.contains('hawan') ||
         title.contains('kanda') ||
-        title.contains('dhoop') ||
         title.contains('kapoor') ||
         title.contains('camphor') ||
         title.contains('diya');
     if (isSacred) {
-      if (title.contains('ghee')) return 'assets/store/cow-ghee.png';
       if (title.contains('kanda') ||
           title.contains('uple') ||
           title.contains('diya')) {
         return 'assets/store/earth-cakes.jpg';
       }
-      if (title.contains('dhoop') || title.contains('agarbatti')) {
-        return 'assets/store/milterra-tulsi-ghee.webp';
-      }
       if (title.contains('kapoor') || title.contains('camphor')) {
         return 'assets/store/farm-bilona.jpg';
       }
       if (title.contains('samagri')) {
-        return 'assets/store/nutrition-lineup.jpg';
+        return 'assets/store/hawan-ghee-1l.jpg';
       }
       return 'assets/store/earth-cakes.jpg';
     }
@@ -2014,19 +2112,6 @@ abstract final class StoreImages {
         title.contains('milk-pro')) {
       return 'assets/store/nutrition-lineup.jpg';
     }
-    if (title.contains('tulsi')) return 'assets/store/milterra-tulsi-ghee.webp';
-    if (title.contains('brahmi')) {
-      return 'assets/store/milterra-brahmi-ghee.webp';
-    }
-    if (title.contains('ashwagandha')) {
-      return 'assets/store/milterra-ashwagandha-ghee.webp';
-    }
-    if (title.contains('bilona') || title.contains('sahiwal')) {
-      return 'assets/store/bilona-cow-ghee.jpg';
-    }
-    if (title.contains('buffalo')) return 'assets/store/buffalo-ghee.png';
-    if (title.contains('ghee')) return 'assets/store/cow-ghee.png';
-    if (title.contains('paneer')) return 'assets/store/paneer.png';
 
     // 1. Fresh Living Microgreens
     if (title.contains('microgreen') ||

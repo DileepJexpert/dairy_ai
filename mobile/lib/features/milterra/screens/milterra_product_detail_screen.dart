@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../app/store_theme.dart';
 import '../../cart/providers/cart_provider.dart';
 import '../../cart/providers/wishlist_provider.dart';
 import '../../cart/widgets/store_cart_drawer.dart';
@@ -182,7 +181,10 @@ class _MilterraProductDetailScreenState
   }
 
   Widget _buildGallery(Product product) {
-    final images = product.media;
+    final resolvedFallback = StoreImages.productArtwork(product);
+    final images = product.media.isNotEmpty
+        ? product.media
+        : (resolvedFallback != null ? [resolvedFallback] : const <String>[]);
 
     return Container(
       decoration: BoxDecoration(

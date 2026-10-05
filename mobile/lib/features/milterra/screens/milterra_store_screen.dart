@@ -571,138 +571,338 @@ class _MilterraStoreScreenState extends ConsumerState<MilterraStoreScreen> {
   }
 
   Widget _buildBilonaProcessSection() {
+    final stages = [
+      {
+        'step': '01',
+        'title': 'Ethical A2 Milking',
+        'desc': 'Grass-fed indigenous cows grazing freely in open pastures. Cruelty-free Ahimsa care — calf is fed first.',
+        'icon': Icons.favorite_outline,
+      },
+      {
+        'step': '02',
+        'title': 'Clay Pot Boiling',
+        'desc': 'Slow-boiled in earthen and brass vessels over low flame to protect heat-sensitive enzymes.',
+        'icon': Icons.local_fire_department_outlined,
+      },
+      {
+        'step': '03',
+        'title': 'Curd Culturing',
+        'desc': 'Inoculated with natural probiotic dahi starter and set overnight into rich, live whole curd.',
+        'icon': Icons.hourglass_top_outlined,
+      },
+      {
+        'step': '04',
+        'title': 'Wooden Bilona',
+        'desc': 'Hand-churned with bi-directional wooden madhani to extract nutrient-dense golden makkhan.',
+        'icon': Icons.sync_outlined,
+      },
+      {
+        'step': '05',
+        'title': 'Slow Clarification',
+        'desc': 'Simmered over low wood fire (<100°C) into aromatic golden Danedar ghee packed in glass jars.',
+        'icon': Icons.auto_awesome_outlined,
+      },
+    ];
+
+    final comparisonRows = [
+      {
+        'param': 'Cow Breed & Care',
+        'milterra': '100% Desi A2 Cows (Sahiwal & Gir). Free-grazing, grass-fed, calf nourished first.',
+        'commercial': 'High-yield crossbred Jersey/HF cows confined in industrial sheds with hormone injections.',
+      },
+      {
+        'param': 'Base Ingredient',
+        'milterra': 'Cultured live curd (Dahi) fermented overnight with active probiotic cultures.',
+        'commercial': 'Leftover industrial raw cream separated via high-speed mechanical centrifuges.',
+      },
+      {
+        'param': 'Milk per 1 kg',
+        'milterra': '28 to 30 Litres of 100% pure A2 milk boiled, curdled, and slow-churned.',
+        'commercial': 'Synthesized from factory cream derivatives and recombined milk fats.',
+      },
+      {
+        'param': 'Heating Method',
+        'milterra': 'Slow-simmered over low wood & cow-dung flame (<100°C), preserving enzymes.',
+        'commercial': 'Heated at high pressure (180°C+) in industrial steel steam boilers, killing nutrients.',
+      },
+      {
+        'param': 'Texture & Aroma',
+        'milterra': 'Rich golden crystalline Danedar texture with an authentic, sweet nutty aroma.',
+        'commercial': 'Smooth, greasy, oily consistency. Often added with synthetic flavoring & color.',
+      },
+      {
+        'param': 'Digestibility',
+        'milterra': 'A2 Beta-Casein, 100% lactose-free, rich in gut-soothing Butyric acid & Vitamin K2.',
+        'commercial': 'Contains inflammatory A1 Beta-Casein peptide (BCM-7), often triggering bloating.',
+      },
+      {
+        'param': 'Purity Guarantee',
+        'milterra': 'FSSAI & NABL lab-certified 0% palm oil. Packed in lead-free food-grade glass jars.',
+        'commercial': 'Mass aggregated, non-traceable supply chains with high adulteration risk.',
+      },
+    ];
+
     return Container(
       width: double.infinity,
       color: storeWhite,
-      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 56, horizontal: 20),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: StoreLayout.maxWidth),
           child: Column(
             children: [
-              const Text(
-                'WHY MILTERRA — KNOW YOUR SOURCE',
-                style: TextStyle(
-                  color: storeGold,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 2,
+              // Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                decoration: BoxDecoration(
+                  color: storeGold.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: storeGold.withValues(alpha: 0.4)),
+                ),
+                child: const Text(
+                  'WHY MILTERRA — KNOW YOUR SOURCE',
+                  style: TextStyle(
+                    color: storeGreen,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.5,
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               const Text(
-                'Traditional Craft vs Industrial Shortcuts',
+                'The Sacred 5-Stage Vedic Bilona Standard',
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'CormorantGaramond',
-                  fontSize: 32,
+                  fontSize: 34,
                   fontWeight: FontWeight.bold,
                   color: storeGreen,
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 8),
+              const Text(
+                'Handcrafted according to ancient Ayurvedic texts — Churned from curd, never from cream.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: storeMuted),
+              ),
+              const SizedBox(height: 36),
+
+              // 5 Stages Grid
               LayoutBuilder(
                 builder: (ctx, constraints) {
                   final isWide = constraints.maxWidth >= 768;
-                  return Flex(
-                    direction: isWide ? Axis.horizontal : Axis.vertical,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: isWide ? 1 : 0,
-                        child: _processCard(
-                          title: 'Milterra Traditional Bilona Ghee',
-                          isPositive: true,
-                          points: const [
-                            'Cultured from whole A2 Gir Cow & Murrah Buffalo curd.',
-                            'Bi-directional wooden churning retains natural probiotics.',
-                            'Simmered over low wood-fire for granular (Danedaar) texture.',
-                            'Rich in Butyric acid & natural fat-soluble vitamins (A, D, E, K).',
-                          ],
+                  return Wrap(
+                    spacing: 14,
+                    runSpacing: 14,
+                    children: stages.map((s) {
+                      return SizedBox(
+                        width: isWide ? (constraints.maxWidth - 56) / 5 : constraints.maxWidth,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: storeCream,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: storeBorder),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xffeaf2ef),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(s['icon'] as IconData, color: storeGreen, size: 20),
+                                  ),
+                                  Text(
+                                    s['step'] as String,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w900,
+                                      color: storeGold,
+                                      fontFamily: 'CormorantGaramond',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                s['title'] as String,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: storeGreen),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                s['desc'] as String,
+                                style: const TextStyle(fontSize: 11, color: storeMuted, height: 1.4),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      if (isWide) const SizedBox(width: 24)
-                      else const SizedBox(height: 16),
-                      Expanded(
-                        flex: isWide ? 1 : 0,
-                        child: _processCard(
-                          title: 'Commercial Industrial Ghee',
-                          isPositive: false,
-                          points: const [
-                            'Direct centrifugal cream separation without curd fermentation.',
-                            'High-heat steam boiling destroys natural aroma & vitamins.',
-                            'Often blended with artificial color and synthetic flavouring.',
-                            'Lacks natural enzymatic and gut-soothing properties.',
-                          ],
-                        ),
-                      ),
-                    ],
+                      );
+                    }).toList(),
                   );
                 },
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+              const SizedBox(height: 48),
 
-  Widget _processCard({
-    required String title,
-    required bool isPositive,
-    required List<String> points,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: isPositive ? const Color(0xfff0fdf4) : const Color(0xfffef2f2),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isPositive ? const Color(0xffbbf7d0) : const Color(0xfffecaca),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                isPositive ? Icons.check_circle : Icons.cancel_outlined,
-                color: isPositive ? storeGreen : storeError,
-                size: 22,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: isPositive ? storeGreen : storeError,
-                  ),
+              // Comparison Matrix
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: storeCream,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: storeBorder),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ...points.map((p) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(isPositive ? '✓ ' : '✗ ',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: isPositive ? storeGreen : storeError)),
-                    Expanded(
-                      child: Text(
-                        p,
-                        style: const TextStyle(fontSize: 13, color: storeText),
+                    const Text(
+                      'Milterra Vedic Bilona vs Commercial Factory Ghee',
+                      style: TextStyle(
+                        fontFamily: 'CormorantGaramond',
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: storeGreen,
                       ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Understand why 30 litres of pure A2 milk makes all the difference for your health and vitality.',
+                      style: TextStyle(fontSize: 12.5, color: storeMuted),
+                    ),
+                    const SizedBox(height: 20),
+                    // Table Header
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: storeGreen,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: Text('Quality Standard',
+                                style: TextStyle(color: storeGold, fontWeight: FontWeight.w800, fontSize: 12)),
+                          ),
+                          Expanded(
+                            flex: 4,
+                            child: Text('MILTERRA VEDIC BILONA',
+                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12)),
+                          ),
+                          Expanded(
+                            flex: 4,
+                            child: Text('REGULAR FACTORY GHEE',
+                                style: TextStyle(color: Color(0xffcbd5e1), fontWeight: FontWeight.w700, fontSize: 12)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    ...comparisonRows.map((row) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: const BoxDecoration(
+                          border: Border(bottom: BorderSide(color: storeBorder)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: Text(
+                                row['param']!,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: storeGreen),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 4,
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.check_circle_rounded, color: Color(0xff16a34a), size: 16),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      row['milterra']!,
+                                      style: const TextStyle(fontSize: 11.5, color: storeText, height: 1.3),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 4,
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.cancel_rounded, color: Color(0xffef4444), size: 16),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      row['commercial']!,
+                                      style: const TextStyle(fontSize: 11.5, color: storeMuted, height: 1.3),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // Lab Testing & FSSAI Trust Banner
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xfff0fdf4),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xffbbf7d0)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.verified_user_rounded, color: Color(0xff16a34a), size: 32),
+                    const SizedBox(width: 16),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('NABL Lab Tested & Certified Purity (Batch MIL-GHEE-2026-10)',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xff166534))),
+                          SizedBox(height: 2),
+                          Text('99.9% Purity Score • 99.85% Milk Fat • 0.0% Palm Oil / Adulteration • FSSAI Certified',
+                              style: TextStyle(fontSize: 12, color: Color(0xff15803d))),
+                        ],
+                      ),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xff16a34a),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      ),
+                      onPressed: () => context.go('/balance'),
+                      child: const Text('Verify Lab Report', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                     ),
                   ],
                 ),
-              )),
-        ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

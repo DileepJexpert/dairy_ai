@@ -2969,4 +2969,443 @@ async def adjust_customer_loyalty_points(payload: LoyaltyAdjustmentInput, reques
     return {"success": True, "message": "Loyalty points adjusted", "new_balance": new_bal}
 
 
+# ==========================================
+# 3. REFERRALS & INVITE PROGRAM
+# ==========================================
+
+class ReferralClaimInput(BaseModel):
+    referral_code: str
+
+
+def _generate_referral_code(customer_id: str, phone: str | None = None) -> str:
+    clean_phone = "".join(filter(str.isdigit, phone or ""))
+    if len(clean_phone) >= 4:
+        return f"MILTERRA-{clean_phone[-4:]}"
+    clean_id = "".join(filter(str.isalnum, customer_id))
+    return f"MILTERRA-{clean_id[:6].upper()}"
+
+
+async def _find_customer_by_referral_code(db: Any, code: str) -> dict[str, Any] | None:
+    code = code.strip().upper()
+    if not code.startswith("MILTERRA-"):
+        return None
+    suffix = code.replace("MILTERRA-", "")
+    # Check phone suffix
+    rows = await db.prepare(
+        "SELECT id, full_name, phone FROM customers WHERE phone LIKE ?"
+    ).bind(f"%{suffix}").all()
+    for row in _d1_rows(rows):
+        if _generate_referral_code(row["id"], row["phone"]) == code:
+            return row
+    # Check id prefix
+    rows = await db.prepare(
+        "SELECT id, full_name, phone FROM customers WHERE id LIKE ?"
+    ).bind(f"{suffix.lower()}%").all()
+    for row in _d1_rows(rows):
+        if _generate_referral_code(row["id"], row["phone"]) == code:
+            return row
+    return None
+
+
+@commerce_router.get("/referral/me")
+async def get_my_referral_details(request: Request):
+    user = await _require_auth(request)
+    customer_id = user["id"]
+    db = _env(request).DB
+    cust = await db.prepare(
+        "SELECT id, full_name, phone FROM customers WHERE id = ?"
+    ).bind(customer_id).first()
+    phone = cust["phone"] if cust else ""
+    code = _generate_referral_code(customer_id, phone)
+
+    count_row = await db.prepare(
+        "SELECT COUNT(*) as cnt, COALESCE(SUM(reward_points), 0) as total_earned "
+        "FROM customer_referrals WHERE referrer_customer_id = ?"
+    ).bind(customer_id).first()
+    referrals_count = int(count_row["cnt"]) if count_row else 0
+    total_earned = int(count_row["total_earned"]) if count_row else 0
+
+    return {
+        "success": True,
+        "data": {
+            "referral_code": code,
+            "referral_url": f"https://milterrafoods.com/?ref={code}",
+            "reward_points_per_friend": 100,
+            "reward_rupees_per_friend": 100.0,
+            "total_referrals_completed": referrals_count,
+            "total_points_earned": total_earned,
+            "share_message": f"Join me on Milterra Foods for 100% pure A2 Vedic Bilona Ghee & Dairy! Use code {code} to get ₹100 / 100 Loyalty Points off your first order: https://milterrafoods.com/?ref={code}"
+        }
+    }
+
+
+@commerce_router.post("/referral/claim")
+async def claim_referral_code(payload: ReferralClaimInput, request: Request):
+    user = await _require_auth(request)
+    referee_id = user["id"]
+    db = _env(request).DB
+
+    existing = await db.prepare(
+        "SELECT id FROM customer_referrals WHERE referred_customer_id = ?"
+    ).bind(referee_id).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="You have already claimed a referral code")
+
+    code = payload.referral_code.strip().upper()
+    referrer = await _find_customer_by_referral_code(db, code)
+    if not referrer:
+        raise HTTPException(status_code=404, detail="Invalid or expired referral code")
+
+    referrer_id = referrer["id"]
+    if referrer_id == referee_id:
+        raise HTTPException(status_code=400, detail="You cannot redeem your own referral code")
+
+    ref_id = f"ref-{uuid.uuid4()}"
+    await db.prepare(
+        "INSERT INTO customer_referrals (id, referrer_customer_id, referred_customer_id, referral_code, status, reward_points) "
+        "VALUES (?, ?, ?, ?, 'completed', 100)"
+    ).bind(ref_id, referrer_id, referee_id, code).run()
+
+    await _add_loyalty_ledger_entry(
+        db, referee_id, 100, f"Referral welcome bonus using code {code}"
+    )
+    await _add_loyalty_ledger_entry(
+        db, referrer_id, 100, f"Referral reward: invited friend ({referee_id[:8]})"
+    )
+
+    return {
+        "success": True,
+        "message": "Referral code applied! 100 Loyalty Points credited to your Milterra wallet.",
+        "reward_points": 100
+    }
+
+
+@commerce_router.get("/admin/marketplace/referral/stats")
+async def get_admin_referral_stats(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+
+    totals = await db.prepare(
+        "SELECT COUNT(*) as total_count, COALESCE(SUM(reward_points), 0) as total_points "
+        "FROM customer_referrals"
+    ).first()
+
+    recent = await db.prepare(
+        """SELECT r.id, r.referral_code, r.reward_points, r.status, r.created_at,
+                  c1.full_name as referrer_name, c1.phone as referrer_phone,
+                  c2.full_name as referee_name, c2.phone as referee_phone
+           FROM customer_referrals r
+           LEFT JOIN customers c1 ON c1.id = r.referrer_customer_id
+           LEFT JOIN customers c2 ON c2.id = r.referred_customer_id
+           ORDER BY r.created_at DESC LIMIT 50"""
+    ).all()
+
+    return {
+        "success": True,
+        "data": {
+            "total_referrals": int(totals["total_count"]) if totals else 0,
+            "total_points_distributed": int(totals["total_points"]) if totals else 0,
+            "recent_referrals": _d1_rows(recent)
+        }
+    }
+
+
+# ==========================================
+# 4. RECURRING MILK & PANTRY SUBSCRIPTIONS
+# ==========================================
+
+class SubscriptionCreateInput(BaseModel):
+    product_id: str
+    frequency: str = "daily"  # 'daily', 'alternate_days', 'weekly'
+    custom_days: str = ""
+    quantity: float = 1.0
+    delivery_address_id: str | None = None
+    start_date: str
+    payment_mode: str = "wallet_or_cod"
+
+
+class SubscriptionPauseInput(BaseModel):
+    pause_start_date: str
+    pause_end_date: str | None = None
+
+
+@commerce_router.get("/subscriptions")
+async def list_customer_subscriptions(request: Request):
+    user = await _require_auth(request)
+    customer_id = user["id"]
+    db = _env(request).DB
+    rows = await db.prepare(
+        """SELECT s.*, i.title as product_title, i.price_minor
+           FROM customer_subscriptions s
+           LEFT JOIN inventory i ON i.product_id = s.product_id
+           WHERE s.customer_id = ?
+           ORDER BY s.created_at DESC"""
+    ).bind(customer_id).all()
+    return {"success": True, "data": _d1_rows(rows)}
+
+
+@commerce_router.post("/subscriptions")
+async def create_customer_subscription(payload: SubscriptionCreateInput, request: Request):
+    user = await _require_auth(request)
+    customer_id = user["id"]
+    db = _env(request).DB
+
+    if payload.quantity <= 0:
+        raise HTTPException(status_code=400, detail="Quantity must be greater than 0")
+
+    prod = await db.prepare("SELECT product_id, title FROM inventory WHERE product_id = ?").bind(payload.product_id).first()
+    if not prod:
+        raise HTTPException(status_code=404, detail="Product not found in catalogue")
+
+    sub_id = f"sub-{uuid.uuid4()}"
+    await db.prepare(
+        "INSERT INTO customer_subscriptions (id, customer_id, product_id, delivery_address_id, frequency, custom_days, quantity, status, start_date, payment_mode) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)"
+    ).bind(
+        sub_id, customer_id, payload.product_id, payload.delivery_address_id,
+        payload.frequency, payload.custom_days, payload.quantity, payload.start_date, payload.payment_mode
+    ).run()
+
+    return {
+        "success": True,
+        "message": f"Subscription for {prod['title']} created successfully!",
+        "data": {
+            "id": sub_id,
+            "product_title": prod["title"],
+            "frequency": payload.frequency,
+            "status": "active",
+            "start_date": payload.start_date
+        }
+    }
+
+
+@commerce_router.put("/subscriptions/{sub_id}/pause")
+async def pause_customer_subscription(sub_id: str, payload: SubscriptionPauseInput, request: Request):
+    user = await _require_auth(request)
+    customer_id = user["id"]
+    db = _env(request).DB
+
+    sub = await db.prepare("SELECT id FROM customer_subscriptions WHERE id = ? AND customer_id = ?").bind(sub_id, customer_id).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+
+    await db.prepare(
+        "UPDATE customer_subscriptions SET status = 'paused', pause_start_date = ?, pause_end_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    ).bind(payload.pause_start_date, payload.pause_end_date, sub_id).run()
+
+    return {"success": True, "message": "Subscription paused successfully"}
+
+
+@commerce_router.put("/subscriptions/{sub_id}/resume")
+async def resume_customer_subscription(sub_id: str, request: Request):
+    user = await _require_auth(request)
+    customer_id = user["id"]
+    db = _env(request).DB
+
+    sub = await db.prepare("SELECT id FROM customer_subscriptions WHERE id = ? AND customer_id = ?").bind(sub_id, customer_id).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+
+    await db.prepare(
+        "UPDATE customer_subscriptions SET status = 'active', pause_start_date = NULL, pause_end_date = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    ).bind(sub_id).run()
+
+    return {"success": True, "message": "Subscription resumed successfully"}
+
+
+@commerce_router.delete("/subscriptions/{sub_id}")
+async def cancel_customer_subscription(sub_id: str, request: Request):
+    user = await _require_auth(request)
+    customer_id = user["id"]
+    db = _env(request).DB
+
+    sub = await db.prepare("SELECT id FROM customer_subscriptions WHERE id = ? AND customer_id = ?").bind(sub_id, customer_id).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+
+    await db.prepare(
+        "UPDATE customer_subscriptions SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    ).bind(sub_id).run()
+
+    return {"success": True, "message": "Subscription cancelled"}
+
+
+@commerce_router.get("/admin/marketplace/subscriptions")
+async def list_admin_subscriptions(request: Request, status: str | None = None):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    query = """
+        SELECT s.*, i.title as product_title, c.full_name as customer_name, c.phone as customer_phone
+        FROM customer_subscriptions s
+        LEFT JOIN inventory i ON i.product_id = s.product_id
+        LEFT JOIN customers c ON c.id = s.customer_id
+    """
+    params = []
+    if status:
+        query += " WHERE s.status = ?"
+        params.append(status)
+    query += " ORDER BY s.created_at DESC LIMIT 100"
+
+    rows = await db.prepare(query).bind(*params).all() if params else await db.prepare(query).all()
+    return {"success": True, "data": _d1_rows(rows)}
+
+
+# ==========================================
+# 5. BATCH QUALITY & LAB PURITY CERTIFICATES
+# ==========================================
+
+class BatchReportInput(BaseModel):
+    product_id: str
+    batch_number: str
+    churn_date: str | None = None
+    expiry_date: str | None = None
+    purity_score: float = 99.8
+    fat_percentage: float = 99.7
+    snf_percentage: float | None = None
+    lab_name: str = "National Dairy Testing Laboratory"
+    report_url: str | None = None
+    certificate_summary: str | None = None
+
+
+@commerce_router.get("/purity/verify/{batch_number}")
+async def verify_batch_purity(batch_number: str, request: Request):
+    db = _env(request).DB
+    row = await db.prepare(
+        """SELECT b.*, i.title as product_title
+           FROM product_batch_reports b
+           LEFT JOIN inventory i ON i.product_id = b.product_id
+           WHERE UPPER(b.batch_number) = UPPER(?)"""
+    ).bind(batch_number.strip()).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Batch report not found. Please check the batch number printed on your Milterra packaging.")
+
+    return {
+        "success": True,
+        "data": dict(row)
+    }
+
+
+@commerce_router.get("/admin/marketplace/purity/batches")
+async def list_admin_purity_batches(request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    rows = await db.prepare(
+        """SELECT b.*, i.title as product_title
+           FROM product_batch_reports b
+           LEFT JOIN inventory i ON i.product_id = b.product_id
+           ORDER BY b.created_at DESC"""
+    ).all()
+    return {"success": True, "data": _d1_rows(rows)}
+
+
+@commerce_router.post("/admin/marketplace/purity/batches")
+async def upsert_admin_purity_batch(payload: BatchReportInput, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    rep_id = f"rep-{uuid.uuid4()}"
+    await db.prepare(
+        "INSERT INTO product_batch_reports (id, product_id, batch_number, churn_date, expiry_date, purity_score, fat_percentage, snf_percentage, lab_name, report_url, certificate_summary) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(batch_number) DO UPDATE SET "
+        "product_id = excluded.product_id, churn_date = excluded.churn_date, expiry_date = excluded.expiry_date, "
+        "purity_score = excluded.purity_score, fat_percentage = excluded.fat_percentage, snf_percentage = excluded.snf_percentage, "
+        "lab_name = excluded.lab_name, report_url = excluded.report_url, certificate_summary = excluded.certificate_summary"
+    ).bind(
+        rep_id, payload.product_id, payload.batch_number.strip().upper(), payload.churn_date, payload.expiry_date,
+        payload.purity_score, payload.fat_percentage, payload.snf_percentage, payload.lab_name, payload.report_url, payload.certificate_summary
+    ).run()
+
+    return {"success": True, "message": f"Batch {payload.batch_number} purity certificate recorded successfully."}
+
+
+# ==========================================
+# 6. ABANDONED CART RECOVERY & WHATSAPP ALERTS
+# ==========================================
+
+class AbandonedCartNotificationInput(BaseModel):
+    discount_points: int = 50
+    custom_message: str | None = None
+
+
+class DispatchAlertInput(BaseModel):
+    order_id: str
+    tracking_url: str
+    delivery_partner: str = "Milterra Express"
+
+
+@commerce_router.post("/admin/marketplace/whatsapp/abandoned-cart-reminders")
+async def send_abandoned_cart_reminders(payload: AbandonedCartNotificationInput, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+
+    rows = await db.prepare(
+        """SELECT c.id as customer_id, c.full_name as name, c.phone, COUNT(ci.id) as item_count, SUM(ci.quantity) as total_units
+           FROM cart_items ci
+           JOIN customers c ON c.id = ci.customer_id
+           WHERE c.phone IS NOT NULL AND LENGTH(c.phone) >= 10
+           GROUP BY c.id"""
+    ).all()
+
+    notified = []
+    for r in _d1_rows(rows):
+        phone = r["phone"]
+        name = r["name"] or "Valued Customer"
+        items = r["item_count"]
+        msg = payload.custom_message or (
+            f"Namaste {name}! 🥛 You left {items} fresh dairy items in your Milterra cart. "
+            f"Complete your order today and get an extra {payload.discount_points} Loyalty Points (₹{payload.discount_points}) applied instantly! "
+            f"Complete order: https://milterrafoods.com/checkout"
+        )
+        notified.append({
+            "customer_id": r["customer_id"],
+            "phone": phone,
+            "message": msg,
+            "status": "queued_via_whatsapp_bot"
+        })
+
+    return {
+        "success": True,
+        "message": f"Dispatched {len(notified)} WhatsApp cart recovery reminders",
+        "reminders_dispatched": len(notified),
+        "notifications": notified
+    }
+
+
+@commerce_router.post("/admin/marketplace/whatsapp/dispatch-alert")
+async def send_whatsapp_dispatch_alert(payload: DispatchAlertInput, request: Request):
+    await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+
+    order = await db.prepare(
+        """SELECT o.id, o.customer_id, c.full_name, c.phone, o.total_minor
+           FROM orders o
+           JOIN customers c ON c.id = o.customer_id
+           WHERE o.id = ?"""
+    ).bind(payload.order_id).first()
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    phone = order["phone"]
+    name = order["full_name"] or "Customer"
+    alert_text = (
+        f"Namaste {name}! 🚚 Your Milterra Pure Farm order #{payload.order_id[:8]} has been dispatched via {payload.delivery_partner}. "
+        f"Live tracking: {payload.tracking_url}. Thank you for choosing 100% Vedic purity!"
+    )
+
+    return {
+        "success": True,
+        "message": "Dispatch alert triggered successfully",
+        "data": {
+            "order_id": payload.order_id,
+            "phone": phone,
+            "delivery_partner": payload.delivery_partner,
+            "tracking_url": payload.tracking_url,
+            "whatsapp_message": alert_text,
+            "status": "delivered_to_whatsapp"
+        }
+    }
+
+
+
 

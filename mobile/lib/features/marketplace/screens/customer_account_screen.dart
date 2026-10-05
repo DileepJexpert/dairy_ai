@@ -184,6 +184,53 @@ class CustomerAccountScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
             ],
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xff1b4332), Color(0xff2d6a4f)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.stars_rounded, color: storeGold, size: 28),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Milterra Loyalty & Referral Rewards',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15)),
+                        SizedBox(height: 2),
+                        Text(
+                            'Earn 2% points on every order + ₹100 per friend invited.',
+                            style: TextStyle(
+                                color: Colors.white70, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: storeGold,
+                      foregroundColor: const Color(0xff1b4332),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                    ),
+                    onPressed: () => select(AccountSection.wallet),
+                    child: const Text('View Rewards',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ),
             LayoutBuilder(builder: (context, bounds) {
               final columns = bounds.maxWidth >= 700 ? 2 : 1;
               return Wrap(spacing: 16, runSpacing: 16, children: [

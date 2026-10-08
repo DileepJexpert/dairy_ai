@@ -1478,7 +1478,7 @@ class StoreCategoryNavigation extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Simplified top navigation: Ghee | Pantry | Our Story | Our Process | Learn | About
+    // Merged unified top navigation: All Essentials | A2 Cow Ghee | Buffalo Ghee | Wood-Pressed Oils | Fresh Dairy | Raw Honey & Spices | Our Story
     final List<({String key, String label, VoidCallback? action})> navItems;
     if (legacyEquipment) {
       navItems = [
@@ -1491,8 +1491,16 @@ class StoreCategoryNavigation extends ConsumerWidget {
       ];
     } else {
       navItems = [
-        (key: 'Vedic Bilona Ghee', label: 'Ghee', action: null),
-        (key: 'The Pure Pantry', label: 'Pantry', action: null),
+        (key: 'All products', label: 'All Essentials', action: null),
+        (key: 'Vedic Bilona Ghee', label: 'A2 Cow Ghee', action: null),
+        (key: 'Cultured Buffalo Ghee', label: 'Buffalo Ghee', action: null),
+        (
+          key: 'Cold-Pressed Sarso (Mustard) Oil',
+          label: 'Wood-Pressed Oils',
+          action: null
+        ),
+        (key: 'Fresh Milk & Dairy', label: 'Fresh Dairy', action: null),
+        (key: 'The Pure Pantry', label: 'Raw Honey & Spices', action: null),
         (
           key: 'our-story',
           label: 'Our Story',
@@ -1503,29 +1511,6 @@ class StoreCategoryNavigation extends ConsumerWidget {
               if (GoRouterState.of(context).matchedLocation != '/about') {
                 context.push('/about');
               }
-            }
-          },
-        ),
-        (
-          key: 'our-process',
-          label: 'Our Process',
-          action: () {
-            if (GoRouterState.of(context).matchedLocation != '/about') {
-              context.push('/about');
-            }
-          },
-        ),
-        (
-          key: 'learn',
-          label: 'Learn',
-          action: () => showProductQuality(context),
-        ),
-        (
-          key: 'about',
-          label: 'About',
-          action: () {
-            if (GoRouterState.of(context).matchedLocation != '/about') {
-              context.push('/about');
             }
           },
         ),
@@ -1569,14 +1554,32 @@ class StoreCategoryNavigation extends ConsumerWidget {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   children: navItems.map((item) {
+                    final selLower = selected.toLowerCase();
                     final isCurrent = item.key == selected ||
-                        item.key.toLowerCase() == selected.toLowerCase() ||
-                        item.label.toLowerCase() == selected.toLowerCase() ||
+                        item.key.toLowerCase() == selLower ||
+                        item.label.toLowerCase() == selLower ||
+                        (item.key == 'All products' &&
+                            (selected == 'All products' ||
+                                selected == 'All' ||
+                                selected == 'All Organic Essentials')) ||
                         (item.key == 'Vedic Bilona Ghee' &&
-                            selected.toLowerCase().contains('ghee')) ||
+                            (selLower.contains('cow') ||
+                                (selLower.contains('ghee') &&
+                                    !selLower.contains('buffalo')))) ||
+                        (item.key == 'Cultured Buffalo Ghee' &&
+                            selLower.contains('buffalo')) ||
+                        (item.key == 'Cold-Pressed Sarso (Mustard) Oil' &&
+                            (selLower.contains('oil') ||
+                                selLower.contains('mustard') ||
+                                selLower.contains('sarso'))) ||
+                        (item.key == 'Fresh Milk & Dairy' &&
+                            (selLower.contains('dairy') ||
+                                selLower.contains('paneer') ||
+                                selLower.contains('milk'))) ||
                         (item.key == 'The Pure Pantry' &&
-                            (selected.toLowerCase().contains('pantry') ||
-                                selected == 'All Organic Essentials'));
+                            (selLower.contains('pantry') ||
+                                selLower.contains('honey') ||
+                                selLower.contains('spice')));
                     return Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 4, vertical: 3),

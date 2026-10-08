@@ -31,6 +31,7 @@ class ProductListScreen extends ConsumerStatefulWidget {
 }
 
 class _ProductListScreenState extends ConsumerState<ProductListScreen> {
+  final _scrollController = ScrollController();
   final _search = TextEditingController();
   final _catalogueKey = GlobalKey();
   final _heroKey = GlobalKey<HeroSplitShowcaseState>();
@@ -240,6 +241,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _search.dispose();
     _minPriceCtrl.dispose();
     _maxPriceCtrl.dispose();
@@ -264,11 +266,17 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       _category = category;
       if (sort != null) _sort = sort;
     });
-    final target = _catalogueKey.currentContext;
-    if (target != null) {
-      Scrollable.ensureVisible(target,
-          duration: const Duration(milliseconds: 350));
-    }
+
+    // Instantly scroll smoothly to the top of results so products are in full view
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          0.0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
     final params = <String, String>{};
     if (category != 'All products' &&
         category != 'All' &&
@@ -353,12 +361,17 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
               legacyEquipment: widget.category == ProductCategory.equipment,
             ),
             if (widget.category != ProductCategory.equipment &&
-                widget.category != ProductCategory.feedNutrition)
+                widget.category != ProductCategory.feedNutrition &&
+                _search.text.isEmpty &&
+                (_category == 'All products' ||
+                    _category == 'All' ||
+                    _category == 'All Organic Essentials'))
               const StorefrontHighlightStrip(),
 
             // Main Scrollable Content Area
             Expanded(
               child: SingleChildScrollView(
+                controller: _scrollController,
                 key: const PageStorageKey('store-catalogue-scroll'),
                 child: Column(
                   children: [
@@ -391,8 +404,13 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                 const SizedBox(height: 20),
                               ],
 
-                              // Visual Department Quick Navigation (Fast 1-tap browsing across all devices)
-                              if (widget.category !=
+                              // Visual Department Quick Navigation (Only shown on home / unfiltered store)
+                              if (_search.text.isEmpty &&
+                                  (_category == 'All products' ||
+                                      _category == 'All' ||
+                                      _category ==
+                                          'All Organic Essentials') &&
+                                  widget.category !=
                                       ProductCategory.equipment &&
                                   widget.category !=
                                       ProductCategory.feedNutrition) ...[

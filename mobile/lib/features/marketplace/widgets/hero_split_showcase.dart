@@ -112,16 +112,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
   static const double _gap = 16.0;
 
   List<HeroSlideItem> _slides = [];
-  String _selectedCategory = 'All Organic Essentials';
 
-  static const List<String> _departments = [
-    'All Organic Essentials',
-    'A2 Desi Cow Ghee',
-    'Wood-Pressed Oils',
-    'Fresh Malai Dairy',
-    'Raw Honey & Spices',
-    'Our Farm Story',
-  ];
 
   @override
   void initState() {
@@ -258,17 +249,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
     FarmStoryShowcase.showStoryDetail(context, story);
   }
 
-  void _onCategorySelected(String category) {
-    setState(() => _selectedCategory = category);
-    if (category == 'Our Farm Story') {
-      navigateToFirstStory();
-      if (widget.farmStories.isNotEmpty) {
-        _openStoryModal(widget.farmStories.first);
-      }
-    } else if (widget.onExploreCategory != null) {
-      widget.onExploreCategory!(category);
-    }
-  }
+
 
   // --------------------------------------------------------------------------
   // MAIN BUILD
@@ -297,52 +278,6 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // TOP CATEGORY STRIP (Clean Ekaris-style pills)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: _departments.map((dept) {
-                final isSelected = dept == _selectedCategory;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: InkWell(
-                    onTap: () => _onCategorySelected(dept),
-                    borderRadius: BorderRadius.circular(20),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? const Color(0xff164e2e)
-                            : const Color(0xfff3f1ea),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isSelected
-                              ? const Color(0xff164e2e)
-                              : const Color(0xffe5e1d7),
-                          width: 0.8,
-                        ),
-                      ),
-                      child: Text(
-                        dept,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight:
-                              isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected
-                              ? Colors.white
-                              : const Color(0xff374151),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 14),
-
           // HORIZONTAL MULTI-CARD ROW WITH FLOATING CHEVRONS
           SizedBox(
             height: cardHeight,

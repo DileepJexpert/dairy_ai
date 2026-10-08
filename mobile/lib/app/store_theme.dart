@@ -156,12 +156,12 @@ abstract final class StoreType {
       TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: storeGreen);
   static const amazonTopLine = TextStyle(
       fontSize: 10.5,
-      color: Color(0xffd2ded6),
+      color: Color(0xff6b7280),
       fontWeight: FontWeight.w400,
       height: 1.1);
   static const amazonBottomLine = TextStyle(
       fontSize: 12.2,
-      color: storeWhite,
+      color: Color(0xff111827),
       fontWeight: FontWeight.w700,
       height: 1.2);
   static const amazonRatingText = TextStyle(

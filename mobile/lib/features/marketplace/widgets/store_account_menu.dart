@@ -122,7 +122,7 @@ class _StoreAccountMenuState extends State<StoreAccountMenu> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: widget.compact
-                ? const Icon(Icons.person_outline, color: storeWhite, size: 24)
+                ? const Icon(Icons.person_outline, color: Color(0xff1f2937), size: 24)
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,

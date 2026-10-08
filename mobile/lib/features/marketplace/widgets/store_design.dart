@@ -286,7 +286,7 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                 width: double.infinity,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                color: storeDarkGreenNav,
+                color: const Color(0xff1b4d3e),
                 child: SafeArea(
                   bottom: false,
                   child: Row(
@@ -302,7 +302,7 @@ class _AmazonDepartmentDrawer extends ConsumerWidget {
                         },
                         child: const CircleAvatar(
                           radius: 16,
-                          backgroundColor: storeSubNav,
+                          backgroundColor: Color(0xff143d31),
                           child:
                               Icon(Icons.person, color: storeWhite, size: 20),
                         ),
@@ -891,7 +891,12 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
             true;
 
     return Container(
-      color: storeGreen,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Color(0xfff0eee9), width: 1),
+        ),
+      ),
       child: SafeArea(
         bottom: false,
         child: LayoutBuilder(builder: (context, bounds) {
@@ -970,7 +975,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                             Text(
                               'milterrafoods',
                               style: StoreType.logo.copyWith(
-                                color: storeWhite,
+                                color: const Color(0xff1b4d3e),
                                 fontSize: isMobile ? 22 : 25,
                               ),
                             ),
@@ -979,7 +984,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                               child: Text(
                                   '.com',
                                   style: TextStyle(
-                                      color: storeGold,
+                                      color: Color(0xffc27803),
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold)),
                             ),
@@ -1001,7 +1006,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(Icons.location_on_outlined,
-                                  color: storeWhite, size: 20),
+                                  color: Color(0xff4b5563), size: 20),
                               const SizedBox(width: 4),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1152,7 +1157,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                         tooltip: 'Commerce Admin',
                         onPressed: () => context.go('/admin/commerce'),
                         icon: const Icon(Icons.admin_panel_settings_outlined,
-                            color: storeGold, size: 22),
+                            color: Color(0xffb45309), size: 22),
                       ),
                     ],
 
@@ -1177,7 +1182,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                               offset: const Offset(8, -6),
                               child: const Icon(
                                 Icons.favorite_border,
-                                color: storeWhite,
+                                color: Color(0xff1f2937),
                                 size: 24,
                               ),
                             ),
@@ -1213,7 +1218,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                               offset: const Offset(8, -6),
                               child: const Icon(
                                 Icons.shopping_cart_outlined,
-                                color: storeWhite,
+                                color: Color(0xff1f2937),
                                 size: 26,
                               ),
                             ),
@@ -1240,20 +1245,26 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                 InkWell(
                   onTap: () => _showLocationSelector(context),
                   child: Container(
-                    color: storeDarkGreenNav,
+                    decoration: const BoxDecoration(
+                      color: Color(0xfffaf8f5),
+                      border: Border(
+                        top: BorderSide(color: Color(0xfff0eee9), width: 1),
+                        bottom: BorderSide(color: Color(0xffeae7e0), width: 1),
+                      ),
+                    ),
                     width: double.infinity,
                     padding:
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     child: Row(
                       children: [
                         const Icon(Icons.location_on_outlined,
-                            color: storeWhite, size: 15),
+                            color: Color(0xff4b5563), size: 15),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             'Deliver to $location ▾',
                             style: const TextStyle(
-                              color: storeWhite,
+                              color: Color(0xff1f2937),
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
@@ -1354,9 +1365,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
       decoration: BoxDecoration(
         color: storeWhite,
         borderRadius: BorderRadius.circular(StoreLayout.controlRadius),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1)),
-        ],
+        border: Border.all(color: const Color(0xffd1d5db), width: 1.2),
       ),
       child: Row(
         children: [
@@ -1366,11 +1375,12 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
             constraints: const BoxConstraints(maxWidth: 80),
             padding: const EdgeInsets.symmetric(horizontal: 6),
             decoration: const BoxDecoration(
-              color: Color(0xffe8e4da),
+              color: Color(0xfff3f0e8),
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(StoreLayout.controlRadius),
                 bottomLeft: Radius.circular(StoreLayout.controlRadius),
               ),
+              border: Border(right: BorderSide(color: Color(0xffd1d5db), width: 1)),
             ),
             child: Material(
               color: Colors.transparent,
@@ -1434,7 +1444,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
 
           // Amber Search Button
           Material(
-            color: storeAmber,
+            color: const Color(0xffc27803),
             borderRadius: const BorderRadius.only(
               topRight: Radius.circular(StoreLayout.controlRadius),
               bottomRight: Radius.circular(StoreLayout.controlRadius),
@@ -1448,7 +1458,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
               child: const SizedBox(
                 width: 42,
                 height: double.infinity,
-                child: Icon(Icons.search, color: storeGreen, size: 21),
+                child: Icon(Icons.search, color: Colors.white, size: 21),
               ),
             ),
           ),
@@ -1518,7 +1528,10 @@ class StoreCategoryNavigation extends ConsumerWidget {
 
     return Container(
       height: 36,
-      color: storeDarkGreenNav,
+      decoration: const BoxDecoration(
+        color: Color(0xfffaf8f5),
+        border: Border(bottom: BorderSide(color: Color(0xffeae7e0), width: 1)),
+      ),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: StoreLayout.maxWidth),
@@ -1532,11 +1545,11 @@ class StoreCategoryNavigation extends ConsumerWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.menu, color: storeWhite, size: 18),
+                      Icon(Icons.menu, color: Color(0xff1f2937), size: 18),
                       SizedBox(width: 5),
                       Text('All',
                           style: TextStyle(
-                              color: storeWhite,
+                              color: Color(0xff1f2937),
                               fontWeight: FontWeight.w700,
                               fontSize: 12)),
                     ],
@@ -1545,7 +1558,7 @@ class StoreCategoryNavigation extends ConsumerWidget {
               ),
 
               const VerticalDivider(
-                  color: Colors.white24, indent: 8, endIndent: 8, width: 1),
+                  color: Color(0xffe5e7eb), indent: 8, endIndent: 8, width: 1),
 
               // Category links list
               Expanded(
@@ -1597,7 +1610,7 @@ class StoreCategoryNavigation extends ConsumerWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 5),
                           decoration: BoxDecoration(
-                            color: isCurrent ? storeSubNav : Colors.transparent,
+                            color: isCurrent ? const Color(0xffeedec4) : Colors.transparent,
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Center(
@@ -1609,8 +1622,8 @@ class StoreCategoryNavigation extends ConsumerWidget {
                                     ? FontWeight.w800
                                     : FontWeight.w600,
                                 color: isCurrent
-                                    ? storeGold
-                                    : const Color(0xfff0f4ec),
+                                    ? const Color(0xff92400e)
+                                    : const Color(0xff374151),
                                 letterSpacing: 0.2,
                               ),
                             ),
@@ -1682,14 +1695,14 @@ class StoreCategoryNavigation extends ConsumerWidget {
                           children: [
                             const Icon(
                               Icons.science_outlined,
-                              color: storeGold,
+                              color: Color(0xffb45309),
                               size: 14,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               label,
                               style: const TextStyle(
-                                color: Color(0xffd2ded6),
+                                color: Color(0xff4b5563),
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),

@@ -12,8 +12,7 @@ import '../../commerce/providers/commerce_provider.dart';
 import 'product_information.dart';
 import 'pincode_selector_dialog.dart';
 import 'store_account_menu.dart';
-import '../providers/currency_provider.dart';
-import '../../admin/providers/admin_marketplace_provider.dart';
+import 'lab_purity_dialog.dart';
 import '../../../core/analytics_service.dart';
 export '../../../app/store_theme.dart';
 
@@ -902,7 +901,6 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
         child: LayoutBuilder(builder: (context, bounds) {
           final isMobile = bounds.maxWidth < StoreLayout.tablet;
           final isCompact = bounds.maxWidth < 1100;
-          final isWide = bounds.maxWidth >= 1200;
 
           return Column(
             mainAxisSize: MainAxisSize.min,
@@ -993,116 +991,15 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                       ),
                     ),
 
-                    // Deliver to Location Pill (Desktop)
-                    if (isWide) ...[
-                      const SizedBox(width: 12),
-                      InkWell(
-                        onTap: () => _showLocationSelector(context),
-                        borderRadius: BorderRadius.circular(4),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.location_on_outlined,
-                                  color: Color(0xff4b5563), size: 20),
-                              const SizedBox(width: 4),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text('Deliver to',
-                                      style: StoreType.amazonTopLine),
-                                  Text(location,
-                                      style: StoreType.amazonBottomLine),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-
-                    // Search Box (Desktop / Tablet)
+                    // Search Box (Desktop / Tablet - Centered & Clean like HealthKart)
                     if (!isMobile) ...[
-                      const SizedBox(width: 14),
+                      const SizedBox(width: 20),
                       Expanded(
                         child: widget.search ?? _buildAmazonSearchBar(),
                       ),
-                      const SizedBox(width: 14),
+                      const SizedBox(width: 20),
                     ] else ...[
                       const Spacer(),
-                    ],
-
-                    // Currency / Region Selector (Desktop & Tablet)
-                    if (isWide) ...[
-                      Consumer(
-                        builder: (context, ref, _) {
-                          final currentCurrency =
-                              ref.watch(selectedCurrencyProvider);
-                          return PopupMenuButton<StoreCurrency>(
-                            initialValue: currentCurrency,
-                            tooltip: 'Select Display Currency',
-                            offset: const Offset(0, 42),
-                            onSelected: (currency) {
-                              ref
-                                  .read(selectedCurrencyProvider.notifier)
-                                  .state = currency;
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 4),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    currentCurrency == StoreCurrency.inr
-                                        ? '🇮🇳'
-                                        : currentCurrency == StoreCurrency.usd
-                                            ? '🇺🇸'
-                                            : currentCurrency ==
-                                                    StoreCurrency.eur
-                                                ? '🇪🇺'
-                                                : currentCurrency ==
-                                                        StoreCurrency.gbp
-                                                    ? '🇬🇧'
-                                                    : '🇦🇪',
-                                    style: const TextStyle(fontSize: 16),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${currentCurrency.code} ▾',
-                                    style: StoreType.amazonBottomLine,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            itemBuilder: (ctx) => [
-                              const PopupMenuItem(
-                                value: StoreCurrency.inr,
-                                child: Text('🇮🇳 INR (₹) · Indian Rupee'),
-                              ),
-                              const PopupMenuItem(
-                                value: StoreCurrency.usd,
-                                child: Text('🇺🇸 USD (\$) · US Dollar'),
-                              ),
-                              const PopupMenuItem(
-                                value: StoreCurrency.eur,
-                                child: Text('🇪🇺 EUR (€) · Euro'),
-                              ),
-                              const PopupMenuItem(
-                                value: StoreCurrency.gbp,
-                                child: Text('🇬🇧 GBP (£) · British Pound'),
-                              ),
-                              const PopupMenuItem(
-                                value: StoreCurrency.aed,
-                                child: Text('🇦🇪 AED · UAE Dirham'),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
                     ],
 
                     StoreAccountMenu(
@@ -1126,29 +1023,6 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                         if (context.mounted) context.go('/shop');
                       },
                     ),
-
-                    // Returns & Orders (Desktop & Tablet)
-                    if (!isCompact) ...[
-                      const SizedBox(width: 4),
-                      InkWell(
-                        onTap: () => storeAccountRoute(
-                            context, ref, '/marketplace/orders'),
-                        borderRadius: BorderRadius.circular(4),
-                        child: const Padding(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text('Returns', style: StoreType.amazonTopLine),
-                              Text('& Orders',
-                                  style: StoreType.amazonBottomLine),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
 
                     // Admin Button (if authorized)
                     if (canAdmin) ...[
@@ -1289,148 +1163,37 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
   }
 
   Widget _buildAmazonSearchBar() {
-    final taxonomy = ref.watch(taxonomyProvider).valueOrNull;
-
-    final baseCategories = <String, String>{
-      'All': 'All Departments',
-      'Artisanal Dairy & Cultured': '🧈 Artisanal Dairy',
-      'Fresh Living Harvest (Microgreens)': '🌱 Living Microgreens',
-      'Wood-Pressed Oils & Pure Sweeteners': '🌻 Cold-Pressed Oils & Honey',
-      'Stone-Ground Chakki Atta & Flours': '🌾 Chakki Atta & Flours',
-      'Terroir Salts & Native Spices': '🧂 Native Salts & Spices',
-      'Apartment Balcony & Living Soil': '🪴 Living Balcony & Soil',
-      'Pure Aloe Vera & Living Botanicals': '🌵 Pure Aloe & Botanicals',
-      'Curated Kitchen & Wellness Boxes': '🎁 Starter Boxes & Combos',
-      'Puja & Hawan Samagri': '🪔 Puja & Hawan Essentials',
-    };
-    if (widget.isFarmerHub) {
-      baseCategories['All'] = 'All Departments';
-      baseCategories['Equipment'] = '⚙️ Farm Machinery';
-      baseCategories['Animal nutrition'] = '🌾 Cattle Nutrition';
-      if (taxonomy?.enabled == true) {
-        for (final node in taxonomy!.nodes) {
-          baseCategories[node.id] = node.name;
-        }
-      }
-    }
-
-    final currentCat = _normalizeCategory(_selectedCategory);
-
-    // If currentCat is a taxonomy node ID, resolve it to its name or keep the ID key
-    String resolvedKey = currentCat;
-    if (!baseCategories.containsKey(resolvedKey)) {
-      if (widget.isFarmerHub && taxonomy?.enabled == true) {
-        for (final node in taxonomy!.nodes) {
-          if (node.id == currentCat ||
-              node.name.toLowerCase() == currentCat.toLowerCase()) {
-            resolvedKey = node.id;
-            baseCategories[node.id] = node.name;
-            break;
-          }
-        }
-      }
-    }
-
-    final items = <DropdownMenuItem<String>>[
-      for (final entry in baseCategories.entries)
-        DropdownMenuItem(
-          value: entry.key,
-          child: Text(
-            entry.value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-    ];
-    if (!baseCategories.containsKey(resolvedKey)) {
-      if (widget.isFarmerHub) {
-        if (resolvedKey.contains('-')) {
-          resolvedKey = 'All';
-        } else {
-          items.add(DropdownMenuItem(
-            value: resolvedKey,
-            child:
-                Text(resolvedKey, maxLines: 1, overflow: TextOverflow.ellipsis),
-          ));
-        }
-      } else {
-        resolvedKey = 'All';
-      }
-    }
-    final dropdownValue =
-        items.any((it) => it.value == resolvedKey) ? resolvedKey : 'All';
-
     return Container(
-      height: 38,
+      height: 42,
       decoration: BoxDecoration(
-        color: storeWhite,
-        borderRadius: BorderRadius.circular(StoreLayout.controlRadius),
-        border: Border.all(color: const Color(0xffd1d5db), width: 1.2),
+        color: const Color(0xfff4f6f8),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xffe5e7eb), width: 1),
       ),
       child: Row(
         children: [
-          // Category Selector Dropdown Pill
-          Container(
-            height: double.infinity,
-            constraints: const BoxConstraints(maxWidth: 80),
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            decoration: const BoxDecoration(
-              color: Color(0xfff3f0e8),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(StoreLayout.controlRadius),
-                bottomLeft: Radius.circular(StoreLayout.controlRadius),
-              ),
-              border: Border(right: BorderSide(color: Color(0xffd1d5db), width: 1)),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  isExpanded: true,
-                  isDense: true,
-                  value: dropdownValue,
-                  icon: const Icon(Icons.arrow_drop_down,
-                      size: 16, color: storeGreen),
-                  style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: storeGreen),
-                  items: items,
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() => _selectedCategory = val);
-                    }
-                  },
-                ),
-              ),
-            ),
-          ),
-
-          // Search Input Field
+          const SizedBox(width: 14),
+          const Icon(Icons.search, color: Color(0xff6b7280), size: 20),
+          const SizedBox(width: 10),
           Expanded(
             child: TextField(
               key: const ValueKey('store-search-field'),
               controller: _searchCtrl,
               textInputAction: TextInputAction.search,
               onSubmitted: (_) => _triggerSearch(),
-              style: const TextStyle(fontSize: 13, color: Color(0xff111111)),
+              style: const TextStyle(fontSize: 13.5, color: Color(0xff111827)),
               decoration: InputDecoration(
                 hintText: widget.searchHint ??
-                    'Search milterrafoods.com (e.g. A2 Cow Ghee, Paneer, Chaff Cutter)...',
+                    'Search for pure organic essentials (e.g. A2 Cow Ghee, Mustard Oil)...',
                 hintStyle:
-                    const TextStyle(color: Color(0xff777777), fontSize: 12),
-                filled: true,
-                fillColor: storeWhite,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    const TextStyle(color: Color(0xff9ca3af), fontSize: 13),
                 border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
                 suffixIcon: _searchCtrl.text.isNotEmpty
                     ? IconButton(
-                        tooltip: 'Clear search',
                         icon: const Icon(Icons.clear,
-                            size: 16, color: storeMuted),
+                            size: 16, color: Color(0xff9ca3af)),
                         onPressed: () {
                           _searchCtrl.clear();
                           _triggerSearch();
@@ -1441,27 +1204,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
               onChanged: (_) => setState(() {}),
             ),
           ),
-
-          // Amber Search Button
-          Material(
-            color: const Color(0xffc27803),
-            borderRadius: const BorderRadius.only(
-              topRight: Radius.circular(StoreLayout.controlRadius),
-              bottomRight: Radius.circular(StoreLayout.controlRadius),
-            ),
-            child: InkWell(
-              onTap: _triggerSearch,
-              borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(StoreLayout.controlRadius),
-                bottomRight: Radius.circular(StoreLayout.controlRadius),
-              ),
-              child: const SizedBox(
-                width: 42,
-                height: double.infinity,
-                child: Icon(Icons.search, color: Colors.white, size: 21),
-              ),
-            ),
-          ),
+          const SizedBox(width: 8),
         ],
       ),
     );
@@ -1487,233 +1230,142 @@ class StoreCategoryNavigation extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Merged unified top navigation: All Essentials | A2 Cow Ghee | Buffalo Ghee | Wood-Pressed Oils | Fresh Dairy | Raw Honey & Spices | Our Story
-    final List<({String key, String label, VoidCallback? action})> navItems;
-    if (legacyEquipment) {
-      navItems = [
-        (key: 'Equipment', label: 'Farm Machinery', action: null),
-        (
-          key: 'Animal nutrition',
-          label: 'Feed & Cattle Nutrition',
-          action: null
-        ),
-      ];
-    } else {
-      navItems = [
-        (key: 'All products', label: 'All Essentials', action: null),
-        (key: 'Vedic Bilona Ghee', label: 'A2 Cow Ghee', action: null),
-        (key: 'Cultured Buffalo Ghee', label: 'Buffalo Ghee', action: null),
-        (
-          key: 'Cold-Pressed Sarso (Mustard) Oil',
-          label: 'Wood-Pressed Oils',
-          action: null
-        ),
-        (key: 'Fresh Milk & Dairy', label: 'Fresh Dairy', action: null),
-        (key: 'The Pure Pantry', label: 'Raw Honey & Spices', action: null),
-        (
-          key: 'our-story',
-          label: 'Our Story',
-          action: () {
-            if (onOurStoryPressed != null) {
-              onOurStoryPressed!();
-            } else {
-              if (GoRouterState.of(context).matchedLocation != '/about') {
-                context.push('/about');
-              }
-            }
-          },
-        ),
-      ];
-    }
+    final location = ref.watch(selectedDeliveryLocationProvider);
 
     return Container(
-      height: 36,
+      height: 42,
       decoration: const BoxDecoration(
-        color: Color(0xfffaf8f5),
-        border: Border(bottom: BorderSide(color: Color(0xffeae7e0), width: 1)),
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Color(0xfff0eee9), width: 1)),
       ),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: StoreLayout.maxWidth),
-          child: Row(
-            children: [
-              // Amazon "☰ All" drawer button
-              InkWell(
-                onTap: () => showAmazonDepartmentDrawer(context),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.menu, color: Color(0xff1f2937), size: 18),
-                      SizedBox(width: 5),
-                      Text('All',
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                // HealthKart-Style "☰ Shop By Category" Button
+                InkWell(
+                  onTap: () => showAmazonDepartmentDrawer(context),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(6),
+                      border:
+                          Border.all(color: const Color(0xffd1d5db), width: 1),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.menu, color: Color(0xff0d9488), size: 17),
+                        SizedBox(width: 7),
+                        Text(
+                          'Shop By Category',
                           style: TextStyle(
-                              color: Color(0xff1f2937),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ),
-
-              const VerticalDivider(
-                  color: Color(0xffe5e7eb), indent: 8, endIndent: 8, width: 1),
-
-              // Category links list
-              Expanded(
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  children: navItems.map((item) {
-                    final selLower = selected.toLowerCase();
-                    final isCurrent = item.key == selected ||
-                        item.key.toLowerCase() == selLower ||
-                        item.label.toLowerCase() == selLower ||
-                        (item.key == 'All products' &&
-                            (selected == 'All products' ||
-                                selected == 'All' ||
-                                selected == 'All Organic Essentials')) ||
-                        (item.key == 'Vedic Bilona Ghee' &&
-                            (selLower.contains('cow') ||
-                                (selLower.contains('ghee') &&
-                                    !selLower.contains('buffalo')))) ||
-                        (item.key == 'Cultured Buffalo Ghee' &&
-                            selLower.contains('buffalo')) ||
-                        (item.key == 'Cold-Pressed Sarso (Mustard) Oil' &&
-                            (selLower.contains('oil') ||
-                                selLower.contains('mustard') ||
-                                selLower.contains('sarso'))) ||
-                        (item.key == 'Fresh Milk & Dairy' &&
-                            (selLower.contains('dairy') ||
-                                selLower.contains('paneer') ||
-                                selLower.contains('milk'))) ||
-                        (item.key == 'The Pure Pantry' &&
-                            (selLower.contains('pantry') ||
-                                selLower.contains('honey') ||
-                                selLower.contains('spice')));
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 3),
-                      child: InkWell(
-                        onTap: () {
-                          if (item.action != null) {
-                            item.action!();
-                          } else if (onSelected != null) {
-                            onSelected!(item.key);
-                          } else {
-                            storeBrowse(context, category: item.key);
-                          }
-                        },
-                        borderRadius: BorderRadius.circular(4),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: isCurrent ? const Color(0xffeedec4) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Center(
-                            child: Text(
-                              item.label,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: isCurrent
-                                    ? FontWeight.w800
-                                    : FontWeight.w600,
-                                color: isCurrent
-                                    ? const Color(0xff92400e)
-                                    : const Color(0xff374151),
-                                letterSpacing: 0.2,
-                              ),
-                            ),
+                            color: Color(0xff1f2937),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12.5,
                           ),
                         ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-
-              // Right side direct tags (Desktop)
-              if (MediaQuery.sizeOf(context).width >= 960) ...[
-                if (legacyEquipment)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: InkWell(
-                      key: const ValueKey('subnav-post-ad-btn'),
-                      onTap: () => context.push('/marketplace/sell'),
-                      borderRadius: BorderRadius.circular(4),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xfffef08a),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.add_circle,
-                                color: Color(0xff064e3b), size: 14),
-                            SizedBox(width: 4),
-                            Text(
-                              '+ Post Free Ad',
-                              style: TextStyle(
-                                color: Color(0xff064e3b),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      ],
                     ),
                   ),
+                ),
 
-                // Lab Test Reports
-                Padding(
-                  padding: const EdgeInsets.only(right: 16),
-                  child: Consumer(builder: (context, ref, _) {
-                    final label = ref
-                                .watch(publicCertificatesProvider(
-                                    qualityProduct?.id))
-                                .valueOrNull
-                                ?.isNotEmpty ==
-                            true
-                        ? 'Lab Test Reports'
-                        : 'Quality & Research';
-                    return InkWell(
-                      onTap: () =>
-                          showProductQuality(context, product: qualityProduct),
-                      borderRadius: BorderRadius.circular(4),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.science_outlined,
-                              color: Color(0xffb45309),
-                              size: 14,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              label,
-                              style: const TextStyle(
-                                color: Color(0xff4b5563),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                const SizedBox(width: 14),
+
+                // Quick Navigation Links (HealthKart-style horizontal links)
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildQuickLink(
+                          icon: Icons.star_rounded,
+                          iconColor: const Color(0xfff59e0b),
+                          label: 'Best Sellers',
+                          onTap: () => storeBrowse(context, sort: 'Best Sellers'),
                         ),
-                      ),
-                    );
-                  }),
+                        _buildQuickLink(
+                          icon: Icons.spa_outlined,
+                          iconColor: const Color(0xff166534),
+                          label: 'Our Farm Story',
+                          onTap: () {
+                            if (onOurStoryPressed != null) {
+                              onOurStoryPressed!();
+                            } else {
+                              context.push('/about');
+                            }
+                          },
+                        ),
+                        _buildQuickLink(
+                          icon: Icons.science_outlined,
+                          iconColor: const Color(0xff0284c7),
+                          label: 'Lab Reports (NABL)',
+                          onTap: () => showLabPurityDialog(context),
+                        ),
+                        _buildQuickLink(
+                          icon: Icons.card_giftcard_rounded,
+                          iconColor: const Color(0xffd97706),
+                          label: 'Curated Boxes',
+                          onTap: () => storeBrowse(context,
+                              category: 'Curated Kitchen & Wellness Boxes'),
+                        ),
+                        _buildQuickLink(
+                          icon: Icons.chat_bubble_outline_rounded,
+                          iconColor: const Color(0xff059669),
+                          label: 'Customer Support',
+                          onTap: () => context.push('/contact'),
+                        ),
+                        _buildQuickLink(
+                          icon: Icons.location_on_outlined,
+                          iconColor: const Color(0xff4b5563),
+                          label: 'Deliver to $location',
+                          onTap: () => showPincodeSelectorDialog(context, ref),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickLink({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: iconColor),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Color(0xff374151),
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.1,
+                ),
+              ),
             ],
           ),
         ),

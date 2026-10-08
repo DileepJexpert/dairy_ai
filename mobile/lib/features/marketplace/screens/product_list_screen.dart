@@ -709,36 +709,6 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                 const SizedBox(height: 14),
                               ],
 
-                              // Visual Department Quick Navigation (Only shown on home / unfiltered store)
-                              if (_search.text.isEmpty &&
-                                  (_category == 'All products' ||
-                                      _category == 'All' ||
-                                      _category ==
-                                          'All Organic Essentials') &&
-                                  widget.category !=
-                                      ProductCategory.equipment &&
-                                  widget.category !=
-                                      ProductCategory.feedNutrition) ...[
-                                _buildVisualCategoryBar(isMobile),
-                                const SizedBox(height: 12),
-                              ],
-
-                              // Brand Specials & New Launch Offers (Front & Center on Home Landing)
-                              if (_search.text.isEmpty &&
-                                  (_category == 'All products' ||
-                                      _category == 'All' ||
-                                      _category == 'All Organic Essentials') &&
-                                  widget.category !=
-                                      ProductCategory.equipment &&
-                                  widget.category !=
-                                      ProductCategory.feedNutrition) ...[
-                                catalogue.maybeWhen(
-                                  data: (items) => _buildBrandSpecialsSection(
-                                      isMobile, items),
-                                  orElse: () => const SizedBox.shrink(),
-                                ),
-                              ],
-
                               // IndiaMART-Style RFQ Banner & Live Demand (exclusive to Farmer Hub)
                               if (widget.category ==
                                       ProductCategory.equipment ||
@@ -748,14 +718,19 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                 _buildLiveRequirementTicker(),
                               ],
 
-                              // Amazon Catalogue Section (Results Bar + Sidebar + Grid)
+                              // HealthKart Catalogue Section (Category Header + Clean Grid)
                               Container(
                                 key: _catalogueKey,
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Desktop Faceted Filter Sidebar
-                                    if (isDesktop) ...[
+                                    // Desktop Faceted Filter Sidebar (B2B Farmer Hub ONLY)
+                                    if (isDesktop &&
+                                        (widget.category ==
+                                                ProductCategory.equipment ||
+                                            widget.category ==
+                                                ProductCategory
+                                                    .feedNutrition)) ...[
                                       SizedBox(
                                         width: 285,
                                         child: _filters(() => setState(() {})),
@@ -763,7 +738,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                       const SizedBox(width: 24),
                                     ],
 
-                                    // Products Grid Column
+                                    // Products Catalogue Column
                                     Expanded(
                                       child: ConstrainedBox(
                                         constraints: const BoxConstraints(
@@ -772,6 +747,20 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
+                                            // HealthKart Category Filter Header & Pills
+                                            if (widget.category !=
+                                                    ProductCategory.equipment &&
+                                                widget.category !=
+                                                    ProductCategory
+                                                        .feedNutrition) ...[
+                                              _buildHealthKartSectionHeader(
+                                                  isMobile, isDesktop),
+                                              const SizedBox(height: 16),
+                                            ] else ...[
+                                              _buildResultsHeader(isDesktop),
+                                              const SizedBox(height: 14),
+                                            ],
+
                                             // Dedicated Category/Department Landing Banner (when filtered)
                                             if (_category != 'All products' &&
                                                 _category != 'All' &&
@@ -782,21 +771,49 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                               const SizedBox(height: 14),
                                             ],
 
-                                            // Amazon Results & Sort Header Bar
-                                            _buildResultsHeader(isDesktop),
-                                            const SizedBox(height: 14),
-                                            if (ref
-                                                    .watch(
-                                                        staticCatalogueProvider)
-                                                    .valueOrNull !=
-                                                null) ...[
-                                              const Text(
-                                                'Published catalogue prices are a guide. Stock, delivery and final price are checked when you order.',
-                                                style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: storeMuted),
+                                            // Search indicator when query is active
+                                            if (_search.text.isNotEmpty) ...[
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 12,
+                                                        vertical: 8),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      const Color(0xfff3f4f6),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                  border: Border.all(
+                                                      color: const Color(
+                                                          0xffe5e7eb)),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      'Results for “${_search.text.trim()}”',
+                                                      style: const TextStyle(
+                                                        fontSize: 13,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color:
+                                                            Color(0xff111827),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    InkWell(
+                                                      onTap: _reset,
+                                                      child: const Icon(
+                                                          Icons.close,
+                                                          size: 16,
+                                                          color: Color(
+                                                              0xff6b7280)),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
-                                              const SizedBox(height: 10),
+                                              const SizedBox(height: 12),
                                             ],
 
                                             // Catalogue State
@@ -879,6 +896,191 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
           ],
         );
       }),
+    );
+  }
+
+  Widget _buildHealthKartSectionHeader(bool isMobile, bool isDesktop) {
+    final categories = [
+      (label: 'All Essentials', key: 'All Organic Essentials'),
+      (label: 'Vedic Cow Ghee', key: 'Vedic Cow Ghee'),
+      (label: 'Cultured Buffalo Ghee', key: 'Cultured Buffalo Ghee'),
+      (label: 'Wood-Pressed Oils', key: 'Wood-Pressed Oils'),
+      (label: 'Fresh Living Dairy', key: 'Fresh Living Dairy'),
+      (label: 'The Pure Pantry', key: 'The Pure Pantry'),
+    ];
+
+    bool isSelected(String key) {
+      if (key == 'All Organic Essentials') {
+        return _category == 'All products' ||
+            _category == 'All' ||
+            _category == 'All Organic Essentials' ||
+            _category.isEmpty;
+      }
+      if (key == 'Vedic Cow Ghee') {
+        return _category == 'Vedic Cow Ghee' ||
+            _category == 'Cow ghee' ||
+            _category == 'cow-ghee';
+      }
+      if (key == 'Cultured Buffalo Ghee') {
+        return _category == 'Cultured Buffalo Ghee' ||
+            _category == 'Buffalo ghee' ||
+            _category == 'buffalo-ghee';
+      }
+      if (key == 'Wood-Pressed Oils') {
+        return _category == 'Wood-Pressed Oils' ||
+            _category == 'Cold-Pressed Sarso (Mustard) Oil' ||
+            _category == 'sarso-oil' ||
+            _category.toLowerCase().contains('mustard');
+      }
+      if (key == 'Fresh Living Dairy') {
+        return _category == 'Fresh Living Dairy' ||
+            _category == 'Fresh Milk & Dairy' ||
+            _category == 'Dairy Foods' ||
+            _category == 'Paneer';
+      }
+      if (key == 'The Pure Pantry') {
+        return _category == 'The Pure Pantry' ||
+            _category == 'Pure Pantry' ||
+            _category == 'puja-hawan-samagri' ||
+            _category.toLowerCase().contains('pantry');
+      }
+      return _category.toLowerCase() == key.toLowerCase();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header Row: Section Title + Subtitle + Sort Dropdown
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 4,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: const Color(0xff0d9488),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Artisanal Harvests',
+                        style: TextStyle(
+                          fontSize: isMobile ? 19 : 23,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
+                          color: const Color(0xff111827),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Heritage A2 churns, cold wood-pressed kolhu oils & living farm dairy. 100% lab certified.',
+                    style: TextStyle(
+                      fontSize: isMobile ? 12 : 13,
+                      color: const Color(0xff6b7280),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            // Sort Dropdown
+            Container(
+              height: 34,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xffd1d5db)),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _sortOptions.contains(_sort) ? _sort : 'Featured',
+                    icon: const Icon(Icons.arrow_drop_down,
+                        size: 18, color: Color(0xff374151)),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xff111827),
+                    ),
+                    items: _sortOptions
+                        .map((v) => DropdownMenuItem(
+                              value: v,
+                              child: Text('Sort: $v'),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) setState(() => _sort = value);
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // HealthKart Horizontal Category Filter Pills
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: categories.map((cat) {
+              final active = isSelected(cat.key);
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: InkWell(
+                  onTap: () => _browse(cat.key),
+                  borderRadius: BorderRadius.circular(6),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: active ? const Color(0xff111827) : Colors.white,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: active
+                            ? const Color(0xff111827)
+                            : const Color(0xffd1d5db),
+                        width: 1.2,
+                      ),
+                      boxShadow: active
+                          ? const [
+                              BoxShadow(
+                                color: Color(0x1a000000),
+                                blurRadius: 4,
+                                offset: Offset(0, 1),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Text(
+                      cat.label,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight:
+                            active ? FontWeight.w700 : FontWeight.w600,
+                        color: active ? Colors.white : const Color(0xff374151),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1184,463 +1386,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     );
   }
 
-  Widget _buildVisualCategoryBar(bool isMobile) {
-    final quickCategories = [
-      (
-        key: 'All products',
-        label: 'All Items',
-        sub: 'Full Store',
-        icon: '🛒',
-        asset: null,
-        bgGradient: const [Color(0xfff8fafc), Color(0xfff1f5f9)],
-        accentColor: const Color(0xff475569),
-      ),
-      (
-        key: 'Vedic Bilona Ghee',
-        label: 'A2 Bilona Ghee',
-        sub: 'Vedic Bilona',
-        icon: '🧈',
-        asset: 'assets/store/cow-ghee.png',
-        bgGradient: const [Color(0xfffffdf0), Color(0xfffef3c7)],
-        accentColor: const Color(0xffb45309),
-      ),
-      (
-        key: 'Fresh Milk & Dairy',
-        label: 'Fresh Dairy',
-        sub: 'Farm Fresh',
-        icon: '🥛',
-        asset: 'assets/store/paneer.png',
-        bgGradient: const [Color(0xfff0fdf4), Color(0xffdcfce7)],
-        accentColor: const Color(0xff15803d),
-      ),
-      (
-        key: 'Cold-Pressed Sarso (Mustard) Oil',
-        label: 'Cold-Pressed Oils',
-        sub: 'Lakdi Ghani',
-        icon: '🌻',
-        asset: 'assets/store/sarso-oil.jpg',
-        bgGradient: const [Color(0xfffff7ed), Color(0xffffedd5)],
-        accentColor: const Color(0xffc2410c),
-      ),
-      (
-        key: 'Stone-Ground Chakki Atta & Flours',
-        label: 'Khapli Atta',
-        sub: 'Stone-Ground',
-        icon: '🌾',
-        asset: 'assets/store/khapli-atta.jpg',
-        bgGradient: const [Color(0xfffefce8), Color(0xfffef08a)],
-        accentColor: const Color(0xffa16207),
-      ),
-      (
-        key: 'The Pure Pantry',
-        label: 'Raw Honey & Pantry',
-        sub: 'Raw & Pure',
-        icon: '🍯',
-        asset: 'assets/store/raw-mustard-honey.jpg',
-        bgGradient: const [Color(0xfffffbeb), Color(0xfffed7aa)],
-        accentColor: const Color(0xffb45309),
-      ),
-      (
-        key: 'botanical-skincare',
-        label: 'Vedic Skincare',
-        sub: '100x Washed Ghee',
-        icon: '🌿',
-        asset: 'assets/store/shata-dhauta-ghrita.jpg',
-        bgGradient: const [Color(0xfffdf2f8), Color(0xfffce7f3)],
-        accentColor: const Color(0xffbe185d),
-      ),
-      (
-        key: 'Puja & Hawan Samagri',
-        label: 'Puja Sacred',
-        sub: 'Hawan & Diyas',
-        icon: '🪔',
-        asset: 'assets/store/earth-cakes.jpg',
-        bgGradient: const [Color(0xfffff7ed), Color(0xffffedd5)],
-        accentColor: const Color(0xffea580c),
-      ),
-      (
-        key: 'Vermicompost & Living Soil',
-        label: 'Living Soil',
-        sub: 'Bio-Compost',
-        icon: '🌱',
-        asset: 'assets/store/earth-vermicompost.jpg',
-        bgGradient: const [Color(0xfff0fdf4), Color(0xffbbf7d0)],
-        accentColor: const Color(0xff166534),
-      ),
-    ];
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 22),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text(
-                'Explore by Department',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: storeDarkGreenNav,
-                  letterSpacing: -0.2,
-                ),
-              ),
-              const Spacer(),
-              if (_category != 'All products' &&
-                  _category != 'All' &&
-                  _category != 'All Organic Essentials')
-                InkWell(
-                  onTap: () => _browse('All products'),
-                  borderRadius: BorderRadius.circular(4),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    child: Text(
-                      'Clear Filter ✕',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xffdc2626),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: isMobile ? 132 : 148,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: quickCategories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (context, index) {
-                final item = quickCategories[index];
-                final isSelected = (_category == item.key) ||
-                    (item.key == 'Vedic Bilona Ghee' &&
-                        _category.toLowerCase().contains('ghee')) ||
-                    (item.key == 'All products' &&
-                        (_category == 'All' ||
-                            _category == 'All Organic Essentials'));
-
-                return InkWell(
-                  onTap: () => _browse(item.key),
-                  borderRadius: BorderRadius.circular(14),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: isMobile ? 104 : 124,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: isSelected
-                            ? const Color(0xfff59e0b)
-                            : const Color(0xffe5e7eb),
-                        width: isSelected ? 2.5 : 1.2,
-                      ),
-                      boxShadow: isSelected
-                          ? [
-                              const BoxShadow(
-                                color: Color(0x24f59e0b),
-                                blurRadius: 10,
-                                offset: Offset(0, 3),
-                              )
-                            ]
-                          : const [
-                              BoxShadow(
-                                color: Color(0x0a000000),
-                                blurRadius: 6,
-                                offset: Offset(0, 2),
-                              )
-                            ],
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Large, vibrant visual canvas showing the actual product prominently
-                        SizedBox(
-                          height: isMobile ? 80 : 92,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: item.bgGradient,
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 6),
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                if (item.asset != null)
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: StoreMediaImage(
-                                      source: item.asset!,
-                                      fit: BoxFit.contain,
-                                      fallbackIconSize: 32,
-                                    ),
-                                  )
-                                else
-                                  Icon(
-                                    Icons.storefront_rounded,
-                                    size: isMobile ? 32 : 38,
-                                    color: item.accentColor,
-                                  ),
-                                if (isSelected)
-                                  Positioned(
-                                    top: 0,
-                                    right: 0,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 5, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xfff59e0b),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: const Text(
-                                        'ACTIVE',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 8,
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        // Title & Micro-badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 6),
-                          color: isSelected
-                              ? const Color(0xfffffbeb)
-                              : Colors.white,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                item.label,
-                                style: TextStyle(
-                                  fontSize: isMobile ? 11 : 12,
-                                  fontWeight: isSelected
-                                      ? FontWeight.w800
-                                      : FontWeight.w700,
-                                  color: isSelected
-                                      ? const Color(0xff78350f)
-                                      : const Color(0xff111827),
-                                  height: 1.15,
-                                ),
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                item.sub,
-                                style: TextStyle(
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: item.accentColor,
-                                  height: 1.1,
-                                ),
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBrandSpecialsSection(bool isMobile, List<Product> all) {
-    if (all.isEmpty) return const SizedBox.shrink();
-
-    final nonConceptProds =
-        all.where((p) => !p.isConcept && !p.isDraft).toList();
-    if (nonConceptProds.isEmpty) return const SizedBox.shrink();
-
-    final allGroups = storeProductGroups(nonConceptProds);
-    allGroups.sort((a, b) {
-      final pA = a.first;
-      final pB = b.first;
-      int score(Product p) {
-        final t = p.title.toLowerCase();
-        if (t.contains('a2') && t.contains('cow') && t.contains('ghee')) {
-          return 0;
-        }
-        if (t.contains('buffalo') && t.contains('ghee')) return 1;
-        if (t.contains('bilona') && t.contains('ghee')) return 2;
-        if (t.contains('sarso') ||
-            (t.contains('mustard') && t.contains('oil'))) {
-          return 3;
-        }
-        if (t.contains('shata') || t.contains('washed ghee')) return 4;
-        if (t.contains('khapli') || t.contains('atta')) return 5;
-        if (t.contains('honey')) return 6;
-        if (t.contains('ghee')) return 7;
-        return 10;
-      }
-
-      return score(pA).compareTo(score(pB));
-    });
-
-    final specials = allGroups.take(5).toList();
-    if (specials.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 28),
-      padding: EdgeInsets.all(isMobile ? 12 : 18),
-      decoration: BoxDecoration(
-        color: const Color(0xfffffdf8),
-        borderRadius: BorderRadius.circular(StoreLayout.radius),
-        border: Border.all(color: const Color(0xfff3eedf)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0a000000),
-            blurRadius: 10,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xffdc2626),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.bolt, size: 13, color: Colors.white),
-                    SizedBox(width: 3),
-                    Text(
-                      'NEW LAUNCH OFFERS',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.6,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xfffef3c7),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: const Color(0xfff59e0b)),
-                ),
-                child: const Text(
-                  '★ SIGNATURE SPECIALS',
-                  style: TextStyle(
-                    color: Color(0xff92400e),
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              TextButton(
-                onPressed: () => _browse('Vedic Bilona Ghee'),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  minimumSize: const Size(0, 30),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'View All Ghee',
-                      style: TextStyle(
-                        color: storeGreen,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    SizedBox(width: 2),
-                    Icon(Icons.arrow_forward_ios, size: 10, color: storeGreen),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Special Brand Items & Harvest Specials',
-            style: TextStyle(
-              fontSize: isMobile ? 18 : 20,
-              fontWeight: FontWeight.w800,
-              color: const Color(0xff111827),
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(height: 2),
-          const Text(
-            'Direct from pastoralists & organic farms · Introductory launch discounts on heritage Vedic staples',
-            style: TextStyle(
-              fontSize: 12,
-              color: Color(0xff6b7280),
-            ),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            height: isMobile ? 440 : 485,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: specials.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 14),
-              itemBuilder: (context, index) {
-                final packs = specials[index];
-                return SizedBox(
-                  width: isMobile ? 220 : 255,
-                  child: StoreProductCard(
-                    key: ValueKey('brand-special-${packs.first.id}'),
-                    packs: packs,
-                    compact: isMobile,
-                    busyIds: _adding,
-                    onAdd: _add,
-                    onOpen: (p) {
-                      ref.read(analyticsServiceProvider).trackProductView(
-                            p.id,
-                            p.title,
-                            price: p.price,
-                          );
-                      context.push('/shop/product/${p.id}');
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildRFQBanner(bool isMobile) {
     return LayoutBuilder(builder: (context, constraints) {
@@ -2891,21 +2637,22 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         columns = 4;
       } else if (bounds.maxWidth >= 650) {
         columns = 3;
-      } else if (bounds.maxWidth >= 380) {
+      } else if (bounds.maxWidth >= 360) {
         columns = 2;
       } else {
         columns = 1;
       }
 
       final gap = small ? 12.0 : 18.0;
+      final cardWidth =
+          ((bounds.maxWidth - gap * (columns - 1)) / columns).floorToDouble();
       return Wrap(
         spacing: gap,
         runSpacing: gap,
         children: groups
             .map(
               (packs) => SizedBox(
-                width: ((bounds.maxWidth - gap * (columns - 1)) / columns)
-                    .clamp(140.0, 320.0),
+                width: cardWidth,
                 child: StoreProductCard(
                   key: ValueKey(packs.first.id),
                   packs: packs,

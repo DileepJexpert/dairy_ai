@@ -14,6 +14,7 @@ import '../models/analytics_models.dart';
 import '../providers/admin_analytics_provider.dart';
 import '../../marketplace/widgets/support_panel.dart';
 import '../../marketplace/widgets/product_media_manager.dart';
+import '../../marketplace/widgets/daily_deal_push_dialog.dart';
 
 final adminCatalogProductsProvider =
     FutureProvider.autoDispose<List<Product>>((ref) async {
@@ -2756,6 +2757,67 @@ class _EcommerceAdminPanelScreenState
             ],
           ),
           const SizedBox(height: 16),
+          // Highlighted Deal of the Day Hero Pusher Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xfffffbeb), Color(0xfffef3c7)],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xfffcd34d), width: 1.5),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: const BoxDecoration(
+                    color: Color(0xfff59e0b),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.local_fire_department,
+                      color: Colors.white, size: 24),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Storefront Hero: Highlighted Product of the Day',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xff92400e),
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Push any product with an animated glowing card, live blinking beacon, and custom deal badge on the front page hero.',
+                        style: TextStyle(fontSize: 12, color: Color(0xffb45309)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xffb45309),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                  ),
+                  onPressed: () => showPushDailyDealDialog(context),
+                  icon: const Icon(Icons.rocket_launch, size: 16),
+                  label: const Text(
+                    'Push Product of the Day',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
           placements.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, _) => Card(

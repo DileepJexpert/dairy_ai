@@ -16,6 +16,8 @@ import '../widgets/farm_story_showcase.dart';
 import '../widgets/hero_split_showcase.dart';
 import '../models/hero_showcase_config.dart';
 import '../widgets/lab_purity_dialog.dart';
+import '../widgets/daily_deal_push_dialog.dart';
+import '../../auth/providers/auth_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/analytics_service.dart';
 
@@ -613,6 +615,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     final catalogue = ref.watch(productsProvider(widget.category));
     final isScreenMobile =
         MediaQuery.sizeOf(context).width < StoreLayout.tablet;
+    final canAdmin = ref.watch(currentUserProvider) != null &&
+        ref.watch(commerceAccessProvider).valueOrNull?['can_manage_taxonomy'] ==
+            true;
 
     return Scaffold(
       backgroundColor: storeCream,
@@ -682,6 +687,33 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                   onExploreCategory: _browse,
                                   onAddToCart: _addHeroSlide,
                                 ),
+                                if (canAdmin) ...[
+                                  const SizedBox(height: 8),
+                                  Center(
+                                    child: OutlinedButton.icon(
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor:
+                                            const Color(0xffb45309),
+                                        side: const BorderSide(
+                                            color: Color(0xfffcd34d)),
+                                        backgroundColor:
+                                            const Color(0xfffffbeb),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 14, vertical: 8),
+                                      ),
+                                      onPressed: () =>
+                                          showPushDailyDealDialog(context),
+                                      icon: const Icon(Icons.rocket_launch,
+                                          size: 15),
+                                      label: const Text(
+                                        'Admin: Push Highlighted Product of the Day →',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 11.5),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                                 const SizedBox(height: 14),
                               ],
 

@@ -19,6 +19,9 @@ class HeroProductSlide {
     this.imageNote,
     required this.targetRoute,
     this.accentColor,
+    this.isHighlightedDeal = false,
+    this.highlightBadge,
+    this.highlightHeadline,
   });
 
   /// Unique product identifier matching the store catalogue
@@ -65,6 +68,15 @@ class HeroProductSlide {
 
   /// Optional background tint
   final Color? accentColor;
+
+  /// Whether this slide is the highlighted deal of the day / top seller
+  final bool isHighlightedDeal;
+
+  /// Top blinking badge text (e.g. "⚡ TOP SELLER OF THE DAY", "🔥 DEAL OF THE DAY")
+  final String? highlightBadge;
+
+  /// Optional special headline
+  final String? highlightHeadline;
 
   /// Calculate savings percentage if original price is provided
   int? get discountPercent {

@@ -1465,18 +1465,20 @@ class StoreCategoryNavigation extends ConsumerWidget {
     super.key,
     this.selected = 'All products',
     this.onSelected,
+    this.onOurStoryPressed,
     this.legacyEquipment = false,
     this.qualityProduct,
   });
 
   final String selected;
   final ValueChanged<String>? onSelected;
+  final VoidCallback? onOurStoryPressed;
   final bool legacyEquipment;
   final Product? qualityProduct;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Simplified top navigation: Ghee | Pantry | Our Process | Learn | About
+    // Simplified top navigation: Ghee | Pantry | Our Story | Our Process | Learn | About
     final List<({String key, String label, VoidCallback? action})> navItems;
     if (legacyEquipment) {
       navItems = [
@@ -1491,6 +1493,19 @@ class StoreCategoryNavigation extends ConsumerWidget {
       navItems = [
         (key: 'Vedic Bilona Ghee', label: 'Ghee', action: null),
         (key: 'The Pure Pantry', label: 'Pantry', action: null),
+        (
+          key: 'our-story',
+          label: 'Our Story',
+          action: () {
+            if (onOurStoryPressed != null) {
+              onOurStoryPressed!();
+            } else {
+              if (GoRouterState.of(context).matchedLocation != '/about') {
+                context.push('/about');
+              }
+            }
+          },
+        ),
         (
           key: 'our-process',
           label: 'Our Process',

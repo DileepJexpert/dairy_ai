@@ -14,6 +14,8 @@ class HeroProductSlide {
     required this.description,
     this.shortBenefit,
     required this.imagePath,
+    this.hoverImagePath,
+    this.hoverBadge,
     this.imageNote,
     required this.targetRoute,
     this.accentColor,
@@ -49,6 +51,12 @@ class HeroProductSlide {
   /// Asset path or network URL
   final String imagePath;
 
+  /// Optional asset path displayed on mouse hover (e.g. cold-press machine or farm cows)
+  final String? hoverImagePath;
+
+  /// Optional label displayed on hover (e.g. "Cold-Press Lakdi Kolhu")
+  final String? hoverBadge;
+
   /// Optional disclosure for illustrative merchandising artwork.
   final String? imageNote;
 
@@ -74,6 +82,8 @@ class HeroFarmStory {
     required this.caption,
     required this.storyBadge,
     required this.posterPath,
+    this.hoverPosterPath,
+    this.hoverBadge,
     this.videoUrl,
     required this.detailStory,
     this.location = 'Milterra Partner Farms · Anand & Nashik',
@@ -94,6 +104,12 @@ class HeroFarmStory {
 
   /// Poster image path (local asset or remote URL). Displays if video cannot load or while loading
   final String posterPath;
+
+  /// Optional second poster image displayed on mouse hover
+  final String? hoverPosterPath;
+
+  /// Optional badge displayed on hover
+  final String? hoverBadge;
 
   /// Optional video URL (mp4 / webm) for short 10-15s muted story clip
   final String? videoUrl;
@@ -124,7 +140,9 @@ const List<HeroFarmStory> defaultHeroFarmStories = [
     caption:
         'Rooted in Vedic tradition: ethically raised Sahiwal & Gir cows grazing freely.',
     storyBadge: 'OUR ORIGIN',
-    posterPath: 'assets/store/farm-pasture.jpg',
+    posterPath: 'assets/store/farm-pasture-cinematic.jpg',
+    hoverPosterPath: 'assets/store/farm-bilona-cinematic.jpg',
+    hoverBadge: 'Vedic Bilona Churning',
     videoUrl: null,
     detailStory:
         'MILTERRA was born from a singular mission: reviving authentic, ethical Indian dairy heritage. We partner with pastoralists raising indigenous Bos indicus cows (Sahiwal and Gir). Our cattle are raised with reverence, enjoying open sunlight, green fodder, and cruelty-free care where the calf is always fed first.',
@@ -136,7 +154,9 @@ const List<HeroFarmStory> defaultHeroFarmStories = [
     title: 'Traditional Wooden Bilona Churning',
     caption: 'Whole cultured curd churned bidirectionally with wooden valona.',
     storyBadge: 'THE BILONA METHOD',
-    posterPath: 'assets/store/farm-bilona.jpg',
+    posterPath: 'assets/store/farm-bilona-cinematic.jpg',
+    hoverPosterPath: 'assets/store/farm-pasture-cinematic.jpg',
+    hoverBadge: 'Sahiwal Cows & Pasture',
     videoUrl: null,
     detailStory:
         'Unlike modern industrial ghee made by centrifuging raw milk cream, authentic Vedic Bilona Ghee starts from whole curd. The cultured curd is churned slowly with a wooden bilona to yield aromatic makkhan, which is clarified over low firewood flame into golden granular ghee.',
@@ -149,7 +169,9 @@ const List<HeroFarmStory> defaultHeroFarmStories = [
     caption:
         'Educational study: Hand-milking, Ahinsa calf-first care & earthen pot setting.',
     storyBadge: 'LEARNING & PROCESS',
-    posterPath: 'assets/store/farm-bilona.jpg',
+    posterPath: 'assets/store/farm-bilona-cinematic.jpg',
+    hoverPosterPath: 'assets/store/farm-pasture-cinematic.jpg',
+    hoverBadge: 'Sahiwal Cows & Pasture',
     videoUrl: null,
     detailStory:
         'Educational Article: Modern mechanical milking parlours maximize yield, but traditional Ayurvedic ahinsa dairy prioritizes animal well-being and natural maternal bonds. In our documented process, cows are hand-milked gently only after the calf has drunk its fill. Whole milk is rested in clay pots and naturally cultured, preserving native microflora and vital micronutrients.',
@@ -162,7 +184,9 @@ const List<HeroFarmStory> defaultHeroFarmStories = [
     caption:
         'Fresh whole milk gently curdled with organic lemon juice & pure whey.',
     storyBadge: 'FARM KITCHEN',
-    posterPath: 'assets/store/farm-pasture.jpg',
+    posterPath: 'assets/store/farm-pasture-cinematic.jpg',
+    hoverPosterPath: 'assets/store/farm-bilona-cinematic.jpg',
+    hoverBadge: 'Artisan Kitchen Handcraft',
     videoUrl: null,
     detailStory:
         'Crafted in small batches with zero artificial binders, emulsifiers, or preservatives. Our artisan paneer retains its natural moisture, velvety softness, and rich protein profile directly from pure milk.',
@@ -175,7 +199,9 @@ const List<HeroFarmStory> defaultHeroFarmStories = [
     caption:
         'Independent testing for fatty acid profile, purity & zero adulterants.',
     storyBadge: 'QUALITY & RESEARCH',
-    posterPath: 'assets/store/farm-pasture.jpg',
+    posterPath: 'assets/store/farm-pasture-cinematic.jpg',
+    hoverPosterPath: 'assets/store/farm-bilona-cinematic.jpg',
+    hoverBadge: 'Lab Quality Certified',
     videoUrl: null,
     detailStory:
         'Every batch is tracked and sent for rigorous analytical testing: NMR verification for honey, purity testing for ghee, cold-press temperature certification for oils, and stone-mill temperature control for flours. We believe transparency is the highest form of respect.',

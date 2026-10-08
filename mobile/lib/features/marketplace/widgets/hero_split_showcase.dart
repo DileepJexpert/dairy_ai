@@ -1,12 +1,89 @@
-import 'dart:async';
+import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../models/hero_showcase_config.dart';
+import 'farm_story_showcase.dart';
 import 'store_design.dart';
 
-/// Full-width two-column split hero combining shopping with farm storytelling:
-/// - Left 50%: Automatic Product Showcase Carousel (A2 Cow Ghee, Buffalo Ghee, Paneer, Milk)
-/// - Right 50%: Independent Farm Story Showcase Carousel (Bilona, Milking, Herd care, Purity test)
+sealed class HeroSlideItem {}
+
+class ProductHeroSlideItem extends HeroSlideItem {
+  final HeroProductSlide slide;
+  ProductHeroSlideItem(this.slide);
+}
+
+class StoryHeroSlideItem extends HeroSlideItem {
+  final HeroFarmStory story;
+  StoryHeroSlideItem(this.story);
+}
+
+/// Fallback product slides with authentic organic photography and interactive hover flips
+final List<HeroProductSlide> _fallbackHeroProducts = [
+  const HeroProductSlide(
+    id: 'ffd7186f-6cee-4b8e-9a87-6af173aabffd',
+    category: 'A2 Desi Cow Ghee',
+    badge: '100% BILONA',
+    name: 'MILTERRA A2 Sahiwal Cow Bilona Ghee',
+    packSize: '1 Litre',
+    price: 2200.0,
+    originalPrice: 2596.0,
+    description: 'Traditional Vedic Bilona Ghee churned from cultured A2 curd in earthen pots.',
+    shortBenefit: 'Curd-churned in clay pots · Handcrafted in Anand, Gujarat',
+    imagePath: 'assets/store/ghee-jar-1l.jpg',
+    hoverImagePath: 'assets/store/farm-pasture-cinematic.jpg',
+    hoverBadge: 'Sahiwal Cows & Pasture',
+    targetRoute: '/shop/product/ffd7186f-6cee-4b8e-9a87-6af173aabffd',
+  ),
+  const HeroProductSlide(
+    id: '54b52256-c0d6-436c-b8aa-737b35ab1636',
+    category: 'Wood-Pressed Oils',
+    badge: 'KACHI GHANI',
+    name: 'Kacchi Ghani Black Mustard Oil (Lakdi Ghani)',
+    packSize: '1 Litre',
+    price: 220.0,
+    originalPrice: 260.0,
+    description: 'Pure cold-pressed mustard oil extracted on traditional wooden kolhu.',
+    shortBenefit: 'First cold extraction · Zero heat or chemical treatment',
+    imagePath: 'assets/store/sarso-oil.jpg',
+    hoverImagePath: 'assets/store/mustard-kolhu-machine.jpg',
+    hoverBadge: 'Cold-Press Lakdi Kolhu',
+    targetRoute: '/shop/product/54b52256-c0d6-436c-b8aa-737b35ab1636',
+  ),
+  const HeroProductSlide(
+    id: 'ad431721-27f9-477b-85ce-53def61d7f36',
+    category: 'A2 Buffalo Ghee',
+    badge: 'DANEDAR GRAIN',
+    name: 'Milterra Traditional Cultured Buffalo Ghee',
+    packSize: '1 Litre',
+    price: 1299.0,
+    originalPrice: 1532.0,
+    description: 'Golden granular ghee churned from Murrah buffalo cultured curd.',
+    shortBenefit: 'Naturally thick granular texture · High energy Vedic nutrition',
+    imagePath: 'assets/store/buffalo-ghee.png',
+    hoverImagePath: 'assets/store/farm-bilona-cinematic.jpg',
+    hoverBadge: 'Vedic Bilona Churning',
+    targetRoute: '/shop/product/ad431721-27f9-477b-85ce-53def61d7f36',
+  ),
+  const HeroProductSlide(
+    id: 'b20f6def-861a-4ba7-b7fa-dab5f4504278',
+    category: 'Fresh Dairy',
+    badge: 'FARM FRESH',
+    name: 'Milterra Fresh Sahiwal Milk Paneer',
+    packSize: '200g',
+    price: 140.0,
+    originalPrice: 160.0,
+    description: 'Farm-fresh soft paneer made from whole A2 milk.',
+    shortBenefit: 'Ultra-soft malai texture · Zero preservatives · 18g protein',
+    imagePath: 'assets/store/paneer.png',
+    hoverImagePath: 'assets/store/farm-pasture-cinematic.jpg',
+    hoverBadge: 'Fresh A2 Sahiwal Milk',
+    targetRoute: '/shop/product/b20f6def-861a-4ba7-b7fa-dab5f4504278',
+  ),
+];
+
+/// Artisanal Organic Multi-Card Hero Showcase (Ekaris-Inspired & Refined):
+/// Features clean, warm ivory cards with arched tops, clear natural product photography,
+/// golden star reviews, and authentic farm storytelling without loud distracting colors.
 class HeroSplitShowcase extends StatefulWidget {
   const HeroSplitShowcase({
     super.key,
@@ -14,7 +91,7 @@ class HeroSplitShowcase extends StatefulWidget {
     this.productSlides = const [],
     this.farmStories = defaultHeroFarmStories,
     this.onExploreCategory,
-    this.autoPlay = false,
+    this.autoPlay = true,
   });
 
   final double screenWidth;
@@ -24,1108 +101,1222 @@ class HeroSplitShowcase extends StatefulWidget {
   final bool autoPlay;
 
   @override
-  State<HeroSplitShowcase> createState() => _HeroSplitShowcaseState();
+  State<HeroSplitShowcase> createState() => HeroSplitShowcaseState();
 }
 
-class _HeroSplitShowcaseState extends State<HeroSplitShowcase>
-    with SingleTickerProviderStateMixin {
-  // Left 50% Product Carousel State
-  late final PageController _productController;
-  int _currentProduct = 0;
-  Timer? _productTimer;
+class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
+  late final ScrollController _scrollController;
+  bool _canScrollLeft = false;
+  bool _canScrollRight = true;
+  double _lastCardWidth = 275.0;
+  static const double _gap = 16.0;
 
-  // Right 50% Farm Story Carousel State
-  late final PageController _storyController;
-  int _currentStory = 0;
-  Timer? _storyTimer;
-  bool _isStoryPaused = false;
-  bool _isMuted = true;
+  List<HeroSlideItem> _slides = [];
+  String _selectedCategory = 'All Organic Essentials';
 
-  // Story progress animation (7.5 seconds)
-  late final AnimationController _storyProgressCtrl;
+  static const List<String> _departments = [
+    'All Organic Essentials',
+    'A2 Desi Cow Ghee',
+    'Wood-Pressed Oils',
+    'Fresh Malai Dairy',
+    'Raw Honey & Spices',
+    'Our Farm Story',
+  ];
 
   @override
   void initState() {
     super.initState();
-    _productController = PageController();
-    _storyController = PageController();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScrollUpdate);
+    _updateSlides();
+  }
 
-    _storyProgressCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 7500),
-    );
-
-    _storyProgressCtrl.addStatusListener((status) {
-      if (status == AnimationStatus.completed && mounted && !_isStoryPaused) {
-        _nextStory(animate: true);
-      }
-    });
-
-    if (widget.autoPlay) {
-      _startProductAutoSlide();
-      _startStoryProgress();
+  @override
+  void didUpdateWidget(HeroSplitShowcase oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.productSlides != widget.productSlides ||
+        oldWidget.farmStories != widget.farmStories) {
+      _updateSlides();
     }
+  }
+
+  void _onScrollUpdate() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final offset = _scrollController.offset;
+    final canLeft = offset > 8;
+    final canRight = offset < maxScroll - 8;
+    if (canLeft != _canScrollLeft || canRight != _canScrollRight) {
+      setState(() {
+        _canScrollLeft = canLeft;
+        _canScrollRight = canRight;
+      });
+    }
+  }
+
+  void _updateSlides() {
+    final list = <HeroSlideItem>[];
+    final products = widget.productSlides.isNotEmpty
+        ? widget.productSlides
+        : _fallbackHeroProducts;
+    final stories = widget.farmStories.isNotEmpty
+        ? widget.farmStories
+        : defaultHeroFarmStories;
+
+    // Filter to at most 2 distinct stories with unique photos
+    final curatedStories = <HeroFarmStory>[];
+    final seenPosters = <String>{};
+    for (final s in stories) {
+      if (!seenPosters.contains(s.posterPath)) {
+        curatedStories.add(s);
+        seenPosters.add(s.posterPath);
+      }
+      if (curatedStories.length >= 2) break;
+    }
+
+    // Interleave: 3 products, 1 farm story (visible on 4-card desktop view!),
+    // followed by next products, and second story.
+    int pIdx = 0;
+    int sIdx = 0;
+
+    // First 3 products
+    while (pIdx < 3 && pIdx < products.length) {
+      list.add(ProductHeroSlideItem(products[pIdx++]));
+    }
+    // 1st farm story (appears as 4th card on desktop!)
+    if (sIdx < curatedStories.length) {
+      list.add(StoryHeroSlideItem(curatedStories[sIdx++]));
+    }
+    // Next 2 products
+    while (pIdx < 5 && pIdx < products.length) {
+      list.add(ProductHeroSlideItem(products[pIdx++]));
+    }
+    // 2nd farm story
+    if (sIdx < curatedStories.length) {
+      list.add(StoryHeroSlideItem(curatedStories[sIdx++]));
+    }
+    // Any remaining products
+    while (pIdx < products.length) {
+      list.add(ProductHeroSlideItem(products[pIdx++]));
+    }
+
+    _slides = list;
   }
 
   @override
   void dispose() {
-    _productTimer?.cancel();
-    _storyTimer?.cancel();
-    _storyProgressCtrl.dispose();
-    _productController.dispose();
-    _storyController.dispose();
+    _scrollController.removeListener(_onScrollUpdate);
+    _scrollController.dispose();
     super.dispose();
   }
 
-  // --------------------------------------------------------------------------
-  // Left Carousel Timers & Navigation (Every 5 seconds)
-  // --------------------------------------------------------------------------
-  void _startProductAutoSlide() {
-    if (!widget.autoPlay) return;
-    _productTimer?.cancel();
-    _productTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (!mounted || widget.productSlides.isEmpty) return;
-      final next = (_currentProduct + 1) % widget.productSlides.length;
-      _productController.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 450),
-        curve: Curves.easeInOutCubic,
+  void _scrollRight() {
+    if (!_scrollController.hasClients) return;
+    final step = (_lastCardWidth + _gap) * 2;
+    final target = (_scrollController.offset + step).clamp(
+      0.0,
+      _scrollController.position.maxScrollExtent,
+    );
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
+  void _scrollLeft() {
+    if (!_scrollController.hasClients) return;
+    final step = (_lastCardWidth + _gap) * 2;
+    final target = (_scrollController.offset - step).clamp(
+      0.0,
+      _scrollController.position.maxScrollExtent,
+    );
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
+  /// Jump directly to the first farm story card
+  void navigateToFirstStory() {
+    final storyIndex = _slides.indexWhere((item) => item is StoryHeroSlideItem);
+    if (storyIndex != -1 && _scrollController.hasClients) {
+      final target = (storyIndex * (_lastCardWidth + _gap)).clamp(
+        0.0,
+        _scrollController.position.maxScrollExtent,
       );
-    });
-  }
-
-  void _nextProduct() {
-    if (widget.productSlides.isEmpty) return;
-    final next = (_currentProduct + 1) % widget.productSlides.length;
-    _productController.animateToPage(
-      next,
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeOut,
-    );
-    _startProductAutoSlide();
-  }
-
-  void _prevProduct() {
-    if (widget.productSlides.isEmpty) return;
-    final prev = (_currentProduct - 1 + widget.productSlides.length) %
-        widget.productSlides.length;
-    _productController.animateToPage(
-      prev,
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeOut,
-    );
-    _startProductAutoSlide();
-  }
-
-  // --------------------------------------------------------------------------
-  // Right Farm Story Timers & Story Progression (Every 7.5 seconds)
-  // --------------------------------------------------------------------------
-  void _startStoryProgress() {
-    if (!widget.autoPlay) return;
-    _storyProgressCtrl.reset();
-    if (!_isStoryPaused) {
-      _storyProgressCtrl.forward();
-    }
-  }
-
-  void _nextStory({bool animate = true}) {
-    if (widget.farmStories.isEmpty) return;
-    final next = (_currentStory + 1) % widget.farmStories.length;
-    if (animate) {
-      _storyController.animateToPage(
-        next,
+      _scrollController.animateTo(
+        target,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOutCubic,
       );
-    } else {
-      _storyController.jumpToPage(next);
-    }
-    _startStoryProgress();
-  }
-
-  void _prevStory() {
-    if (widget.farmStories.isEmpty) return;
-    final prev = (_currentStory - 1 + widget.farmStories.length) %
-        widget.farmStories.length;
-    _storyController.animateToPage(
-      prev,
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeOut,
-    );
-    _startStoryProgress();
-  }
-
-  void _setStoryPaused(bool pause) {
-    if (_isStoryPaused == pause) return;
-    setState(() => _isStoryPaused = pause);
-    if (pause) {
-      _storyProgressCtrl.stop();
-    } else {
-      _storyProgressCtrl.forward();
     }
   }
 
-  void _toggleStoryPause() {
-    _setStoryPaused(!_isStoryPaused);
+  void _openStoryModal(HeroFarmStory story) {
+    FarmStoryShowcase.showStoryDetail(context, story);
   }
 
-  void _toggleMute() {
-    setState(() => _isMuted = !_isMuted);
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 1),
-        backgroundColor: storeGreen,
-        content: Text(_isMuted
-            ? 'Story video audio muted.'
-            : 'Story audio enabled (where supported).'),
+  void _onCategorySelected(String category) {
+    setState(() => _selectedCategory = category);
+    if (category == 'Our Farm Story') {
+      navigateToFirstStory();
+      if (widget.farmStories.isNotEmpty) {
+        _openStoryModal(widget.farmStories.first);
+      }
+    } else if (widget.onExploreCategory != null) {
+      widget.onExploreCategory!(category);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // MAIN BUILD
+  // --------------------------------------------------------------------------
+  @override
+  Widget build(BuildContext context) {
+    final isDesktop = widget.screenWidth >= 1024;
+    const double cardHeight = 455.0;
+
+    // Card width calculation: 4 cards fill desktop cleanly
+    final visibleWidth = (widget.screenWidth - 32).clamp(320.0, 1200.0);
+    final cardWidth = isDesktop
+        ? ((visibleWidth - (3 * _gap)) / 4).clamp(260.0, 290.0)
+        : (widget.screenWidth < 600 ? 250.0 : 270.0);
+    _lastCardWidth = cardWidth;
+
+    if (_slides.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xfffcfbf8),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xffebe7dd), width: 1.0),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // TOP CATEGORY STRIP (Clean Ekaris-style pills)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _departments.map((dept) {
+                final isSelected = dept == _selectedCategory;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: InkWell(
+                    onTap: () => _onCategorySelected(dept),
+                    borderRadius: BorderRadius.circular(20),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xff164e2e)
+                            : const Color(0xfff3f1ea),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected
+                              ? const Color(0xff164e2e)
+                              : const Color(0xffe5e1d7),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Text(
+                        dept,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight:
+                              isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: isSelected
+                              ? Colors.white
+                              : const Color(0xff374151),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // HORIZONTAL MULTI-CARD ROW WITH FLOATING CHEVRONS
+          SizedBox(
+            height: cardHeight,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // Scrollable Card Row
+                ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context).copyWith(
+                    dragDevices: {
+                      PointerDeviceKind.touch,
+                      PointerDeviceKind.mouse,
+                      PointerDeviceKind.trackpad,
+                    },
+                  ),
+                  child: ListView.separated(
+                    controller: _scrollController,
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 2, vertical: 4),
+                    itemCount: _slides.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(width: _gap),
+                    itemBuilder: (context, index) {
+                      final item = _slides[index];
+                      if (item is ProductHeroSlideItem) {
+                        return _EkarisProductCard(
+                          slide: item.slide,
+                          width: cardWidth,
+                          height: cardHeight,
+                          onTap: () {
+                            if (item.slide.targetRoute.startsWith('/')) {
+                              context.go(item.slide.targetRoute);
+                            } else if (widget.onExploreCategory != null) {
+                              widget.onExploreCategory!(item.slide.category);
+                            }
+                          },
+                        );
+                      } else if (item is StoryHeroSlideItem) {
+                        return _EkarisStoryCard(
+                          story: item.story,
+                          width: cardWidth,
+                          height: cardHeight,
+                          onTap: () => _openStoryModal(item.story),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                ),
+
+                // Floating Left Chevron
+                if (_canScrollLeft)
+                  Positioned(
+                    left: -4,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: _buildChevronButton(
+                        icon: Icons.chevron_left,
+                        tooltip: 'Previous products',
+                        onTap: _scrollLeft,
+                      ),
+                    ),
+                  ),
+
+                // Floating Right Chevron
+                if (_canScrollRight)
+                  Positioned(
+                    right: -4,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: _buildChevronButton(
+                        icon: Icons.chevron_right,
+                        tooltip: 'More products',
+                        onTap: _scrollRight,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  void _openStoryDetail(HeroFarmStory story) {
-    _setStoryPaused(true);
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: Container(
-          constraints: BoxConstraints(
-            maxWidth: 580,
-            maxHeight: MediaQuery.sizeOf(ctx).height - 48,
+  Widget _buildChevronButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: Tooltip(
+        message: tooltip,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(22),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xffdcd6cb), width: 1.0),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x1e000000),
+                  blurRadius: 10,
+                  offset: Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Icon(icon, size: 24, color: const Color(0xff1f2937)),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ----------------------------------------------------------------------------
+// EKARIS-STYLE ARCHED PRODUCT CARD (CLEAN, ARTISANAL, CRISP)
+// ----------------------------------------------------------------------------
+class _EkarisProductCard extends StatefulWidget {
+  const _EkarisProductCard({
+    required this.slide,
+    required this.width,
+    required this.height,
+    required this.onTap,
+  });
+
+  final HeroProductSlide slide;
+  final double width;
+  final double height;
+  final VoidCallback onTap;
+
+  @override
+  State<_EkarisProductCard> createState() => _EkarisProductCardState();
+}
+
+class _EkarisProductCardState extends State<_EkarisProductCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final slide = widget.slide;
+    final activeImagePath = (_isHovered &&
+            slide.hoverImagePath != null &&
+            slide.hoverImagePath!.isNotEmpty)
+        ? slide.hoverImagePath!
+        : slide.imagePath;
+    final isPngCutout = activeImagePath.endsWith('.png');
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          width: widget.width,
+          transform: _isHovered
+              ? (Matrix4.identity()
+                ..setEntry(3, 2, 0.0006)
+                ..setTranslationRaw(0.0, -5.0, 0.0)
+                ..rotateX(-0.015))
+              : Matrix4.identity(),
           decoration: BoxDecoration(
-            color: storeWhite,
-            borderRadius: BorderRadius.circular(StoreLayout.radius),
-            border: Border.all(color: storeBorder),
-            boxShadow: const [
+            color: Colors.white,
+            // Iconic Arched Top Corners
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(28),
+              topRight: Radius.circular(28),
+              bottomLeft: Radius.circular(14),
+              bottomRight: Radius.circular(14),
+            ),
+            border: Border.all(
+              color: _isHovered
+                  ? const Color(0xff166534)
+                  : const Color(0xffe8e5de),
+              width: _isHovered ? 1.4 : 1.0,
+            ),
+            boxShadow: [
               BoxShadow(
-                color: Colors.black26,
-                blurRadius: 24,
-                offset: Offset(0, 10),
+                color: _isHovered
+                    ? const Color(0x18000000)
+                    : const Color(0x0a000000),
+                blurRadius: _isHovered ? 16 : 8,
+                offset: Offset(0, _isHovered ? 6 : 2),
               ),
             ],
           ),
-          clipBehavior: Clip.antiAlias,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Media Header
-                Stack(
+          clipBehavior: Clip.hardEdge,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // TOP IMAGE STAGE: Clean, Uncluttered Natural Presentation with Hover Flip
+              SizedBox(
+                height: 180,
+                child: Stack(
+                  fit: StackFit.expand,
                   children: [
-                    ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(StoreLayout.radius),
+                    // Warm natural soft gradient background
+                    Container(
+                      decoration: const BoxDecoration(
+                        gradient: RadialGradient(
+                          center: Alignment.center,
+                          radius: 0.85,
+                          colors: [
+                            Color(0xfffffdf9),
+                            Color(0xfff7f5ed),
+                          ],
+                        ),
                       ),
-                      child: SizedBox(
-                        height: 220,
-                        width: double.infinity,
-                        child: Image.asset(
-                          story.posterPath,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: storeWarm,
-                            child: const Icon(Icons.yard_outlined,
-                                size: 56, color: storeGreen),
+                    ),
+
+                    // UN-CROPPED NATURAL PRODUCT IMAGE WITH SMOOTH HOVER FLIP
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 18, 14, 8),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 280),
+                        switchInCurve: Curves.easeInOut,
+                        switchOutCurve: Curves.easeInOut,
+                        transitionBuilder:
+                            (Widget child, Animation<double> animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: child,
+                          );
+                        },
+                        child: KeyedSubtree(
+                          key: ValueKey<String>(activeImagePath),
+                          child: isPngCutout
+                              ? Transform(
+                                  transform: Matrix4.identity()
+                                    ..setEntry(3, 2, 0.001)
+                                    ..rotateZ(_isHovered ? -0.015 : -0.03)
+                                    ..rotateY(_isHovered ? 0.04 : 0.08),
+                                  alignment: Alignment.center,
+                                  child: Image.asset(
+                                    activeImagePath,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => Image.asset(
+                                      StoreImages.hero,
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                )
+                              : ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: _buildCleanImage(
+                                    activeImagePath,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+
+                    // Top-Left Circular Badge (e.g. "1 LITRE" or "500 ML" like Ekaris)
+                    Positioned(
+                      top: 10,
+                      left: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xff164e2e),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x1a000000),
+                              blurRadius: 4,
+                              offset: Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          slide.packSize.toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
                     ),
+
+                    // Top-Right Purity Tag (e.g. "100% BILONA")
+                    if (slide.badge.isNotEmpty)
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xfffef3c7),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: const Color(0xfffde68a),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Text(
+                            slide.badge.toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xff92400e),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    // Bottom-Right Hover flip hint / active badge
+                    if (slide.hoverImagePath != null) ...[
+                      // Hint when not hovered
+                      Positioned(
+                        bottom: 8,
+                        right: 8,
+                        child: IgnorePointer(
+                          child: AnimatedOpacity(
+                            duration: const Duration(milliseconds: 200),
+                            opacity: _isHovered ? 0.0 : 0.9,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xdd164e2e),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x1a000000),
+                                    blurRadius: 4,
+                                    offset: Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.swap_horiz,
+                                      size: 11, color: Colors.white),
+                                  SizedBox(width: 3),
+                                  Text(
+                                    'Hover to flip',
+                                    style: TextStyle(
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Active pill when hovered
+                      Positioned(
+                        bottom: 8,
+                        right: 8,
+                        child: IgnorePointer(
+                          child: AnimatedOpacity(
+                            duration: const Duration(milliseconds: 200),
+                            opacity: _isHovered ? 0.95 : 0.0,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xee164e2e),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x24000000),
+                                    blurRadius: 6,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.check_circle,
+                                      size: 10, color: Color(0xff86efac)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    slide.hoverBadge ?? 'Traditional Method',
+                                    style: const TextStyle(
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              // BOTTOM CONTENT: Clean Typography & Details
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Product Title (Forest Green, bold, 2 lines)
+                    SizedBox(
+                      height: 38,
+                      child: Text(
+                        slide.name,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xff164e2e),
+                          height: 1.25,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+
+                    // Short Benefit (Subtle grey, 1 line)
+                    SizedBox(
+                      height: 18,
+                      child: Text(
+                        slide.shortBenefit?.isNotEmpty == true
+                            ? slide.shortBenefit!
+                            : slide.description,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xff6b7280),
+                          height: 1.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Star Rating Row (Golden Stars like Ekaris)
+                    const Row(
+                      children: [
+                        Icon(Icons.star,
+                            size: 13, color: Color(0xfff59e0b)),
+                        Icon(Icons.star,
+                            size: 13, color: Color(0xfff59e0b)),
+                        Icon(Icons.star,
+                            size: 13, color: Color(0xfff59e0b)),
+                        Icon(Icons.star,
+                            size: 13, color: Color(0xfff59e0b)),
+                        Icon(Icons.star_half,
+                            size: 13, color: Color(0xfff59e0b)),
+                        SizedBox(width: 4),
+                        Text(
+                          '4.8',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xffd97706),
+                          ),
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          '(240+)',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w400,
+                            color: Color(0xff9ca3af),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Price & Savings Row
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          slide.price > 0
+                              ? storeMoney(slide.price)
+                              : 'Best Price',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xff164e2e),
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          storeMoney(slide.originalPrice ?? (slide.price * 1.18)),
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xff9ca3af),
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xffdcfce7),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'Save ${slide.discountPercent ?? 18}%',
+                            style: const TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xff15803d),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Action Button ("Shop Now →")
+                    SizedBox(
+                      width: double.infinity,
+                      height: 32,
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _isHovered
+                              ? const Color(0xff164e2e)
+                              : const Color(0xff1b5e20),
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 0,
+                        ),
+                        onPressed: widget.onTap,
+                        child: const Text(
+                          'Shop Now →',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ----------------------------------------------------------------------------
+// EKARIS-STYLE ARCHED STORY CARD (AUTHENTIC VEDIC HERITAGE)
+// ----------------------------------------------------------------------------
+class _EkarisStoryCard extends StatefulWidget {
+  const _EkarisStoryCard({
+    required this.story,
+    required this.width,
+    required this.height,
+    required this.onTap,
+  });
+
+  final HeroFarmStory story;
+  final double width;
+  final double height;
+  final VoidCallback onTap;
+
+  @override
+  State<_EkarisStoryCard> createState() => _EkarisStoryCardState();
+}
+
+class _EkarisStoryCardState extends State<_EkarisStoryCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final story = widget.story;
+    final activePoster = (_isHovered &&
+            story.hoverPosterPath != null &&
+            story.hoverPosterPath!.isNotEmpty)
+        ? story.hoverPosterPath!
+        : story.posterPath;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          width: widget.width,
+          transform: _isHovered
+              ? (Matrix4.identity()
+                ..setEntry(3, 2, 0.0006)
+                ..setTranslationRaw(0.0, -5.0, 0.0)
+                ..rotateX(-0.015))
+              : Matrix4.identity(),
+          decoration: BoxDecoration(
+            color: const Color(0xfff6f7f2),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(28),
+              topRight: Radius.circular(28),
+              bottomLeft: Radius.circular(14),
+              bottomRight: Radius.circular(14),
+            ),
+            border: Border.all(
+              color: _isHovered
+                  ? const Color(0xff166534)
+                  : const Color(0xffd5ded2),
+              width: _isHovered ? 1.4 : 1.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _isHovered
+                    ? const Color(0x18000000)
+                    : const Color(0x0a000000),
+                blurRadius: _isHovered ? 16 : 8,
+                offset: Offset(0, _isHovered ? 6 : 2),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.hardEdge,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // TOP IMAGE: Framed Authentic Farm Photography with Hover Flip
+              SizedBox(
+                height: 180,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Authentic Photograph with AnimatedSwitcher
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 280),
+                      switchInCurve: Curves.easeInOut,
+                      switchOutCurve: Curves.easeInOut,
+                      transitionBuilder:
+                          (Widget child, Animation<double> animation) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: child,
+                        );
+                      },
+                      child: KeyedSubtree(
+                        key: ValueKey<String>(activePoster),
+                        child: _buildCleanImage(
+                          activePoster,
+                          fit: BoxFit.cover,
+                          alignment: const Alignment(0.0, -0.35),
+                        ),
+                      ),
+                    ),
+
+                    // Top-Left Circular Badge ("OUR STORY")
                     Positioned(
-                      top: 14,
-                      left: 14,
+                      top: 10,
+                      left: 10,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.7),
-                          borderRadius: BorderRadius.circular(14),
+                          color: const Color(0xff164e2e),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x2a000000),
+                              blurRadius: 4,
+                              offset: Offset(0, 1),
+                            ),
+                          ],
                         ),
-                        child: Row(
+                        child: const Text(
+                          'OUR STORY',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Bottom-Right Hover flip hint / active badge
+                    if (story.hoverPosterPath != null) ...[
+                      // Hint when not hovered
+                      Positioned(
+                        bottom: 8,
+                        right: 8,
+                        child: IgnorePointer(
+                          child: AnimatedOpacity(
+                            duration: const Duration(milliseconds: 200),
+                            opacity: _isHovered ? 0.0 : 0.9,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xdd164e2e),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x1a000000),
+                                    blurRadius: 4,
+                                    offset: Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.swap_horiz,
+                                      size: 11, color: Colors.white),
+                                  SizedBox(width: 3),
+                                  Text(
+                                    'Hover to flip',
+                                    style: TextStyle(
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Active pill when hovered
+                      Positioned(
+                        bottom: 8,
+                        right: 8,
+                        child: IgnorePointer(
+                          child: AnimatedOpacity(
+                            duration: const Duration(milliseconds: 200),
+                            opacity: _isHovered ? 0.95 : 0.0,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xee164e2e),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x24000000),
+                                    blurRadius: 6,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.check_circle,
+                                      size: 10, color: Color(0xff86efac)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    story.hoverBadge ?? 'Farm Heritage',
+                                    style: const TextStyle(
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    // Top-Right Location Tag
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xdd0f172a),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.auto_awesome,
-                                size: 14, color: storeAmber),
-                            const SizedBox(width: 6),
+                            Icon(Icons.location_on,
+                                size: 10, color: Color(0xff4ade80)),
+                            SizedBox(width: 2),
                             Text(
-                              story.storyBadge,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
+                              'Anand, Gujarat',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
                                 color: Colors.white,
-                                letterSpacing: 0.5,
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                    Positioned(
-                      top: 10,
-                      right: 10,
-                      child: IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white),
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.black54,
-                        ),
-                        onPressed: () => Navigator.of(ctx).pop(),
-                      ),
-                    ),
                   ],
                 ),
+              ),
 
-                // Narrative Body
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.location_on_outlined,
-                              size: 15, color: storeMuted),
-                          const SizedBox(width: 6),
-                          Text(
-                            story.location,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: storeMuted,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
+              // BOTTOM CONTENT: Heritage Storytelling
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Story Title
+                    SizedBox(
+                      height: 38,
+                      child: Text(
                         story.title,
                         style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: storeGreen,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        story.caption,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xff556b2f),
-                        ),
-                      ),
-                      const Divider(height: 24),
-                      Text(
-                        story.detailStory,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          height: 1.6,
-                          color: Color(0xff2d3748),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: () => Navigator.of(ctx).pop(),
-                            child: const Text('Close'),
-                          ),
-                          const SizedBox(width: 12),
-                          FilledButton(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: storeAmber,
-                              foregroundColor: storeGreen,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 22, vertical: 12),
-                            ),
-                            onPressed: () {
-                              Navigator.of(ctx).pop();
-                              context.go('/shop');
-                            },
-                            child: const Text(
-                              'Shop Farm Products',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    ).then((_) {
-      if (mounted) _setStoryPaused(false);
-    });
-  }
-
-  // --------------------------------------------------------------------------
-  // Main Build: 50/50 Desktop Split vs Stacked Mobile
-  // --------------------------------------------------------------------------
-  @override
-  Widget build(BuildContext context) {
-    final isDesktop = widget.screenWidth >= 860;
-    const desktopHeight = 195.0;
-    if (widget.productSlides.isEmpty) {
-      return SizedBox(
-          height: desktopHeight,
-          child: _buildFarmStoryShowcase(isDesktop: isDesktop));
-    }
-
-    if (isDesktop) {
-      return ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxHeight: 205.0,
-        ),
-        child: SizedBox(
-          width: double.infinity,
-          height: desktopHeight,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Left 50%: Product Showcase Carousel
-              Expanded(
-                flex: 50,
-                child: _buildProductShowcase(isDesktop: true),
-              ),
-              const SizedBox(width: 14),
-
-              // Right 50%: Farm Story Showcase Carousel
-              Expanded(
-                flex: 50,
-                child: _buildFarmStoryShowcase(isDesktop: true),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // Mobile / Tablet stacked view: sleek strip (150px each)
-    const mobilePanelHeight = 220.0;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          height: mobilePanelHeight,
-          child: _buildProductShowcase(isDesktop: false),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: mobilePanelHeight,
-          child: _buildFarmStoryShowcase(isDesktop: false),
-        ),
-      ],
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // LEFT 50% — PRODUCT SHOWCASE CAROUSEL
-  // --------------------------------------------------------------------------
-  Widget _buildProductShowcase({required bool isDesktop}) {
-    if (widget.productSlides.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xfffcfbf8),
-        borderRadius: BorderRadius.circular(StoreLayout.radius),
-        border: Border.all(color: storeBorder),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 10,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.hardEdge,
-      child: Stack(
-        children: [
-          // Page View of Products
-          PageView.builder(
-            controller: _productController,
-            itemCount: widget.productSlides.length,
-            onPageChanged: (index) {
-              setState(() => _currentProduct = index);
-            },
-            itemBuilder: (context, index) {
-              final slide = widget.productSlides[index];
-              return _buildProductSlide(slide, isDesktop: isDesktop);
-            },
-          ),
-
-          // Previous Arrow (Left)
-          Positioned(
-            left: 8,
-            top: 0,
-            bottom: 0,
-            child: Center(
-              child: _buildNavArrow(
-                icon: Icons.chevron_left,
-                onTap: _prevProduct,
-                tooltip: 'Previous product',
-              ),
-            ),
-          ),
-
-          // Next Arrow (Right)
-          Positioned(
-            right: 8,
-            top: 0,
-            bottom: 0,
-            child: Center(
-              child: _buildNavArrow(
-                icon: Icons.chevron_right,
-                onTap: _nextProduct,
-                tooltip: 'Next product',
-              ),
-            ),
-          ),
-
-          // Carousel Dots Indicator (Bottom Center)
-          Positioned(
-            bottom: 6,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(widget.productSlides.length, (i) {
-                final isActive = i == _currentProduct;
-                return GestureDetector(
-                  onTap: () {
-                    _productController.animateToPage(
-                      i,
-                      duration: const Duration(milliseconds: 350),
-                      curve: Curves.easeOut,
-                    );
-                    _startProductAutoSlide();
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    margin: const EdgeInsets.symmetric(horizontal: 2.5),
-                    width: isActive ? 16 : 5,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: isActive ? storeAmber : storeBorder,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProductSlide(HeroProductSlide slide, {required bool isDesktop}) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        isDesktop ? 60 : 48,
-        isDesktop ? 8 : 6,
-        isDesktop ? 22 : 14,
-        isDesktop ? 10 : 6,
-      ),
-      child: isDesktop
-          ? Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Left text column (concise typography for half-height strip)
-                Expanded(
-                  flex: 47,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Quiet Category Eyebrow
-                      Text(
-                        slide.category.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 9.5,
+                          fontSize: 14.5,
                           fontWeight: FontWeight.w700,
-                          color: storeAmber,
-                          letterSpacing: 1.1,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-
-                      // Product Name
-                      Text(
-                        slide.name,
-                        style: const TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w800,
-                          color: storeGreen,
-                          height: 1.15,
+                          color: Color(0xff164e2e),
+                          height: 1.25,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 3),
+                    ),
+                    const SizedBox(height: 4),
 
-                      // Short benefit highlight (fills space with authentic context)
-                      if (slide.shortBenefit != null) ...[
-                        Text(
-                          slide.shortBenefit!,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xff4b5563),
-                            height: 1.2,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                      ],
-
-                      // Pack size & Price in a clean single line
-                      Text(
-                        '${slide.packSize}  ·  ${storeMoney(slide.price)}',
+                    // Story Caption
+                    SizedBox(
+                      height: 18,
+                      child: Text(
+                        story.caption,
                         style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: storeOrange,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xff4b5563),
+                          height: 1.2,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 8),
+                    ),
+                    const SizedBox(height: 8),
 
-                      // "Shop now" CTA button
-                      FilledButton(
+                    // Heritage Trust Rating
+                    const Row(
+                      children: [
+                        Icon(Icons.star, size: 13, color: Color(0xfff59e0b)),
+                        Icon(Icons.star, size: 13, color: Color(0xfff59e0b)),
+                        Icon(Icons.star, size: 13, color: Color(0xfff59e0b)),
+                        Icon(Icons.star, size: 13, color: Color(0xfff59e0b)),
+                        Icon(Icons.star, size: 13, color: Color(0xfff59e0b)),
+                        SizedBox(width: 4),
+                        Text(
+                          '5.0',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xffd97706),
+                          ),
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          '(Vedic Heritage)',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w400,
+                            color: Color(0xff6b7280),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Ethos Pill
+                    const Row(
+                      children: [
+                        Icon(Icons.eco,
+                            size: 14, color: Color(0xff16a34a)),
+                        SizedBox(width: 4),
+                        Text(
+                          'Calf Fed First · Ahimsa Ethos',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xff166534),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Action Button ("Explore Story →")
+                    SizedBox(
+                      width: double.infinity,
+                      height: 32,
+                      child: FilledButton(
                         style: FilledButton.styleFrom(
-                          backgroundColor: storeAmber,
-                          foregroundColor: storeGreen,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 6),
-                          minimumSize: const Size(0, 28),
+                          backgroundColor: const Color(0xff164e2e),
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.zero,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
                           elevation: 0,
                         ),
-                        onPressed: () {
-                          if (slide.targetRoute.startsWith('/')) {
-                            context.go(slide.targetRoute);
-                          } else if (widget.onExploreCategory != null) {
-                            widget.onExploreCategory!(slide.category);
-                          }
-                        },
+                        onPressed: widget.onTap,
                         child: const Text(
-                          'Shop Now →',
+                          'Explore Story →',
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 14),
-
-                // Right product image column with a direct product cutout.
-                Expanded(
-                  flex: 53,
-                  child: Center(
-                    child: InkWell(
-                      onTap: () {
-                        if (slide.targetRoute.startsWith('/')) {
-                          context.go(slide.targetRoute);
-                        } else if (widget.onExploreCategory != null) {
-                          widget.onExploreCategory!(slide.category);
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(16),
-                      child: SizedBox(
-                        width: 190,
-                        height: 175,
-                        child: _buildHeroImage(slide),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            )
-          : Row(
-              // Mobile View: Horizontal compact strip layout
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  flex: 52,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        slide.category.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: storeAmber,
-                          letterSpacing: 1.1,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        slide.name,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: storeGreen,
-                          height: 1.15,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '${slide.packSize}  ·  ${storeMoney(slide.price)}',
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.bold,
-                          color: storeOrange,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: storeAmber,
-                          foregroundColor: storeGreen,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 4),
-                          minimumSize: const Size(0, 26),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () => context.go(slide.targetRoute),
-                        child: const Text(
-                          'Shop Now →',
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 48,
-                  child: Center(
-                    child: InkWell(
-                      onTap: () => context.go(slide.targetRoute),
-                      borderRadius: BorderRadius.circular(12),
-                      child: SizedBox(
-                        width: 120,
-                        height: 145,
-                        child: _buildHeroImage(slide),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-    );
-  }
-
-  Widget _buildHeroImage(HeroProductSlide slide) {
-    final note = slide.imageNote?.trim();
-    return Column(
-      children: [
-        Expanded(
-          child: SizedBox(
-            width: double.infinity,
-            child:
-                StoreMediaImage(source: slide.imagePath, fit: BoxFit.contain),
-          ),
-        ),
-        if (note != null && note.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 2),
-            child: Text(
-              note,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 9, color: storeMuted),
-            ),
-          ),
-      ],
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // RIGHT 50% — FARM STORY SHOWCASE CAROUSEL
-  // --------------------------------------------------------------------------
-  Widget _buildFarmStoryShowcase({required bool isDesktop}) {
-    if (widget.farmStories.isEmpty) return const SizedBox.shrink();
-
-    return MouseRegion(
-      onEnter: (_) => _setStoryPaused(true),
-      onExit: (_) => _setStoryPaused(false),
-      child: GestureDetector(
-        onTap: _toggleStoryPause,
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xff12231c),
-            borderRadius: BorderRadius.circular(StoreLayout.radius),
-            border: Border.all(color: storeBorder),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0a000000),
-                blurRadius: 10,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.hardEdge,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Page View for stories
-              PageView.builder(
-                controller: _storyController,
-                itemCount: widget.farmStories.length,
-                onPageChanged: (index) {
-                  setState(() => _currentStory = index);
-                  _startStoryProgress();
-                },
-                itemBuilder: (context, index) {
-                  final story = widget.farmStories[index];
-                  return _buildStorySlide(story, isDesktop: isDesktop);
-                },
-              ),
-
-              // Animated Top Story Progress Bar (7.5s)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: AnimatedBuilder(
-                  animation: _storyProgressCtrl,
-                  builder: (context, _) {
-                    return LinearProgressIndicator(
-                      value: _storyProgressCtrl.value,
-                      minHeight: 3.5,
-                      backgroundColor: Colors.white.withValues(alpha: 0.25),
-                      valueColor:
-                          const AlwaysStoppedAnimation<Color>(storeAmber),
-                    );
-                  },
-                ),
-              ),
-
-              // Top-right Audio Toggle
-              Positioned(
-                top: 8,
-                right: 10,
-                child: IconButton(
-                  icon: Icon(
-                    _isMuted ? Icons.volume_off : Icons.volume_up,
-                    color: Colors.white,
-                    size: 15,
-                  ),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.black.withValues(alpha: 0.4),
-                    padding: const EdgeInsets.all(5),
-                    minimumSize: const Size(28, 28),
-                  ),
-                  onPressed: _toggleMute,
-                  tooltip: _isMuted ? 'Unmute video' : 'Mute video',
-                ),
-              ),
-
-              // Previous Arrow (Left)
-              Positioned(
-                left: 8,
-                top: 0,
-                bottom: 0,
-                child: Center(
-                  child: _buildNavArrow(
-                    icon: Icons.chevron_left,
-                    onTap: _prevStory,
-                    tooltip: 'Previous story',
-                    isDark: true,
-                  ),
-                ),
-              ),
-
-              // Next Arrow (Right)
-              Positioned(
-                right: 8,
-                top: 0,
-                bottom: 0,
-                child: Center(
-                  child: _buildNavArrow(
-                    icon: Icons.chevron_right,
-                    onTap: () => _nextStory(animate: true),
-                    tooltip: 'Next story',
-                    isDark: true,
-                  ),
-                ),
-              ),
-
-              // Bottom Dots Indicator
-              Positioned(
-                bottom: 6,
-                left: 0,
-                right: 0,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(widget.farmStories.length, (i) {
-                    final isActive = i == _currentStory;
-                    return GestureDetector(
-                      onTap: () {
-                        _storyController.animateToPage(
-                          i,
-                          duration: const Duration(milliseconds: 350),
-                          curve: Curves.easeOut,
-                        );
-                        _startStoryProgress();
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        margin: const EdgeInsets.symmetric(horizontal: 2.5),
-                        width: isActive ? 16 : 5,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: isActive
-                              ? storeAmber
-                              : Colors.white.withValues(alpha: 0.4),
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStorySlide(HeroFarmStory story, {required bool isDesktop}) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // Background Media: Authentic farm photography (panoramic & unzoomed)
-        story.posterPath.startsWith('http')
-            ? Image.network(
-                story.posterPath,
-                fit: BoxFit.cover,
-                alignment: Alignment.center,
-                errorBuilder: (_, __, ___) => Image.asset(
-                  StoreImages.hero,
-                  fit: BoxFit.cover,
-                  alignment: Alignment.center,
-                  errorBuilder: (_, __, ___) => _buildStorySlideFallback(story),
-                ),
-              )
-            : Image.asset(
-                story.posterPath,
-                fit: BoxFit.cover,
-                alignment: Alignment.center,
-                errorBuilder: (_, __, ___) => Image.asset(
-                  StoreImages.hero,
-                  fit: BoxFit.cover,
-                  alignment: Alignment.center,
-                  errorBuilder: (_, __, ___) => _buildStorySlideFallback(story),
-                ),
-              ),
-
-        // High-contrast deep gradient overlay ensuring white typography remains 100% readable over every photo
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.black.withValues(alpha: 0.25),
-                Colors.transparent,
-                Colors.black.withValues(alpha: 0.55),
-                Colors.black.withValues(alpha: 0.88),
-              ],
-              stops: const [0.0, 0.25, 0.60, 1.0],
-            ),
-          ),
-        ),
-
-        // Story Overlay Content with safe left/right clearance from carousel arrows
-        Positioned(
-          left: isDesktop ? 54 : 44,
-          right: isDesktop ? 40 : 32,
-          bottom: isDesktop ? 16 : 10,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Quiet Category Eyebrow
-              Text(
-                story.storyBadge.toUpperCase(),
-                style: TextStyle(
-                  fontSize: isDesktop ? 9.5 : 8.5,
-                  fontWeight: FontWeight.w700,
-                  color: storeAmber,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 3),
-
-              // Powerful Story Title
-              Text(
-                story.title,
-                style: TextStyle(
-                  fontSize: isDesktop ? 16 : 13.5,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                  height: 1.15,
-                  shadows: const [
-                    Shadow(
-                      color: Colors.black87,
-                      offset: Offset(0, 1.5),
-                      blurRadius: 6,
                     ),
                   ],
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 6),
-
-              // Harmonized "Explore story →" Action Button
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: storeAmber,
-                  foregroundColor: storeGreen,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isDesktop ? 13 : 11,
-                    vertical: isDesktop ? 5 : 4,
-                  ),
-                  minimumSize: const Size(0, 26),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  elevation: 0,
-                ),
-                onPressed: () => _openStoryDetail(story),
-                icon: Icon(Icons.play_circle_fill_outlined,
-                    size: isDesktop ? 13 : 11, color: storeGreen),
-                label: Text(
-                  'Explore story →',
-                  style: TextStyle(
-                    fontSize: isDesktop ? 11 : 10,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
               ),
             ],
           ),
         ),
-      ],
+      ),
     );
   }
+}
 
-  Widget _buildStorySlideFallback(HeroFarmStory story) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF143025),
-            Color(0xFF1F4434),
-            Color(0xFF2D5A45),
-            Color(0xFF10281E),
-          ],
-        ),
-      ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: const Color(0xFFD4AF37).withValues(alpha: 0.5),
-                  width: 1.5,
-                ),
-              ),
-              child: const Icon(
-                Icons.grass_rounded,
-                size: 38,
-                color: Color(0xFFD4AF37),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              story.title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-                letterSpacing: 0.3,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
+Widget _buildCleanImage(
+  String path, {
+  BoxFit fit = BoxFit.cover,
+  Alignment alignment = Alignment.center,
+}) {
+  if (path.startsWith('http')) {
+    return Image.network(
+      path,
+      fit: fit,
+      alignment: alignment,
+      errorBuilder: (_, __, ___) => Image.asset(StoreImages.hero, fit: fit),
     );
   }
-
-  // --------------------------------------------------------------------------
-  // Navigation Arrow Helper Button
-  // --------------------------------------------------------------------------
-  Widget _buildNavArrow({
-    required IconData icon,
-    required VoidCallback onTap,
-    required String tooltip,
-    bool isDark = false,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
-            color: isDark
-                ? Colors.black.withValues(alpha: 0.45)
-                : storeWhite.withValues(alpha: 0.95),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color:
-                  isDark ? Colors.white.withValues(alpha: 0.25) : storeBorder,
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x1a000000),
-                blurRadius: 4,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Icon(
-            icon,
-            size: 18,
-            color: isDark ? Colors.white : storeGreen,
-          ),
-        ),
-      ),
-    );
-  }
+  return Image.asset(
+    path,
+    fit: fit,
+    alignment: alignment,
+    errorBuilder: (_, __, ___) => Image.asset(StoreImages.hero, fit: fit),
+  );
 }

@@ -14,10 +14,12 @@ class StorefrontHero extends ConsumerWidget {
     super.key,
     required this.screenWidth,
     this.onExploreCategory,
+    this.showcaseKey,
   });
 
   final double screenWidth;
   final ValueChanged<String>? onExploreCategory;
+  final GlobalKey<HeroSplitShowcaseState>? showcaseKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,12 +27,16 @@ class StorefrontHero extends ConsumerWidget {
     final products = ref.watch(productsProvider(null)).valueOrNull;
     final byId = {
       for (final product in products ?? [])
-        if (product.isActive && product.canPurchase) product.id: product,
+        if (product.isActive) product.id: product,
     };
     final slides = <HeroProductSlide>[];
     for (final choice in config?.productSlides ?? <HomeHeroProduct>[]) {
       final product = byId[choice.productId];
       if (product == null) continue;
+      final image = choice.heroImage.isNotEmpty
+          ? choice.heroImage
+          : ((product.media.isNotEmpty ? product.media.first : null) ??
+              StoreImages.hero);
       slides.add(HeroProductSlide(
         id: product.id,
         category: storeCategory(product),
@@ -39,13 +45,16 @@ class StorefrontHero extends ConsumerWidget {
         packSize: product.packSize ?? product.unit,
         price: product.price,
         description: product.description ?? '',
-        imagePath: choice.heroImage,
+        imagePath: image,
+        hoverImagePath: choice.hoverImage,
+        hoverBadge: choice.hoverBadge,
         imageNote: choice.imageNote,
         targetRoute: '/shop/product/${product.id}',
       ));
     }
 
     return HeroSplitShowcase(
+      key: showcaseKey,
       screenWidth: screenWidth,
       onExploreCategory: onExploreCategory,
       productSlides: slides,

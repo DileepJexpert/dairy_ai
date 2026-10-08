@@ -1,0 +1,20 @@
+# Robots.txt for MILTERRA Foods (https://milterrafoods.com)
+User-agent: *
+Allow: /
+Allow: /*.html$
+Allow: /assets/
+
+# Disallow private user sessions, carts, and internal APIs
+Disallow: /api/
+Disallow: /admin/
+Disallow: /seller/
+Disallow: /marketplace/admin/
+Disallow: /marketplace/addresses
+Disallow: /marketplace/checkout
+Disallow: /cart/
+Disallow: /checkout/
+Disallow: /account/
+Disallow: /wallet/
+
+# Sitemap location
+Sitemap: https://milterrafoods.com/sitemap.xml

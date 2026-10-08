@@ -12,6 +12,9 @@ import '../../cart/widgets/store_cart_drawer.dart';
 import '../../commerce/models/taxonomy.dart';
 import '../../commerce/providers/commerce_provider.dart';
 import '../widgets/rfq_quote_dialog.dart';
+import '../widgets/farm_story_showcase.dart';
+import '../widgets/hero_split_showcase.dart';
+import '../models/hero_showcase_config.dart';
 import '../../../core/analytics_service.dart';
 
 class ProductListScreen extends ConsumerStatefulWidget {
@@ -30,8 +33,19 @@ class ProductListScreen extends ConsumerStatefulWidget {
 class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   final _search = TextEditingController();
   final _catalogueKey = GlobalKey();
+  final _heroKey = GlobalKey<HeroSplitShowcaseState>();
   final _minPriceCtrl = TextEditingController();
   final _maxPriceCtrl = TextEditingController();
+
+  void _onOurStoryPressed() {
+    // 1. Jump top hero carousel to farm story slide
+    _heroKey.currentState?.navigateToFirstStory();
+    // 2. Open rich authentic farm story interactive modal dialog
+    FarmStoryShowcase.showStoryDetail(
+      context,
+      defaultHeroFarmStories.first,
+    );
+  }
 
   String _category = 'All Organic Essentials', _sort = 'Featured';
   bool _inStock = false;
@@ -335,6 +349,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             StoreCategoryNavigation(
               selected: _category,
               onSelected: _browse,
+              onOurStoryPressed: _onOurStoryPressed,
               legacyEquipment: widget.category == ProductCategory.equipment,
             ),
             if (widget.category != ProductCategory.equipment &&
@@ -369,6 +384,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                       _category ==
                                           'All Organic Essentials')) ...[
                                 StorefrontHero(
+                                  showcaseKey: _heroKey,
                                   screenWidth: size.maxWidth,
                                   onExploreCategory: _browse,
                                 ),
@@ -489,8 +505,6 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                 ),
                               ),
 
-                              const SizedBox(height: 36),
-                              _editorial(isMobile),
                               const SizedBox(height: 24),
 
                               // Amazon-style Assurance Footer Strip
@@ -2589,37 +2603,6 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             .toList(),
       );
     });
-  }
-
-  Widget _editorial(bool small) {
-    final copy = Padding(
-        padding: StoreLayout.panelPadding,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Good food. Thoughtfully chosen.',
-              style: StoreType.heading),
-          const SizedBox(height: 12),
-          const Text(
-              'Browse products, compare pack sizes and find something for your everyday kitchen.',
-              style: StoreType.body),
-          const SizedBox(height: 12),
-          TextButton(
-              onPressed: () => _browse('All products'),
-              child: const Text('Explore all →',
-                  style: TextStyle(
-                      color: storeGreen, fontWeight: FontWeight.bold))),
-        ]));
-    final photo = SizedBox(
-        width: small ? double.infinity : 350,
-        height: 240,
-        child: Image.asset(StoreImages.hero,
-            fit: BoxFit.cover, alignment: Alignment.centerRight));
-    return ClipRRect(
-        borderRadius: BorderRadius.circular(StoreLayout.radius),
-        child: ColoredBox(
-            color: storeSage,
-            child: small
-                ? Column(children: [photo, copy])
-                : Row(children: [photo, Expanded(child: copy)])));
   }
 
   Widget _buildSarsoOilEmptyState(bool small) {

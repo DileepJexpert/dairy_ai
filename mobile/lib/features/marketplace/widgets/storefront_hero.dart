@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/hero_showcase_config.dart';
 import '../models/home_hero_config.dart';
+import '../models/product_models.dart';
 import '../providers/product_provider.dart';
 import '../providers/merchandising_provider.dart';
 import 'hero_split_showcase.dart';
@@ -31,8 +32,8 @@ class StorefrontHero extends ConsumerWidget {
     final placements =
         ref.watch(storefrontPlacementsProvider).valueOrNull ?? [];
 
-    final byId = {
-      for (final product in products ?? [])
+    final Map<String, Product> byId = {
+      for (final Product product in products ?? const <Product>[])
         if (product.isActive) product.id: product,
     };
 
@@ -68,7 +69,7 @@ class StorefrontHero extends ConsumerWidget {
         name: product.title,
         packSize: product.packSize ?? product.unit,
         price: product.price,
-        originalPrice: product.originalPrice ?? (product.price * 1.18),
+        originalPrice: product.compareAtPrice ?? (product.price * 1.18),
         description: product.description ?? '',
         imagePath: image,
         hoverImagePath: choice.hoverImage,
@@ -104,7 +105,7 @@ class StorefrontHero extends ConsumerWidget {
         name: p.title,
         packSize: p.packSize ?? p.unit,
         price: p.price,
-        originalPrice: p.price * 1.20,
+        originalPrice: p.compareAtPrice ?? (p.price * 1.20),
         description: p.description ?? '',
         imagePath: heroImg,
         targetRoute: '/shop/product/${p.id}',

@@ -59,7 +59,7 @@ final List<HeroProductSlide> _fallbackHeroProducts = [
     originalPrice: 1532.0,
     description: 'Golden granular ghee churned from Murrah buffalo cultured curd.',
     shortBenefit: 'Naturally thick granular texture · High energy Vedic nutrition',
-    imagePath: 'assets/store/buffalo-ghee.png',
+    imagePath: 'assets/store/cinematic-buffalo-ghee.jpg',
     hoverImagePath: 'assets/store/farm-bilona-cinematic.jpg',
     hoverBadge: 'Vedic Bilona Churning',
     targetRoute: '/shop/product/ad431721-27f9-477b-85ce-53def61d7f36',
@@ -480,44 +480,36 @@ class _EkarisProductCardState extends State<_EkarisProductCard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // TOP IMAGE STAGE: Clean, Uncluttered Natural Presentation with Hover Flip
+              // TOP IMAGE STAGE: Direct, Seamless Presentation with Hover Flip (Edge-to-Edge)
               SizedBox(
                 height: 180,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // Warm natural soft gradient background
+                    // Base background
                     Container(
-                      decoration: const BoxDecoration(
-                        gradient: RadialGradient(
-                          center: Alignment.center,
-                          radius: 0.85,
-                          colors: [
-                            Color(0xfffffdf9),
-                            Color(0xfff7f5ed),
-                          ],
-                        ),
-                      ),
+                      color: const Color(0xfffcfbf8),
                     ),
 
-                    // UN-CROPPED NATURAL PRODUCT IMAGE WITH SMOOTH HOVER FLIP
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 18, 14, 8),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 280),
-                        switchInCurve: Curves.easeInOut,
-                        switchOutCurve: Curves.easeInOut,
-                        transitionBuilder:
-                            (Widget child, Animation<double> animation) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: child,
-                          );
-                        },
-                        child: KeyedSubtree(
-                          key: ValueKey<String>(activeImagePath),
-                          child: isPngCutout
-                              ? Transform(
+                    // DIRECT SEAMLESS PRODUCT IMAGE WITH SMOOTH HOVER FLIP
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 280),
+                      switchInCurve: Curves.easeInOut,
+                      switchOutCurve: Curves.easeInOut,
+                      transitionBuilder:
+                          (Widget child, Animation<double> animation) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: child,
+                        );
+                      },
+                      child: KeyedSubtree(
+                        key: ValueKey<String>(activeImagePath),
+                        child: isPngCutout
+                            ? Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                                child: Transform(
                                   transform: Matrix4.identity()
                                     ..setEntry(3, 2, 0.001)
                                     ..rotateZ(_isHovered ? -0.015 : -0.03)
@@ -531,15 +523,13 @@ class _EkarisProductCardState extends State<_EkarisProductCard> {
                                       fit: BoxFit.contain,
                                     ),
                                   ),
-                                )
-                              : ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: _buildCleanImage(
-                                    activeImagePath,
-                                    fit: BoxFit.contain,
-                                  ),
                                 ),
-                        ),
+                              )
+                            : _buildCleanImage(
+                                activeImagePath,
+                                fit: BoxFit.cover,
+                                alignment: Alignment.center,
+                              ),
                       ),
                     ),
 

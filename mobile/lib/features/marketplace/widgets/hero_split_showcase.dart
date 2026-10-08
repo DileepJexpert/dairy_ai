@@ -29,7 +29,7 @@ final List<HeroProductSlide> _fallbackHeroProducts = [
     originalPrice: 2596.0,
     description: 'Traditional Vedic Bilona Ghee churned from cultured A2 curd in earthen pots.',
     shortBenefit: 'Curd-churned in clay pots · Handcrafted in Anand, Gujarat',
-    imagePath: 'assets/store/ghee-jar-1l.jpg',
+    imagePath: 'assets/store/cow-ghee-hero-cutout.png',
     hoverImagePath: 'assets/store/farm-pasture-cinematic.jpg',
     hoverBadge: 'Sahiwal Cows & Pasture',
     targetRoute: '/shop/product/ffd7186f-6cee-4b8e-9a87-6af173aabffd',
@@ -44,7 +44,7 @@ final List<HeroProductSlide> _fallbackHeroProducts = [
     originalPrice: 260.0,
     description: 'Pure cold-pressed mustard oil extracted on traditional wooden kolhu.',
     shortBenefit: 'First cold extraction · Zero heat or chemical treatment',
-    imagePath: 'assets/store/sarso-oil.jpg',
+    imagePath: 'assets/store/sarso-oil-hero-milterra-concept.png',
     hoverImagePath: 'assets/store/mustard-kolhu-machine.jpg',
     hoverBadge: 'Cold-Press Lakdi Kolhu',
     targetRoute: '/shop/product/54b52256-c0d6-436c-b8aa-737b35ab1636',
@@ -59,7 +59,7 @@ final List<HeroProductSlide> _fallbackHeroProducts = [
     originalPrice: 1532.0,
     description: 'Golden granular ghee churned from Murrah buffalo cultured curd.',
     shortBenefit: 'Naturally thick granular texture · High energy Vedic nutrition',
-    imagePath: 'assets/store/cinematic-buffalo-ghee.jpg',
+    imagePath: 'assets/store/buffalo-ghee-hero-cutout.png',
     hoverImagePath: 'assets/store/farm-bilona-cinematic.jpg',
     hoverBadge: 'Vedic Bilona Churning',
     targetRoute: '/shop/product/ad431721-27f9-477b-85ce-53def61d7f36',
@@ -74,7 +74,7 @@ final List<HeroProductSlide> _fallbackHeroProducts = [
     originalPrice: 160.0,
     description: 'Farm-fresh soft paneer made from whole A2 milk.',
     shortBenefit: 'Ultra-soft malai texture · Zero preservatives · 18g protein',
-    imagePath: 'assets/store/paneer.png',
+    imagePath: 'assets/store/paneer-hero-cutout.png',
     hoverImagePath: 'assets/store/farm-pasture-cinematic.jpg',
     hoverBadge: 'Fresh A2 Sahiwal Milk',
     targetRoute: '/shop/product/b20f6def-861a-4ba7-b7fa-dab5f4504278',
@@ -165,30 +165,23 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
       if (curatedStories.length >= 2) break;
     }
 
-    // Interleave: 3 products, 1 farm story (visible on 4-card desktop view!),
-    // followed by next products, and second story.
     int pIdx = 0;
     int sIdx = 0;
 
-    // First 3 products
-    while (pIdx < 3 && pIdx < products.length) {
+    // First 4 highlighted products (all 4 visible on desktop screen!)
+    while (pIdx < 4 && pIdx < products.length) {
       list.add(ProductHeroSlideItem(products[pIdx++]));
     }
-    // 1st farm story (appears as 4th card on desktop!)
+    // 1st farm story (appears as 5th card in carousel)
     if (sIdx < curatedStories.length) {
       list.add(StoryHeroSlideItem(curatedStories[sIdx++]));
     }
-    // Next 2 products
-    while (pIdx < 5 && pIdx < products.length) {
-      list.add(ProductHeroSlideItem(products[pIdx++]));
-    }
-    // 2nd farm story
-    if (sIdx < curatedStories.length) {
-      list.add(StoryHeroSlideItem(curatedStories[sIdx++]));
-    }
-    // Any remaining products
+    // Next products and remaining farm stories
     while (pIdx < products.length) {
       list.add(ProductHeroSlideItem(products[pIdx++]));
+      if (sIdx < curatedStories.length) {
+        list.add(StoryHeroSlideItem(curatedStories[sIdx++]));
+      }
     }
 
     _slides = list;
@@ -486,9 +479,19 @@ class _EkarisProductCardState extends State<_EkarisProductCard> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // Base background
+                    // Base background with subtle studio radial light
                     Container(
-                      color: const Color(0xfffcfbf8),
+                      decoration: const BoxDecoration(
+                        color: Color(0xfffcfbf8),
+                        gradient: RadialGradient(
+                          center: Alignment(0.0, -0.15),
+                          radius: 0.9,
+                          colors: [
+                            Color(0xffffffff),
+                            Color(0xfff5f3ec),
+                          ],
+                        ),
+                      ),
                     ),
 
                     // DIRECT SEAMLESS PRODUCT IMAGE WITH SMOOTH HOVER FLIP
@@ -517,19 +520,24 @@ class _EkarisProductCardState extends State<_EkarisProductCard> {
                           child: isPngCutout
                               ? Padding(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 12),
-                                  child: Transform(
-                                    transform: Matrix4.identity()
-                                      ..setEntry(3, 2, 0.001)
-                                      ..rotateZ(_isHovered ? -0.015 : -0.03)
-                                      ..rotateY(_isHovered ? 0.04 : 0.08),
-                                    alignment: Alignment.center,
-                                    child: Image.asset(
-                                      activeImagePath,
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (_, __, ___) => Image.asset(
-                                        StoreImages.hero,
+                                      horizontal: 14, vertical: 10),
+                                  child: AnimatedScale(
+                                    scale: _isHovered ? 1.05 : 1.0,
+                                    duration: const Duration(milliseconds: 200),
+                                    child: Transform(
+                                      transform: Matrix4.identity()
+                                        ..setEntry(3, 2, 0.0012)
+                                        ..rotateZ(_isHovered ? -0.012 : -0.035)
+                                        ..rotateY(_isHovered ? 0.04 : 0.09),
+                                      alignment: Alignment.center,
+                                      child: Image.asset(
+                                        activeImagePath,
                                         fit: BoxFit.contain,
+                                        filterQuality: FilterQuality.high,
+                                        errorBuilder: (_, __, ___) => Image.asset(
+                                          StoreImages.hero,
+                                          fit: BoxFit.contain,
+                                        ),
                                       ),
                                     ),
                                   ),

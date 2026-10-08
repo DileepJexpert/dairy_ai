@@ -14,11 +14,13 @@ class StorefrontHero extends ConsumerWidget {
     super.key,
     required this.screenWidth,
     this.onExploreCategory,
+    this.onAddToCart,
     this.showcaseKey,
   });
 
   final double screenWidth;
   final ValueChanged<String>? onExploreCategory;
+  final ValueChanged<HeroProductSlide>? onAddToCart;
   final GlobalKey<HeroSplitShowcaseState>? showcaseKey;
 
   @override
@@ -57,6 +59,7 @@ class StorefrontHero extends ConsumerWidget {
       key: showcaseKey,
       screenWidth: screenWidth,
       onExploreCategory: onExploreCategory,
+      onAddToCart: onAddToCart,
       productSlides: slides,
     );
   }

@@ -15,6 +15,8 @@ import '../widgets/rfq_quote_dialog.dart';
 import '../widgets/farm_story_showcase.dart';
 import '../widgets/hero_split_showcase.dart';
 import '../models/hero_showcase_config.dart';
+import '../widgets/lab_purity_dialog.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/analytics_service.dart';
 
 class ProductListScreen extends ConsumerStatefulWidget {
@@ -334,13 +336,291 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     }
   }
 
+  void _addHeroSlide(HeroProductSlide slide) {
+    final products = ref.read(productsProvider(null)).valueOrNull ?? [];
+    for (final p in products) {
+      if (p.id == slide.id) {
+        _add(p);
+        return;
+      }
+    }
+    context.go(slide.targetRoute);
+  }
+
+  Future<void> _openWhatsAppConcierge() async {
+    final text = Uri.encodeComponent(
+      'Hello Milterra Team! I would like to inquire about your pure Vedic A2 dairy and cold-pressed farm products.',
+    );
+    final uri = Uri.parse('https://wa.me/919839769808?text=$text');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (_) {
+      await launchUrl(uri, mode: LaunchMode.platformDefault);
+    }
+  }
+
+  Widget _buildWhatsAppFab(BuildContext context, {required bool isMobile}) {
+    return FloatingActionButton.extended(
+      heroTag: 'milterra-store-whatsapp-concierge',
+      backgroundColor: const Color(0xff25D366),
+      foregroundColor: Colors.white,
+      elevation: 4,
+      onPressed: _openWhatsAppConcierge,
+      icon: const Icon(Icons.chat_bubble_outline, size: 18),
+      label: Text(
+        isMobile ? 'WhatsApp' : 'Farm Specialist Concierge',
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.2,
+        ),
+      ),
+      tooltip: 'Chat on WhatsApp with Milterra Farm Specialist',
+    );
+  }
+
+  void _showCategoryPickerModal(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xffcbd5e1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Explore Departments',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: storeGreen,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _catModalChip(ctx, '🛒 All Essentials', 'All Organic Essentials'),
+                  _catModalChip(ctx, '🧈 A2 Cow Bilona Ghee', 'Vedic Bilona Ghee'),
+                  _catModalChip(ctx, '🥛 Fresh Milk & Paneer', 'Fresh Milk & Dairy'),
+                  _catModalChip(ctx, '🌻 Cold-Pressed Mustard Oil', 'Cold-Pressed Sarso (Mustard) Oil'),
+                  _catModalChip(ctx, '🌾 Stone-Ground Chakki Atta', 'Stone-Ground Chakki Atta & Flours'),
+                  _catModalChip(ctx, '🍯 Wood-Pressed Oils & Gur', 'Pure Sweeteners'),
+                  _catModalChip(ctx, '🧂 Native Spices & Salts', 'Terroir Salts & Native Spices'),
+                  _catModalChip(ctx, '🌱 Living Microgreens', 'Fresh Living Harvest'),
+                  _catModalChip(ctx, '🎁 Curated Gift Boxes', 'Curated Kitchen & Wellness Boxes'),
+                  _catModalChip(ctx, '🪔 Sacred Puja & Hawan', 'Puja & Hawan Samagri'),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _catModalChip(BuildContext ctx, String title, String key) {
+    final isSelected = _category == key ||
+        (_category == 'All products' && key == 'All Organic Essentials');
+    return InkWell(
+      onTap: () {
+        Navigator.pop(ctx);
+        _browse(key);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xff164e2e) : const Color(0xfff1f5f9),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? const Color(0xff164e2e) : const Color(0xffe2e8f0),
+          ),
+        ),
+        child: Text(
+          title,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+            color: isSelected ? Colors.white : const Color(0xff1e293b),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileBottomBar(BuildContext context) {
+    final cartCount = ref.watch(cartItemCountProvider);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xffe2e8f0), width: 1)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 10,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 60,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildBottomNavItem(
+                icon: Icons.storefront_outlined,
+                activeIcon: Icons.storefront,
+                label: 'Store',
+                isSelected: _category == 'All Organic Essentials' ||
+                    _category == 'All products' ||
+                    _category == 'All',
+                onTap: () {
+                  if (_category != 'All Organic Essentials' &&
+                      _category != 'All products' &&
+                      _category != 'All') {
+                    _reset();
+                  } else if (_scrollController.hasClients) {
+                    _scrollController.animateTo(
+                      0.0,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                    );
+                  }
+                },
+              ),
+              _buildBottomNavItem(
+                icon: Icons.grid_view_outlined,
+                activeIcon: Icons.grid_view,
+                label: 'Categories',
+                isSelected: false,
+                onTap: () => _showCategoryPickerModal(context),
+              ),
+              _buildBottomNavItem(
+                icon: Icons.verified_outlined,
+                activeIcon: Icons.verified,
+                label: 'Purity Lab',
+                isSelected: false,
+                badgeColor: const Color(0xff15803d),
+                badgeText: 'NABL',
+                onTap: () => showLabPurityDialog(context),
+              ),
+              _buildBottomNavItem(
+                icon: Icons.shopping_bag_outlined,
+                activeIcon: Icons.shopping_bag,
+                label: 'Cart',
+                isSelected: false,
+                cartCount: cartCount,
+                onTap: () => showStoreCart(context),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomNavItem({
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    int? cartCount,
+    String? badgeText,
+    Color? badgeColor,
+  }) {
+    final color =
+        isSelected ? const Color(0xff164e2e) : const Color(0xff64748b);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Badge(
+              isLabelVisible:
+                  (cartCount != null && cartCount > 0) || badgeText != null,
+              label: Text(
+                cartCount != null ? '$cartCount' : (badgeText ?? ''),
+                style:
+                    const TextStyle(fontSize: 9, fontWeight: FontWeight.w800),
+              ),
+              backgroundColor: badgeColor ?? const Color(0xffc58514),
+              textColor: Colors.white,
+              child: Icon(
+                isSelected ? activeIcon : icon,
+                color: color,
+                size: 22,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     _taxonomy = ref.watch(taxonomyProvider).valueOrNull;
     final catalogue = ref.watch(productsProvider(widget.category));
+    final isScreenMobile =
+        MediaQuery.sizeOf(context).width < StoreLayout.tablet;
 
     return Scaffold(
       backgroundColor: storeCream,
+      bottomNavigationBar:
+          isScreenMobile ? _buildMobileBottomBar(context) : null,
+      floatingActionButton:
+          _buildWhatsAppFab(context, isMobile: isScreenMobile),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: LayoutBuilder(builder: (context, size) {
         final isDesktop = size.maxWidth >= StoreLayout.desktop;
         final isMobile = size.maxWidth < StoreLayout.mobile;
@@ -400,6 +680,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                   showcaseKey: _heroKey,
                                   screenWidth: size.maxWidth,
                                   onExploreCategory: _browse,
+                                  onAddToCart: _addHeroSlide,
                                 ),
                                 const SizedBox(height: 14),
                               ],

@@ -91,6 +91,7 @@ class HeroSplitShowcase extends StatefulWidget {
     this.productSlides = const [],
     this.farmStories = defaultHeroFarmStories,
     this.onExploreCategory,
+    this.onAddToCart,
     this.autoPlay = true,
   });
 
@@ -98,6 +99,7 @@ class HeroSplitShowcase extends StatefulWidget {
   final List<HeroProductSlide> productSlides;
   final List<HeroFarmStory> farmStories;
   final ValueChanged<String>? onExploreCategory;
+  final ValueChanged<HeroProductSlide>? onAddToCart;
   final bool autoPlay;
 
   @override
@@ -309,6 +311,9 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                               widget.onExploreCategory!(item.slide.category);
                             }
                           },
+                          onAddToCart: widget.onAddToCart != null
+                              ? () => widget.onAddToCart!(item.slide)
+                              : null,
                         );
                       } else if (item is StoryHeroSlideItem) {
                         return _EkarisStoryCard(
@@ -404,12 +409,14 @@ class _EkarisProductCard extends StatefulWidget {
     required this.width,
     required this.height,
     required this.onTap,
+    this.onAddToCart,
   });
 
   final HeroProductSlide slide;
   final double width;
   final double height;
   final VoidCallback onTap;
+  final VoidCallback? onAddToCart;
 
   @override
   State<_EkarisProductCard> createState() => _EkarisProductCardState();
@@ -826,11 +833,11 @@ class _EkarisProductCardState extends State<_EkarisProductCard> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Action Button ("Shop Now →")
+                    // Action Button ("+ Add to Cart" with Cart Drawer)
                     SizedBox(
                       width: double.infinity,
                       height: 32,
-                      child: FilledButton(
+                      child: FilledButton.icon(
                         style: FilledButton.styleFrom(
                           backgroundColor: _isHovered
                               ? const Color(0xff164e2e)
@@ -842,9 +849,10 @@ class _EkarisProductCardState extends State<_EkarisProductCard> {
                           ),
                           elevation: 0,
                         ),
-                        onPressed: widget.onTap,
-                        child: const Text(
-                          'Shop Now →',
+                        onPressed: widget.onAddToCart ?? widget.onTap,
+                        icon: const Icon(Icons.add_shopping_cart, size: 14),
+                        label: const Text(
+                          'Add to Cart',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,

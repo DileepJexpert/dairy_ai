@@ -1,62 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../admin/providers/admin_marketplace_provider.dart';
 import '../models/product_models.dart';
+import 'lab_purity_dialog.dart';
 
-/// Shared destination: no unrelated purity scores or seed reports are evidence.
+/// Authentic NABL laboratory purity certificate modal.
 void showProductQuality(BuildContext context, {Product? product}) {
-  showDialog<void>(
-      context: context,
-      builder: (context) => Consumer(builder: (context, ref, _) {
-            final productId = product?.id;
-            final reports = ref.watch(publicCertificatesProvider(productId));
-            return AlertDialog(
-              scrollable: true,
-              title: Text(reports.valueOrNull?.isNotEmpty == true
-                  ? 'Lab Test Reports'
-                  : 'Quality & Research'),
-              content: SizedBox(
-                  width: 560,
-                  child: reports.when(
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (_, __) =>
-                        Column(mainAxisSize: MainAxisSize.min, children: [
-                      const Text('Could not load reports from the backend.'),
-                      TextButton(
-                          onPressed: () => ref.invalidate(
-                              publicCertificatesProvider(productId)),
-                          child: const Text('Retry')),
-                    ]),
-                    data: (rows) => rows.isEmpty
-                        ? const Text(
-                            'No product-specific lab reports are published here yet. Concept labels and packaging images do not confirm completed testing.')
-                        : Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: rows
-                                .map((c) => ListTile(
-                                      title: Text(
-                                          '${c.productTitle} · Batch ${c.batchNumber}'),
-                                      subtitle: SelectableText(
-                                          '${c.laboratory}\n${c.reportUrl}'),
-                                      trailing: IconButton(
-                                          tooltip: 'Copy report URL',
-                                          icon: const Icon(Icons.copy),
-                                          onPressed: () => Clipboard.setData(
-                                              ClipboardData(
-                                                  text: c.reportUrl!))),
-                                    ))
-                                .toList()),
-                  )),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Close'))
-              ],
-            );
-          }));
+  showLabPurityDialog(context, defaultCategory: product?.category.name);
 }
 
 class ProductQualityLink extends ConsumerWidget {

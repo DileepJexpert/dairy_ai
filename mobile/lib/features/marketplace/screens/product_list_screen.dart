@@ -401,7 +401,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                   screenWidth: size.maxWidth,
                                   onExploreCategory: _browse,
                                 ),
-                                const SizedBox(height: 20),
+                                const SizedBox(height: 14),
                               ],
 
                               // Visual Department Quick Navigation (Only shown on home / unfiltered store)

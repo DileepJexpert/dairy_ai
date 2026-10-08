@@ -49,6 +49,16 @@ flutter:
     - assets/store/farm-pasture.jpg
     - assets/store/farm-bilona.jpg
     - assets/store/farm-milking.jpg
+    - assets/store/farm-pasture-cinematic.jpg
+    - assets/store/farm-bilona-cinematic.jpg
+    - assets/store/cinematic-cow-ghee.jpg
+    - assets/store/cinematic-mustard-oil.jpg
+    - assets/store/cinematic-buffalo-ghee.jpg
+    - assets/store/cinematic-paneer.jpg
+    - assets/store/cow-ghee-3d-white.jpg
+    - assets/store/mustard-oil-3d-white.jpg
+    - assets/store/buffalo-ghee-3d-white.jpg
+    - assets/store/mustard-kolhu-machine.jpg
     - assets/store/minera-360-jar.jpg
     - assets/store/minera-360-vitamin.jpg
     - assets/store/nutrition-lineup.jpg

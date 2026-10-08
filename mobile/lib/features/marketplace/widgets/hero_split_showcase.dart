@@ -257,7 +257,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
   @override
   Widget build(BuildContext context) {
     final isDesktop = widget.screenWidth >= 1024;
-    const double cardHeight = 455.0;
+    const double cardHeight = 380.0;
 
     // Card width calculation: 4 cards fill desktop cleanly
     final visibleWidth = (widget.screenWidth - 32).clamp(320.0, 1200.0);
@@ -274,7 +274,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xffebe7dd), width: 1.0),
       ),
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 16),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -496,6 +496,14 @@ class _EkarisProductCardState extends State<_EkarisProductCard> {
                       duration: const Duration(milliseconds: 280),
                       switchInCurve: Curves.easeInOut,
                       switchOutCurve: Curves.easeInOut,
+                      layoutBuilder: (currentChild, previousChildren) => Stack(
+                        fit: StackFit.expand,
+                        alignment: Alignment.center,
+                        children: [
+                          ...previousChildren,
+                          if (currentChild != null) currentChild,
+                        ],
+                      ),
                       transitionBuilder:
                           (Widget child, Animation<double> animation) {
                         return FadeTransition(
@@ -505,31 +513,33 @@ class _EkarisProductCardState extends State<_EkarisProductCard> {
                       },
                       child: KeyedSubtree(
                         key: ValueKey<String>(activeImagePath),
-                        child: isPngCutout
-                            ? Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 12),
-                                child: Transform(
-                                  transform: Matrix4.identity()
-                                    ..setEntry(3, 2, 0.001)
-                                    ..rotateZ(_isHovered ? -0.015 : -0.03)
-                                    ..rotateY(_isHovered ? 0.04 : 0.08),
-                                  alignment: Alignment.center,
-                                  child: Image.asset(
-                                    activeImagePath,
-                                    fit: BoxFit.contain,
-                                    errorBuilder: (_, __, ___) => Image.asset(
-                                      StoreImages.hero,
+                        child: SizedBox.expand(
+                          child: isPngCutout
+                              ? Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
+                                  child: Transform(
+                                    transform: Matrix4.identity()
+                                      ..setEntry(3, 2, 0.001)
+                                      ..rotateZ(_isHovered ? -0.015 : -0.03)
+                                      ..rotateY(_isHovered ? 0.04 : 0.08),
+                                    alignment: Alignment.center,
+                                    child: Image.asset(
+                                      activeImagePath,
                                       fit: BoxFit.contain,
+                                      errorBuilder: (_, __, ___) => Image.asset(
+                                        StoreImages.hero,
+                                        fit: BoxFit.contain,
+                                      ),
                                     ),
                                   ),
+                                )
+                              : _buildCleanImage(
+                                  activeImagePath,
+                                  fit: BoxFit.cover,
+                                  alignment: Alignment.center,
                                 ),
-                              )
-                            : _buildCleanImage(
-                                activeImagePath,
-                                fit: BoxFit.cover,
-                                alignment: Alignment.center,
-                              ),
+                        ),
                       ),
                     ),
 
@@ -932,6 +942,14 @@ class _EkarisStoryCardState extends State<_EkarisStoryCard> {
                       duration: const Duration(milliseconds: 280),
                       switchInCurve: Curves.easeInOut,
                       switchOutCurve: Curves.easeInOut,
+                      layoutBuilder: (currentChild, previousChildren) => Stack(
+                        fit: StackFit.expand,
+                        alignment: Alignment.center,
+                        children: [
+                          ...previousChildren,
+                          if (currentChild != null) currentChild,
+                        ],
+                      ),
                       transitionBuilder:
                           (Widget child, Animation<double> animation) {
                         return FadeTransition(
@@ -941,10 +959,12 @@ class _EkarisStoryCardState extends State<_EkarisStoryCard> {
                       },
                       child: KeyedSubtree(
                         key: ValueKey<String>(activePoster),
-                        child: _buildCleanImage(
-                          activePoster,
-                          fit: BoxFit.cover,
-                          alignment: const Alignment(0.0, -0.35),
+                        child: SizedBox.expand(
+                          child: _buildCleanImage(
+                            activePoster,
+                            fit: BoxFit.cover,
+                            alignment: const Alignment(0.0, -0.35),
+                          ),
                         ),
                       ),
                     ),
@@ -1229,19 +1249,35 @@ Widget _buildCleanImage(
   String path, {
   BoxFit fit = BoxFit.cover,
   Alignment alignment = Alignment.center,
+  double? width,
+  double? height,
 }) {
   if (path.startsWith('http')) {
     return Image.network(
       path,
       fit: fit,
       alignment: alignment,
-      errorBuilder: (_, __, ___) => Image.asset(StoreImages.hero, fit: fit),
+      width: width ?? double.infinity,
+      height: height ?? double.infinity,
+      errorBuilder: (_, __, ___) => Image.asset(
+        StoreImages.hero,
+        fit: fit,
+        width: width ?? double.infinity,
+        height: height ?? double.infinity,
+      ),
     );
   }
   return Image.asset(
     path,
     fit: fit,
     alignment: alignment,
-    errorBuilder: (_, __, ___) => Image.asset(StoreImages.hero, fit: fit),
+    width: width ?? double.infinity,
+    height: height ?? double.infinity,
+    errorBuilder: (_, __, ___) => Image.asset(
+      StoreImages.hero,
+      fit: fit,
+      width: width ?? double.infinity,
+      height: height ?? double.infinity,
+    ),
   );
 }

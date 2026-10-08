@@ -22,17 +22,17 @@ class HomeHeroProduct {
 }
 
 const Map<String, String> _defaultHeroImages = {
-  'ffd7186f-6cee-4b8e-9a87-6af173aabffd': 'assets/store/ghee-jar-1l.jpg',
-  '54b52256-c0d6-436c-b8aa-737b35ab1636': 'assets/store/sarso-oil.jpg',
-  'ad431721-27f9-477b-85ce-53def61d7f36': 'assets/store/buffalo-ghee.png',
-  'b20f6def-861a-4ba7-b7fa-dab5f4504278': 'assets/store/paneer.png',
+  'ffd7186f-6cee-4b8e-9a87-6af173aabffd': 'assets/store/cinematic-3d-cow-ghee-jar.jpg',
+  '54b52256-c0d6-436c-b8aa-737b35ab1636': 'assets/store/cinematic-3d-mustard-oil-bottle.jpg',
+  'ad431721-27f9-477b-85ce-53def61d7f36': 'assets/store/cinematic-3d-buffalo-ghee-jar.jpg',
+  'b20f6def-861a-4ba7-b7fa-dab5f4504278': 'assets/store/cinematic-3d-paneer-pack.jpg',
   '603800ab-1b07-46c2-b840-6246056de521': 'assets/store/raw-mustard-honey.jpg',
   'bd71ec08-ad44-4938-921d-27316eb56590': 'assets/store/lakadong-turmeric.jpg',
 };
 
 const Map<String, String> _defaultHoverImages = {
   'ffd7186f-6cee-4b8e-9a87-6af173aabffd': 'assets/store/farm-pasture-cinematic.jpg',
-  '54b52256-c0d6-436c-b8aa-737b35ab1636': 'assets/store/mustard-kolhu-machine.jpg',
+  '54b52256-c0d6-436c-b8aa-737b35ab1636': 'assets/store/lakdi-kolhu-craft-hd.jpg',
   'ad431721-27f9-477b-85ce-53def61d7f36': 'assets/store/farm-bilona-cinematic.jpg',
   'b20f6def-861a-4ba7-b7fa-dab5f4504278': 'assets/store/farm-pasture-cinematic.jpg',
   '603800ab-1b07-46c2-b840-6246056de521': 'assets/store/farm-pasture.jpg',
@@ -71,11 +71,7 @@ class HomeHeroConfig {
       }
       final id = (raw['product_id'] as String).trim();
       var image = (raw['hero_image'] as String).trim();
-      // Ensure natural rustic photos are prioritized over old CGI renders
-      if ((image.contains('cinematic-cow-ghee') ||
-              image.contains('cinematic-mustard-oil') ||
-              image.contains('cinematic-buffalo-ghee')) &&
-          _defaultHeroImages.containsKey(id)) {
+      if (image.isEmpty && _defaultHeroImages.containsKey(id)) {
         image = _defaultHeroImages[id]!;
       }
 

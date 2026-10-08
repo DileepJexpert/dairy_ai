@@ -3,31 +3,31 @@
   "product_slides": [
     {
       "product_id": "ffd7186f-6cee-4b8e-9a87-6af173aabffd",
-      "hero_image": "assets/store/cow-ghee-hero-cutout.png",
+      "hero_image": "assets/store/cinematic-3d-cow-ghee-jar.jpg",
       "hover_image": "assets/store/farm-pasture-cinematic.jpg",
       "hover_badge": "Sahiwal Cows & Pasture",
-      "image_note": "A2 Sahiwal Cow Bilona Ghee 3D Tilted Jar"
+      "image_note": "A2 Sahiwal Cow Bilona Ghee Tilted 3D Jar"
     },
     {
       "product_id": "54b52256-c0d6-436c-b8aa-737b35ab1636",
-      "hero_image": "assets/store/sarso-oil-hero-milterra-concept.png",
-      "hover_image": "assets/store/mustard-kolhu-machine.jpg",
+      "hero_image": "assets/store/cinematic-3d-mustard-oil-bottle.jpg",
+      "hover_image": "assets/store/lakdi-kolhu-craft-hd.jpg",
       "hover_badge": "Cold-Press Lakdi Kolhu",
-      "image_note": "Wood-Pressed Mustard Oil 3D Tilted Bottle & Kolhu"
+      "image_note": "Wood-Pressed Mustard Oil Tilted 3D Bottle & Kolhu"
     },
     {
       "product_id": "ad431721-27f9-477b-85ce-53def61d7f36",
-      "hero_image": "assets/store/buffalo-ghee-hero-cutout.png",
+      "hero_image": "assets/store/cinematic-3d-buffalo-ghee-jar.jpg",
       "hover_image": "assets/store/farm-bilona-cinematic.jpg",
       "hover_badge": "Vedic Bilona Churning",
-      "image_note": "Cultured Buffalo Ghee 3D Tilted Jar"
+      "image_note": "Cultured Buffalo Ghee Tilted 3D Jar"
     },
     {
       "product_id": "b20f6def-861a-4ba7-b7fa-dab5f4504278",
-      "hero_image": "assets/store/paneer-hero-cutout.png",
+      "hero_image": "assets/store/cinematic-3d-paneer-pack.jpg",
       "hover_image": "assets/store/farm-pasture-cinematic.jpg",
       "hover_badge": "Fresh A2 Sahiwal Milk",
-      "image_note": "Fresh Sahiwal Milk Malai Paneer 3D Pack"
+      "image_note": "Fresh Sahiwal Milk Malai Paneer Tilted 3D Pack"
     },
     {
       "product_id": "603800ab-1b07-46c2-b840-6246056de521",

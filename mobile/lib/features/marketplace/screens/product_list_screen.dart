@@ -5,7 +5,6 @@ import '../../cart/providers/cart_provider.dart';
 import '../models/product_models.dart';
 import '../providers/product_provider.dart';
 import '../widgets/store_design.dart';
-import '../widgets/storefront_highlight_strip.dart';
 import '../widgets/store_product_card.dart';
 import '../widgets/storefront_hero.dart';
 import '../../cart/widgets/store_cart_drawer.dart';
@@ -645,13 +644,6 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
               onOurStoryPressed: _onOurStoryPressed,
               legacyEquipment: widget.category == ProductCategory.equipment,
             ),
-            if (widget.category != ProductCategory.equipment &&
-                widget.category != ProductCategory.feedNutrition &&
-                _search.text.isEmpty &&
-                (_category == 'All products' ||
-                    _category == 'All' ||
-                    _category == 'All Organic Essentials'))
-              const StorefrontHighlightStrip(),
 
             // Main Scrollable Content Area
             Expanded(

@@ -907,24 +907,23 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xff9a3412), Color(0xffc2410c), Color(0xff9a3412)],
-                  ),
+                  color: Color(0xfffffbeb),
+                  border: Border(bottom: BorderSide(color: Color(0xfffef3c7), width: 1)),
                 ),
                 child: Center(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.campaign_outlined, color: Colors.white, size: 16),
+                      const Icon(Icons.info_outline, color: Color(0xffb45309), size: 15),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          'OFFICIAL LAUNCH IN JANUARY 2027  ·  Explore our future product range. Please do not place live orders until official launch!',
+                          'OFFICIAL LAUNCH IN JANUARY 2027  ·  Explore our product range. Live orders begin at official launch.',
                           style: TextStyle(
-                            fontSize: isMobile ? 10.5 : 12,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            letterSpacing: 0.3,
+                            fontSize: isMobile ? 10.5 : 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xff92400e),
+                            letterSpacing: 0.2,
                           ),
                           textAlign: TextAlign.center,
                           maxLines: isMobile ? 2 : 1,
@@ -2326,7 +2325,7 @@ class ProductArtwork extends StatelessWidget {
       this.product,
       this.kind = 'Cow ghee',
       this.pack = '500 ml',
-      this.showCaption = true,
+      this.showCaption = false,
       this.fit = BoxFit.contain,
       this.imageIndex = 0});
   final Product? product;

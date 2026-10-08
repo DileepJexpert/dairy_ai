@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../cart/providers/wishlist_provider.dart';
 import '../models/product_models.dart';
 import 'store_design.dart';
@@ -32,6 +33,74 @@ class StoreProductCard extends StatefulWidget {
 
 class _StoreProductCardState extends State<StoreProductCard> {
   String? _selected;
+
+  Widget _buildTopBadges(Product p) {
+    final ratingVal = p.rating > 0 ? p.rating : 4.9;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // FSSAI 100% Vegetarian Dot Symbol
+        Container(
+          width: 14,
+          height: 14,
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xff2e7d32), width: 1.2),
+            borderRadius: BorderRadius.circular(2),
+          ),
+          child: const Center(
+            child: CircleAvatar(
+              radius: 2.5,
+              backgroundColor: Color(0xff2e7d32),
+            ),
+          ),
+        ),
+        const SizedBox(width: 5),
+        // Clean rating pill
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+          decoration: BoxDecoration(
+            color: const Color(0xfff3f6f4),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                ratingVal.toStringAsFixed(1),
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xff1b4d3e),
+                ),
+              ),
+              const SizedBox(width: 2),
+              const Icon(Icons.star, size: 9.5, color: Color(0xffc27803)),
+            ],
+          ),
+        ),
+        if (p.badge != null && p.badge!.isNotEmpty) ...[
+          const SizedBox(width: 5),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0xfffef3c7),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              p.badge!,
+              style: const TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                color: Color(0xff92400e),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = widget.packs
@@ -43,10 +112,21 @@ class _StoreProductCardState extends State<StoreProductCard> {
         : 0;
 
     return Container(
-        decoration: StoreLayout.panel,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xfff0eee9), width: 1),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0a000000),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
         child: Material(
-            color: storeWhite,
-            borderRadius: BorderRadius.circular(StoreLayout.radius),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
             clipBehavior: Clip.antiAlias,
             child: LayoutBuilder(builder: (context, constraints) {
               final isBounded = constraints.hasBoundedHeight;
@@ -61,58 +141,14 @@ class _StoreProductCardState extends State<StoreProductCard> {
                         onTap: () => widget.onOpen(p),
                         child: Padding(
                           padding: const EdgeInsets.all(12),
-                          child: ProductArtwork(product: p),
+                          child: ProductArtwork(product: p, showCaption: false),
                         ),
                       ),
-                      if (p.isConcept)
-                        Positioned(
-                          top: 8,
-                          left: 8,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: storeGreen,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              child: Text(
-                                'Concept Preview',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ),
-                          ),
-                        )
-                      else if (p.badge != null && p.badge!.isNotEmpty)
-                        Positioned(
-                          top: 8,
-                          left: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 7, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: p.badge!.toUpperCase().contains('BEST')
-                                  ? const Color(0xff232f3e)
-                                  : (p.badge!.toUpperCase().contains('DEAL')
-                                      ? const Color(0xffcc0c39)
-                                      : storeGreen),
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: Text(
-                              p.badge!,
-                              style: TextStyle(
-                                color: p.badge!.toUpperCase().contains('BEST')
-                                    ? const Color(0xffff9900)
-                                    : storeWhite,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: _buildTopBadges(p),
+                      ),
                       Positioned(
                         top: 8,
                         right: 8,
@@ -130,59 +166,15 @@ class _StoreProductCardState extends State<StoreProductCard> {
                         aspectRatio: StoreLayout.productImageAspectRatio,
                         child: Padding(
                           padding: const EdgeInsets.all(12),
-                          child: ProductArtwork(product: p),
+                          child: ProductArtwork(product: p, showCaption: false),
                         ),
                       ),
                     ),
-                    if (p.isConcept)
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: storeGreen,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            child: Text(
-                              'Concept Preview',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
-                    else if (p.badge != null && p.badge!.isNotEmpty)
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: p.badge!.toUpperCase().contains('BEST')
-                                ? const Color(0xff232f3e)
-                                : (p.badge!.toUpperCase().contains('DEAL')
-                                    ? const Color(0xffcc0c39)
-                                    : storeGreen),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                          child: Text(
-                            p.badge!,
-                            style: TextStyle(
-                              color: p.badge!.toUpperCase().contains('BEST')
-                                  ? const Color(0xffff9900)
-                                  : storeWhite,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ),
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: _buildTopBadges(p),
+                    ),
                     Positioned(
                       top: 8,
                       right: 8,
@@ -347,26 +339,81 @@ class _StoreProductCardState extends State<StoreProductCard> {
                                   style: const TextStyle(
                                       fontSize: 11, color: storeMuted)),
                               const SizedBox(height: 8),
-                              FilledButton(
-                                  style: p.isConcept
-                                      ? null
-                                      : StoreTheme.addToCartButton,
-                                  onPressed: p.isConcept
-                                      ? () => widget.onOpen(p)
-                                      : (!p.stockKnown ||
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor:
+                                            const Color(0xff1b4d3e),
+                                        side: const BorderSide(
+                                            color: Color(0xff1b4d3e),
+                                            width: 1.2),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 8),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                      ),
+                                      onPressed: p.isConcept
+                                          ? () => widget.onOpen(p)
+                                          : (!p.stockKnown ||
+                                                      (p.inStock &&
+                                                          p.availableQuantity >=
+                                                              p.minOrderQuantity)) &&
+                                                  !busy
+                                              ? () => widget.onAdd(p)
+                                              : null,
+                                      child: Text(
+                                        busy ? 'Adding…' : 'Add to Cart',
+                                        style: const TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: FilledButton(
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xffc27803),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 8),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                      ),
+                                      onPressed: p.isConcept
+                                          ? () => widget.onOpen(p)
+                                          : (!p.stockKnown ||
                                                   (p.inStock &&
                                                       p.availableQuantity >=
-                                                          p.minOrderQuantity)) &&
-                                              !busy
-                                          ? () => widget.onAdd(p)
-                                          : null,
-                                  child: Text(
-                                      p.isConcept
-                                          ? 'Explore Concept'
-                                          : busy
-                                              ? 'Adding…'
-                                              : 'Add to cart',
-                                      textAlign: TextAlign.center)),
+                                                          p.minOrderQuantity))
+                                              ? () {
+                                                  widget.onAdd(p);
+                                                  context.go('/cart/checkout');
+                                                }
+                                              : null,
+                                      child: const Text(
+                                        'Buy Now',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ])),
                   ]);
             })));

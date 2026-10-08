@@ -394,25 +394,8 @@ class _EkarisProductCard extends StatefulWidget {
   State<_EkarisProductCard> createState() => _EkarisProductCardState();
 }
 
-class _EkarisProductCardState extends State<_EkarisProductCard>
-    with SingleTickerProviderStateMixin {
+class _EkarisProductCardState extends State<_EkarisProductCard> {
   bool _isHovered = false;
-  late final AnimationController _pulseController = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  )..repeat(reverse: true);
-
-  late final Animation<double> _pulseAnim =
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut);
-
-  late final Animation<double> _blinkAnim =
-      Tween<double>(begin: 0.25, end: 1.0).animate(_pulseAnim);
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -431,16 +414,10 @@ class _EkarisProductCardState extends State<_EkarisProductCard>
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: widget.onTap,
-        child: AnimatedBuilder(
-          animation: _pulseController,
-          builder: (context, _) {
-            final pulseVal = _pulseAnim.value;
-            final blinkVal = _blinkAnim.value;
-
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOutCubic,
-              width: widget.width,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          width: widget.width,
               transform: _isHovered
                   ? (Matrix4.identity()
                     ..setEntry(3, 2, 0.0006)
@@ -458,38 +435,26 @@ class _EkarisProductCardState extends State<_EkarisProductCard>
                 ),
                 border: Border.all(
                   color: isHighlighted
-                      ? Color.lerp(
-                          const Color(0xfff59e0b),
-                          const Color(0xff10b981),
-                          pulseVal,
-                        )!
+                      ? const Color(0xffc27803)
                       : (_isHovered
                           ? const Color(0xff166534)
                           : const Color(0xffe8e5de)),
-                  width: isHighlighted ? 2.5 : (_isHovered ? 1.4 : 1.0),
+                  width: isHighlighted ? 1.5 : (_isHovered ? 1.2 : 1.0),
                 ),
                 boxShadow: [
-                  if (isHighlighted) ...[
+                  if (isHighlighted)
                     BoxShadow(
-                      color: const Color(0xfff59e0b)
-                          .withValues(alpha: 0.25 + 0.35 * pulseVal),
-                      blurRadius: 16 + 10 * pulseVal,
-                      spreadRadius: 1.0 + 2.0 * pulseVal,
+                      color: const Color(0xffc27803).withValues(alpha: 0.10),
+                      blurRadius: 14,
                       offset: const Offset(0, 4),
-                    ),
-                    BoxShadow(
-                      color: const Color(0xff10b981)
-                          .withValues(alpha: 0.15 + 0.15 * pulseVal),
-                      blurRadius: 24,
-                      spreadRadius: 0.5,
-                    ),
-                  ] else
+                    )
+                  else
                     BoxShadow(
                       color: _isHovered
-                          ? const Color(0x18000000)
-                          : const Color(0x0a000000),
-                      blurRadius: _isHovered ? 16 : 8,
-                      offset: Offset(0, _isHovered ? 6 : 2),
+                          ? const Color(0x14000000)
+                          : const Color(0x08000000),
+                      blurRadius: _isHovered ? 14 : 6,
+                      offset: Offset(0, _isHovered ? 5 : 2),
                     ),
                 ],
               ),
@@ -497,69 +462,27 @@ class _EkarisProductCardState extends State<_EkarisProductCard>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // HIGHLIGHTED DEAL OF THE DAY BANNER RIBBON (KEEP BLINKING ON SCREEN)
+                  // HIGHLIGHTED DEAL HEADER RIBBON (ELEGANT & CLEAN)
                   if (isHighlighted)
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
+                          horizontal: 10, vertical: 5),
                       decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Color(0xffb45309), // Amber 700
-                            Color(0xffd97706), // Amber 600
-                            Color(0xff166534), // Emerald 700
-                          ],
-                        ),
+                        color: Color(0xff1e201e),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Pulsing Red/Golden Beacon Dot
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: const Color(0xffef4444)
-                                  .withValues(alpha: blinkVal),
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xffef4444)
-                                      .withValues(alpha: blinkVal),
-                                  blurRadius: 6,
-                                  spreadRadius: 2,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 6),
+                          const Icon(Icons.star, size: 12, color: Color(0xfff59e0b)),
+                          const SizedBox(width: 5),
                           Text(
-                            slide.highlightBadge ?? '⚡ TOP SELLER OF THE DAY',
+                            slide.highlightBadge ?? 'TOP SELLER OF THE DAY',
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: Color(0xfffef3c7),
                               fontSize: 10.5,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.6,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 5, vertical: 1.5),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.25),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'LIVE',
-                              style: TextStyle(
-                                color: const Color(0xfffef08a)
-                                    .withValues(alpha: blinkVal),
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.5,
-                              ),
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
                             ),
                           ),
                         ],
@@ -943,12 +866,12 @@ class _EkarisProductCardState extends State<_EkarisProductCard>
                         onPressed: widget.onAddToCart ?? widget.onTap,
                         icon: Icon(
                           isHighlighted
-                              ? Icons.flash_on
+                              ? Icons.shopping_bag_outlined
                               : Icons.add_shopping_cart,
                           size: 14,
                         ),
                         label: Text(
-                          isHighlighted ? 'Claim Deal & Add 🛒' : 'Add to Cart',
+                          isHighlighted ? 'Add Deal to Cart' : 'Add to Cart',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
@@ -961,11 +884,9 @@ class _EkarisProductCardState extends State<_EkarisProductCard>
               ),
             ],
           ),
-        );
-      },
-    ),
-  ),
-);
+        ),
+      ),
+    );
   }
 }
 

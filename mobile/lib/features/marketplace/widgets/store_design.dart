@@ -15,7 +15,10 @@ import 'store_account_menu.dart';
 import 'lab_purity_dialog.dart';
 import '../../../core/analytics_service.dart';
 import 'store_category_mega_menu.dart';
+import 'store_search_dropdown_overlay.dart';
+import '../../../core/storage.dart';
 export 'store_category_mega_menu.dart';
+export 'store_search_dropdown_overlay.dart';
 export '../../../app/store_theme.dart';
 
 // Natural Earth Palette for MILTERRA Earth
@@ -278,9 +281,21 @@ class StoreHeader extends ConsumerStatefulWidget {
   ConsumerState<StoreHeader> createState() => _StoreHeaderState();
 }
 
-class _StoreHeaderState extends ConsumerState<StoreHeader> {
+class _StoreHeaderState extends ConsumerState<StoreHeader>
+    with WidgetsBindingObserver {
   late final TextEditingController _searchCtrl;
   String _selectedCategory = 'All';
+
+  final GlobalKey _headerKey = GlobalKey();
+  final GlobalKey _searchBarKey = GlobalKey();
+  final FocusNode _searchFocusNode = FocusNode();
+  OverlayEntry? _searchOverlayEntry;
+  List<String> _recentSearches = const [
+    'A2 Sahiwal Cow Ghee',
+    'Lakdi Ghani Mustard Oil',
+    'Raw Mustard Honey',
+    'Fresh Malai Paneer',
+  ];
 
   static String _normalizeCategory(String? cat) {
     if (cat == null || cat.trim().isEmpty) return 'All';
@@ -298,8 +313,18 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _searchCtrl = TextEditingController(text: widget.initialSearch);
     _selectedCategory = _normalizeCategory(widget.currentCategory);
+    _searchFocusNode.addListener(_onSearchFocusChange);
+    _loadRecentSearches();
+  }
+
+  @override
+  void didChangeMetrics() {
+    if (_searchOverlayEntry != null) {
+      _closeSearchOverlay();
+    }
   }
 
   @override
@@ -317,17 +342,130 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
   }
 
   @override
+  void deactivate() {
+    _closeSearchOverlay();
+    super.deactivate();
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _closeSearchOverlay();
+    _searchFocusNode.removeListener(_onSearchFocusChange);
+    _searchFocusNode.dispose();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadRecentSearches() async {
+    try {
+      final saved =
+          await ref.read(secureStorageServiceProvider).getRecentSearches();
+      if (saved.isNotEmpty && mounted) {
+        setState(() {
+          _recentSearches = saved;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _addRecentSearch(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
+    final updated = [
+      trimmed,
+      ..._recentSearches.where((s) => s.toLowerCase() != trimmed.toLowerCase())
+    ].take(10).toList();
+    if (mounted) {
+      setState(() {
+        _recentSearches = updated;
+      });
+    }
+    try {
+      await ref.read(secureStorageServiceProvider).setRecentSearches(updated);
+    } catch (_) {}
+  }
+
+  Future<void> _removeRecentSearch(String query) async {
+    final updated = _recentSearches.where((s) => s != query).toList();
+    setState(() {
+      _recentSearches = updated;
+    });
+    try {
+      await ref.read(secureStorageServiceProvider).setRecentSearches(updated);
+    } catch (_) {}
+  }
+
+  Future<void> _clearAllRecentSearches() async {
+    setState(() {
+      _recentSearches = const [];
+    });
+    try {
+      await ref.read(secureStorageServiceProvider).setRecentSearches(const []);
+    } catch (_) {}
+  }
+
+  void _onSearchFocusChange() {
+    if (_searchFocusNode.hasFocus) {
+      _openSearchOverlay();
+    }
+  }
+
+  void _openSearchOverlay() {
+    if (_searchOverlayEntry != null || !mounted) return;
+    _searchOverlayEntry = OverlayEntry(
+      builder: (ctx) => StoreSearchDropdownOverlay(
+        headerKey: _headerKey,
+        searchBarKey: _searchBarKey,
+        searchController: _searchCtrl,
+        searchFocusNode: _searchFocusNode,
+        recentSearches: _recentSearches,
+        onRemoveRecent: (item) {
+          _removeRecentSearch(item);
+          _searchOverlayEntry?.markNeedsBuild();
+        },
+        onClearAllRecent: () {
+          _clearAllRecentSearches();
+          _searchOverlayEntry?.markNeedsBuild();
+        },
+        onSelectQuery: (query) {
+          _searchCtrl.text = query;
+          _addRecentSearch(query);
+          _closeSearchOverlay();
+          _triggerSearch();
+        },
+        onSelectProduct: (productId) {
+          _closeSearchOverlay();
+          _searchFocusNode.unfocus();
+          context.push('/shop/product/$productId');
+        },
+        onClose: () {
+          _searchFocusNode.unfocus();
+          _closeSearchOverlay();
+        },
+      ),
+    );
+    Overlay.of(context, rootOverlay: true).insert(_searchOverlayEntry!);
+    if (mounted) setState(() {});
+  }
+
+  void _closeSearchOverlay() {
+    if (_searchOverlayEntry != null) {
+      _searchOverlayEntry?.remove();
+      _searchOverlayEntry = null;
+      if (mounted) setState(() {});
+    }
   }
 
   void _triggerSearch() {
     final query = _searchCtrl.text.trim();
     final effectiveCat = _normalizeCategory(_selectedCategory);
     if (query.isNotEmpty) {
+      _addRecentSearch(query);
       ref.read(analyticsServiceProvider).trackSearch(query, 0);
     }
+    _closeSearchOverlay();
+    _searchFocusNode.unfocus();
     storeBrowse(
       context,
       category: effectiveCat == 'All' ||
@@ -350,6 +488,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
             true;
 
     return Container(
+      key: _headerKey,
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(
@@ -506,11 +645,12 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                       ),
                     ],
 
-                    // Search Box (Desktop / Tablet - Centered & Clean like HealthKart)
+                    // Storefront Search Box (Desktop / Tablet)
                     if (!isMobile) ...[
                       const SizedBox(width: 20),
                       Expanded(
-                        child: widget.search ?? _buildAmazonSearchBar(),
+                        child: widget.search ??
+                            _buildAmazonSearchBar(barKey: _searchBarKey),
                       ),
                       const SizedBox(width: 20),
                     ] else ...[
@@ -629,7 +769,8 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                 Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  child: widget.search ?? _buildAmazonSearchBar(),
+                  child: widget.search ??
+                      _buildAmazonSearchBar(barKey: _searchBarKey),
                 ),
                 InkWell(
                   onTap: () => _showLocationSelector(context),
@@ -677,29 +818,52 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
     showPincodeSelectorDialog(context, ref);
   }
 
-  Widget _buildAmazonSearchBar() {
+  Widget _buildAmazonSearchBar({Key? barKey}) {
+    final hasFocus =
+        _searchOverlayEntry != null || _searchFocusNode.hasFocus;
     return Container(
+      key: barKey,
       height: 42,
       decoration: BoxDecoration(
-        color: const Color(0xfff4f6f8),
+        color: hasFocus ? Colors.white : const Color(0xfff4f6f8),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xffe5e7eb), width: 1),
+        border: Border.all(
+          color: hasFocus ? const Color(0xff16a34a) : const Color(0xffe5e7eb),
+          width: hasFocus ? 1.5 : 1,
+        ),
+        boxShadow: hasFocus
+            ? [
+                BoxShadow(
+                  color: const Color(0xff16a34a).withValues(alpha: 0.12),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                )
+              ]
+            : null,
       ),
       child: Row(
         children: [
           const SizedBox(width: 14),
-          const Icon(Icons.search, color: Color(0xff6b7280), size: 20),
+          Icon(
+            Icons.search,
+            color: hasFocus
+                ? const Color(0xff16a34a)
+                : const Color(0xff6b7280),
+            size: 20,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
               key: const ValueKey('store-search-field'),
+              focusNode: _searchFocusNode,
               controller: _searchCtrl,
               textInputAction: TextInputAction.search,
+              onTap: _openSearchOverlay,
               onSubmitted: (_) => _triggerSearch(),
               style: const TextStyle(fontSize: 13.5, color: Color(0xff111827)),
               decoration: InputDecoration(
                 hintText: widget.searchHint ??
-                    'Search for pure organic essentials (e.g. A2 Cow Ghee, Mustard Oil)...',
+                    'Search for products & brands...',
                 hintStyle:
                     const TextStyle(color: Color(0xff9ca3af), fontSize: 13),
                 border: InputBorder.none,
@@ -711,12 +875,17 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                             size: 16, color: Color(0xff9ca3af)),
                         onPressed: () {
                           _searchCtrl.clear();
-                          _triggerSearch();
+                          setState(() {});
                         },
                       )
                     : null,
               ),
-              onChanged: (_) => setState(() {}),
+              onChanged: (_) {
+                setState(() {});
+                if (_searchOverlayEntry == null && _searchFocusNode.hasFocus) {
+                  _openSearchOverlay();
+                }
+              },
             ),
           ),
           const SizedBox(width: 8),

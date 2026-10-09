@@ -65,6 +65,29 @@ class SecureStorageService {
     await _storage.delete(key: AppConstants.userDataKey);
   }
 
+  // --- Recent Searches ---
+
+  Future<List<String>> getRecentSearches() async {
+    try {
+      final raw = await _storage.read(key: 'store_recent_searches');
+      if (raw == null) return const [];
+      final decoded = json.decode(raw);
+      if (decoded is List) {
+        return decoded.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+      }
+      return const [];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> setRecentSearches(List<String> searches) async {
+    try {
+      final filtered = searches.map((e) => e.trim()).where((e) => e.isNotEmpty).take(12).toList();
+      await _storage.write(key: 'store_recent_searches', value: json.encode(filtered));
+    } catch (_) {}
+  }
+
   // --- Clear All ---
 
   Future<void> clearAll() async {

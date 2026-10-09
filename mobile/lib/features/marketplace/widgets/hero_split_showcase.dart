@@ -38,6 +38,8 @@ class _CinematicBannerData {
   final String couponPillText;
   final String footnoteText;
   final String targetRoute;
+  final Alignment? desktopAlignment;
+  final Alignment? mobileAlignment;
 
   const _CinematicBannerData({
     required this.headline,
@@ -55,6 +57,8 @@ class _CinematicBannerData {
     required this.couponPillText,
     required this.footnoteText,
     required this.targetRoute,
+    this.desktopAlignment,
+    this.mobileAlignment,
   });
 }
 
@@ -143,6 +147,8 @@ final List<_CinematicBannerData> _defaultCinematicBanners = [
     couponPillText: '+ EXTRA 15% OFF · CODE: BILONA15',
     footnoteText: '*Food-grade tin protects living nutrients from UV oxidation',
     targetRoute: '/shop/product/0e12db10-a3a8-40c2-a004-6ccdcb9d710b',
+    desktopAlignment: Alignment(0.0, 0.55),
+    mobileAlignment: Alignment(-0.6, 0.55),
   ),
   const _CinematicBannerData(
     headline: '2L KACCHI GHANI BLACK MUSTARD OIL\n(HERITAGE RECTANGULAR TIN)',
@@ -160,6 +166,8 @@ final List<_CinematicBannerData> _defaultCinematicBanners = [
     couponPillText: '+ EXTRA 15% OFF · CODE: SARSO15',
     footnoteText: '*Preserves Natural Allyl Isothiocyanate & Native Omega-3',
     targetRoute: '/shop/product/e7c41a29-8f3b-410a-b28e-5b12da612002',
+    desktopAlignment: Alignment(0.0, 0.55),
+    mobileAlignment: Alignment(-0.6, 0.55),
   ),
 ];
 
@@ -345,7 +353,9 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
               Image.asset(
                 item.panoramicImage,
                 fit: BoxFit.cover,
-                alignment: isMobile ? Alignment.centerLeft : Alignment.center,
+                alignment: isMobile
+                    ? (item.mobileAlignment ?? Alignment.centerLeft)
+                    : (item.desktopAlignment ?? Alignment.center),
               ),
 
               // 2. Subtle soft studio light vignette for guaranteed text contrast

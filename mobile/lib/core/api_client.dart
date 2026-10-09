@@ -165,10 +165,8 @@ Future<bool> _tryRefreshToken(
     final refreshToken = await storage.getRefreshToken();
     if (refreshToken == null) return false;
 
-    final response = await Dio(
-      BaseOptions(baseUrl: AppConstants.authBaseUrl),
-    ).post(
-      '/auth/refresh',
+    final response = await Dio().post(
+      '${AppConstants.authBaseUrl}/auth/refresh',
       data: {'refresh_token': refreshToken},
     );
 

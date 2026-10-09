@@ -13,8 +13,20 @@ class AppConstants {
   static const String _envBaseUrl =
       String.fromEnvironment('API_BASE_URL', defaultValue: '');
   // Allows verified customer auth to launch before the commerce API cutover.
-  static const String authApiOrigin =
+  static const String _envAuthApiOrigin =
       String.fromEnvironment('AUTH_API_BASE_URL', defaultValue: '');
+
+  static String get authApiOrigin {
+    if (_envAuthApiOrigin.isNotEmpty) return _envAuthApiOrigin;
+    if (kIsWeb) {
+      final host = Uri.base.host.toLowerCase();
+      if (host.contains('milterrafoods.com') || host.contains('pages.dev')) {
+        return 'https://milterra-api-staging.todileepmaurya.workers.dev';
+      }
+    }
+    return '';
+  }
+
   static bool get separateCustomerAuth => authApiOrigin.isNotEmpty;
   static String get authBaseUrl =>
       '${separateCustomerAuth ? authApiOrigin : apiBaseUrl}$apiVersion';
@@ -22,8 +34,12 @@ class AppConstants {
   static String get apiBaseUrl {
     if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
     if (kIsWeb) {
-      final host = Uri.base.host.isNotEmpty ? Uri.base.host : '127.0.0.1';
-      return 'http://$host:8000';
+      final host = Uri.base.host.toLowerCase();
+      if (host.contains('milterrafoods.com') || host.contains('pages.dev')) {
+        return 'https://milterra-api-staging.todileepmaurya.workers.dev';
+      }
+      final fallbackHost = Uri.base.host.isNotEmpty ? Uri.base.host : '127.0.0.1';
+      return 'http://$fallbackHost:8000';
     }
     return defaultTargetPlatform == TargetPlatform.android
         ? 'http://10.0.2.2:8000'

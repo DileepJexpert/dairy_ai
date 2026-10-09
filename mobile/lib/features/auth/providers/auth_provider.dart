@@ -110,12 +110,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final body = response.data as Map<String, dynamic>;
       if (body['access_token'] is String && body['refresh_token'] is String) {
         final accessToken = body['access_token'] as String;
-        final profileResponse = await Dio(
-          BaseOptions(
-            baseUrl: AppConstants.authBaseUrl,
-            headers: {'Authorization': 'Bearer $accessToken'},
-          ),
-        ).get('/auth/me');
+        final profileResponse = await Dio().get(
+          '${AppConstants.authBaseUrl}/auth/me',
+          options: Options(headers: {'Authorization': 'Bearer $accessToken'}),
+        );
         final profile = profileResponse.data['data'] as Map<String, dynamic>;
         final user = UserModel(
           id: profile['id'] as String,
@@ -203,12 +201,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (accessToken == null || refreshToken == null) {
         throw const FormatException('Authentication response was incomplete');
       }
-      final profileResponse = await Dio(
-        BaseOptions(
-          baseUrl: AppConstants.authBaseUrl,
-          headers: {'Authorization': 'Bearer $accessToken'},
-        ),
-      ).get('/auth/me');
+      final profileResponse = await Dio().get(
+        '${AppConstants.authBaseUrl}/auth/me',
+        options: Options(headers: {'Authorization': 'Bearer $accessToken'}),
+      );
       final profile = profileResponse.data['data'] as Map<String, dynamic>;
       final user = UserModel(
         id: profile['id'] as String,
@@ -237,11 +233,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return false;
     }
     try {
-      final response = await Dio(
-        BaseOptions(baseUrl: AppConstants.authBaseUrl),
-      ).post('/auth/refresh', data: {
-        'refresh_token': refreshToken,
-      });
+      final response = await Dio().post(
+        '${AppConstants.authBaseUrl}/auth/refresh',
+        data: {'refresh_token': refreshToken},
+      );
       final body = response.data as Map<String, dynamic>;
       if (body['success'] == true) {
         final data = body['data'] as Map<String, dynamic>;

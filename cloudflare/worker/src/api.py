@@ -45,6 +45,17 @@ for route in list(app.routes):
                           status_code=route.status_code, include_in_schema=False)
         existing_routes.update((legacy_path, method) for method in missing_methods)
 
+for route in list(app.routes):
+    if not isinstance(route, APIRoute) or not route.path.startswith("/api/v1/auth/"):
+        continue
+    legacy_path = route.path.replace("/api/v1/auth/", "/auth/", 1)
+    missing_methods = sorted(method for method in route.methods
+                             if (legacy_path, method) not in existing_routes)
+    if missing_methods:
+        app.add_api_route(legacy_path, route.endpoint, methods=missing_methods,
+                          status_code=route.status_code, include_in_schema=False)
+        existing_routes.update((legacy_path, method) for method in missing_methods)
+
 
 @app.middleware("http")
 async def storefront_cors(request: Request, call_next):
@@ -54,7 +65,7 @@ async def storefront_cors(request: Request, call_next):
     configured = getattr(env, "CORS_ORIGINS", "") or ""
     allowed = {value.strip().rstrip("/") for value in configured.split(",") if value.strip()}
     valid_origin = bool(origin and origin in allowed and origin != "*")
-    if request.url.path.startswith("/api/v1/auth/"):
+    if request.url.path.startswith(("/api/v1/auth/", "/auth/")):
         if origin and not valid_origin:
             return JSONResponse({"detail": "Origin not allowed"}, status_code=403)
         if request.method == "POST" and len(await request.body()) > 8192:
@@ -71,7 +82,7 @@ async def storefront_cors(request: Request, call_next):
         response.headers["Access-Control-Max-Age"] = "600"
     else:
         response = await call_next(request)
-    if request.url.path.startswith(("/api/v1/marketplace/", "/api/v1/auth/")):
+    if request.url.path.startswith(("/api/v1/marketplace/", "/api/v1/auth/", "/auth/")):
         response.headers["Cache-Control"] = "no-store"
     if valid_origin:
         response.headers["Access-Control-Allow-Origin"] = origin

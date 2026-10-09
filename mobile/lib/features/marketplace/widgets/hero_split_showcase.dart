@@ -1022,13 +1022,13 @@ class _HealthKartCampaignCard extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: const Color(0xfffcfbf9),
+        color: const Color(0xfffbf9f5),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xffeae6df), width: 1.2),
+        border: Border.all(color: const Color(0xffeae5dc), width: 1.2),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 12,
+            color: Color(0x10000000),
+            blurRadius: 10,
             offset: Offset(0, 4),
           ),
         ],
@@ -1041,30 +1041,31 @@ class _HealthKartCampaignCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Top Promotional Section
+              // Top Promotional Section (Directly on the card — NO inner patch box)
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     // Brand Logo / Header
                     Text(
                       poster.brand,
                       style: const TextStyle(
-                        fontSize: 10,
+                        fontSize: 9.5,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: 2.0,
-                        color: Color(0xff475569),
+                        letterSpacing: 2.2,
+                        color: Color(0xff64748b),
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     // Range Title
                     Text(
                       poster.title,
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xff111827),
+                        color: Color(0xff0f172a),
                         letterSpacing: -0.2,
                         height: 1.15,
                       ),
@@ -1072,14 +1073,14 @@ class _HealthKartCampaignCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     // Highlight Banner (e.g. PRICE DROPPED BY ₹200 / EXTRA 15% OFF)
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: const Color(0xfffef2f2),
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(5),
                         border: Border.all(
                             color: const Color(0xfffecaca), width: 0.8),
                       ),
@@ -1094,150 +1095,118 @@ class _HealthKartCampaignCard extends StatelessWidget {
                         textAlign: TextAlign.center,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    // White Deal Box with dashed border or neat border
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: const Color(0xffe2e8f0), width: 1),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x0a000000),
-                            blurRadius: 4,
-                            offset: Offset(0, 1),
+                    const SizedBox(height: 6),
+                    // Direct Price Row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          'Was ${poster.wasPrice}',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            color: Colors.grey.shade400,
+                            decoration: TextDecoration.lineThrough,
+                            fontWeight: FontWeight.w600,
                           ),
-                        ],
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Now ',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xff475569),
+                          ),
+                        ),
+                        Text(
+                          poster.nowPrice,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xffdc2626),
+                            letterSpacing: -0.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      poster.rewardTag,
+                      style: const TextStyle(
+                        fontSize: 9.5,
+                        color: Color(0xffb45309),
+                        fontWeight: FontWeight.w800,
                       ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Was ${poster.wasPrice}',
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  color: Colors.grey.shade500,
-                                  decoration: TextDecoration.lineThrough,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Container(
-                                width: 1,
-                                height: 10,
-                                color: Colors.grey.shade300,
-                              ),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  poster.rewardTag,
-                                  style: const TextStyle(
-                                    fontSize: 9.5,
-                                    color: Color(0xffb45309),
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 3),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text(
-                                'Now ',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xff334155),
-                                ),
-                              ),
-                              Text(
-                                poster.nowPrice,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xffdc2626),
-                                  letterSpacing: -0.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 5),
-                          // Amber Coupon Code Pill
-                          Material(
-                            color: const Color(0xfffef08a),
-                            borderRadius: BorderRadius.circular(4),
-                            child: InkWell(
-                              onTap: () {
-                                Clipboard.setData(
-                                    ClipboardData(text: poster.couponCode));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                        'Copied code: ${poster.couponCode}! Applied to range.'),
-                                    duration: const Duration(seconds: 2),
-                                    backgroundColor: const Color(0xff0d9488),
-                                  ),
-                                );
-                              },
-                              borderRadius: BorderRadius.circular(4),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(
-                                      color: const Color(0xfffde047),
-                                      width: 0.8),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'CODE : ${poster.couponCode}',
-                                      style: const TextStyle(
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w900,
-                                        color: Color(0xff854d0e),
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Icon(
-                                      Icons.copy,
-                                      size: 10,
-                                      color: Color(0xff854d0e),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    // Amber Coupon Code Pill
+                    Material(
+                      color: const Color(0xfffef08a),
+                      borderRadius: BorderRadius.circular(5),
+                      child: InkWell(
+                        onTap: () {
+                          Clipboard.setData(
+                              ClipboardData(text: poster.couponCode));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Copied code: ${poster.couponCode}! Applied to range.'),
+                              duration: const Duration(seconds: 2),
+                              backgroundColor: const Color(0xff0d9488),
                             ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(5),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 3),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(
+                                color: const Color(0xfffacc15),
+                                width: 0.9),
                           ),
-                        ],
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'CODE : ${poster.couponCode}',
+                                style: const TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xff854d0e),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.copy,
+                                size: 10,
+                                color: Color(0xff854d0e),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
 
-              // Bottom Product Render on Marble Pedestal
+              // Bottom Product Render (Runs edge-to-edge till the card's outer borders)
               Expanded(
                 child: Stack(
                   alignment: Alignment.bottomCenter,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                    Positioned.fill(
                       child: Image.asset(
                         poster.imagePath,
-                        fit: BoxFit.contain,
+                        fit: BoxFit.cover,
                         alignment: Alignment.bottomCenter,
                         errorBuilder: (_, __, ___) => const Center(
                           child: Icon(Icons.spa, color: Colors.amber, size: 40),
@@ -1246,12 +1215,13 @@ class _HealthKartCampaignCard extends StatelessWidget {
                     ),
                     const Positioned(
                       bottom: 4,
-                      right: 8,
+                      right: 6,
                       child: Text(
                         '*T&Cs Apply',
                         style: TextStyle(
                           fontSize: 7.5,
                           color: Color(0xff94a3b8),
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),

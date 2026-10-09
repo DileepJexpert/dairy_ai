@@ -364,8 +364,12 @@ class _CategoryMegaMenuOverlayState
 
     return Stack(
       children: [
-        // Barrier tap to dismiss
-        Positioned.fill(
+        // Dimmed backdrop beneath the subnav bar / button (does not cover button)
+        Positioned(
+          top: top,
+          left: 0,
+          right: 0,
+          bottom: 0,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: _dismiss,

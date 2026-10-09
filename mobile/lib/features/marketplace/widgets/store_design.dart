@@ -935,6 +935,13 @@ class _StoreCategoryNavigationState
   OverlayEntry? _categoryMenuOverlay;
   Timer? _closeTimer;
   bool _isButtonHovered = false;
+  bool _isMenuHovered = false;
+
+  @override
+  void deactivate() {
+    _closeCategoryMenu();
+    super.deactivate();
+  }
 
   @override
   void dispose() {
@@ -961,8 +968,14 @@ class _StoreCategoryNavigationState
         anchorOffset: buttonOffset,
         anchorSize: buttonSize,
         onClose: _closeCategoryMenu,
-        onHoverEnter: _cancelCloseCategoryMenu,
-        onHoverExit: _scheduleCloseCategoryMenu,
+        onHoverEnter: () {
+          _isMenuHovered = true;
+          _cancelCloseCategoryMenu();
+        },
+        onHoverExit: () {
+          _isMenuHovered = false;
+          _scheduleCloseCategoryMenu();
+        },
       ),
     );
 
@@ -972,8 +985,10 @@ class _StoreCategoryNavigationState
 
   void _scheduleCloseCategoryMenu() {
     _closeTimer?.cancel();
-    _closeTimer = Timer(const Duration(milliseconds: 250), () {
-      _closeCategoryMenu();
+    _closeTimer = Timer(const Duration(milliseconds: 300), () {
+      if (!_isButtonHovered && !_isMenuHovered) {
+        _closeCategoryMenu();
+      }
     });
   }
 
@@ -1021,11 +1036,13 @@ class _StoreCategoryNavigationState
                 // "Shop By Category" Hover & Tap Dropdown Trigger Button
                 MouseRegion(
                   onEnter: (_) {
-                    setState(() => _isButtonHovered = true);
+                    _isButtonHovered = true;
+                    if (mounted) setState(() {});
                     _openCategoryMenu();
                   },
                   onExit: (_) {
-                    setState(() => _isButtonHovered = false);
+                    _isButtonHovered = false;
+                    if (mounted) setState(() {});
                     _scheduleCloseCategoryMenu();
                   },
                   cursor: SystemMouseCursors.click,

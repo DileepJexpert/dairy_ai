@@ -125,7 +125,7 @@ final List<_CinematicBannerData> _defaultCinematicBanners = [
     regularPrice: 300,
     couponPillText: '+ INTRO COMBO 20% OFF · CODE: FRESH20',
     footnoteText: '*Cold-Chain Vacuum Sealed & Delivered Direct from Farm',
-    targetRoute: '/shop',
+    targetRoute: '/shop/product/b20f6def-861a-4ba7-b7fa-dab5f4504278',
   ),
 ];
 

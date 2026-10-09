@@ -484,9 +484,12 @@ class _StoreHeaderState extends ConsumerState<StoreHeader>
     final count = ref.watch(cartItemCountProvider);
     final wishlistCount = ref.watch(wishlistItemCountProvider);
     final location = ref.watch(selectedDeliveryLocationProvider);
+    final userRole = (user?.role ?? '').trim().toLowerCase();
     final canAdmin = user != null &&
-        ref.watch(commerceAccessProvider).valueOrNull?['can_manage_taxonomy'] ==
-            true;
+        (userRole == 'admin' ||
+            userRole == 'super_admin' ||
+            ref.watch(commerceAccessProvider).valueOrNull?['can_manage_taxonomy'] ==
+                true);
 
     return Container(
       key: _headerKey,
@@ -664,6 +667,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader>
                       firstName: user?.name?.split(' ').first ?? 'Customer',
                       cartCount: count,
                       wishlistCount: wishlistCount,
+                      isAdmin: canAdmin,
                       onNavigate: (destination) {
                         if (destination.startsWith('/login') ||
                             destination.startsWith('/register') ||
@@ -684,8 +688,8 @@ class _StoreHeaderState extends ConsumerState<StoreHeader>
                     if (canAdmin) ...[
                       const SizedBox(width: 4),
                       IconButton(
-                        tooltip: 'Commerce Admin',
-                        onPressed: () => context.go('/admin/commerce'),
+                        tooltip: 'Commerce Fulfillment & Orders',
+                        onPressed: () => context.go('/admin/commerce/orders'),
                         icon: const Icon(Icons.admin_panel_settings_outlined,
                             color: Color(0xffb45309), size: 22),
                       ),

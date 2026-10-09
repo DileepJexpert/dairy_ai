@@ -282,6 +282,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildAccountQuickHub(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
+    final userRole = (user?.role ?? '').trim().toLowerCase();
+    final isAdmin = userRole == 'admin' || userRole == 'super_admin';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -291,6 +294,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
+              if (isAdmin) ...[
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xffb45309).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.local_shipping_outlined,
+                        color: Color(0xffb45309)),
+                  ),
+                  title: const Text('Admin Orders & Fulfillment',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xff92400e))),
+                  subtitle: const Text(
+                      'Manage live orders, pack shipments, assign tracking & record COD payments'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                  onTap: () => context.push('/admin/commerce/orders'),
+                ),
+                const Divider(height: 1),
+              ],
               ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(8),

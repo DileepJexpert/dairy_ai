@@ -15,6 +15,7 @@ class StoreAccountMenu extends StatefulWidget {
     required this.firstName,
     required this.cartCount,
     required this.wishlistCount,
+    this.isAdmin = false,
     required this.onNavigate,
     required this.onSignOut,
   });
@@ -24,6 +25,7 @@ class StoreAccountMenu extends StatefulWidget {
   final String firstName;
   final int cartCount;
   final int wishlistCount;
+  final bool isAdmin;
   final ValueChanged<String> onNavigate;
   final VoidCallback onSignOut;
 
@@ -177,6 +179,14 @@ class _StoreAccountMenuState extends State<StoreAccountMenu> {
           Icons.account_balance_wallet_outlined, '/balance'),
       const _AccountLink('Help & support', Icons.help_outline, '/help'),
     ];
+    final adminOperations = [
+      const _AccountLink('Order Fulfillment (Admin)',
+          Icons.local_shipping_outlined, '/admin/commerce/orders'),
+      const _AccountLink('Ecommerce Master Panel',
+          Icons.admin_panel_settings_outlined, '/admin/ecommerce'),
+      const _AccountLink('Seller Operations Portal', Icons.storefront_outlined,
+          '/seller/portal'),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -220,6 +230,10 @@ class _StoreAccountMenuState extends State<StoreAccountMenu> {
               ? Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (widget.isAdmin) ...[
+                      _section('Store Operations', adminOperations),
+                      const Divider(height: 24),
+                    ],
                     _section('Your shopping', shopping),
                     const Divider(height: 24),
                     _section('Your lists', lists),
@@ -240,6 +254,10 @@ class _StoreAccountMenuState extends State<StoreAccountMenu> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          if (widget.isAdmin) ...[
+                            _section('Store Operations', adminOperations),
+                            const Divider(height: 16),
+                          ],
                           _section('Your account', account),
                           const Divider(height: 16),
                           _signOutLink(),

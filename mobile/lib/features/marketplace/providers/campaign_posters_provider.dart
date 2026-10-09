@@ -113,30 +113,30 @@ const List<CampaignPosterConfig> defaultCampaignPosters = [
     accentColor: Color(0xffb45309),
   ),
   CampaignPosterConfig(
-    id: 'lakadong-turmeric',
+    id: 'live-microgreens',
     brand: 'MILTERRA',
-    title: 'Meghalaya Lakadong Turmeric',
-    highlightTag: 'HIGH CURCUMIN (>7.2%)',
+    title: 'Live Farm Microgreens',
+    highlightTag: 'HARVESTED ON ORDER (LIVE)',
     wasPrice: '₹220',
-    nowPrice: '₹180',
-    rewardTag: 'Zero Chemical Polishing',
-    couponCode: 'LAKADONG10',
-    imagePath: 'assets/store/lakadong-turmeric.jpg',
-    category: 'High-Curcumin Spices',
-    accentColor: Color(0xff0d9488),
+    nowPrice: '₹160',
+    rewardTag: '+ 5% Milterra Coins',
+    couponCode: 'GREENS20',
+    imagePath: 'assets/store/live-microgreens.jpg',
+    category: 'Hydroponic & Organic Greens',
+    accentColor: Color(0xff15803d),
   ),
   CampaignPosterConfig(
-    id: 'goat-milk-soap',
+    id: 'white-butter',
     brand: 'MILTERRA',
-    title: 'Goat Milk & Raw Honey Soap',
-    highlightTag: 'COLD-PROCESSED LUXURY',
-    wasPrice: '₹250',
-    nowPrice: '₹199',
-    rewardTag: 'Chemical-Free Farm Fresh',
-    couponCode: 'SOAP15',
-    imagePath: 'assets/store/goat-milk-soap.jpg',
-    category: 'Vedic Skincare & Botanicals',
-    accentColor: Color(0xff16a34a),
+    title: 'Vedic A2 White Butter',
+    highlightTag: 'HAND-CHURNED BILONA MAKHAN',
+    wasPrice: '₹380',
+    nowPrice: '₹299',
+    rewardTag: 'Cultured Farm Makhan',
+    couponCode: 'MAKHAN15',
+    imagePath: 'assets/store/white-butter.jpg',
+    category: 'Vedic A2 Dairy & Farm Fresh',
+    accentColor: Color(0xffd97706),
   ),
 ];
 
@@ -145,7 +145,7 @@ class CampaignPostersNotifier extends StateNotifier<List<CampaignPosterConfig>> 
     _loadFromStorage();
   }
 
-  static const _storageKey = 'milterra_campaign_posters_v2';
+  static const _storageKey = 'milterra_campaign_posters_v3';
   final _storage = const FlutterSecureStorage();
 
   Future<void> _loadFromStorage() async {

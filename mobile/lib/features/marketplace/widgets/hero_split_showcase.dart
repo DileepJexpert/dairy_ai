@@ -147,8 +147,8 @@ final List<_CinematicBannerData> _defaultCinematicBanners = [
     couponPillText: '+ EXTRA 15% OFF · CODE: BILONA15',
     footnoteText: '*Food-grade tin protects living nutrients from UV oxidation',
     targetRoute: '/shop/product/0e12db10-a3a8-40c2-a004-6ccdcb9d710b',
-    desktopAlignment: Alignment(0.0, 0.55),
-    mobileAlignment: Alignment(-0.6, 0.55),
+    desktopAlignment: Alignment(0.0, 0.22),
+    mobileAlignment: Alignment(-0.6, 0.22),
   ),
   const _CinematicBannerData(
     headline: '2L KACCHI GHANI BLACK MUSTARD OIL\n(HERITAGE RECTANGULAR TIN)',
@@ -166,8 +166,8 @@ final List<_CinematicBannerData> _defaultCinematicBanners = [
     couponPillText: '+ EXTRA 15% OFF · CODE: SARSO15',
     footnoteText: '*Preserves Natural Allyl Isothiocyanate & Native Omega-3',
     targetRoute: '/shop/product/e7c41a29-8f3b-410a-b28e-5b12da612002',
-    desktopAlignment: Alignment(0.0, 0.55),
-    mobileAlignment: Alignment(-0.6, 0.55),
+    desktopAlignment: Alignment(0.0, 0.22),
+    mobileAlignment: Alignment(-0.6, 0.22),
   ),
 ];
 

@@ -650,7 +650,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader>
                       const SizedBox(width: 20),
                       Expanded(
                         child: widget.search ??
-                            _buildAmazonSearchBar(barKey: _searchBarKey),
+                            _buildStoreSearchBar(barKey: _searchBarKey),
                       ),
                       const SizedBox(width: 20),
                     ] else ...[
@@ -770,7 +770,7 @@ class _StoreHeaderState extends ConsumerState<StoreHeader>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   child: widget.search ??
-                      _buildAmazonSearchBar(barKey: _searchBarKey),
+                      _buildStoreSearchBar(barKey: _searchBarKey),
                 ),
                 InkWell(
                   onTap: () => _showLocationSelector(context),
@@ -818,40 +818,25 @@ class _StoreHeaderState extends ConsumerState<StoreHeader>
     showPincodeSelectorDialog(context, ref);
   }
 
-  Widget _buildAmazonSearchBar({Key? barKey}) {
-    final hasFocus =
-        _searchOverlayEntry != null || _searchFocusNode.hasFocus;
+  Widget _buildStoreSearchBar({Key? barKey}) {
     return Container(
       key: barKey,
       height: 42,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: hasFocus ? Colors.white : const Color(0xfff4f6f8),
+        color: const Color(0xfff4f6f8),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: hasFocus ? const Color(0xff16a34a) : const Color(0xffe5e7eb),
-          width: hasFocus ? 1.5 : 1,
-        ),
-        boxShadow: hasFocus
-            ? [
-                BoxShadow(
-                  color: const Color(0xff16a34a).withValues(alpha: 0.12),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                )
-              ]
-            : null,
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const SizedBox(width: 14),
-          Icon(
+          const SizedBox(width: 13),
+          const Icon(
             Icons.search,
-            color: hasFocus
-                ? const Color(0xff16a34a)
-                : const Color(0xff6b7280),
-            size: 20,
+            color: Color(0xff9ca3af),
+            size: 19,
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: TextField(
               key: const ValueKey('store-search-field'),
@@ -873,9 +858,14 @@ class _StoreHeaderState extends ConsumerState<StoreHeader>
                     ? IconButton(
                         icon: const Icon(Icons.clear,
                             size: 16, color: Color(0xff9ca3af)),
+                        splashRadius: 16,
+                        tooltip: 'Clear search',
                         onPressed: () {
                           _searchCtrl.clear();
                           setState(() {});
+                          if (_searchOverlayEntry != null) {
+                            _searchOverlayEntry?.markNeedsBuild();
+                          }
                         },
                       )
                     : null,
@@ -884,11 +874,32 @@ class _StoreHeaderState extends ConsumerState<StoreHeader>
                 setState(() {});
                 if (_searchOverlayEntry == null && _searchFocusNode.hasFocus) {
                   _openSearchOverlay();
+                } else if (_searchOverlayEntry != null) {
+                  _searchOverlayEntry?.markNeedsBuild();
                 }
               },
             ),
           ),
-          const SizedBox(width: 8),
+          // Amazon-style Yellow / Amber Search Action Button
+          Material(
+            color: const Color(0xfffebd69),
+            child: InkWell(
+              onTap: _triggerSearch,
+              hoverColor: const Color(0xfff3a847),
+              child: const Tooltip(
+                message: 'Search',
+                child: SizedBox(
+                  width: 44,
+                  height: 42,
+                  child: Icon(
+                    Icons.search,
+                    color: Color(0xff111827),
+                    size: 21,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

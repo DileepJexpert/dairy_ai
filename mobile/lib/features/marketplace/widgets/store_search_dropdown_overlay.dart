@@ -143,18 +143,19 @@ class _StoreSearchDropdownOverlayState
 
     double dropdownLeft;
     double dropdownWidth;
-    final double dropdownTop = searchOffset.dy + searchSize.height + 6;
+    final double dropdownTop = searchOffset.dy + searchSize.height + 3;
 
     if (isMobile) {
-      dropdownLeft = 12.0;
-      dropdownWidth = screenSize.width - 24.0;
-    } else {
-      // Desktop: align with search box and ensure generous comfortable width
-      dropdownWidth = math.max(searchSize.width, 580.0);
-      if (dropdownWidth > screenSize.width - 32) {
-        dropdownWidth = screenSize.width - 32;
-      }
       dropdownLeft = searchOffset.dx;
+      dropdownWidth = searchSize.width;
+      if (dropdownWidth > screenSize.width - 24) {
+        dropdownWidth = screenSize.width - 24;
+        dropdownLeft = 12.0;
+      }
+    } else {
+      // Desktop: align flush with search box
+      dropdownLeft = searchOffset.dx;
+      dropdownWidth = searchSize.width;
       if (dropdownLeft + dropdownWidth > screenSize.width - 16) {
         dropdownLeft =
             math.max(8.0, screenSize.width - dropdownWidth - 16);
@@ -206,24 +207,24 @@ class _StoreSearchDropdownOverlayState
                     constraints: BoxConstraints(maxHeight: maxHeight),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8),
                       border:
                           Border.all(color: const Color(0xffe5e7eb), width: 1),
                       boxShadow: const [
                         BoxShadow(
-                          color: Color(0x1a000000),
-                          blurRadius: 24,
-                          offset: Offset(0, 12),
+                          color: Color(0x18000000),
+                          blurRadius: 18,
+                          offset: Offset(0, 8),
                         ),
                         BoxShadow(
                           color: Color(0x0a000000),
-                          blurRadius: 6,
+                          blurRadius: 4,
                           offset: Offset(0, 2),
                         ),
                       ],
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8),
                       child: AnimatedBuilder(
                         animation: widget.searchController,
                         builder: (context, _) => _buildDropdownContent(context),

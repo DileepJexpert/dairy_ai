@@ -23,7 +23,7 @@ class _CinematicBannerData {
   final String feature1Text;
   final String feature2Icon;
   final String feature2Text;
-  final String cutoutImage;
+  final String panoramicImage;
   final String stampText;
   final String stampSub;
   final String priceDropText;
@@ -32,8 +32,6 @@ class _CinematicBannerData {
   final String couponPillText;
   final String footnoteText;
   final String targetRoute;
-  final List<Color> wallGradient;
-  final List<Color> shelfGradient;
 
   const _CinematicBannerData({
     required this.headline,
@@ -41,7 +39,7 @@ class _CinematicBannerData {
     required this.feature1Text,
     required this.feature2Icon,
     required this.feature2Text,
-    required this.cutoutImage,
+    required this.panoramicImage,
     required this.stampText,
     required this.stampSub,
     required this.priceDropText,
@@ -50,8 +48,6 @@ class _CinematicBannerData {
     required this.couponPillText,
     required this.footnoteText,
     required this.targetRoute,
-    required this.wallGradient,
-    required this.shelfGradient,
   });
 }
 
@@ -62,7 +58,7 @@ final List<_CinematicBannerData> _defaultCinematicBanners = [
     feature1Text: '100% Valona Churn',
     feature2Icon: '🌿',
     feature2Text: 'Certified A2 Beta-Casein',
-    cutoutImage: 'assets/store/cow-ghee-hero-cutout.png',
+    panoramicImage: 'assets/store/panoramic-cow-ghee-hero.jpg',
     stampText: '100% PURE\nBILONA',
     stampSub: 'NABL LAB',
     priceDropText: 'PRICE DROPPED BY ₹396',
@@ -71,8 +67,6 @@ final List<_CinematicBannerData> _defaultCinematicBanners = [
     couponPillText: '+ EXTRA 15% OFF · CODE: PURE15',
     footnoteText: '*Prepaid orders get instant free shipping | 100% Valona Guarantee',
     targetRoute: '/shop/product/ffd7186f-6cee-4b8e-9a87-6af173aabffd',
-    wallGradient: [Color(0xff6e8396), Color(0xff889dae), Color(0xffa4b6c5)],
-    shelfGradient: [Color(0xff4a5d6e), Color(0xff394a59)],
   ),
   const _CinematicBannerData(
     headline: '1L KACCHI GHANI BLACK MUSTARD OIL\n(HEIRLOOM LAKDI GHANI)',
@@ -80,7 +74,7 @@ final List<_CinematicBannerData> _defaultCinematicBanners = [
     feature1Text: 'Wood Kolhu <38°C',
     feature2Icon: '⚡',
     feature2Text: '100% Unrefined & Sulfur-Free',
-    cutoutImage: 'assets/store/sarso-oil-hero-milterra-concept.png',
+    panoramicImage: 'assets/store/panoramic-mustard-oil-hero.jpg',
     stampText: 'COLD PRESS\nKOLHU',
     stampSub: 'VIRGIN',
     priceDropText: 'PRICE DROPPED BY ₹40',
@@ -89,16 +83,14 @@ final List<_CinematicBannerData> _defaultCinematicBanners = [
     couponPillText: '+ FLAT 10% OFF · CODE: KOLHU10',
     footnoteText: '*Preserves Natural Allyl Isothiocyanate & Native Omega-3',
     targetRoute: '/shop/product/54b52256-c0d6-436c-b8aa-737b35ab1636',
-    wallGradient: [Color(0xff8a7e66), Color(0xffa4987f), Color(0xffbfb49d)],
-    shelfGradient: [Color(0xff5f543e), Color(0xff4c412c)],
   ),
   const _CinematicBannerData(
     headline: '1L CULTURED MURRAH BUFFALO GHEE\n(THICK DANEDAR GRAIN)',
     feature1Icon: '🍯',
-    feature1Text: 'Thick Granular Grain',
+    feature1Text: 'Thick Danedar Grain',
     feature2Icon: '💪',
     feature2Text: 'High Smoke Point for Cooking',
-    cutoutImage: 'assets/store/buffalo-ghee-hero-cutout.png',
+    panoramicImage: 'assets/store/panoramic-buffalo-ghee-hero.jpg',
     stampText: 'MURRAH\nHERITAGE',
     stampSub: 'DANEDAR',
     priceDropText: 'PRICE DROPPED BY ₹233',
@@ -107,8 +99,6 @@ final List<_CinematicBannerData> _defaultCinematicBanners = [
     couponPillText: '+ SAVE EXTRA ₹200 · CODE: MURRAH200',
     footnoteText: '*Naturally Sweet Aroma · Churned from Live Murrah Curd',
     targetRoute: '/shop/product/ad431721-27f9-477b-85ce-53def61d7f36',
-    wallGradient: [Color(0xff5b7c73), Color(0xff75968d), Color(0xff92b0a8)],
-    shelfGradient: [Color(0xff3c5a52), Color(0xff2b443d)],
   ),
   const _CinematicBannerData(
     headline: '500G FRESH LIVING MALAI PANEER\n(SAME-DAY CHURNED FRESH)',
@@ -116,7 +106,7 @@ final List<_CinematicBannerData> _defaultCinematicBanners = [
     feature1Text: 'Pure Whole A2 Cow Milk',
     feature2Icon: '🧊',
     feature2Text: 'Melt-In-Mouth Zero Starch',
-    cutoutImage: 'assets/store/paneer-hero-cutout.png',
+    panoramicImage: 'assets/store/panoramic-paneer-hero.jpg',
     stampText: 'SAME-DAY\nCHURN',
     stampSub: 'NO STARCH',
     priceDropText: 'PRICE DROPPED BY ₹60',
@@ -125,93 +115,41 @@ final List<_CinematicBannerData> _defaultCinematicBanners = [
     couponPillText: '+ INTRO COMBO 20% OFF · CODE: FRESH20',
     footnoteText: '*Cold-Chain Vacuum Sealed & Delivered Direct from Farm',
     targetRoute: '/shop',
-    wallGradient: [Color(0xff687391), Color(0xff838eaa), Color(0xff9ea8c2)],
-    shelfGradient: [Color(0xff47526e), Color(0xff343d54)],
   ),
 ];
 
 class _RangePosterData {
-  final String eyebrow;
   final String title;
-  final String badgeText;
   final String imagePath;
   final String category;
-  final List<Color> gradient;
 
   const _RangePosterData({
-    required this.eyebrow,
     required this.title,
-    required this.badgeText,
     required this.imagePath,
     required this.category,
-    required this.gradient,
   });
 }
 
 final List<_RangePosterData> _rangePosters = [
   const _RangePosterData(
-    eyebrow: 'MILTERRA HERITAGE',
     title: 'Vedic A2 Cow Ghee Range',
-    badgeText: '100% VALONA CHURN',
-    imagePath: 'assets/store/cinematic-cow-ghee.jpg',
+    imagePath: 'assets/store/poster-card-cow-ghee.jpg',
     category: 'Vedic Bilona Ghee',
-    gradient: [Color(0xff451a03), Color(0xff78350f), Color(0xff92400e)],
   ),
   const _RangePosterData(
-    eyebrow: 'HEIRLOOM KOLHU',
     title: 'Wood-Pressed Oils Range',
-    badgeText: 'COLD PRESSED · EXTRA VIRGIN',
-    imagePath: 'assets/store/cinematic-mustard-oil.jpg',
+    imagePath: 'assets/store/poster-card-mustard-oil.jpg',
     category: 'Cold-Pressed Sarso (Mustard) Oil',
-    gradient: [Color(0xff1c1917), Color(0xff292524), Color(0xff44403c)],
   ),
   const _RangePosterData(
-    eyebrow: 'MURRAH HERITAGE',
     title: 'Cultured Buffalo Ghee Range',
-    badgeText: 'THICK DANEDAR GRAIN',
-    imagePath: 'assets/store/cinematic-buffalo-ghee.jpg',
+    imagePath: 'assets/store/poster-card-buffalo-ghee.jpg',
     category: 'Cultured Buffalo Ghee',
-    gradient: [Color(0xff064e3b), Color(0xff065f46), Color(0xff047857)],
   ),
   const _RangePosterData(
-    eyebrow: 'FARM-TO-DOORSTEP',
     title: 'Fresh Living Dairy & Harvest',
-    badgeText: 'CHURNED SAME-DAY FRESH',
-    imagePath: 'assets/store/cinematic-paneer.jpg',
+    imagePath: 'assets/store/poster-card-paneer.jpg',
     category: 'Fresh Milk & Dairy',
-    gradient: [Color(0xff1e1b4b), Color(0xff312e81), Color(0xff3730a3)],
-  ),
-  const _RangePosterData(
-    eyebrow: 'NATIVE TERROIR',
-    title: 'Himalayan Salts & Spices',
-    badgeText: 'STONE POUNDED · UNREFINED',
-    imagePath: 'assets/store/lakadong-turmeric.jpg',
-    category: 'Terroir Salts & Native Spices',
-    gradient: [Color(0xff7c2d12), Color(0xff9a3412), Color(0xffc2410c)],
-  ),
-  const _RangePosterData(
-    eyebrow: 'PURE SWEETENERS',
-    title: 'Wild Forest Honey & Gur',
-    badgeText: '100% RAW & UNPASTEURIZED',
-    imagePath: 'assets/store/raw-mustard-honey.jpg',
-    category: 'Wood-Pressed Oils & Pure Sweeteners',
-    gradient: [Color(0xff713f12), Color(0xff854d0e), Color(0xffa16207)],
-  ),
-  const _RangePosterData(
-    eyebrow: 'STONE CHAKKI ATTA',
-    title: 'Heirloom Khapli & Flours',
-    badgeText: 'COLD MILLED · 100% BRAN',
-    imagePath: 'assets/store/khapli-atta.jpg',
-    category: 'Stone-Ground Chakki Atta & Flours',
-    gradient: [Color(0xff365314), Color(0xff3f6212), Color(0xff4d7c0f)],
-  ),
-  const _RangePosterData(
-    eyebrow: 'SACRED HERITAGE',
-    title: 'Panchagavya Hawan & Dhoop',
-    badgeText: 'INDIGENOUS COW ESSENTIALS',
-    imagePath: 'assets/store/panchagavya-dhoop.jpg',
-    category: 'Puja & Hawan: Sacred Essentials',
-    gradient: [Color(0xff3b0764), Color(0xff581c87), Color(0xff6b21a8)],
   ),
 ];
 
@@ -278,7 +216,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
   @override
   Widget build(BuildContext context) {
     final isMobile = widget.screenWidth < 880;
-    final double bannerHeight = isMobile ? 260.0 : 330.0;
+    final double bannerHeight = isMobile ? 240.0 : 310.0;
 
     return SizedBox(
       height: bannerHeight,
@@ -391,44 +329,33 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
           width: double.infinity,
           height: double.infinity,
           child: Stack(
+            fit: StackFit.expand,
             children: [
-              // 1. Studio Wall Gradient (Top 70%)
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: item.wallGradient,
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
+              // 1. Panoramic 16:9 Studio Background with 3D Tilted Product in Center
+              Image.asset(
+                item.panoramicImage,
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+              ),
+
+              // 2. Subtle soft studio light vignette for guaranteed text contrast
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.white.withValues(alpha: isMobile ? 0.70 : 0.30),
+                      Colors.transparent,
+                      Colors.transparent,
+                      Colors.white.withValues(alpha: isMobile ? 0.65 : 0.20),
+                    ],
+                    stops: const [0.0, 0.32, 0.68, 1.0],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
                   ),
                 ),
               ),
 
-              // 2. Realistic Perspective Shelf Base (Lower portion with specular highlight)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: isMobile ? 75 : 95,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: item.shelfGradient,
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                    border: const Border(
-                      top: BorderSide(
-                        color: Color(0x66ffffff),
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // 3. HealthKart Visual Content Composition
+              // 3. HealthKart Interactive UI Layout
               Positioned.fill(
                 child: isMobile
                     ? _buildMobileHeroSlide(item)
@@ -446,7 +373,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1280),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 52, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 52, vertical: 12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -460,27 +387,27 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                     Text(
                       item.headline,
                       style: const TextStyle(
-                        fontSize: 22,
+                        fontSize: 21,
                         fontWeight: FontWeight.w900,
                         color: Color(0xff0f172a),
                         letterSpacing: -0.3,
-                        height: 1.2,
+                        height: 1.18,
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
                     // Frosted Feature Capsule with divider
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
+                          horizontal: 14, vertical: 7),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.70),
+                        color: Colors.white.withValues(alpha: 0.75),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.85),
+                            color: Colors.white.withValues(alpha: 0.9),
                             width: 1.2),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.06),
+                            color: Colors.black.withValues(alpha: 0.05),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -524,49 +451,16 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                 ),
               ),
 
-              // CENTER: 3D Product Cutout Standing on Shelf + Circular Stamp
+              // CENTER: Open focal space showcasing the 3D tilted product jar & Circular Trust Stamp
               Expanded(
                 flex: 8,
                 child: Stack(
-                  alignment: Alignment.center,
                   clipBehavior: Clip.none,
                   children: [
-                    // Soft floor shadow
-                    Positioned(
-                      bottom: 8,
-                      child: Container(
-                        width: 165,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          borderRadius: const BorderRadius.all(
-                              Radius.elliptical(165, 14)),
-                          gradient: RadialGradient(
-                            colors: [
-                              Colors.black.withValues(alpha: 0.45),
-                              Colors.transparent,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Product Cutout Image
-                    Positioned(
-                      bottom: 12,
-                      child: Image.asset(
-                        item.cutoutImage,
-                        height: 245,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const Icon(
-                          Icons.spa,
-                          size: 90,
-                          color: Color(0xfffde047),
-                        ),
-                      ),
-                    ),
                     // Circular Trust Stamp Badge (like HealthKart's "INFORMED PROTEIN U.S.A")
                     Positioned(
-                      top: 10,
-                      right: 10,
+                      top: 14,
+                      right: 18,
                       child: _buildCircularStamp(item.stampText, item.stampSub),
                     ),
                   ],
@@ -583,26 +477,26 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                     Text(
                       item.priceDropText,
                       style: const TextStyle(
-                        fontSize: 17,
+                        fontSize: 16.5,
                         fontWeight: FontWeight.w900,
                         color: Color(0xff0f172a),
                         letterSpacing: -0.2,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
 
                     // HealthKart Dark Price Tag Box
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 10),
+                          horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
                         color: const Color(0xff334155),
                         borderRadius: BorderRadius.circular(10),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
@@ -625,10 +519,10 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                                 storeMoney(item.regularPrice),
                                 style: const TextStyle(
                                   color: Color(0xffcbd5e1),
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
                                   decoration: TextDecoration.lineThrough,
-                                  decorationColor: Color(0xffcbd5e1),
+                                  decorationColor: Color(0xff94a3b8),
                                 ),
                               ),
                             ],
@@ -684,7 +578,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
 
                     // Footnote
                     Text(
@@ -707,14 +601,14 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
   }
 
   Widget _buildMobileHeroSlide(_CinematicBannerData item) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Left: Info & Price
           Expanded(
-            flex: 6,
+            flex: 8,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -722,7 +616,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                 Text(
                   item.headline,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w900,
                     color: Color(0xff0f172a),
                     height: 1.15,
@@ -730,7 +624,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 5),
                 Text(
                   item.priceDropText,
                   style: const TextStyle(
@@ -739,11 +633,11 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                     color: Color(0xff0f172a),
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 5),
                 // Compact Dark Price Tag Box
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                   decoration: BoxDecoration(
                     color: const Color(0xff334155),
                     borderRadius: BorderRadius.circular(6),
@@ -764,17 +658,17 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                         storeMoney(item.salePrice),
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 15,
+                          fontSize: 14.5,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 5),
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                   decoration: BoxDecoration(
                     color: const Color(0xff0284c7),
                     borderRadius: BorderRadius.circular(4),
@@ -792,40 +686,12 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
             ),
           ),
           const SizedBox(width: 8),
-          // Right: Product on shelf
+          // Right: Floating Circular Stamp Badge
           Expanded(
-            flex: 5,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Positioned(
-                  bottom: 4,
-                  child: Container(
-                    width: 100,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      borderRadius:
-                          const BorderRadius.all(Radius.elliptical(100, 8)),
-                      gradient: RadialGradient(
-                        colors: [
-                          Colors.black.withValues(alpha: 0.4),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                Image.asset(
-                  item.cutoutImage,
-                  height: 180,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Icon(
-                    Icons.spa,
-                    size: 60,
-                    color: Color(0xfffde047),
-                  ),
-                ),
-              ],
+            flex: 3,
+            child: Align(
+              alignment: Alignment.topRight,
+              child: _buildCircularStamp(item.stampText, item.stampSub),
             ),
           ),
         ],
@@ -963,216 +829,156 @@ class _StorefrontCampaignPostersState extends State<StorefrontCampaignPosters> {
 
   @override
   Widget build(BuildContext context) {
-    final posterWidth = widget.isMobile ? 220.0 : 255.0;
-    final posterHeight = widget.isMobile ? 300.0 : 345.0;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        // On desktop, dynamically size so exactly 4 cards fill the row edge-to-edge!
+        final int cardsPerRow = widget.isMobile
+            ? 1
+            : (availableWidth >= 1050
+                ? 4
+                : (availableWidth >= 750
+                    ? 3
+                    : 2));
+        final double gap = widget.isMobile ? 12.0 : 16.0;
+        final double posterWidth = widget.isMobile
+            ? (availableWidth * 0.76).clamp(200.0, 270.0)
+            : (availableWidth - (cardsPerRow - 1) * gap) / cardsPerRow;
+        // Height proportional to 3:4 aspect ratio, clamped to prevent vertical bloat:
+        final double posterHeight = widget.isMobile
+            ? 280.0
+            : (posterWidth * 1.33).clamp(260.0, 335.0);
+        final double scrollStep =
+            (posterWidth + gap) * (widget.isMobile ? 1 : cardsPerRow);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Header with Title & Slider Navigation Buttons
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Artisanal Harvest Ranges',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xff111827),
-                        letterSpacing: -0.3,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Compact Header: Title on Left, View All + Slider Controls on Right (saving vertical height!)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Artisanal Harvest Ranges',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xff111827),
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  const Spacer(),
+                  InkWell(
+                    onTap: () {
+                      if (widget.onExploreCategory != null) {
+                        widget.onExploreCategory!('All Organic Essentials');
+                      } else {
+                        storeBrowse(context,
+                            category: 'All Organic Essentials');
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'View All',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xff0d9488),
+                            ),
+                          ),
+                          SizedBox(width: 3),
+                          Icon(Icons.chevron_right,
+                              size: 16, color: Color(0xff0d9488)),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Curated straight from certified indigenous farms, heirloom kolhus & earthen pots',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (!widget.isMobile) ...[
-                const SizedBox(width: 12),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+                  ),
+                  if (!widget.isMobile &&
+                      _rangePosters.length > cardsPerRow) ...[
+                    const SizedBox(width: 10),
                     _buildSliderButton(
                       icon: Icons.chevron_left,
                       enabled: _canScrollLeft,
-                      onTap: () => _scroll(-(posterWidth + 14) * 2),
+                      onTap: () => _scroll(-scrollStep),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     _buildSliderButton(
                       icon: Icons.chevron_right,
                       enabled: _canScrollRight,
-                      onTap: () => _scroll((posterWidth + 14) * 2),
+                      onTap: () => _scroll(scrollStep),
                     ),
                   ],
-                ),
-              ],
-            ],
-          ),
-        ),
+                ],
+              ),
+            ),
 
-        // Horizontal Sliding Posters
-        SizedBox(
-          height: posterHeight,
-          child: ListView.separated(
-            controller: _scrollController,
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: _rangePosters.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 14),
-            itemBuilder: (context, idx) {
-              final poster = _rangePosters[idx];
-              return InkWell(
-                onTap: () {
-                  if (widget.onExploreCategory != null) {
-                    widget.onExploreCategory!(poster.category);
-                  } else {
-                    storeBrowse(context, category: poster.category);
-                  }
-                },
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  width: posterWidth,
-                  height: posterHeight,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: LinearGradient(
-                      colors: poster.gradient,
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x18000000),
-                        blurRadius: 10,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      // Top Copy Header
-                      Positioned(
-                        top: 18,
-                        left: 14,
-                        right: 14,
-                        child: Column(
-                          children: [
-                            Text(
-                              poster.eyebrow,
-                              style: const TextStyle(
-                                color: Color(0xfffcd34d),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.2,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              poster.title,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 15.5,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.2,
-                                height: 1.2,
-                              ),
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                            ),
-                            const SizedBox(height: 10),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                poster.badgeText,
-                                style: const TextStyle(
-                                  color: Color(0xff1e2022),
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
+            // Horizontal Sliding Posters: 100% Full Image Cards (No nested cutouts!)
+            SizedBox(
+              height: posterHeight,
+              child: ListView.separated(
+                controller: _scrollController,
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                itemCount: _rangePosters.length,
+                separatorBuilder: (_, __) => SizedBox(width: gap),
+                itemBuilder: (context, idx) {
+                  final poster = _rangePosters[idx];
+                  return MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: InkWell(
+                      onTap: () {
+                        if (widget.onExploreCategory != null) {
+                          widget.onExploreCategory!(poster.category);
+                        } else {
+                          storeBrowse(context, category: poster.category);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: posterWidth,
+                        height: posterHeight,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x18000000),
+                              blurRadius: 10,
+                              offset: Offset(0, 4),
                             ),
                           ],
                         ),
-                      ),
-
-                      // Bottom High-Res Packaging Render
-                      Positioned(
-                        bottom: 0,
-                        left: 8,
-                        right: 8,
-                        height: posterHeight * 0.54,
-                        child: Image.asset(
-                          poster.imagePath,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.spa,
-                            size: 80,
-                            color: Colors.white,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.asset(
+                            poster.imagePath,
+                            width: posterWidth,
+                            height: posterHeight,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: const Color(0xff1e293b),
+                              child: const Center(
+                                child: Icon(Icons.spa,
+                                    color: Colors.amber, size: 40),
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Centered "View All Products" Outline Button
-        Center(
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xff0d9488),
-              side: const BorderSide(color: Color(0xff0d9488), width: 1.2),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
-            ),
-            onPressed: () {
-              if (widget.onExploreCategory != null) {
-                widget.onExploreCategory!('All Organic Essentials');
-              } else {
-                storeBrowse(context, category: 'All Organic Essentials');
-              }
-            },
-            icon: const Text(
-              'View All Products',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-                color: Color(0xff0d9488),
+                    ),
+                  );
+                },
               ),
             ),
-            label: const Icon(Icons.chevron_right, size: 16),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 

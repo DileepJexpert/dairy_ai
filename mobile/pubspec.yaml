@@ -46,6 +46,18 @@ flutter:
     - assets/store/buffalo-ghee-hero-cutout.png
     - assets/store/sarso-oil-hero-milterra-concept.png
     - assets/store/paneer-hero-cutout.png
+    - assets/store/tilted-cow-ghee-3d.jpg
+    - assets/store/tilted-mustard-oil-3d.jpg
+    - assets/store/tilted-buffalo-ghee-3d.jpg
+    - assets/store/tilted-paneer-3d.jpg
+    - assets/store/panoramic-cow-ghee-hero.jpg
+    - assets/store/panoramic-mustard-oil-hero.jpg
+    - assets/store/panoramic-buffalo-ghee-hero.jpg
+    - assets/store/panoramic-paneer-hero.jpg
+    - assets/store/poster-card-cow-ghee.jpg
+    - assets/store/poster-card-mustard-oil.jpg
+    - assets/store/poster-card-buffalo-ghee.jpg
+    - assets/store/poster-card-paneer.jpg
     - assets/store/milterra-tulsi-ghee.webp
     - assets/store/milterra-brahmi-ghee.webp
     - assets/store/milterra-ashwagandha-ghee.webp

@@ -674,9 +674,11 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                               (size.maxHeight - 200).clamp(520.0, 3000.0),
                         ),
                         child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isMobile ? 12 : 24,
-                            vertical: 16,
+                          padding: EdgeInsets.only(
+                            left: isMobile ? 12 : 24,
+                            right: isMobile ? 12 : 24,
+                            top: 8,
+                            bottom: 16,
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -718,7 +720,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                     ),
                                   ),
                                 ],
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 14),
                               ],
 
                               // IndiaMART-Style RFQ Banner & Live Demand (exclusive to Farmer Hub)

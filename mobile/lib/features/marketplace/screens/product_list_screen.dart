@@ -652,6 +652,20 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 key: const PageStorageKey('store-catalogue-scroll'),
                 child: Column(
                   children: [
+                    // 1. 100% FULL-WIDTH HEALTHKART HERO BANNER (Edge-to-Edge Panoramic)
+                    if (_search.text.isEmpty &&
+                        (_category == 'All products' ||
+                            _category == 'All' ||
+                            _category ==
+                                'All Organic Essentials'))
+                      StorefrontHero(
+                        showcaseKey: _heroKey,
+                        screenWidth: size.maxWidth,
+                        onExploreCategory: _browse,
+                        onAddToCart: _addHeroSlide,
+                      ),
+
+                    // 2. CENTERED STORE CONTAINER (Max Width 1240)
                     Center(
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
@@ -667,20 +681,18 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Hero Banner (Home / Unfiltered view)
+                              // 4 Campaign Range Posters (Screenshot 1)
                               if (_search.text.isEmpty &&
                                   (_category == 'All products' ||
                                       _category == 'All' ||
                                       _category ==
                                           'All Organic Essentials')) ...[
-                                StorefrontHero(
-                                  showcaseKey: _heroKey,
-                                  screenWidth: size.maxWidth,
+                                StorefrontCampaignPosters(
+                                  isMobile: isMobile,
                                   onExploreCategory: _browse,
-                                  onAddToCart: _addHeroSlide,
                                 ),
                                 if (canAdmin) ...[
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 12),
                                   Center(
                                     child: OutlinedButton.icon(
                                       style: OutlinedButton.styleFrom(
@@ -706,7 +718,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                     ),
                                   ),
                                 ],
-                                const SizedBox(height: 14),
+                                const SizedBox(height: 24),
                               ],
 
                               // IndiaMART-Style RFQ Banner & Live Demand (exclusive to Farmer Hub)

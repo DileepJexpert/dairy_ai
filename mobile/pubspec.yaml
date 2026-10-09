@@ -42,6 +42,10 @@ flutter:
     - assets/store/cow-ghee.png
     - assets/store/sarso-oil.jpg
     - assets/store/paneer.png
+    - assets/store/cow-ghee-hero-cutout.png
+    - assets/store/buffalo-ghee-hero-cutout.png
+    - assets/store/sarso-oil-hero-milterra-concept.png
+    - assets/store/paneer-hero-cutout.png
     - assets/store/milterra-tulsi-ghee.webp
     - assets/store/milterra-brahmi-ghee.webp
     - assets/store/milterra-ashwagandha-ghee.webp

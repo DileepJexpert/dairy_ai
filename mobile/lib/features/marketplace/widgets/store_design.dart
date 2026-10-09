@@ -991,6 +991,61 @@ class _StoreHeaderState extends ConsumerState<StoreHeader> {
                       ),
                     ),
 
+                    // Amazon-Style Delivery Pincode Widget (Desktop / Tablet)
+                    if (!isMobile) ...[
+                      const SizedBox(width: 12),
+                      InkWell(
+                        onTap: () => _showLocationSelector(context),
+                        borderRadius: BorderRadius.circular(4),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.location_on_outlined,
+                                  color: Color(0xff1f2937), size: 20),
+                              const SizedBox(width: 4),
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    user != null
+                                        ? 'Deliver to ${user.name?.split(' ').first}'
+                                        : 'Deliver to',
+                                    style: const TextStyle(
+                                      color: Color(0xff6b7280),
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w500,
+                                      height: 1.1,
+                                    ),
+                                  ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        location,
+                                        style: const TextStyle(
+                                          color: Color(0xff111827),
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w700,
+                                          height: 1.2,
+                                        ),
+                                      ),
+                                      const Icon(Icons.arrow_drop_down,
+                                          color: Color(0xff6b7280), size: 14),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+
                     // Search Box (Desktop / Tablet - Centered & Clean like HealthKart)
                     if (!isMobile) ...[
                       const SizedBox(width: 20),
@@ -1230,8 +1285,6 @@ class StoreCategoryNavigation extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final location = ref.watch(selectedDeliveryLocationProvider);
-
     return Container(
       height: 42,
       decoration: const BoxDecoration(
@@ -1320,12 +1373,6 @@ class StoreCategoryNavigation extends ConsumerWidget {
                           iconColor: const Color(0xff059669),
                           label: 'Customer Support',
                           onTap: () => context.push('/contact'),
-                        ),
-                        _buildQuickLink(
-                          icon: Icons.location_on_outlined,
-                          iconColor: const Color(0xff4b5563),
-                          label: 'Deliver to $location',
-                          onTap: () => showPincodeSelectorDialog(context, ref),
                         ),
                       ],
                     ),

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -311,7 +312,20 @@ const List<_MegaMenuCategory> _megaMenuCategories = [
 ];
 
 class CategoryMegaMenuOverlay extends StatefulWidget {
-  const CategoryMegaMenuOverlay({super.key});
+  const CategoryMegaMenuOverlay({
+    super.key,
+    this.anchorOffset,
+    this.anchorSize,
+    this.onClose,
+    this.onHoverEnter,
+    this.onHoverExit,
+  });
+
+  final Offset? anchorOffset;
+  final Size? anchorSize;
+  final VoidCallback? onClose;
+  final VoidCallback? onHoverEnter;
+  final VoidCallback? onHoverExit;
 
   @override
   State<CategoryMegaMenuOverlay> createState() =>
@@ -322,10 +336,31 @@ class _CategoryMegaMenuOverlayState
     extends State<CategoryMegaMenuOverlay> {
   int _selectedCategoryIndex = 0;
 
+  void _dismiss() {
+    if (widget.onClose != null) {
+      widget.onClose!();
+    } else if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.sizeOf(context);
     final activeCat = _megaMenuCategories[
         _selectedCategoryIndex.clamp(0, _megaMenuCategories.length - 1)];
+
+    final double top =
+        (widget.anchorOffset != null && widget.anchorSize != null)
+            ? widget.anchorOffset!.dy + widget.anchorSize!.height + 2
+            : 106.0;
+
+    final double buttonLeft = widget.anchorOffset?.dx ?? 16.0;
+    final double menuWidth = math.min(screenSize.width - 32.0, 960.0);
+    double menuLeft = buttonLeft;
+    if (menuLeft + menuWidth > screenSize.width - 16.0) {
+      menuLeft = math.max(16.0, screenSize.width - menuWidth - 16.0);
+    }
 
     return Stack(
       children: [
@@ -333,42 +368,44 @@ class _CategoryMegaMenuOverlayState
         Positioned.fill(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => Navigator.pop(context),
-            child: Container(color: Colors.transparent),
+            onTap: _dismiss,
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.18),
+            ),
           ),
         ),
 
-        // Anchored dropdown menu container directly below the subnav bar
+        // Anchored dropdown menu container directly below the "Shop By Category" button
         Positioned(
-          top: 106,
-          left: 16,
-          right: 16,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: StoreLayout.maxWidth,
-                maxHeight: 460,
-              ),
-              child: Material(
-                elevation: 16,
-                shadowColor: Colors.black.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(10),
-                color: Colors.white,
-                clipBehavior: Clip.antiAlias,
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xffe5e7eb)),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // LEFT SIDEBAR: Categories with '>' indicator
-                      Container(
-                        width: 250,
-                        color: const Color(0xfff8fafc),
-                        child: Column(
-                          children: [
+          top: top,
+          left: menuLeft,
+          width: menuWidth,
+          child: MouseRegion(
+            onEnter: (_) => widget.onHoverEnter?.call(),
+            onExit: (_) => widget.onHoverExit?.call(),
+            child: Material(
+              elevation: 16,
+              shadowColor: Colors.black.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.white,
+              clipBehavior: Clip.antiAlias,
+              child: Container(
+                constraints: const BoxConstraints(
+                  maxHeight: 460,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xffe5e7eb)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // LEFT SIDEBAR: Categories with '>' indicator
+                    Container(
+                      width: 250,
+                      color: const Color(0xfff8fafc),
+                      child: Column(
+                        children: [
                             // Header label
                             Container(
                               width: double.infinity,
@@ -490,7 +527,7 @@ class _CategoryMegaMenuOverlayState
                                 children: [
                                   InkWell(
                                     onTap: () {
-                                      Navigator.pop(context);
+                                      _dismiss();
                                       storeBrowse(context, sort: 'Best Sellers');
                                     },
                                     child: const Text(
@@ -504,7 +541,7 @@ class _CategoryMegaMenuOverlayState
                                   ),
                                   InkWell(
                                     onTap: () {
-                                      Navigator.pop(context);
+                                      _dismiss();
                                       context.go('/marketplace');
                                     },
                                     child: const Text(
@@ -548,7 +585,7 @@ class _CategoryMegaMenuOverlayState
                                     const SizedBox(width: 10),
                                     InkWell(
                                       onTap: () {
-                                        Navigator.pop(context);
+                                        _dismiss();
                                         storeBrowse(context,
                                             category: activeCat.filterCategory);
                                       },
@@ -569,7 +606,7 @@ class _CategoryMegaMenuOverlayState
                                       constraints: const BoxConstraints(),
                                       splashRadius: 18,
                                       tooltip: 'Close Menu',
-                                      onPressed: () => Navigator.pop(context),
+                                      onPressed: _dismiss,
                                     ),
                                   ],
                                 ),
@@ -611,8 +648,7 @@ class _CategoryMegaMenuOverlayState
                                                   item: item,
                                                   defaultCategory:
                                                       activeCat.filterCategory,
-                                                  onTap: () =>
-                                                      Navigator.pop(context),
+                                                  onTap: _dismiss,
                                                 );
                                               }),
                                             ],
@@ -633,7 +669,6 @@ class _CategoryMegaMenuOverlayState
               ),
             ),
           ),
-        ),
       ],
     );
   }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -906,8 +907,8 @@ class _StoreHeaderState extends ConsumerState<StoreHeader>
   }
 }
 
-/// Amazon Sub-Navigation Bar with "☰ All" Drawer and category quick links
-class StoreCategoryNavigation extends ConsumerWidget {
+/// Sub-Navigation Bar with "Shop By Category" hover & tap drawer and quick links
+class StoreCategoryNavigation extends ConsumerStatefulWidget {
   const StoreCategoryNavigation({
     super.key,
     this.selected = 'All products',
@@ -924,7 +925,86 @@ class StoreCategoryNavigation extends ConsumerWidget {
   final Product? qualityProduct;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StoreCategoryNavigation> createState() =>
+      _StoreCategoryNavigationState();
+}
+
+class _StoreCategoryNavigationState
+    extends ConsumerState<StoreCategoryNavigation> {
+  final GlobalKey _categoryButtonKey = GlobalKey();
+  OverlayEntry? _categoryMenuOverlay;
+  Timer? _closeTimer;
+  bool _isButtonHovered = false;
+
+  @override
+  void dispose() {
+    _closeTimer?.cancel();
+    _closeCategoryMenu();
+    super.dispose();
+  }
+
+  void _openCategoryMenu() {
+    final width = MediaQuery.sizeOf(context).width;
+    if (width < 880) return; // On mobile, tap opens the slide drawer
+
+    _closeTimer?.cancel();
+    if (_categoryMenuOverlay != null) return;
+
+    final buttonBox =
+        _categoryButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final buttonOffset =
+        buttonBox?.localToGlobal(Offset.zero) ?? const Offset(16, 106);
+    final buttonSize = buttonBox?.size ?? const Size(160, 36);
+
+    _categoryMenuOverlay = OverlayEntry(
+      builder: (ctx) => CategoryMegaMenuOverlay(
+        anchorOffset: buttonOffset,
+        anchorSize: buttonSize,
+        onClose: _closeCategoryMenu,
+        onHoverEnter: _cancelCloseCategoryMenu,
+        onHoverExit: _scheduleCloseCategoryMenu,
+      ),
+    );
+
+    Overlay.of(context, rootOverlay: true).insert(_categoryMenuOverlay!);
+    if (mounted) setState(() {});
+  }
+
+  void _scheduleCloseCategoryMenu() {
+    _closeTimer?.cancel();
+    _closeTimer = Timer(const Duration(milliseconds: 250), () {
+      _closeCategoryMenu();
+    });
+  }
+
+  void _cancelCloseCategoryMenu() {
+    _closeTimer?.cancel();
+  }
+
+  void _closeCategoryMenu() {
+    _closeTimer?.cancel();
+    if (_categoryMenuOverlay != null) {
+      _categoryMenuOverlay?.remove();
+      _categoryMenuOverlay = null;
+      if (mounted) setState(() {});
+    }
+  }
+
+  void _toggleCategoryMenu() {
+    final width = MediaQuery.sizeOf(context).width;
+    if (width < 880) {
+      showCategoryDepartmentMenu(context);
+    } else {
+      if (_categoryMenuOverlay != null) {
+        _closeCategoryMenu();
+      } else {
+        _openCategoryMenu();
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       height: 42,
       decoration: const BoxDecoration(
@@ -938,40 +1018,67 @@ class StoreCategoryNavigation extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                // HealthKart-Style "☰ Shop By Category" Button
-                InkWell(
-                  onTap: () => showAmazonDepartmentDrawer(context),
-                  borderRadius: BorderRadius.circular(6),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(6),
-                      border:
-                          Border.all(color: const Color(0xffd1d5db), width: 1),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.menu, color: Color(0xff0d9488), size: 17),
-                        SizedBox(width: 7),
-                        Text(
-                          'Shop By Category',
-                          style: TextStyle(
-                            color: Color(0xff1f2937),
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12.5,
-                          ),
+                // "Shop By Category" Hover & Tap Dropdown Trigger Button
+                MouseRegion(
+                  onEnter: (_) {
+                    setState(() => _isButtonHovered = true);
+                    _openCategoryMenu();
+                  },
+                  onExit: (_) {
+                    setState(() => _isButtonHovered = false);
+                    _scheduleCloseCategoryMenu();
+                  },
+                  cursor: SystemMouseCursors.click,
+                  child: InkWell(
+                    key: _categoryButtonKey,
+                    onTap: _toggleCategoryMenu,
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: (_isButtonHovered || _categoryMenuOverlay != null)
+                            ? const Color(0xfff0fdf4)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: (_isButtonHovered || _categoryMenuOverlay != null)
+                              ? const Color(0xff0d9488)
+                              : const Color(0xffd1d5db),
+                          width: 1,
                         ),
-                      ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.menu,
+                              color: Color(0xff0d9488), size: 17),
+                          const SizedBox(width: 7),
+                          const Text(
+                            'Shop By Category',
+                            style: TextStyle(
+                              color: Color(0xff1f2937),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12.5,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            _categoryMenuOverlay != null
+                                ? Icons.keyboard_arrow_up
+                                : Icons.keyboard_arrow_down,
+                            size: 16,
+                            color: const Color(0xff64748b),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
 
                 const SizedBox(width: 14),
 
-                // Quick Navigation Links (HealthKart-style horizontal links)
+                // Quick Navigation Links (horizontal links)
                 Expanded(
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -988,8 +1095,8 @@ class StoreCategoryNavigation extends ConsumerWidget {
                           iconColor: const Color(0xff166534),
                           label: 'Our Farm Story',
                           onTap: () {
-                            if (onOurStoryPressed != null) {
-                              onOurStoryPressed!();
+                            if (widget.onOurStoryPressed != null) {
+                              widget.onOurStoryPressed!();
                             } else {
                               context.push('/about');
                             }

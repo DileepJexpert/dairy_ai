@@ -58,6 +58,11 @@ flutter:
     - assets/store/poster-card-mustard-oil.jpg
     - assets/store/poster-card-buffalo-ghee.jpg
     - assets/store/poster-card-paneer.jpg
+    - assets/store/mustard-oil-front-angle.png
+    - assets/store/buffalo-ghee-pedestal-angle2.jpg
+    - assets/store/cow-ghee-pedestal-angle2.jpg
+    - assets/store/paneer-pedestal-angle2.jpg
+    - assets/store/mustard-oil-tin-2l.jpg
     - assets/store/milterra-tulsi-ghee.webp
     - assets/store/milterra-brahmi-ghee.webp
     - assets/store/milterra-ashwagandha-ghee.webp

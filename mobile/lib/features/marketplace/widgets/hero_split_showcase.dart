@@ -419,38 +419,42 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                           ),
                         ],
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(item.feature1Icon,
-                              style: const TextStyle(fontSize: 14)),
-                          const SizedBox(width: 6),
-                          Text(
-                            item.feature1Text,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xff1e293b),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(item.feature1Icon,
+                                style: const TextStyle(fontSize: 14)),
+                            const SizedBox(width: 6),
+                            Text(
+                              item.feature1Text,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xff1e293b),
+                              ),
                             ),
-                          ),
-                          Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 12),
-                            height: 14,
-                            width: 1.2,
-                            color: const Color(0xff94a3b8),
-                          ),
-                          Text(item.feature2Icon,
-                              style: const TextStyle(fontSize: 14)),
-                          const SizedBox(width: 6),
-                          Text(
-                            item.feature2Text,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xff1e293b),
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 12),
+                              height: 14,
+                              width: 1.2,
+                              color: const Color(0xff94a3b8),
                             ),
-                          ),
-                        ],
+                            Text(item.feature2Icon,
+                                style: const TextStyle(fontSize: 14)),
+                            const SizedBox(width: 6),
+                            Text(
+                              item.feature2Text,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xff1e293b),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],

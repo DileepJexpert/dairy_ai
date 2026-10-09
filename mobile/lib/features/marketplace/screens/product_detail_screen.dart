@@ -455,9 +455,33 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 children: [
                   AspectRatio(
                     aspectRatio: mobile ? 1.08 : 1,
-                    child: Padding(
-                      padding: EdgeInsets.all(mobile ? 16 : 28),
-                      child: ProductArtwork(product: p, imageIndex: _image),
+                    child: GestureDetector(
+                      onHorizontalDragEnd: hasMultiple
+                          ? (details) {
+                              if (details.primaryVelocity != null) {
+                                if (details.primaryVelocity! < -80) {
+                                  setState(() {
+                                    _image = (_image + 1) % totalImages;
+                                  });
+                                } else if (details.primaryVelocity! > 80) {
+                                  setState(() {
+                                    _image = (_image - 1 + totalImages) % totalImages;
+                                  });
+                                }
+                              }
+                            }
+                          : null,
+                      child: Padding(
+                        padding: EdgeInsets.all(mobile ? 16 : 28),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: ProductArtwork(
+                            key: ValueKey<int>(_image),
+                            product: p,
+                            imageIndex: _image,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                   if (hasMultiple) ...[
@@ -499,6 +523,27 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                             padding: EdgeInsets.all(6),
                             child: Icon(Icons.chevron_right,
                                 size: 22, color: Color(0xff222222)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${_image + 1} / $totalImages',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
@@ -3761,12 +3806,10 @@ class _ProductImageLightboxDialogState
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(3),
                             child: mediaList.length > i
-                                ? Image.network(
-                                    mediaList[i],
+                                ? StoreMediaImage(
+                                    source: mediaList[i],
                                     fit: BoxFit.contain,
-                                    errorBuilder: (_, __, ___) => const Icon(
-                                        Icons.broken_image_outlined,
-                                        size: 20),
+                                    fallbackIconSize: 20,
                                   )
                                 : const Icon(Icons.image_outlined, size: 20),
                           ),

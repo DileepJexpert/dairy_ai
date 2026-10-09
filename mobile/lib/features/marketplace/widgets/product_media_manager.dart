@@ -125,7 +125,9 @@ class _ProductMediaManagerState extends ConsumerState<ProductMediaManager> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                     const Text(
-                        'JPEG, PNG or WebP · up to 5 MB and 16 million pixels · 12 images per product. Saved on the backend; draft images stay private.'),
+                      'JPEG, PNG or WebP · up to 5 MB · Upload 3 to 4 images from different angles (Front 3D, Label, Packaging, Texture). Customers can swipe and iterate through all images on the product page.',
+                      style: TextStyle(fontSize: 12),
+                    ),
                     const SizedBox(height: 12),
                     if (_error != null)
                       Text(_error!,
@@ -144,23 +146,73 @@ class _ProductMediaManagerState extends ConsumerState<ProductMediaManager> {
                             ? const Padding(
                                 padding: EdgeInsets.all(16),
                                 child: Text('No saved product images yet.'))
-                            : Wrap(
-                                spacing: 12,
-                                runSpacing: 12,
-                                children: rows
-                                    .map((row) => SizedBox(
-                                        width: 170,
-                                        child: Card(
-                                            child: Padding(
-                                                padding:
-                                                    const EdgeInsets.all(8),
-                                                child: Column(children: [
-                                                  SizedBox(
-                                                      height: 125,
-                                                      width: double.infinity,
-                                                      child: _preview(row)),
-                                                  if (row['is_primary'] == true)
-                                                    const Text('Primary image'),
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 4,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
+                                    children: [
+                                      Text(
+                                        '${rows.length} Images Uploaded',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14),
+                                      ),
+                                      if (rows.length < 3)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xfffef3c7),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            border: Border.all(
+                                                color:
+                                                    const Color(0xfffde68a)),
+                                          ),
+                                          child: const Text(
+                                            '💡 Add 3-4 images for best conversion',
+                                            style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xff92400e)),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Wrap(
+                                    spacing: 12,
+                                    runSpacing: 12,
+                                    children: rows.asMap().entries.map((entry) {
+                                      final idx = entry.key;
+                                      final row = entry.value;
+                                      return SizedBox(
+                                          width: 170,
+                                          child: Card(
+                                              child: Padding(
+                                                  padding:
+                                                      const EdgeInsets.all(8),
+                                                  child: Column(children: [
+                                                    SizedBox(
+                                                        height: 125,
+                                                        width: double.infinity,
+                                                        child: _preview(row)),
+                                                    const SizedBox(height: 4),
+                                                    if (row['is_primary'] ==
+                                                        true)
+                                                      const Text(
+                                                          'Primary image')
+                                                    else
+                                                      Text(
+                                                          'Angle #${idx + 1}',
+                                                          style: TextStyle(
+                                                              fontSize: 12,
+                                                              color: Colors.grey
+                                                                  .shade700)),
                                                   if (row['is_primary'] !=
                                                           true &&
                                                       row['media_type'] ==
@@ -217,9 +269,20 @@ class _ProductMediaManagerState extends ConsumerState<ProductMediaManager> {
                                                           Icons.delete_outline),
                                                       label:
                                                           const Text('Remove')),
-                                                ])))))
-                                    .toList())),
-                  ]))),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          }).toList(),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                    ],
+                  ),
+                ),
+              ),
           actions: [
             TextButton(
                 onPressed: _busy ? null : () => Navigator.pop(context),

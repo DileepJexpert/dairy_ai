@@ -479,6 +479,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                             key: ValueKey<int>(_image),
                             product: p,
                             imageIndex: _image,
+                            showCaption: p.isConcept,
                           ),
                         ),
                       ),
@@ -830,7 +831,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 color: storeGreen),
           ),
         ] else ...[
-          const Chip(label: Text('Concept Preview · In Development')),
+          const Chip(label: Text('Concept Preview')),
           const SizedBox(height: 8),
           const Text(
             'Price has not been finalized. Register below for early batch access.',

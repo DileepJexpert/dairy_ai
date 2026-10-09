@@ -44,8 +44,9 @@ AuditAction _auditAction(dynamic val) {
   if (str.contains('deal')) return AuditAction.dealCreate;
   if (str.contains('approval')) return AuditAction.sellerApproval;
   if (str.contains('suspen')) return AuditAction.sellerSuspension;
-  if (str.contains('catalog') || str.contains('product'))
+  if (str.contains('catalog') || str.contains('product')) {
     return AuditAction.catalogCreate;
+  }
   return AuditAction.values.firstWhere(
     (e) => e.name.toLowerCase() == str,
     orElse: () => AuditAction.statusChange,

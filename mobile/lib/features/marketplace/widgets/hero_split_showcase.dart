@@ -1,7 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/hero_showcase_config.dart';
+import '../providers/campaign_posters_provider.dart';
+import 'campaign_posters_admin_dialog.dart';
 import 'farm_story_showcase.dart';
 import 'store_design.dart';
 
@@ -121,41 +126,6 @@ final List<_CinematicBannerData> _defaultCinematicBanners = [
     couponPillText: '+ INTRO COMBO 20% OFF · CODE: FRESH20',
     footnoteText: '*Cold-Chain Vacuum Sealed & Delivered Direct from Farm',
     targetRoute: '/shop',
-  ),
-];
-
-class _RangePosterData {
-  final String title;
-  final String imagePath;
-  final String category;
-
-  const _RangePosterData({
-    required this.title,
-    required this.imagePath,
-    required this.category,
-  });
-}
-
-final List<_RangePosterData> _rangePosters = [
-  const _RangePosterData(
-    title: 'Vedic A2 Cow Ghee Range',
-    imagePath: 'assets/store/poster-card-cow-ghee.jpg',
-    category: 'Vedic Bilona Ghee',
-  ),
-  const _RangePosterData(
-    title: 'Wood-Pressed Oils Range',
-    imagePath: 'assets/store/poster-card-mustard-oil.jpg',
-    category: 'Cold-Pressed Sarso (Mustard) Oil',
-  ),
-  const _RangePosterData(
-    title: 'Cultured Buffalo Ghee Range',
-    imagePath: 'assets/store/poster-card-buffalo-ghee.jpg',
-    category: 'Cultured Buffalo Ghee',
-  ),
-  const _RangePosterData(
-    title: 'Fresh Living Dairy & Harvest',
-    imagePath: 'assets/store/poster-card-paneer.jpg',
-    category: 'Fresh Milk & Dairy',
   ),
 ];
 
@@ -790,8 +760,8 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
 typedef StorefrontHeroBanner = HeroSplitShowcase;
 typedef StorefrontHeroBannerState = HeroSplitShowcaseState;
 
-/// HealthKart Artisanal Campaign Range Posters Slider with 8 curated ranges & navigation controls.
-class StorefrontCampaignPosters extends StatefulWidget {
+/// HealthKart Artisanal Campaign Range Posters Slider with promotional offers & navigation controls.
+class StorefrontCampaignPosters extends ConsumerStatefulWidget {
   const StorefrontCampaignPosters({
     super.key,
     required this.isMobile,
@@ -802,11 +772,12 @@ class StorefrontCampaignPosters extends StatefulWidget {
   final ValueChanged<String>? onExploreCategory;
 
   @override
-  State<StorefrontCampaignPosters> createState() =>
+  ConsumerState<StorefrontCampaignPosters> createState() =>
       _StorefrontCampaignPostersState();
 }
 
-class _StorefrontCampaignPostersState extends State<StorefrontCampaignPosters> {
+class _StorefrontCampaignPostersState
+    extends ConsumerState<StorefrontCampaignPosters> {
   final ScrollController _scrollController = ScrollController();
   bool _canScrollLeft = false;
   bool _canScrollRight = true;
@@ -850,10 +821,13 @@ class _StorefrontCampaignPostersState extends State<StorefrontCampaignPosters> {
 
   @override
   Widget build(BuildContext context) {
+    final posters = ref.watch(campaignPostersProvider);
+    final currentUser = ref.watch(currentUserProvider);
+    final isAdmin = currentUser?.role == 'admin' || currentUser?.role == 'super_admin';
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth;
-        // On desktop, dynamically size so exactly 4 cards fill the row edge-to-edge!
         final int cardsPerRow = widget.isMobile
             ? 1
             : (availableWidth >= 1050
@@ -863,19 +837,16 @@ class _StorefrontCampaignPostersState extends State<StorefrontCampaignPosters> {
                     : 2));
         final double gap = widget.isMobile ? 12.0 : 16.0;
         final double posterWidth = widget.isMobile
-            ? (availableWidth * 0.76).clamp(200.0, 270.0)
+            ? (availableWidth * 0.78).clamp(210.0, 280.0)
             : (availableWidth - (cardsPerRow - 1) * gap) / cardsPerRow;
-        // Height proportional to 3:4 aspect ratio, clamped to prevent vertical bloat:
-        final double posterHeight = widget.isMobile
-            ? 280.0
-            : (posterWidth * 1.33).clamp(260.0, 335.0);
+        final double posterHeight = widget.isMobile ? 360.0 : 390.0;
         final double scrollStep =
             (posterWidth + gap) * (widget.isMobile ? 1 : cardsPerRow);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Compact Header: Title on Left, View All + Slider Controls on Right (saving vertical height!)
+            // Compact Header: Title on Left, Admin Edit + View All + Slider Controls on Right
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Row(
@@ -890,6 +861,38 @@ class _StorefrontCampaignPostersState extends State<StorefrontCampaignPosters> {
                       letterSpacing: -0.3,
                     ),
                   ),
+                  if (isAdmin) ...[
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () => showCampaignPostersAdminDialog(context),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xfff1f5f9),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xffcbd5e1)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.edit_note,
+                                size: 14, color: Color(0xff334155)),
+                            SizedBox(width: 4),
+                            Text(
+                              'Edit Offers',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xff334155),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                   const Spacer(),
                   InkWell(
                     onTap: () {
@@ -921,8 +924,7 @@ class _StorefrontCampaignPostersState extends State<StorefrontCampaignPosters> {
                       ),
                     ),
                   ),
-                  if (!widget.isMobile &&
-                      _rangePosters.length > cardsPerRow) ...[
+                  if (!widget.isMobile && posters.length > cardsPerRow) ...[
                     const SizedBox(width: 10),
                     _buildSliderButton(
                       icon: Icons.chevron_left,
@@ -940,20 +942,23 @@ class _StorefrontCampaignPostersState extends State<StorefrontCampaignPosters> {
               ),
             ),
 
-            // Horizontal Sliding Posters: 100% Full Image Cards (No nested cutouts!)
+            // Horizontal Sliding Promotional Campaign Posters
             SizedBox(
               height: posterHeight,
               child: ListView.separated(
                 controller: _scrollController,
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
-                itemCount: _rangePosters.length,
+                itemCount: posters.length,
                 separatorBuilder: (_, __) => SizedBox(width: gap),
                 itemBuilder: (context, idx) {
-                  final poster = _rangePosters[idx];
+                  final poster = posters[idx];
                   return MouseRegion(
                     cursor: SystemMouseCursors.click,
-                    child: InkWell(
+                    child: _HealthKartCampaignCard(
+                      poster: poster,
+                      width: posterWidth,
+                      height: posterHeight,
                       onTap: () {
                         if (widget.onExploreCategory != null) {
                           widget.onExploreCategory!(poster.category);
@@ -961,38 +966,6 @@ class _StorefrontCampaignPostersState extends State<StorefrontCampaignPosters> {
                           storeBrowse(context, category: poster.category);
                         }
                       },
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        width: posterWidth,
-                        height: posterHeight,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x18000000),
-                              blurRadius: 10,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Image.asset(
-                            poster.imagePath,
-                            width: posterWidth,
-                            height: posterHeight,
-                            fit: BoxFit.cover,
-                            alignment: Alignment.topCenter,
-                            errorBuilder: (_, __, ___) => Container(
-                              color: const Color(0xff1e293b),
-                              child: const Center(
-                                child: Icon(Icons.spa,
-                                    color: Colors.amber, size: 40),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
                     ),
                   );
                 },
@@ -1029,3 +1002,267 @@ class _StorefrontCampaignPostersState extends State<StorefrontCampaignPosters> {
     );
   }
 }
+
+class _HealthKartCampaignCard extends StatelessWidget {
+  const _HealthKartCampaignCard({
+    required this.poster,
+    required this.width,
+    required this.height,
+    required this.onTap,
+  });
+
+  final CampaignPosterConfig poster;
+  final double width;
+  final double height;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xfffcfbf9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xffeae6df), width: 1.2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Top Promotional Section
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                child: Column(
+                  children: [
+                    // Brand Logo / Header
+                    Text(
+                      poster.brand,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2.0,
+                        color: Color(0xff475569),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 3),
+                    // Range Title
+                    Text(
+                      poster.title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xff111827),
+                        letterSpacing: -0.2,
+                        height: 1.15,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    // Highlight Banner (e.g. PRICE DROPPED BY ₹200 / EXTRA 15% OFF)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xfffef2f2),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                            color: const Color(0xfffecaca), width: 0.8),
+                      ),
+                      child: Text(
+                        poster.highlightTag,
+                        style: const TextStyle(
+                          color: Color(0xffdc2626),
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.3,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // White Deal Box with dashed border or neat border
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: const Color(0xffe2e8f0), width: 1),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x0a000000),
+                            blurRadius: 4,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Was ${poster.wasPrice}',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  color: Colors.grey.shade500,
+                                  decoration: TextDecoration.lineThrough,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                width: 1,
+                                height: 10,
+                                color: Colors.grey.shade300,
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  poster.rewardTag,
+                                  style: const TextStyle(
+                                    fontSize: 9.5,
+                                    color: Color(0xffb45309),
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text(
+                                'Now ',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xff334155),
+                                ),
+                              ),
+                              Text(
+                                poster.nowPrice,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xffdc2626),
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 5),
+                          // Amber Coupon Code Pill
+                          Material(
+                            color: const Color(0xfffef08a),
+                            borderRadius: BorderRadius.circular(4),
+                            child: InkWell(
+                              onTap: () {
+                                Clipboard.setData(
+                                    ClipboardData(text: poster.couponCode));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'Copied code: ${poster.couponCode}! Applied to range.'),
+                                    duration: const Duration(seconds: 2),
+                                    backgroundColor: const Color(0xff0d9488),
+                                  ),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(4),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                      color: const Color(0xfffde047),
+                                      width: 0.8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'CODE : ${poster.couponCode}',
+                                      style: const TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w900,
+                                        color: Color(0xff854d0e),
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      Icons.copy,
+                                      size: 10,
+                                      color: Color(0xff854d0e),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Bottom Product Render on Marble Pedestal
+              Expanded(
+                child: Stack(
+                  alignment: Alignment.bottomCenter,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                      child: Image.asset(
+                        poster.imagePath,
+                        fit: BoxFit.contain,
+                        alignment: Alignment.bottomCenter,
+                        errorBuilder: (_, __, ___) => const Center(
+                          child: Icon(Icons.spa, color: Colors.amber, size: 40),
+                        ),
+                      ),
+                    ),
+                    const Positioned(
+                      bottom: 4,
+                      right: 8,
+                      child: Text(
+                        '*T&Cs Apply',
+                        style: TextStyle(
+                          fontSize: 7.5,
+                          color: Color(0xff94a3b8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

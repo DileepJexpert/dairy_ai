@@ -1,5 +1,5 @@
 {
-  "content_sha256": "4d96a8e29257265982dd0308acb17c43130aefa09e6abbe07ca19947babca247",
+  "content_sha256": "5f64d2d83fa761b192c7185e2e75b512c46836c285e98073166c9e28da61da6f",
   "families": [
     {
       "brand": "MILTERRA",
@@ -15,7 +15,7 @@
       "primary_image": null,
       "production_method": "Proposed formulation; composition and claims require validation before launch.",
       "slug": "janam-42-transition-nutrition-concept",
-      "title": "JANAM\u00b742 Calving & Transition Nutrition Concept",
+      "title": "JANAM·42 Calving & Transition Nutrition Concept",
       "variants": [],
       "vendor_id": "dcfe61f0-70b1-4992-8e6d-07f7f877ce49"
     },
@@ -546,7 +546,7 @@
         "Active Formulation": "Cold-Pressed Inner Leaf Fillet with Intact Acemannan Polysaccharides & Soluble Fiber",
         "Aloin Removal": "Debittered & Micro-Filtered (<1 ppm Aloin, Non-Laxative, Safe for Daily Use)",
         "Packaging": "Food-Grade Heavy Amber Glass Bottle (Prevents Nutrient Degradation)",
-        "Serving Suggestion": "20\u201330 ml with equal warm water first thing on an empty stomach",
+        "Serving Suggestion": "20–30 ml with equal warm water first thing on an empty stomach",
         "Target Benefit": "Soothes Hyperacidity, Strengthens Gut Lining & Daily Digestion"
       },
       "subcategory": "Apartment Balcony & Living Soil",
@@ -596,9 +596,9 @@
       "slug": "mil-aloe-plant-pot",
       "specifications": {
         "Benefits": "Night-time Oxygen Release (Crassulacean Acid Metabolism), Instant Home First-Aid Gel",
-        "Care Requirement": "Low Maintenance; water once every 7\u201310 days; indirect sunlight",
+        "Care Requirement": "Low Maintenance; water once every 7–10 days; indirect sunlight",
         "Container": "5-inch Breathable Eco Terra-cotta Bio-Planter with Drainage Base",
-        "Plant": "Live Rooted Medicinal Aloe Barbadensis Miller (10\u201312 inches height)",
+        "Plant": "Live Rooted Medicinal Aloe Barbadensis Miller (10–12 inches height)",
         "Potting Soil": "Potted in Enriched Living Vermicompost, Perlite & Cocopeat"
       },
       "subcategory": "Apartment Balcony & Living Soil",
@@ -653,7 +653,7 @@
         "Milling": "Cold Stone-Milled below 40 RPM to preserve enzymes and vitamins",
         "Packaging": "Breathable 2-ply Eco Kraft Bag"
       },
-      "subcategory": "Stone-Ground Chakk\u012b Atta & Flours",
+      "subcategory": "Stone-Ground Chakkī Atta & Flours",
       "taxonomy": {
         "category_id": "5545a350-674b-51c2-a092-a5a322f9e635",
         "category_name": "Ancient & Heritage Atta",
@@ -702,7 +702,7 @@
         "Milling": "Freshly Ground on Traditional Stone Chakki",
         "Weight": "5 kg"
       },
-      "subcategory": "Stone-Ground Chakk\u012b Atta & Flours",
+      "subcategory": "Stone-Ground Chakkī Atta & Flours",
       "taxonomy": {
         "category_id": "5545a350-674b-51c2-a092-a5a322f9e635",
         "category_name": "Ancient & Heritage Atta",
@@ -752,7 +752,7 @@
         "Health Goal": "Blood Sugar Management & High Dietary Fiber",
         "Packaging": "1 kg Stand-up Zipper Pouch"
       },
-      "subcategory": "Stone-Ground Chakk\u012b Atta & Flours",
+      "subcategory": "Stone-Ground Chakkī Atta & Flours",
       "taxonomy": {
         "category_id": "6f8a7a95-377c-5c0a-a78b-12aab9a55521",
         "category_name": "Millets & High-Protein Flours",
@@ -801,7 +801,7 @@
         "Net Weight": "2000 grams",
         "Nutrients": "Rich in Calcium, Iron & Dietary Fiber"
       },
-      "subcategory": "Stone-Ground Chakk\u012b Atta & Flours",
+      "subcategory": "Stone-Ground Chakkī Atta & Flours",
       "taxonomy": {
         "category_id": "6f8a7a95-377c-5c0a-a78b-12aab9a55521",
         "category_name": "Millets & High-Protein Flours",
@@ -851,7 +851,7 @@
         "Packaging": "Stitched Heavy Cotton Bag",
         "Weight": "10 kg"
       },
-      "subcategory": "Stone-Ground Chakk\u012b Atta & Flours",
+      "subcategory": "Stone-Ground Chakkī Atta & Flours",
       "taxonomy": {
         "category_id": "5545a350-674b-51c2-a092-a5a322f9e635",
         "category_name": "Ancient & Heritage Atta",
@@ -902,7 +902,7 @@
         "Grain Origin": "MP Sehore Sharbati Rainfed Golden Grain",
         "Packaging": "Traditional Breathable Cotton Cloth Bag"
       },
-      "subcategory": "Stone-Ground Chakk\u012b Atta & Flours",
+      "subcategory": "Stone-Ground Chakkī Atta & Flours",
       "taxonomy": {
         "category_id": "5545a350-674b-51c2-a092-a5a322f9e635",
         "category_name": "Ancient & Heritage Atta",
@@ -1428,7 +1428,7 @@
         "Milk Source": "Planned: fresh Sahiwal cow milk",
         "Product Status": "Pre-launch specification; final production and lab validation pending",
         "Shelf Life": "To be confirmed by refrigerated shelf-life testing",
-        "Storage": "Keep refrigerated at 0\u20134\u00b0C"
+        "Storage": "Keep refrigerated at 0–4°C"
       },
       "subcategory": null,
       "taxonomy": null,
@@ -1476,7 +1476,7 @@
         "Milk Source": "Planned: fresh Sahiwal cow milk",
         "Product Status": "Pre-launch specification; final production and lab validation pending",
         "Shelf Life": "To be confirmed by refrigerated shelf-life testing",
-        "Storage": "Keep refrigerated at 0\u20134\u00b0C"
+        "Storage": "Keep refrigerated at 0–4°C"
       },
       "subcategory": null,
       "taxonomy": null,
@@ -1494,7 +1494,7 @@
       "brand": "Milterra Artisanal",
       "category": "FEED_NUTRITION",
       "compare_at_price": "569.00",
-      "description": "The complete inside-and-out Aloe wellness kit: 1x 250ml Pure Aloe Inner-Leaf Gel + 1x 500ml Fibrous Raw Digestive Juice + 1x Live Potted Balcony Aloe Succulent. Save \u20b970.",
+      "description": "The complete inside-and-out Aloe wellness kit: 1x 250ml Pure Aloe Inner-Leaf Gel + 1x 500ml Fibrous Raw Digestive Juice + 1x Live Potted Balcony Aloe Succulent. Save ₹70.",
       "family_id": null,
       "id": "b6a6b877-fcb7-4a93-bb2e-959ee54329ac",
       "is_active": true,
@@ -1668,7 +1668,7 @@
       "specifications": {
         "Contents": "1x Vedic Bilona Ghee (500ml), 1x Lakdi Ghani Mustard Oil (1L), 1x Khapli Emmer Atta (1kg), 1x Crushed Pink Salt (1kg)",
         "Gift Box": "Delivered in a premium reinforced craft box with purity certification card",
-        "Savings": "Instant Savings of \u20b9196 vs Individual Item Purchases"
+        "Savings": "Instant Savings of ₹196 vs Individual Item Purchases"
       },
       "subcategory": "Curated Kitchen & Wellness Boxes",
       "taxonomy": {
@@ -1692,7 +1692,7 @@
       "brand": "Milterra Artisanal",
       "category": "FEED_NUTRITION",
       "compare_at_price": "3250.00",
-      "description": "The ultimate Delhi-NCR and Lucknow urban home purity overhaul: 500 ml Vedic Bilona Cow Ghee + 1 Litre Lakdi Ghani Mustard Oil + 2 kg Ancient Khapli Atta + 200 g Single-Origin Lakadong Turmeric (>7% Curcumin) + 1 kg Crushed Himalayan Pink Salt + 1x Cold-Process Goat Milk & Honey Soap Bar + 1x Tamba Chhachh Balcony Spray. Save \u20b9451.",
+      "description": "The ultimate Delhi-NCR and Lucknow urban home purity overhaul: 500 ml Vedic Bilona Cow Ghee + 1 Litre Lakdi Ghani Mustard Oil + 2 kg Ancient Khapli Atta + 200 g Single-Origin Lakadong Turmeric (>7% Curcumin) + 1 kg Crushed Himalayan Pink Salt + 1x Cold-Process Goat Milk & Honey Soap Bar + 1x Tamba Chhachh Balcony Spray. Save ₹451.",
       "family_id": null,
       "id": "b47fefee-6169-4cf7-af80-c5ef4cf93fe9",
       "is_active": true,
@@ -1719,7 +1719,7 @@
         "Contents": "1x Bilona Ghee (500ml), 1x Lakdi Ghani Mustard (1L), 1x Khapli Atta (2kg), 1x Lakadong Haldi (200g), 1x Pink Salt (1kg), 1x Goat Milk Soap (100g), 1x Copper Bio-Spray (500ml)",
         "Packaging": "Reinforced Eco-Friendly Heavy Crate with Purity Lab Certificates",
         "Pillars Covered": "The Pure Pantry (Kitchen Staples) + The Botanical Living (Skincare & Plant Bio-Defense)",
-        "Savings": "Instant Bundle Savings of \u20b9451 + Free Padded Express Delivery"
+        "Savings": "Instant Bundle Savings of ₹451 + Free Padded Express Delivery"
       },
       "subcategory": "Curated Kitchen & Wellness Boxes",
       "taxonomy": {
@@ -2022,7 +2022,7 @@
         "Milk Source": "Planned: fresh Sahiwal cow milk",
         "Product Status": "Pre-launch specification; final production and lab validation pending",
         "Shelf Life": "To be confirmed by refrigerated shelf-life testing",
-        "Storage": "Keep refrigerated at 0\u20134\u00b0C"
+        "Storage": "Keep refrigerated at 0–4°C"
       },
       "subcategory": null,
       "taxonomy": null,
@@ -2877,9 +2877,9 @@
       "slug": "mil-honey-500",
       "specifications": {
         "Adulteration Check": "Certified Zero C3/C4 Sugar Syrup, Rice Syrup or Molasses",
-        "Crystallization": "May crystallize naturally below 20\u00b0C \u2014 sign of 100% raw honey",
+        "Crystallization": "May crystallize naturally below 20°C — sign of 100% raw honey",
         "Packaging": "Heavy Hexagonal Glass Jar",
-        "Processing": "Raw, Unheated (Below 40\u00b0C), Unfiltered, Pollen-Rich",
+        "Processing": "Raw, Unheated (Below 40°C), Unfiltered, Pollen-Rich",
         "Testing Standard": "NMR (Nuclear Magnetic Resonance) Tested 100% Pure Honey"
       },
       "subcategory": "Wood-Pressed Oils & Pure Sweeteners",
@@ -3034,7 +3034,7 @@
         "Packaging": "Food-grade Recyclable PET Bottle (Chilled)",
         "Probiotic Count": ">10^8 CFU Live Active Cultures",
         "Shelf Life": "4 Days from Churning",
-        "Storage": "Refrigerate at 0\u20134\u00b0C"
+        "Storage": "Refrigerate at 0–4°C"
       },
       "subcategory": "Artisanal Dairy & Cultured",
       "taxonomy": {
@@ -3084,7 +3084,7 @@
       "specifications": {
         "Ingredients": "Churned Buttermilk, Roasted Cumin, Sendha Namak, Mint",
         "Shelf Life": "4 Days",
-        "Storage": "Refrigerate at 0\u20134\u00b0C"
+        "Storage": "Refrigerate at 0–4°C"
       },
       "subcategory": "Artisanal Dairy & Cultured",
       "taxonomy": {
@@ -3132,7 +3132,7 @@
       "sku": "MIL-MICRO-BROCCOLI",
       "slug": "mil-micro-broccoli",
       "specifications": {
-        "Counter Life": "5\u20137 Days",
+        "Counter Life": "5–7 Days",
         "Form": "Living Bio-Tray with Live Roots",
         "Health Goal": "Cellular Detox, Anti-Inflammatory, Cancer-Preventive Phytonutrients",
         "Sulforaphane": "Up to 50x higher sulforaphane concentration than mature broccoli"
@@ -3183,7 +3183,7 @@
       "sku": "MIL-MICRO-PEA",
       "slug": "mil-micro-pea",
       "specifications": {
-        "Counter Life": "5\u20137 Days",
+        "Counter Life": "5–7 Days",
         "Form": "Living Punnet Bio-Tray",
         "Kid-Friendly": "Perfect crunchy greens for kids' tiffin sandwiches",
         "Taste": "Sweet Fresh Spring Pea Pod Taste"
@@ -3235,7 +3235,7 @@
       "slug": "mil-micro-radish",
       "specifications": {
         "Care": "Mist with 2 sprays of water daily; harvest with scissors at dinner table",
-        "Counter Life": "5\u20137 Days Living Shelf-Life",
+        "Counter Life": "5–7 Days Living Shelf-Life",
         "Delivery": "Same-Day / Morning Express in Delhi-NCR & Lucknow",
         "Form": "Live Living Punnet in Cocopeat Bio-Tray",
         "Growing Practice": "Soil-less, Cocopeat Based, Zero Pesticides/Chemicals",
@@ -3263,7 +3263,7 @@
       "brand": "Milterra Artisanal",
       "category": "FEED_NUTRITION",
       "compare_at_price": "110.00",
-      "description": "Nutty, crunchy, and salad-ready; high plant-based protein content; stays fresh on counter for 5\u20137 days with living roots.",
+      "description": "Nutty, crunchy, and salad-ready; high plant-based protein content; stays fresh on counter for 5–7 days with living roots.",
       "family_id": null,
       "id": "c45548c4-6c68-44d8-bea6-11f628ccced9",
       "is_active": true,
@@ -3287,7 +3287,7 @@
       "sku": "MIL-MICRO-SUNFLOWER",
       "slug": "mil-micro-sunflower",
       "specifications": {
-        "Counter Life": "5\u20137 Days",
+        "Counter Life": "5–7 Days",
         "Flavor": "Rich Nutty, Fresh & Crunchy",
         "Form": "Live Living Bio-Tray with Intact Roots",
         "Protein": "High Plant-Based Protein & Vitamin E",
@@ -3345,7 +3345,7 @@
         "Milk Source": "Planned: fresh Sahiwal cow milk",
         "Product Status": "Pre-launch specification; final production and lab validation pending",
         "Shelf Life": "To be confirmed by refrigerated shelf-life testing",
-        "Storage": "Keep refrigerated at 0\u20134\u00b0C"
+        "Storage": "Keep refrigerated at 0–4°C"
       },
       "subcategory": null,
       "taxonomy": null,
@@ -3393,7 +3393,7 @@
         "Milk Source": "Planned: fresh Sahiwal cow milk",
         "Product Status": "Pre-launch specification; final production and lab validation pending",
         "Shelf Life": "To be confirmed by refrigerated shelf-life testing",
-        "Storage": "Keep refrigerated at 0\u20134\u00b0C"
+        "Storage": "Keep refrigerated at 0–4°C"
       },
       "subcategory": null,
       "taxonomy": null,
@@ -3556,7 +3556,7 @@
       "slug": "mil-oil-mustard-1l",
       "specifications": {
         "Best For": "Pickles, Authentic North Indian Curries & Tadka",
-        "Extraction": "Cold-Pressed in Wooden Kolhu (Lakdi Ghani) Below 38\u00b0C",
+        "Extraction": "Cold-Pressed in Wooden Kolhu (Lakdi Ghani) Below 38°C",
         "Packaging": "1 Litre Tall Square Marasca Glass Bottle with Black Cap",
         "Pungency (Jhanjh)": "Natural Unadulterated Allyl Isothiocyanate Aroma",
         "Raw Material": "Single-Origin Native Black Mustard Seeds",
@@ -3609,7 +3609,7 @@
       "slug": "mil-oil-mustard-2l",
       "specifications": {
         "Best For": "Pickles, Authentic North Indian Curries & Daily Cooking",
-        "Extraction": "Cold-Pressed in Wooden Kolhu (Lakdi Ghani) Below 38\u00b0C",
+        "Extraction": "Cold-Pressed in Wooden Kolhu (Lakdi Ghani) Below 38°C",
         "Format": "2 Litre Rectangular Metal Tin Canister with Spout & Handle",
         "Packaging": "2 Litre Artisanal Food-Grade Metal Tin (UV Protected, Zero Microplastics)",
         "Pungency (Jhanjh)": "Natural Unadulterated Allyl Isothiocyanate Aroma",
@@ -3662,7 +3662,7 @@
       "sku": "MIL-OIL-MUSTARD-5L",
       "slug": "mil-oil-mustard-5l",
       "specifications": {
-        "Extraction": "Wooden Ghani Cold-Pressed (< 38\u00b0C)",
+        "Extraction": "Wooden Ghani Cold-Pressed (< 38°C)",
         "Net Volume": "5 Litres",
         "Packaging": "5 Litre Food-Grade Sealed Metal Tin Can with Pouring Spout"
       },
@@ -3714,7 +3714,7 @@
       "specifications": {
         "Extraction": "Slow Wood-Pressing, Zero Refining or Decolorizing",
         "Packaging": "1 Litre Glass Bottle",
-        "Smoke Point": "~225\u00b0C Ideal for Deep Frying & Puris"
+        "Smoke Point": "~225°C Ideal for Deep Frying & Puris"
       },
       "subcategory": "Wood-Pressed Oils & Pure Sweeteners",
       "taxonomy": {
@@ -3836,7 +3836,7 @@
       "brand": "Milterra Artisanal",
       "category": "FEED_NUTRITION",
       "compare_at_price": "295.00",
-      "description": "Raw unrefined sesame seeds pressed below 40\u00b0C; rich in natural lignans and sesamol; warming winter cooking and massage staple.",
+      "description": "Raw unrefined sesame seeds pressed below 40°C; rich in natural lignans and sesamol; warming winter cooking and massage staple.",
       "family_id": null,
       "id": "5841430d-e308-4452-9094-7a1e4f2ba671",
       "is_active": true,
@@ -3860,7 +3860,7 @@
       "sku": "MIL-OIL-TIL-500",
       "slug": "mil-oil-til-500",
       "specifications": {
-        "Extraction": "Cold-Pressed Under 40\u00b0C",
+        "Extraction": "Cold-Pressed Under 40°C",
         "Nutrients": "Rich in Natural Sesamol, Lignans & Calcium",
         "Packaging": "500 ml Glass Bottle"
       },
@@ -3988,7 +3988,7 @@
         "Milk Source": "Planned: fresh Sahiwal cow milk",
         "Product Status": "Pre-launch specification; final production and lab validation pending",
         "Shelf Life": "To be confirmed by refrigerated shelf-life testing",
-        "Storage": "Keep refrigerated at 0\u20134\u00b0C"
+        "Storage": "Keep refrigerated at 0–4°C"
       },
       "subcategory": null,
       "taxonomy": {
@@ -4144,7 +4144,7 @@
         "Milk Source": "Planned: fresh Sahiwal cow milk",
         "Product Status": "Pre-launch specification; final production and lab validation pending",
         "Shelf Life": "To be confirmed by refrigerated shelf-life testing",
-        "Storage": "Keep refrigerated at 0\u20134\u00b0C"
+        "Storage": "Keep refrigerated at 0–4°C"
       },
       "subcategory": null,
       "taxonomy": null,
@@ -4189,7 +4189,7 @@
         "Roasting": "Sand-Roasted Clay Kiln Gram",
         "Weight": "1 kg"
       },
-      "subcategory": "Stone-Ground Chakk\u012b Atta & Flours",
+      "subcategory": "Stone-Ground Chakkī Atta & Flours",
       "taxonomy": {
         "category_id": "6f8a7a95-377c-5c0a-a78b-12aab9a55521",
         "category_name": "Millets & High-Protein Flours",
@@ -4240,7 +4240,7 @@
         "Processing": "Traditional Clay Oven (Bhaad Bhuna) Black Chana",
         "Protein Content": "22g Plant Protein per 100g"
       },
-      "subcategory": "Stone-Ground Chakk\u012b Atta & Flours",
+      "subcategory": "Stone-Ground Chakkī Atta & Flours",
       "taxonomy": {
         "category_id": "6f8a7a95-377c-5c0a-a78b-12aab9a55521",
         "category_name": "Millets & High-Protein Flours",
@@ -4494,7 +4494,7 @@
       "specifications": {
         "Best For": "Laal Maas, Authentic Tadkas, Rich Crimson Curries",
         "Form": "Whole Sun-Dried Chillies with Stems Intact",
-        "Heat Level": "Moderate Heat (SHU 15,000\u201325,000) with High Natural Color (ASTA >120)",
+        "Heat Level": "Moderate Heat (SHU 15,000–25,000) with High Natural Color (ASTA >120)",
         "Origin": "Mathania, Jodhpur District, Rajasthan",
         "Purity": "Zero Mineral Oil Coating, Zero Sudan Dye / Added Colors"
       },

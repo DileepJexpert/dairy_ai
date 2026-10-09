@@ -15,6 +15,7 @@ import '../providers/admin_analytics_provider.dart';
 import '../../marketplace/widgets/support_panel.dart';
 import '../../marketplace/widgets/product_media_manager.dart';
 import '../../marketplace/widgets/daily_deal_push_dialog.dart';
+import '../../marketplace/widgets/campaign_posters_admin_dialog.dart';
 
 final adminCatalogProductsProvider =
     FutureProvider.autoDispose<List<Product>>((ref) async {
@@ -2811,6 +2812,67 @@ class _EcommerceAdminPanelScreenState
                   icon: const Icon(Icons.rocket_launch, size: 16),
                   label: const Text(
                     'Push Product of the Day',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // HealthKart Range Posters Campaign Editor Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xfff0fdf4), Color(0xffdcfce7)],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xff86efac), width: 1.5),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: const BoxDecoration(
+                    color: Color(0xff16a34a),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.campaign,
+                      color: Colors.white, size: 24),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Storefront Harvest Ranges: Promotional Cards & Offers',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xff166534),
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Configure HealthKart-style deal tags, price drops (Was/Now), coupons (BILONA200, SARSO15, MURRAH50), and loyalty coin perks for the 4 homepage range cards.',
+                        style: TextStyle(fontSize: 12, color: Color(0xff15803d)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xff16a34a),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                  ),
+                  onPressed: () => showCampaignPostersAdminDialog(context),
+                  icon: const Icon(Icons.edit_note, size: 18),
+                  label: const Text(
+                    'Configure Range Offers',
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),

@@ -614,6 +614,12 @@ const defaultMilterraProducts = <Product>[
       'department_id': 'dairy-foods',
       'category_id': 'buffalo-ghee'
     },
+    media: [
+      'assets/store/buffalo-ghee.png',
+      'assets/store/buffalo-ghee-pedestal-angle2.jpg',
+      'assets/store/farm-milking.jpg',
+      'assets/store/farm-bilona.jpg',
+    ],
     inStock: true,
     availableQuantity: 28,
     minOrderQuantity: 1,
@@ -646,6 +652,12 @@ const defaultMilterraProducts = <Product>[
       'department_id': 'dairy-foods',
       'category_id': 'buffalo-ghee'
     },
+    media: [
+      'assets/store/buffalo-ghee.png',
+      'assets/store/buffalo-ghee-pedestal-angle2.jpg',
+      'assets/store/farm-milking.jpg',
+      'assets/store/farm-bilona.jpg',
+    ],
     inStock: true,
     availableQuantity: 24,
     minOrderQuantity: 1,
@@ -2302,6 +2314,12 @@ const List<ProductFamily> defaultMilterraProductFamilies = [
     description:
         'Thick, rich granular white bilona ghee made from whole cultured Murrah buffalo milk. Unadulterated and lab certified.',
     primaryImage: 'assets/store/buffalo-ghee.png',
+    media: [
+      'assets/store/buffalo-ghee.png',
+      'assets/store/buffalo-ghee-pedestal-angle2.jpg',
+      'assets/store/farm-milking.jpg',
+      'assets/store/farm-bilona.jpg',
+    ],
     isOrganic: true,
     isPublished: true,
     purityGrade: 'Grade A+ (99.2% Purity Verified)',

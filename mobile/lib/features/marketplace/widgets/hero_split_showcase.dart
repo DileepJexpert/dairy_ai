@@ -24,6 +24,7 @@ class _CinematicBannerData {
   final String feature2Icon;
   final String feature2Text;
   final String panoramicImage;
+  final String cutoutImage;
   final String stampText;
   final String stampSub;
   final String priceDropText;
@@ -40,6 +41,7 @@ class _CinematicBannerData {
     required this.feature2Icon,
     required this.feature2Text,
     required this.panoramicImage,
+    required this.cutoutImage,
     required this.stampText,
     required this.stampSub,
     required this.priceDropText,
@@ -59,6 +61,7 @@ final List<_CinematicBannerData> _defaultCinematicBanners = [
     feature2Icon: '🌿',
     feature2Text: 'Certified A2 Beta-Casein',
     panoramicImage: 'assets/store/panoramic-cow-ghee-hero.jpg',
+    cutoutImage: 'assets/store/tilted-cow-ghee-3d.png',
     stampText: '100% PURE\nBILONA',
     stampSub: 'NABL LAB',
     priceDropText: 'PRICE DROPPED BY ₹396',
@@ -75,6 +78,7 @@ final List<_CinematicBannerData> _defaultCinematicBanners = [
     feature2Icon: '⚡',
     feature2Text: '100% Unrefined & Sulfur-Free',
     panoramicImage: 'assets/store/panoramic-mustard-oil-hero.jpg',
+    cutoutImage: 'assets/store/tilted-mustard-oil-3d.png',
     stampText: 'COLD PRESS\nKOLHU',
     stampSub: 'VIRGIN',
     priceDropText: 'PRICE DROPPED BY ₹40',
@@ -91,6 +95,7 @@ final List<_CinematicBannerData> _defaultCinematicBanners = [
     feature2Icon: '💪',
     feature2Text: 'High Smoke Point for Cooking',
     panoramicImage: 'assets/store/panoramic-buffalo-ghee-hero.jpg',
+    cutoutImage: 'assets/store/tilted-buffalo-ghee-3d.png',
     stampText: 'MURRAH\nHERITAGE',
     stampSub: 'DANEDAR',
     priceDropText: 'PRICE DROPPED BY ₹233',
@@ -107,6 +112,7 @@ final List<_CinematicBannerData> _defaultCinematicBanners = [
     feature2Icon: '🧊',
     feature2Text: 'Melt-In-Mouth Zero Starch',
     panoramicImage: 'assets/store/panoramic-paneer-hero.jpg',
+    cutoutImage: 'assets/store/tilted-paneer-3d.png',
     stampText: 'SAME-DAY\nCHURN',
     stampSub: 'NO STARCH',
     priceDropText: 'PRICE DROPPED BY ₹60',
@@ -335,7 +341,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
               Image.asset(
                 item.panoramicImage,
                 fit: BoxFit.cover,
-                alignment: Alignment.center,
+                alignment: isMobile ? Alignment.centerLeft : Alignment.center,
               ),
 
               // 2. Subtle soft studio light vignette for guaranteed text contrast
@@ -608,7 +614,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
         children: [
           // Left: Info & Price
           Expanded(
-            flex: 8,
+            flex: 6,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -616,7 +622,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                 Text(
                   item.headline,
                   style: const TextStyle(
-                    fontSize: 13.5,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w900,
                     color: Color(0xff0f172a),
                     height: 1.15,
@@ -628,7 +634,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                 Text(
                   item.priceDropText,
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w800,
                     color: Color(0xff0f172a),
                   ),
@@ -677,7 +683,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                     item.couponPillText,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 9,
+                      fontSize: 8.5,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -685,13 +691,24 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          // Right: Floating Circular Stamp Badge
+          const SizedBox(width: 6),
+          // Right: 3D Product Cutout on Shelf + Stamp
           Expanded(
-            flex: 3,
-            child: Align(
-              alignment: Alignment.topRight,
-              child: _buildCircularStamp(item.stampText, item.stampSub),
+            flex: 5,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Image.asset(
+                  item.cutoutImage,
+                  height: 165,
+                  fit: BoxFit.contain,
+                ),
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: _buildCircularStamp(item.stampText, item.stampSub),
+                ),
+              ],
             ),
           ),
         ],
@@ -961,6 +978,7 @@ class _StorefrontCampaignPostersState extends State<StorefrontCampaignPosters> {
                             width: posterWidth,
                             height: posterHeight,
                             fit: BoxFit.cover,
+                            alignment: Alignment.topCenter,
                             errorBuilder: (_, __, ___) => Container(
                               color: const Color(0xff1e293b),
                               child: const Center(

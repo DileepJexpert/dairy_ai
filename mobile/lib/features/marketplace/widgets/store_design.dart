@@ -1645,11 +1645,17 @@ abstract final class StoreImages {
     final title = p.title.toLowerCase();
     final pack = (p.packSize ?? '').toLowerCase();
 
-    // 1. Tin containers ("tin dabba" / 5L metal canisters)
+    // 1. Tin containers ("tin dabba" / 2L rectangular tin / 5L metal canisters)
     final isTin = title.contains('tin') ||
         title.contains('dabba') ||
         title.contains('canister') ||
         pack.contains('tin');
+    final is2L = title.contains('2000') ||
+        title.contains('2 litre') ||
+        title.contains('2l') ||
+        pack.contains('2000') ||
+        pack.contains('2 litre') ||
+        pack.contains('2 l');
     final is5L = title.contains('5000') ||
         title.contains('5 litre') ||
         title.contains('5l') ||
@@ -1657,8 +1663,11 @@ abstract final class StoreImages {
         pack.contains('5 litre') ||
         pack.contains('5 l');
 
-    if (isTin || is5L) {
+    if (isTin || is2L || is5L) {
       if (title.contains('mustard') || title.contains('sarso')) {
+        if (is2L) {
+          return 'assets/store/mustard-oil-tin-2l.jpg';
+        }
         return 'assets/store/mustard-oil-tin-5l.jpg';
       }
       if (title.contains('peanut') || title.contains('groundnut')) {
@@ -1863,6 +1872,12 @@ abstract final class StoreImages {
             title.contains('lakdi ghani') ||
             (title.contains('oil') && !title.contains('soil'))) &&
         !title.contains('microgreen')) {
+      if (is2L) {
+        return 'assets/store/mustard-oil-tin-2l.jpg';
+      }
+      if (is5L) {
+        return 'assets/store/mustard-oil-tin-5l.jpg';
+      }
       return 'assets/store/sarso-oil.jpg';
     }
 

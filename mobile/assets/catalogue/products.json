@@ -3448,7 +3448,7 @@
       "category": "FEED_NUTRITION",
       "compare_at_price": "250.00",
       "description": "Traditional lakdi ghani extraction; intense natural pungency (jhanjh); zero solvent extraction, chemical refining, or synthetic argemone.",
-      "family_id": null,
+      "family_id": "fam-mustard-oil",
       "id": "54b52256-c0d6-436c-b8aa-737b35ab1636",
       "is_active": true,
       "is_featured": true,
@@ -3463,7 +3463,7 @@
         }
       ],
       "min_order_quantity": 1,
-      "pack_size": "1 Litre",
+      "pack_size": "1 Litre Glass Bottle",
       "publication_status": "published",
       "rental_rate_per_acre": null,
       "rental_rate_per_hour": null,
@@ -3472,8 +3472,8 @@
       "slug": "mil-oil-mustard-1l",
       "specifications": {
         "Best For": "Pickles, Authentic North Indian Curries & Tadka",
-        "Extraction": "Cold-Pressed in Wooden Kolhu (Lakdi Ghani) Below 42°C",
-        "Packaging": "1 Litre Clear Glass Bottle (Zero Microplastics)",
+        "Extraction": "Cold-Pressed in Wooden Kolhu (Lakdi Ghani) Below 38°C",
+        "Packaging": "1 Litre Tall Square Marasca Glass Bottle with Black Cap",
         "Pungency (Jhanjh)": "Natural Unadulterated Allyl Isothiocyanate Aroma",
         "Raw Material": "Single-Origin Native Black Mustard Seeds",
         "Testing": "NABL Certified Argemone-Free, Zero Hexane Residue"
@@ -3496,12 +3496,66 @@
       "weight_grams": null
     },
     {
+      "base_price": "430.00",
+      "brand": "Milterra Artisanal",
+      "category": "FEED_NUTRITION",
+      "compare_at_price": "490.00",
+      "description": "Authentic wood-pressed black mustard oil in an artisanal rectangular metal tin with carry handle and pour spout. Protects cold-pressed oil from UV rays and plastic leaching.",
+      "family_id": "fam-mustard-oil",
+      "id": "e7c41a29-8f3b-410a-b28e-5b12da612002",
+      "is_active": true,
+      "is_featured": true,
+      "is_rentable": false,
+      "media": [
+        {
+          "id": "99804731-9dc9-4401-a93f-99b21756383c",
+          "is_primary": true,
+          "media_type": "image",
+          "sort_order": 0,
+          "url": "assets/store/mustard-oil-tin-2l.jpg"
+        }
+      ],
+      "min_order_quantity": 1,
+      "pack_size": "2 Litre Rectangular Tin",
+      "publication_status": "published",
+      "rental_rate_per_acre": null,
+      "rental_rate_per_hour": null,
+      "short_description": null,
+      "sku": "MIL-OIL-MUSTARD-2L",
+      "slug": "mil-oil-mustard-2l",
+      "specifications": {
+        "Best For": "Pickles, Authentic North Indian Curries & Daily Cooking",
+        "Extraction": "Cold-Pressed in Wooden Kolhu (Lakdi Ghani) Below 38°C",
+        "Format": "2 Litre Rectangular Metal Tin Canister with Spout & Handle",
+        "Packaging": "2 Litre Artisanal Food-Grade Metal Tin (UV Protected, Zero Microplastics)",
+        "Pungency (Jhanjh)": "Natural Unadulterated Allyl Isothiocyanate Aroma",
+        "Raw Material": "Single-Origin Native Black Mustard Seeds",
+        "Testing": "NABL Certified Argemone-Free, Zero Hexane Residue"
+      },
+      "subcategory": "Wood-Pressed Oils & Pure Sweeteners",
+      "taxonomy": {
+        "category_id": "a1f433e3-f199-5fb1-842d-b7518164281c",
+        "category_name": "Cold-Pressed Cooking Oils",
+        "classification_version": 1,
+        "department_id": "94478352-4499-56df-9319-364f50308960",
+        "department_name": "Wood-Pressed Oils & Pure Sweeteners"
+      },
+      "title": "Kacchi Ghani Black Mustard Oil (Rectangular Tin)",
+      "unit": "pack",
+      "vendor": {
+        "business_name": "Milterra Dairy",
+        "id": "dcfe61f0-70b1-4992-8e6d-07f7f877ce49"
+      },
+      "vendor_id": "dcfe61f0-70b1-4992-8e6d-07f7f877ce49",
+      "weight_grams": null
+    },
+    {
       "base_price": "1050.00",
       "brand": "Milterra Artisanal",
       "category": "FEED_NUTRITION",
       "compare_at_price": "1200.00",
       "description": "5 Litre value tin of authentic wood-pressed black mustard oil. Food-grade tin protects oil from rancidity and plastic leaching.",
-      "family_id": null,
+      "family_id": "fam-mustard-oil",
       "id": "6b945372-5fcf-4b8e-a951-2ff1ff168c7a",
       "is_active": true,
       "is_featured": true,
@@ -3516,7 +3570,7 @@
         }
       ],
       "min_order_quantity": 1,
-      "pack_size": "5 Litre",
+      "pack_size": "5 Litre Canister",
       "publication_status": "published",
       "rental_rate_per_acre": null,
       "rental_rate_per_hour": null,
@@ -3524,7 +3578,7 @@
       "sku": "MIL-OIL-MUSTARD-5L",
       "slug": "mil-oil-mustard-5l",
       "specifications": {
-        "Extraction": "Wooden Ghani Cold-Pressed",
+        "Extraction": "Wooden Ghani Cold-Pressed (< 38°C)",
         "Net Volume": "5 Litres",
         "Packaging": "5 Litre Food-Grade Sealed Metal Tin Can with Pouring Spout"
       },

@@ -9,10 +9,12 @@ class AdminLoginScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => LoginScreen(
-        nextPath: nextPath ?? '/admin/ecommerce',
-        heading: 'Milterra administration',
+        nextPath: nextPath ?? '/admin/commerce/orders',
+        heading: 'Milterra Administration',
         description:
-            'Continue with the mobile number assigned to your admin account.',
-        initialPhone: '9839769808',
+            'Sign in to access order fulfillment, dispatch, and shipment management.',
+        initialPhone: '9876543210',
+        initialPassword: 'TestAdmin@2026',
+        showAdminQuickChip: true,
       );
 }

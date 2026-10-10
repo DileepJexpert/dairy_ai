@@ -25,6 +25,8 @@ class LoginScreen extends ConsumerStatefulWidget {
     this.description =
         'Use your mobile number and password. No SMS or paid OTP is required.',
     this.initialPhone,
+    this.initialPassword,
+    this.showAdminQuickChip = false,
   });
 
   // `/register` starts in customer account-creation mode.
@@ -33,6 +35,8 @@ class LoginScreen extends ConsumerStatefulWidget {
   final String heading;
   final String description;
   final String? initialPhone;
+  final String? initialPassword;
+  final bool showAdminQuickChip;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -66,6 +70,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void initState() {
     super.initState();
     _phoneController = TextEditingController(text: widget.initialPhone ?? '');
+    if (widget.initialPassword != null) {
+      _passwordController.text = widget.initialPassword!;
+    }
     _createAccount = widget.initialTab == 1;
   }
 
@@ -361,6 +368,54 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                           borderColor: const Color(0xffc7d2fe),
                                         ),
                                       ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            if (widget.showAdminQuickChip)
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 20),
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xfffffbeb),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                      color: const Color(0xfffcd34d), width: 1.2),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Row(
+                                      children: [
+                                        Icon(Icons.admin_panel_settings,
+                                            size: 20, color: Color(0xffb45309)),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Quick Admin Login (1-Tap Autofill)',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: Color(0xff92400e),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    const Text(
+                                      'Tap the chip below to autofill testing admin credentials:',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: Color(0xff78350f),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    _buildDemoChip(
+                                      label: '🛡️ Test Admin (9876543210)',
+                                      phone: '9876543210',
+                                      password: 'TestAdmin@2026',
+                                      color: const Color(0xffb45309),
+                                      bgColor: const Color(0xfffef3c7),
+                                      borderColor: const Color(0xfff59e0b),
                                     ),
                                   ],
                                 ),

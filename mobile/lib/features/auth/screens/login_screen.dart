@@ -225,28 +225,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           );
         },
         authenticated: (user) {
-          if (AppConstants.separateCustomerAuth) {
-            final nextPath = widget.nextPath ??
-                GoRouterState.of(context).uri.queryParameters['next'];
-            context.go(nextPath != null && nextPath.isNotEmpty
-                ? shoppingReturnPath(nextPath)
-                : '/account');
-            return;
-          }
+          final role = user.role.trim().toLowerCase();
+          final isAdmin = role == 'admin' || role == 'super_admin';
+          final isSeller = isAdmin || role == 'vendor' || role == 'seller';
+
           final routeNext = widget.nextPath ??
               GoRouterState.of(context).uri.queryParameters['next'];
+
           if (routeNext != null && routeNext.isNotEmpty) {
-            context.go(routeNext);
-          } else {
-            final role = user.role.toLowerCase();
-            if (role == 'admin' || role == 'super_admin') {
-              context.go('/admin/ecommerce');
-            } else if (role == 'vendor' || role == 'seller') {
-              context.go('/vendor-dashboard');
-            } else {
-              context.go('/shop');
-            }
+            context.go(shoppingReturnPath(routeNext));
+            return;
           }
+
+          if (isAdmin) {
+            context.go('/admin/commerce/orders');
+            return;
+          }
+          if (isSeller) {
+            context.go('/seller/portal');
+            return;
+          }
+
+          if (AppConstants.separateCustomerAuth) {
+            context.go('/account');
+            return;
+          }
+          context.go('/shop');
         },
         error: (message) => showErrorDialog(context, message: message),
         orElse: () {},

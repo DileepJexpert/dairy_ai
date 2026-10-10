@@ -297,6 +297,10 @@ class _StoreAccountMenuState extends State<StoreAccountMenu> {
             const Divider(height: 26),
             _link(const _AccountLink(
                 'Browse products', Icons.storefront_outlined, '/shop')),
+            _link(const _AccountLink(
+                'Admin & Fulfillment Login', Icons.admin_panel_settings_outlined, '/admin/login')),
+            _link(const _AccountLink(
+                'Seller Portal Login', Icons.local_shipping_outlined, '/seller/login')),
           ],
         ),
       );

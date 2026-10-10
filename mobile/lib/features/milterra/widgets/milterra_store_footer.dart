@@ -120,6 +120,8 @@ class MilterraStoreFooter extends StatelessWidget {
                           _footerLink(context, 'Milterra Earth Living Soil', '/earth'),
                           _footerLink(context, 'Farmer & Machinery Hub →', '/marketplace'),
                           _footerLink(context, 'Seller & Fulfillment Portal', '/seller/portal'),
+                          _footerLink(context, 'Admin Operations Login', '/admin/login'),
+                          _footerLink(context, 'Commerce Fulfillment Orders', '/admin/commerce/orders'),
                           _footerLink(context, 'Help & Customer Support', '/help'),
                         ],
                       ),

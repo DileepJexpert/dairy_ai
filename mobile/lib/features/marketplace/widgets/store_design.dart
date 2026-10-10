@@ -686,12 +686,22 @@ class _StoreHeaderState extends ConsumerState<StoreHeader>
 
                     // Admin Button (if authorized)
                     if (canAdmin) ...[
-                      const SizedBox(width: 4),
-                      IconButton(
-                        tooltip: 'Commerce Fulfillment & Orders',
+                      const SizedBox(width: 8),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xff92400e),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          visualDensity: VisualDensity.compact,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6)),
+                        ),
                         onPressed: () => context.go('/admin/commerce/orders'),
-                        icon: const Icon(Icons.admin_panel_settings_outlined,
-                            color: Color(0xffb45309), size: 22),
+                        icon: const Icon(Icons.admin_panel_settings, size: 16),
+                        label: const Text('Admin Portal',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 11.5)),
                       ),
                     ],
 

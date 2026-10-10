@@ -35,7 +35,7 @@ existing_routes = {(route.path, method) for route in app.routes if isinstance(ro
                    for method in route.methods}
 for route in list(app.routes):
     if not isinstance(route, APIRoute) or not route.path.startswith(
-            ("/api/v1/marketplace/admin/", "/api/v1/marketplace/vendor/")):
+            ("/api/v1/marketplace/admin/", "/api/v1/marketplace/vendor/", "/api/v1/marketplace/analytics/")):
         continue
     legacy_path = route.path.replace("/api/v1/marketplace/", "/api/v1/", 1)
     missing_methods = sorted(method for method in route.methods
@@ -46,9 +46,11 @@ for route in list(app.routes):
         existing_routes.update((legacy_path, method) for method in missing_methods)
 
 for route in list(app.routes):
-    if not isinstance(route, APIRoute) or not route.path.startswith("/api/v1/auth/"):
+    if not isinstance(route, APIRoute) or not route.path.startswith(("/api/v1/auth/", "/api/v1/analytics/")):
         continue
-    legacy_path = route.path.replace("/api/v1/auth/", "/auth/", 1)
+    legacy_path = (route.path.replace("/api/v1/auth/", "/auth/", 1)
+                   if route.path.startswith("/api/v1/auth/")
+                   else route.path.replace("/api/v1/analytics/", "/analytics/", 1))
     missing_methods = sorted(method for method in route.methods
                              if (legacy_path, method) not in existing_routes)
     if missing_methods:

@@ -2337,6 +2337,126 @@ async def list_admin_carts(request: Request, status: str = "all", search: str = 
     return {"success": True, "data": cart_list}
 
 
+class VisitRegisterInput(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    session_id: str
+    landing_page: str = "/shop"
+    device_type: str = "mobile"
+    browser: str | None = None
+    os: str | None = None
+    referrer: str | None = None
+    utm_source: str | None = None
+    utm_medium: str | None = None
+    utm_campaign: str | None = None
+    country: str = "India"
+    city: str | None = None
+    state: str | None = None
+
+
+@commerce_router.post("/analytics/visit")
+@commerce_router.post("/marketplace/analytics/visit")
+async def register_visit(data: VisitRegisterInput, request: Request):
+    env = _env(request)
+    now_utc = datetime.now(timezone.utc)
+    now_ts = int(now_utc.timestamp())
+
+    cf_city = (request.headers.get("cf-ipcity") or request.headers.get("x-city") or data.city or "").strip()
+    cf_region = (request.headers.get("cf-region") or request.headers.get("cf-region-code") or data.state or "").strip()
+    cf_country = (request.headers.get("cf-ipcountry") or data.country or "India").strip()
+    ip_addr = request.headers.get("cf-connecting-ip") or request.headers.get("x-real-ip") or ""
+
+    ref_raw = (data.referrer or "").lower()
+    if "whatsapp" in ref_raw:
+        ref_type = "whatsapp"
+    elif "google" in ref_raw:
+        ref_type = "google"
+    elif "instagram" in ref_raw:
+        ref_type = "instagram"
+    elif "facebook" in ref_raw:
+        ref_type = "facebook"
+    elif ref_raw.startswith("http") and "milterrafoods.com" not in ref_raw:
+        ref_type = "referral"
+    else:
+        ref_type = "direct"
+
+    dev_type = (data.device_type or "mobile").lower()
+    if "desk" in dev_type or "win" in dev_type or "mac" in dev_type or "linux" in dev_type:
+        dev_type = "desktop"
+    elif "tab" in dev_type or "pad" in dev_type:
+        dev_type = "tablet"
+    else:
+        dev_type = "mobile"
+
+    existing_row = await env.DB.prepare(
+        "SELECT id, page_views_count FROM analytics_visitor_sessions WHERE session_id = ?"
+    ).bind(data.session_id).all()
+    existing = _d1_rows(existing_row)
+
+    if existing:
+        await env.DB.prepare("""
+            UPDATE analytics_visitor_sessions
+            SET last_seen_at = ?, page_views_count = page_views_count + 1, is_bounce = 0
+            WHERE session_id = ?
+        """).bind(now_ts, data.session_id).run()
+    else:
+        rec_id = str(uuid.uuid4())
+        await env.DB.prepare("""
+            INSERT INTO analytics_visitor_sessions
+            (id, session_id, ip_address, country, state, city, referrer, referrer_type, landing_page, device_type, browser, os, page_views_count, is_bounce, started_at, last_seen_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
+        """).bind(
+            rec_id, data.session_id, ip_addr, cf_country, cf_region, cf_city,
+            data.referrer or "", ref_type, data.landing_page, dev_type,
+            data.browser or "", data.os or "", now_ts, now_ts
+        ).run()
+
+    return {
+        "success": True,
+        "data": {
+            "session_id": data.session_id,
+            "city": cf_city,
+            "state": cf_region,
+            "country": cf_country,
+        },
+        "message": "Visit registered",
+    }
+
+
+class ClickstreamEventBatch(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    events: list[dict[str, Any]] = Field(default_factory=list)
+
+
+@commerce_router.post("/analytics/events")
+@commerce_router.post("/marketplace/analytics/events")
+async def ingest_clickstream_events(data: ClickstreamEventBatch, request: Request):
+    env = _env(request)
+    now_utc = datetime.now(timezone.utc)
+    now_ts = int(now_utc.timestamp())
+
+    count = 0
+    for ev in data.events:
+        sess_id = ev.get("session_id")
+        if not sess_id:
+            continue
+        ev_id = str(uuid.uuid4())
+        ev_type = ev.get("event_type") or "PAGE_VIEW"
+        page_url = ev.get("page_url") or "/"
+        elem_id = ev.get("element_id")
+        elem_text = ev.get("element_text")
+        tgt_id = ev.get("target_id")
+        meta = json.dumps(ev.get("metadata")) if ev.get("metadata") else None
+
+        await env.DB.prepare("""
+            INSERT INTO analytics_clickstream_events
+            (id, session_id, event_type, page_url, element_id, element_text, target_id, metadata_json, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """).bind(ev_id, sess_id, ev_type, page_url, elem_id, elem_text, tgt_id, meta, now_ts).run()
+        count += 1
+
+    return {"success": True, "data": {"processed": count}, "message": f"Recorded {count} events"}
+
+
 @commerce_router.get("/admin/ecommerce/analytics/traffic")
 @commerce_router.get("/marketplace/admin/ecommerce/analytics/traffic")
 async def get_admin_traffic_analytics(request: Request):
@@ -2347,96 +2467,161 @@ async def get_admin_traffic_analytics(request: Request):
     today_start_ts = now_ts - 86400
     thirty_mins_ago = now_ts - 1800
 
-    sess_rows = await env.DB.prepare("SELECT count(*) as cnt FROM customer_sessions").all()
-    session_count = _d1_rows(sess_rows)[0]["cnt"] if sess_rows else 0
+    # 1. Real Visitor Counts
+    vis_count_row = await env.DB.prepare("SELECT count(*) as cnt FROM analytics_visitor_sessions").all()
+    vis_count = _d1_rows(vis_count_row)[0]["cnt"] if vis_count_row else 0
 
-    today_rows = await env.DB.prepare(
+    cust_sess_row = await env.DB.prepare("SELECT count(*) as cnt FROM customer_sessions").all()
+    cust_count = _d1_rows(cust_sess_row)[0]["cnt"] if cust_sess_row else 0
+
+    # Total visitors: purely from real sessions
+    total_visitors = max(vis_count, cust_count)
+
+    # Today's real visitors
+    vis_today_row = await env.DB.prepare(
+        "SELECT count(*) as cnt FROM analytics_visitor_sessions WHERE started_at >= ?"
+    ).bind(today_start_ts).all()
+    vis_today = _d1_rows(vis_today_row)[0]["cnt"] if vis_today_row else 0
+
+    cust_today_row = await env.DB.prepare(
         "SELECT count(*) as cnt FROM customer_sessions WHERE created_at >= ?"
     ).bind(today_start_ts).all()
-    today_count = _d1_rows(today_rows)[0]["cnt"] if today_rows else 0
+    cust_today = _d1_rows(cust_today_row)[0]["cnt"] if cust_today_row else 0
 
-    live_rows = await env.DB.prepare(
+    today_visitors = max(vis_today, cust_today)
+
+    # Real Live visitors (active in last 30 minutes)
+    vis_live_row = await env.DB.prepare(
+        "SELECT count(*) as cnt FROM analytics_visitor_sessions WHERE last_seen_at >= ?"
+    ).bind(thirty_mins_ago).all()
+    vis_live = _d1_rows(vis_live_row)[0]["cnt"] if vis_live_row else 0
+
+    cust_live_row = await env.DB.prepare(
         "SELECT count(*) as cnt FROM customer_sessions WHERE access_expires_at >= ?"
     ).bind(thirty_mins_ago).all()
-    live_count = _d1_rows(live_rows)[0]["cnt"] if live_rows else 0
+    cust_live = _d1_rows(cust_live_row)[0]["cnt"] if cust_live_row else 0
 
-    addr_rows = await env.DB.prepare(
-        "SELECT city, state, count(*) as cnt FROM customer_addresses WHERE city IS NOT NULL AND city != '' GROUP BY city, state ORDER BY cnt DESC LIMIT 10"
-    ).all()
-    real_addrs = _d1_rows(addr_rows)
+    live_visitors = max(vis_live, cust_live)
 
-    total_visitors = max(session_count, 428)
-    today_visitors = max(today_count, 74)
-    live_visitors = max(live_count, 12)
-    total_page_views = max(session_count * 4, 1580)
-    bounce_rate = 28.5
-    avg_session_duration_seconds = 184
+    # Real Page Views
+    pv_row = await env.DB.prepare("SELECT COALESCE(SUM(page_views_count), 0) as pv FROM analytics_visitor_sessions").all()
+    total_page_views = _d1_rows(pv_row)[0]["pv"] if pv_row else 0
+    if total_page_views < total_visitors:
+        total_page_views = total_visitors
 
-    city_map: dict[str, int] = {}
-    for row in real_addrs:
-        c = (row.get("city") or "").strip().title()
-        if c:
-            city_map[c] = city_map.get(c, 0) + row.get("cnt", 1) * 35
+    # Real Bounce Rate
+    bounce_row = await env.DB.prepare("SELECT count(*) as cnt FROM analytics_visitor_sessions WHERE is_bounce = 1").all()
+    bounces = _d1_rows(bounce_row)[0]["cnt"] if bounce_row else 0
+    bounce_rate = round((bounces / total_visitors) * 100.0, 1) if total_visitors > 0 else 0.0
 
-    baseline_cities = [
-        ("Noida", 142),
-        ("Bengaluru", 98),
-        ("Pune", 74),
-        ("Lucknow", 46),
-        ("Jaipur", 38),
-        ("Ahmedabad", 30),
-    ]
-    for c, cnt in baseline_cities:
-        if c not in city_map:
-            city_map[c] = cnt
+    # Real Avg Session Duration
+    dur_row = await env.DB.prepare("SELECT COALESCE(AVG(last_seen_at - started_at), 0) as dur FROM analytics_visitor_sessions").all()
+    avg_session_duration_seconds = max(0, int(_d1_rows(dur_row)[0]["dur"] if dur_row else 0))
+    if avg_session_duration_seconds == 0 and total_visitors > 0:
+        avg_session_duration_seconds = 60
 
+    # 2. Real Geographic Distribution (NO SEEDED / FAKE CITIES)
+    city_rows = await env.DB.prepare("""
+        SELECT city, count(*) as cnt FROM (
+            SELECT city FROM analytics_visitor_sessions WHERE city IS NOT NULL AND TRIM(city) != ''
+            UNION ALL
+            SELECT city FROM customer_addresses WHERE city IS NOT NULL AND TRIM(city) != ''
+        ) GROUP BY city ORDER BY cnt DESC LIMIT 10
+    """).all()
+    real_cities = _d1_rows(city_rows)
+
+    total_city_visits = sum(r["cnt"] for r in real_cities) or total_visitors or 1
     top_cities = [
         {
-            "name": name,
-            "visitors_count": cnt,
-            "percent": round((cnt / total_visitors) * 100.0, 1),
+            "name": r["city"].strip().title(),
+            "visitors_count": r["cnt"],
+            "percent": round((r["cnt"] / total_city_visits) * 100.0, 1),
         }
-        for name, cnt in sorted(city_map.items(), key=lambda x: x[1], reverse=True)[:6]
+        for r in real_cities
+        if r.get("city") and r["city"].strip()
     ]
 
-    state_map: dict[str, int] = {}
-    for row in real_addrs:
-        s = (row.get("state") or "").strip().title()
-        if s:
-            state_map[s] = state_map.get(s, 0) + row.get("cnt", 1) * 45
+    # 3. Real States Distribution (NO SEEDED / FAKE STATES)
+    state_rows = await env.DB.prepare("""
+        SELECT state, count(*) as cnt FROM (
+            SELECT state FROM analytics_visitor_sessions WHERE state IS NOT NULL AND TRIM(state) != ''
+            UNION ALL
+            SELECT state FROM customer_addresses WHERE state IS NOT NULL AND TRIM(state) != ''
+        ) GROUP BY state ORDER BY cnt DESC LIMIT 10
+    """).all()
+    real_states = _d1_rows(state_rows)
 
-    baseline_states = [
-        ("Uttar Pradesh", 188),
-        ("Maharashtra", 142),
-        ("Karnataka", 98),
-        ("Rajasthan", 38),
-        ("Gujarat", 30),
-    ]
-    for s, cnt in baseline_states:
-        if s not in state_map:
-            state_map[s] = cnt
-
+    total_state_visits = sum(r["cnt"] for r in real_states) or total_visitors or 1
     top_states = [
         {
-            "name": name,
-            "visitors_count": cnt,
-            "percent": round((cnt / total_visitors) * 100.0, 1),
+            "name": r["state"].strip().title(),
+            "visitors_count": r["cnt"],
+            "percent": round((r["cnt"] / total_state_visits) * 100.0, 1),
         }
-        for name, cnt in sorted(state_map.items(), key=lambda x: x[1], reverse=True)[:5]
+        for r in real_states
+        if r.get("state") and r["state"].strip()
     ]
 
-    top_referrers = [
-        {"source": "Direct / milterrafoods.com", "type": "direct", "visitors_count": 168, "percent": 39.3},
-        {"source": "WhatsApp Share", "type": "whatsapp", "visitors_count": 132, "percent": 30.8},
-        {"source": "Google Search", "type": "google", "visitors_count": 84, "percent": 19.6},
-        {"source": "Instagram Dairy Feed", "type": "instagram", "visitors_count": 44, "percent": 10.3},
-    ]
+    # 4. Real Traffic Sources (NO SEEDED / FAKE REFERRERS)
+    ref_rows = await env.DB.prepare("""
+        SELECT referrer_type, count(*) as cnt FROM analytics_visitor_sessions
+        WHERE referrer_type IS NOT NULL AND TRIM(referrer_type) != ''
+        GROUP BY referrer_type ORDER BY cnt DESC
+    """).all()
+    real_refs = _d1_rows(ref_rows)
 
-    device_breakdown = {
-        "mobile": 334,
-        "desktop": 82,
-        "tablet": 12,
-    }
+    def _format_source_label(ref_t: str) -> str:
+        if ref_t == "whatsapp":
+            return "WhatsApp Share"
+        elif ref_t == "google":
+            return "Google Search"
+        elif ref_t == "instagram":
+            return "Instagram"
+        elif ref_t == "facebook":
+            return "Facebook"
+        elif ref_t == "referral":
+            return "Referral Link"
+        return "Direct / milterrafoods.com"
+
+    if real_refs:
+        total_ref_visits = sum(r["cnt"] for r in real_refs)
+        top_referrers = [
+            {
+                "source": _format_source_label(r["referrer_type"]),
+                "type": r["referrer_type"],
+                "visitors_count": r["cnt"],
+                "percent": round((r["cnt"] / total_ref_visits) * 100.0, 1),
+            }
+            for r in real_refs
+        ]
+    else:
+        top_referrers = [
+            {
+                "source": "Direct / milterrafoods.com",
+                "type": "direct",
+                "visitors_count": total_visitors,
+                "percent": 100.0 if total_visitors > 0 else 0.0,
+            }
+        ]
+
+    # 5. Real Device Breakdown (NO SEEDED / FAKE DEVICE COUNTS)
+    dev_rows = await env.DB.prepare("""
+        SELECT device_type, count(*) as cnt FROM analytics_visitor_sessions
+        WHERE device_type IS NOT NULL AND TRIM(device_type) != ''
+        GROUP BY device_type
+    """).all()
+    real_devs = _d1_rows(dev_rows)
+
+    device_counts = {"mobile": 0, "desktop": 0, "tablet": 0}
+    for r in real_devs:
+        dtype = (r["device_type"] or "mobile").lower()
+        if dtype in device_counts:
+            device_counts[dtype] += r["cnt"]
+        else:
+            device_counts["mobile"] += r["cnt"]
+
+    if sum(device_counts.values()) == 0 and total_visitors > 0:
+        device_counts["mobile"] = total_visitors
 
     return {
         "success": True,
@@ -2451,7 +2636,7 @@ async def get_admin_traffic_analytics(request: Request):
             "top_cities": top_cities,
             "top_states": top_states,
             "top_referrers": top_referrers,
-            "device_breakdown": device_breakdown,
+            "device_breakdown": device_counts,
         },
     }
 
@@ -2493,8 +2678,6 @@ async def get_admin_sessions_analytics(request: Request, status: str = "all", se
 
     sessions_data: list[dict[str, Any]] = []
     live_count = 0
-    converted_count = 0
-    cart_abandoned_count = 0
 
     for s in sess_list:
         cid = s.get("customer_id")
@@ -2520,7 +2703,6 @@ async def get_admin_sessions_analytics(request: Request, status: str = "all", se
         ]
 
         if cust_orders:
-            converted_count += 1
             farthest_stage = "CONVERTED"
             farthest_stage_label = "5. Placed Order"
             stuck_status = "CONVERTED"
@@ -2529,7 +2711,6 @@ async def get_admin_sessions_analytics(request: Request, status: str = "all", se
             last_page = "/order-success"
             last_action = "Completed checkout"
         elif cust_cart:
-            cart_abandoned_count += 1
             farthest_stage = "CART"
             farthest_stage_label = "3. Added to Cart"
             stuck_status = "CART_ABANDONED"
@@ -2568,7 +2749,7 @@ async def get_admin_sessions_analytics(request: Request, status: str = "all", se
             "duration_minutes": duration_mins,
             "inactive_minutes": 0 if is_live else max(1, duration_mins),
             "is_live": is_live,
-            "page_views_count": max(1, len(cust_cart) + len(cust_orders) + 3),
+            "page_views_count": max(1, len(cust_cart) + len(cust_orders) + 1),
             "farthest_stage": farthest_stage,
             "farthest_stage_label": farthest_stage_label,
             "stuck_status": stuck_status,
@@ -2603,24 +2784,29 @@ async def get_admin_sessions_analytics(request: Request, status: str = "all", se
             or sq in s["city"].lower()
         ]
 
-    total_visitors = max(len(sess_list), 428)
+    total_visitors = len(sess_list)
+    cart_abandoned_count = len([s for s in sessions_data if s["farthest_stage"] == "CART"])
+    converted_count = len([s for s in sessions_data if s["farthest_stage"] == "CONVERTED"])
+    checkout_stuck_count = len([s for s in sessions_data if s["farthest_stage"] == "CHECKOUT"])
+    stuck_visitors_count = max(0, total_visitors - converted_count)
+
     funnel_steps = [
-        {"stage_key": "LANDED", "stage_name": "Store Visits", "visitor_count": total_visitors, "conversion_percent": 100.0, "drop_off_count": int(total_visitors * 0.28), "drop_off_percent": 28.0},
-        {"stage_key": "CATALOGUE", "stage_name": "Browsed Products", "visitor_count": int(total_visitors * 0.72), "conversion_percent": 72.0, "drop_off_count": int(total_visitors * 0.35), "drop_off_percent": 48.6},
-        {"stage_key": "CART", "stage_name": "Added to Cart", "visitor_count": max(len(carts_by_cust), 84), "conversion_percent": 27.2, "drop_off_count": 22, "drop_off_percent": 26.2},
-        {"stage_key": "CHECKOUT", "stage_name": "Reached Checkout", "visitor_count": max(len(orders_by_cust), 62), "conversion_percent": 20.1, "drop_off_count": 14, "drop_off_percent": 22.5},
-        {"stage_key": "CONVERTED", "stage_name": "Placed Order", "visitor_count": max(converted_count, 48), "conversion_percent": 15.5, "drop_off_count": 0, "drop_off_percent": 0.0},
+        {"stage_key": "LANDED", "stage_name": "Store Visits", "visitor_count": total_visitors, "conversion_percent": 100.0 if total_visitors > 0 else 0.0, "drop_off_count": max(0, total_visitors - (total_visitors if total_visitors > 0 else 0)), "drop_off_percent": 0.0},
+        {"stage_key": "CATALOGUE", "stage_name": "Browsed Products", "visitor_count": total_visitors, "conversion_percent": 100.0 if total_visitors > 0 else 0.0, "drop_off_count": max(0, total_visitors - (cart_abandoned_count + checkout_stuck_count + converted_count)), "drop_off_percent": round((max(0, total_visitors - (cart_abandoned_count + checkout_stuck_count + converted_count)) / total_visitors * 100.0), 1) if total_visitors > 0 else 0.0},
+        {"stage_key": "CART", "stage_name": "Added to Cart", "visitor_count": cart_abandoned_count + checkout_stuck_count + converted_count, "conversion_percent": round(((cart_abandoned_count + checkout_stuck_count + converted_count) / total_visitors * 100.0), 1) if total_visitors > 0 else 0.0, "drop_off_count": cart_abandoned_count, "drop_off_percent": round((cart_abandoned_count / total_visitors * 100.0), 1) if total_visitors > 0 else 0.0},
+        {"stage_key": "CHECKOUT", "stage_name": "Reached Checkout", "visitor_count": checkout_stuck_count + converted_count, "conversion_percent": round(((checkout_stuck_count + converted_count) / total_visitors * 100.0), 1) if total_visitors > 0 else 0.0, "drop_off_count": checkout_stuck_count, "drop_off_percent": round((checkout_stuck_count / total_visitors * 100.0), 1) if total_visitors > 0 else 0.0},
+        {"stage_key": "CONVERTED", "stage_name": "Placed Order", "visitor_count": converted_count, "conversion_percent": round((converted_count / total_visitors * 100.0), 1) if total_visitors > 0 else 0.0, "drop_off_count": 0, "drop_off_percent": 0.0},
     ]
 
     return {
         "success": True,
         "data": {
             "total_visitors": total_visitors,
-            "live_visitors_count": max(live_count, 12),
-            "stuck_visitors_count": max(len(sess_list) - converted_count, 18),
-            "cart_abandoned_count": max(cart_abandoned_count, 6),
-            "checkout_stuck_count": 4,
-            "converted_count": max(converted_count, len(raw_orders) if raw_orders else 2),
+            "live_visitors_count": live_count,
+            "stuck_visitors_count": stuck_visitors_count,
+            "cart_abandoned_count": cart_abandoned_count,
+            "checkout_stuck_count": checkout_stuck_count,
+            "converted_count": converted_count,
             "funnel_steps": funnel_steps,
             "sessions": sessions_data,
         }
@@ -2633,6 +2819,38 @@ async def get_admin_clickstream_analytics(request: Request, user_phone: str = ""
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
     env = _env(request)
 
+    click_rows = await env.DB.prepare("""
+        SELECT e.id, e.session_id, e.customer_id as user_id, e.event_type,
+               e.page_url, e.element_id, e.element_text, e.target_id,
+               e.metadata_json, e.created_at, c.phone as user_phone
+        FROM analytics_clickstream_events e
+        LEFT JOIN customers c ON c.id = e.customer_id
+        ORDER BY e.created_at DESC LIMIT 100
+    """).all()
+
+    events: list[dict[str, Any]] = []
+    for r in _d1_rows(click_rows):
+        meta = None
+        if r.get("metadata_json"):
+            try:
+                meta = json.loads(r["metadata_json"])
+            except Exception:
+                meta = {"raw": r["metadata_json"]}
+        dt = datetime.fromtimestamp(r["created_at"], tz=timezone.utc).isoformat()
+        events.append({
+            "id": r["id"],
+            "session_id": r["session_id"],
+            "user_id": r.get("user_id"),
+            "user_phone": r.get("user_phone") or "",
+            "event_type": r["event_type"],
+            "page_url": r["page_url"],
+            "element_id": r.get("element_id"),
+            "element_text": r.get("element_text"),
+            "target_id": r.get("target_id"),
+            "metadata": meta,
+            "created_at": dt,
+        })
+
     orders_rows = await env.DB.prepare("""
         SELECT o.id, o.customer_id, o.total_minor, o.status, o.created_at, c.phone as user_phone
         FROM orders o
@@ -2640,7 +2858,6 @@ async def get_admin_clickstream_analytics(request: Request, user_phone: str = ""
         ORDER BY o.created_at DESC LIMIT 50
     """).all()
 
-    events: list[dict[str, Any]] = []
     for o in _d1_rows(orders_rows):
         events.append({
             "id": f"ev-ord-{o['id'][:8]}",
@@ -2654,39 +2871,6 @@ async def get_admin_clickstream_analytics(request: Request, user_phone: str = ""
             "target_id": o["id"],
             "metadata": {"total": o["total_minor"] / 100, "status": o["status"]},
             "created_at": o["created_at"],
-        })
-
-    sess_rows = await env.DB.prepare("""
-        SELECT s.id as session_id, s.customer_id, s.created_at, c.phone as user_phone
-        FROM customer_sessions s
-        JOIN customers c ON c.id = s.customer_id
-        ORDER BY s.created_at DESC LIMIT 20
-    """).all()
-    for s in _d1_rows(sess_rows):
-        dt = datetime.fromtimestamp(s["created_at"], tz=timezone.utc).isoformat()
-        events.append({
-            "id": f"ev-view-{s['session_id'][:8]}",
-            "session_id": s["session_id"],
-            "user_id": s["customer_id"],
-            "user_phone": s.get("user_phone") or "",
-            "event_type": "PAGE_VIEW",
-            "page_url": "/shop",
-            "element_id": "nav-shop",
-            "element_text": "Viewed Product Catalogue",
-            "metadata": {"source": "direct"},
-            "created_at": dt,
-        })
-        events.append({
-            "id": f"ev-cart-{s['session_id'][:8]}",
-            "session_id": s["session_id"],
-            "user_id": s["customer_id"],
-            "user_phone": s.get("user_phone") or "",
-            "event_type": "ADD_TO_CART",
-            "page_url": "/product/a2-cow-milk",
-            "element_id": "btn-add-cart",
-            "element_text": "Added Fresh A2 Cow Milk to Cart",
-            "metadata": {"qty": 2},
-            "created_at": dt,
         })
 
     if user_phone:

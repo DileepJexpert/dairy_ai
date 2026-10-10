@@ -1392,10 +1392,20 @@ class _EcommerceAdminPanelScreenState
               ],
             ),
           ),
-          IconButton(
-            tooltip: 'Order Fulfillment & COD Remittance',
-            icon: const Icon(Icons.local_shipping_outlined),
-            onPressed: () => context.push('/admin/commerce/orders'),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xfff59e0b),
+                foregroundColor: const Color(0xff78350f),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              icon: const Icon(Icons.local_shipping, size: 18),
+              label: const Text('Customer Orders',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              onPressed: () => context.push('/admin/commerce/orders'),
+            ),
           ),
           IconButton(
             tooltip: 'View Customer Storefront',
@@ -3579,6 +3589,48 @@ class _EcommerceAdminPanelScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Card(
+            color: const Color(0xfffffbeb),
+            margin: const EdgeInsets.only(bottom: 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: const BorderSide(color: Color(0xfffcd34d)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const Icon(Icons.local_shipping,
+                      color: Color(0xffb45309), size: 36),
+                  const SizedBox(width: 16),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Live Customer Orders & Fulfillment',
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xff92400e))),
+                        SizedBox(height: 4),
+                        Text(
+                            'View placed orders, assign carrier tracking, dispatch parcels & record COD payments.',
+                            style: TextStyle(
+                                fontSize: 12.5, color: Color(0xff78350f))),
+                      ],
+                    ),
+                  ),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xff92400e)),
+                    icon: const Icon(Icons.open_in_new, size: 16),
+                    label: const Text('Open Orders Portal'),
+                    onPressed: () => context.push('/admin/commerce/orders'),
+                  ),
+                ],
+              ),
+            ),
+          ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [

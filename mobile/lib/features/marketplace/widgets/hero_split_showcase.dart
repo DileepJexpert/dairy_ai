@@ -234,7 +234,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
   @override
   Widget build(BuildContext context) {
     final isMobile = widget.screenWidth < 880;
-    final double bannerHeight = isMobile ? 240.0 : 340.0;
+    final double bannerHeight = isMobile ? 210.0 : 285.0;
 
     return SizedBox(
       height: bannerHeight,
@@ -300,7 +300,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
 
           // HealthKart Centered Dark Capsule Pagination Dots [ ••••• ]
           Positioned(
-            bottom: 12,
+            bottom: 10,
             left: 0,
             right: 0,
             child: Center(
@@ -393,7 +393,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1280),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 52, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 52, vertical: 8),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -483,7 +483,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                   children: [
                     // Circular Trust Stamp Badge (like HealthKart's "INFORMED PROTEIN U.S.A")
                     Positioned(
-                      top: 14,
+                      top: 10,
                       right: 18,
                       child: _buildCircularStamp(item.stampText, item.stampSub),
                     ),
@@ -718,7 +718,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
               children: [
                 Image.asset(
                   item.cutoutImage,
-                  height: 165,
+                  height: 145,
                   fit: BoxFit.contain,
                 ),
                 Positioned(

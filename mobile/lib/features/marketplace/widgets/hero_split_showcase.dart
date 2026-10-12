@@ -234,7 +234,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
   @override
   Widget build(BuildContext context) {
     final isMobile = widget.screenWidth < 880;
-    final double bannerHeight = isMobile ? 210.0 : 285.0;
+    final double bannerHeight = isMobile ? 210.0 : 275.0;
 
     return SizedBox(
       height: bannerHeight,

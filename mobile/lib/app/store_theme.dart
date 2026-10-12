@@ -1,35 +1,38 @@
 import 'package:flutter/material.dart';
 
 // Single source of truth for the application brand and storefront design system.
-// Screens define their content and layout; reusable visual rules live here.
-const storeGreen = Color(0xff173f35);
-const storeDarkGreenNav = Color(0xff102d26);
-const storeSubNav = Color(0xff1b4537);
-const storeGold = Color(0xffb39358);
-const storeAmber = Color(0xffe5ac32);
+// Milterra Luxury Brand Palette (Onyx Black, Royal Gold, Amber & Warm Cream)
+const storePrimary = Color(0xff1a1a1a); // Rich Charcoal / Onyx
+const storeDark = Color(0xff121212);    // Deep Luxury Black
+const storeGold = Color(0xffb39358);    // Royal Heritage Gold
+const storeAmber = Color(0xffe5ac32);   // Vibrant Accent Amber
 const storeAmberDark = Color(0xffc58514);
 const storeOrange = Color(0xffe07e1b);
 const storeStarGold = Color(0xfff5a623);
-const storeCream = Color(0xfff7f5ef);
-const storeText = Color(0xff202824);
-const storeMuted = Color(0xff617069);
-const storeBorder = Color(0xffe3ded3);
+const storeCream = Color(0xfff7f5ef);   // Warm heritage cream background
+const storeText = Color(0xff1f2937);    // Modern readable dark charcoal text
+const storeMuted = Color(0xff6b7280);   // Neutral slate muted text
+const storeBorder = Color(0xffe5e7eb);  // Clean crisp border
 const storeWhite = Colors.white;
 const storeHero = Color(0xffeee4cd);
 const storeHeroCircle = Color(0xffe0c692);
-const storeSage = Color(0xffe8eee2);
-const storeFresh = Color(0xfff0f4ea);
+const storeSage = Color(0xfff4efe6);    // Soft luxury cream/stone accent
+const storeFresh = Color(0xfff9fafb);
 const storeWarm = Color(0xfff5f1e8);
-const storeSuccess = Color(0xff367448);
+const storeSuccess = Color(0xff15803d); // True success green for order/stock badges
 const storeError = Color(0xffb3261e);
 
+// Compatibility aliases for legacy DairyAI references
+const storeGreen = storePrimary;        // Maps to modern luxury onyx (Color(0xff1a1a1a))
+const storeDarkGreenNav = storeDark;    // Maps to deep luxury black (Color(0xff121212))
+const storeSubNav = Color(0xff27272a);  // Maps to sleek dark slate border
+
 // MILTERRA Division palette — used for category chip colour coding.
-// These are additive; no existing colour is changed.
-const storeDivisionFarmFoods  = Color(0xff173f35); // dark green/gold — Farm Foods (same as storeGreen)
-const storeDivisionFresh      = Color(0xff2e7d4f); // lighter leaf green — Fresh
-const storeDivisionAnimalNutr = Color(0xff1a4558); // deep green-blue teal — Animal Nutrition
-const storeDivisionEarth      = Color(0xff5a4a2a); // olive / natural brown — Earth
-const storeDivisionEarthDot   = Color(0xff8b6914); // warm amber — Earth chip dot accent
+const storeDivisionFarmFoods  = Color(0xff1a1a1a); // Rich Onyx — Farm Foods
+const storeDivisionFresh      = Color(0xff2e7d4f); // Leaf green — Fresh
+const storeDivisionAnimalNutr = Color(0xff1a4558); // Deep teal — Animal Nutrition
+const storeDivisionEarth      = Color(0xff5a4a2a); // Olive / natural brown — Earth
+const storeDivisionEarthDot   = Color(0xff8b6914); // Warm amber — Earth chip dot accent
 
 abstract final class StorePalette {
   static const categoryAll = Color(0xffece5d5),
@@ -51,9 +54,9 @@ abstract final class StorePalette {
     Color(0xffad7420)
   ];
   static const lidGradient = [
-    Color(0xff243e32),
-    Color(0xff4b6451),
-    Color(0xff1e342a)
+    Color(0xff262626),
+    Color(0xff3f3f46),
+    Color(0xff18181b)
   ];
   static const shadow = Colors.black;
 }
@@ -90,14 +93,14 @@ abstract final class StoreType {
       small ? cardTitle.copyWith(fontSize: 14) : cardTitle;
   static TextStyle navigation(bool selected) => label.copyWith(
       fontSize: 13,
-      color: selected ? storeGreen : storeMuted,
+      color: selected ? storePrimary : storeMuted,
       fontWeight: selected ? FontWeight.w700 : FontWeight.w400);
   static const heroBody =
       TextStyle(color: storeMuted, fontSize: 14, height: 1.65);
   static const seal = TextStyle(
       color: storeGold, fontSize: 10, height: 1.5, letterSpacing: 1.2);
   static const logo = TextStyle(
-      color: storeGreen,
+      color: storePrimary,
       fontFamily: 'CormorantGaramond',
       fontSize: 37,
       fontWeight: FontWeight.w600,
@@ -128,32 +131,32 @@ abstract final class StoreType {
       fontSize: 36,
       fontWeight: FontWeight.w500,
       letterSpacing: -.5,
-      color: storeGreen);
+      color: storePrimary);
   static const title = TextStyle(
       fontFamily: 'CormorantGaramond',
       fontSize: 27,
       fontWeight: FontWeight.w600,
-      color: storeGreen);
+      color: storePrimary);
   static const productTitle = TextStyle(
       fontFamily: 'CormorantGaramond',
       fontSize: 42,
       fontWeight: FontWeight.w500,
       height: 1.2,
-      color: storeGreen);
+      color: storePrimary);
   static const cardTitle = TextStyle(
       fontSize: 16,
       height: 1.35,
       fontWeight: FontWeight.w700,
-      color: storeGreen);
+      color: storePrimary);
   static const body = TextStyle(fontSize: 14, height: 1.65, color: storeText);
   static const muted = TextStyle(fontSize: 12, height: 1.5, color: storeMuted);
   static const price = TextStyle(
       fontSize: 25,
       fontWeight: FontWeight.w500,
       letterSpacing: -.6,
-      color: storeGreen);
+      color: storePrimary);
   static const label =
-      TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: storeGreen);
+      TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: storePrimary);
   static const amazonTopLine = TextStyle(
       fontSize: 10.5,
       color: Color(0xff6b7280),
@@ -176,7 +179,7 @@ abstract final class StoreType {
       height: 1.05,
       fontWeight: FontWeight.w500,
       letterSpacing: -1,
-      color: storeGreen);
+      color: storePrimary);
 }
 
 abstract final class StoreTheme {
@@ -185,7 +188,7 @@ abstract final class StoreTheme {
   static final addToCartButton = FilledButton.styleFrom(
     minimumSize: const Size(0, 40),
     backgroundColor: storeAmber,
-    foregroundColor: storeGreen,
+    foregroundColor: storePrimary,
     disabledBackgroundColor: storeBorder,
     disabledForegroundColor: storeMuted,
     elevation: 0,
@@ -193,7 +196,7 @@ abstract final class StoreTheme {
   );
   static final buyNowButton = FilledButton.styleFrom(
     minimumSize: const Size(0, 40),
-    backgroundColor: storeGreen,
+    backgroundColor: storePrimary,
     foregroundColor: storeWhite,
     disabledBackgroundColor: storeBorder,
     disabledForegroundColor: storeMuted,
@@ -204,9 +207,9 @@ abstract final class StoreTheme {
   static final light = ThemeData(
     useMaterial3: true,
     expansionTileTheme: const ExpansionTileThemeData(
-      textColor: storeGreen,
-      iconColor: storeGreen,
-      collapsedTextColor: storeGreen,
+      textColor: storePrimary,
+      iconColor: storePrimary,
+      collapsedTextColor: storePrimary,
       collapsedIconColor: storeMuted,
       tilePadding: EdgeInsets.zero,
       childrenPadding: EdgeInsets.only(bottom: 20),
@@ -224,8 +227,8 @@ abstract final class StoreTheme {
     ),
     scaffoldBackgroundColor: storeCream,
     colorScheme: ColorScheme.fromSeed(
-        seedColor: storeGreen,
-        primary: storeGreen,
+        seedColor: storePrimary,
+        primary: storePrimary,
         secondary: storeGold,
         surface: storeWhite),
     textTheme: const TextTheme(
@@ -238,14 +241,14 @@ abstract final class StoreTheme {
         bodySmall: StoreType.muted,
         labelLarge: StoreType.label),
     appBarTheme: const AppBarTheme(
-        backgroundColor: storeGreen,
-        foregroundColor: storeWhite,
+        backgroundColor: storeWhite,
+        foregroundColor: storePrimary,
         centerTitle: false,
         elevation: 0),
     filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
             minimumSize: const Size(0, 44),
-            backgroundColor: storeGreen,
+            backgroundColor: storePrimary,
             foregroundColor: storeWhite,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             shape: RoundedRectangleBorder(
@@ -254,7 +257,7 @@ abstract final class StoreTheme {
     elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
             minimumSize: const Size(0, 44),
-            backgroundColor: storeGreen,
+            backgroundColor: storePrimary,
             foregroundColor: storeWhite,
             shape: RoundedRectangleBorder(
                 borderRadius:
@@ -262,14 +265,14 @@ abstract final class StoreTheme {
     outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
             minimumSize: const Size(0, 44),
-            foregroundColor: storeGreen,
-            side: const BorderSide(color: storeGreen),
+            foregroundColor: storePrimary,
+            side: const BorderSide(color: storePrimary),
             shape: RoundedRectangleBorder(
                 borderRadius:
                     BorderRadius.circular(StoreLayout.controlRadius)))),
     textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-            foregroundColor: storeGreen, textStyle: StoreType.label)),
+            foregroundColor: storePrimary, textStyle: StoreType.label)),
     inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: storeWhite,

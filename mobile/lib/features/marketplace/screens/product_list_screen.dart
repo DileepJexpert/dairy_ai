@@ -2119,6 +2119,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         catLower.contains('ubtan');
 
     final isMilkDairyCategory = (catLower.contains('fresh milk') ||
+            catLower.contains('fresh living dairy') ||
+            catLower.contains('vedic a2 dairy') ||
+            catLower.contains('farm fresh') ||
             catLower.contains('dairy foods') ||
             catLower.contains('chhachh') ||
             catLower.contains('chaas') ||

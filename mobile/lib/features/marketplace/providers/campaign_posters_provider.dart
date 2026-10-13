@@ -135,7 +135,7 @@ const List<CampaignPosterConfig> defaultCampaignPosters = [
     rewardTag: 'Cultured Farm Makhan',
     couponCode: 'MAKHAN15',
     imagePath: 'assets/store/white-butter.jpg',
-    category: 'Vedic A2 Dairy & Farm Fresh',
+    category: 'Fresh Living Dairy',
     accentColor: Color(0xffd97706),
   ),
 ];

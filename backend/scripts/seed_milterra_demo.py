@@ -23,7 +23,7 @@ PRODUCTS = [
     ("MIL-GHEE-250", "Milterra A2 Sahiwal Cow Ghee (Trial Jar)", "250 ml", "Planned cultured-butter bilona ghee made from Sahiwal cow milk in an accessible trial glass jar.", "425", 50),
     ("MIL-GHEE-500", "Milterra A2 Sahiwal Cow Ghee (Family Jar)", "500 ml", "Planned A2 Sahiwal cow ghee prepared from cultured curd and slowly clarified for aroma and texture.", "799", 35),
     ("MIL-GHEE-1000", "Milterra A2 Sahiwal Cow Ghee (Kitchen Jar)", "1 litre", "Planned everyday cultured-butter Sahiwal cow ghee for cooking and Indian sweets.", "1499", 25),
-    ("MIL-GHEE-5000", "Milterra A2 Sahiwal Cow Ghee (Heritage Tin)", "5 litre", "Planned family pack of A2 Sahiwal cow cultured-butter ghee in a food-grade tin.", "6999", 10),
+    ("MIL-GHEE-2000", "Milterra A2 Sahiwal Cow Ghee (Heritage Tin)", "2 litre", "Planned family pack of A2 Sahiwal cow cultured-butter ghee in a food-grade heritage tin.", "2999", 10),
     ("MIL-BUFF-500", "Milterra Traditional Cultured Buffalo Ghee", "500 ml", "Full-bodied, high-fat buffalo ghee with a naturally rich texture.", "699", 30),
     ("MIL-BUFF-1000", "Milterra Traditional Cultured Buffalo Ghee", "1 litre", "Artisanal Murrah buffalo cultured ghee for sweets and rotis.", "1299", 20),
     ("MIL-GHEE-SINGLE-FARM", "Milterra Single-Farm A2 Sahiwal Cow Ghee", "500 ml", "Planned single-farm Sahiwal milk sourcing with batch-level traceability.", "899", 25),

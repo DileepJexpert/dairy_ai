@@ -2390,9 +2390,11 @@ async def register_visit(data: VisitRegisterInput, request: Request):
     now_utc = datetime.now(timezone.utc)
     now_ts = int(now_utc.timestamp())
 
-    cf_city = (request.headers.get("cf-ipcity") or request.headers.get("x-city") or data.city or "").strip()
-    cf_region = (request.headers.get("cf-region") or request.headers.get("cf-region-code") or data.state or "").strip()
-    cf_country = (request.headers.get("cf-ipcountry") or data.country or "India").strip()
+    # These internal headers are set by src/main.py from Cloudflare's trusted
+    # request.cf metadata. The entrypoint strips client-supplied copies first.
+    cf_city = (request.headers.get("x-milterra-cf-city") or "").strip()[:128]
+    cf_region = (request.headers.get("x-milterra-cf-region") or "").strip()[:128]
+    cf_country = (request.headers.get("x-milterra-cf-country") or "India").strip()[:128]
     ip_addr = request.headers.get("cf-connecting-ip") or request.headers.get("x-real-ip") or ""
 
     ref_raw = (data.referrer or "").lower()
@@ -2425,9 +2427,16 @@ async def register_visit(data: VisitRegisterInput, request: Request):
     if existing:
         await env.DB.prepare("""
             UPDATE analytics_visitor_sessions
-            SET last_seen_at = ?, customer_id = COALESCE(?, customer_id)
+            SET last_seen_at = ?, customer_id = COALESCE(?, customer_id),
+                city = CASE WHEN TRIM(COALESCE(city, '')) = '' AND ? != '' THEN ? ELSE city END,
+                state = CASE WHEN TRIM(COALESCE(state, '')) = '' AND ? != '' THEN ? ELSE state END,
+                country = CASE WHEN TRIM(COALESCE(country, '')) = '' AND ? != '' THEN ? ELSE country END
             WHERE session_id = ?
-        """).bind(now_ts, customer["id"] if customer else None, data.session_id).run()
+        """).bind(
+            now_ts, customer["id"] if customer else None,
+            cf_city, cf_city, cf_region, cf_region, cf_country, cf_country,
+            data.session_id,
+        ).run()
     else:
         rec_id = str(uuid.uuid4())
         await env.DB.prepare("""

@@ -23,7 +23,12 @@ def _register(client, **overrides):
     return client.post(
         VISIT,
         json=payload,
-        headers={"cf-connecting-ip": "203.0.113.10", "cf-ipcity": "Mumbai", "cf-region": "Maharashtra"},
+        headers={
+            "cf-connecting-ip": "203.0.113.10",
+            "x-milterra-cf-city": "Mumbai",
+            "x-milterra-cf-region": "Maharashtra",
+            "x-milterra-cf-country": "IN",
+        },
     )
 
 
@@ -113,3 +118,22 @@ def test_telemetry_enforces_origin_body_size_and_ip_rate_limit(client, d1_db):
         "(SELECT bucket FROM auth_rate_limits ORDER BY rowid DESC LIMIT 1)"
     )
     assert _register(client).status_code == 429
+
+
+def test_repeat_registration_backfills_blank_geography(client, d1_db):
+    first = client.post(VISIT, json={
+        "session_id": SESSION_ID,
+        "landing_page": "/shop",
+    })
+    assert first.status_code == 200
+    assert d1_db.conn.execute(
+        "SELECT city, state FROM analytics_visitor_sessions WHERE session_id=?",
+        (SESSION_ID,),
+    ).fetchone() == ("", "")
+
+    second = _register(client)
+    assert second.status_code == 200
+    assert d1_db.conn.execute(
+        "SELECT city, state, country FROM analytics_visitor_sessions WHERE session_id=?",
+        (SESSION_ID,),
+    ).fetchone() == ("Mumbai", "Maharashtra", "India")

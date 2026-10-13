@@ -82,3 +82,21 @@ def test_tampered_hash_cannot_be_published(tmp_path) -> None:
     snapshot["products"][0]["id"] = "tampered"
     with pytest.raises(ValueError, match="hash does not match"):
         publish_snapshot(snapshot, tmp_path / "catalogue", tmp_path)
+
+
+def test_committed_storefront_catalogue_has_matching_content_hash() -> None:
+    root = Path(__file__).resolve().parents[2]
+    asset = json.loads((root / "mobile/assets/catalogue/products.json").read_text(encoding="utf-8"))
+    pointer = json.loads((root / "mobile/web/catalogue/current.json").read_text(encoding="utf-8"))
+    version_path = root / "mobile/web" / pointer["snapshot"].lstrip("/")
+    published = json.loads(version_path.read_text(encoding="utf-8"))
+
+    assert published == asset
+    canonical = json.dumps(
+        {key: value for key, value in asset.items() if key != "content_sha256"},
+        sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+    ).encode("utf-8")
+    digest = hashlib.sha256(canonical).hexdigest()
+    assert asset["content_sha256"] == digest
+    assert pointer["content_sha256"] == digest
+    assert pointer["snapshot"] == f"/catalogue/products-{digest}.json"

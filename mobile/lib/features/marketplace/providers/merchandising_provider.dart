@@ -18,6 +18,8 @@ class StorefrontPlacement {
     this.endsAt,
     this.priority = 100,
     this.isActive = true,
+    this.couponCode,
+    this.couponText,
   });
 
   final String id;
@@ -30,6 +32,8 @@ class StorefrontPlacement {
   final DateTime? endsAt;
   final int priority;
   final bool isActive;
+  final String? couponCode;
+  final String? couponText;
   final Product product;
 
   factory StorefrontPlacement.fromJson(Map<String, dynamic> json) {
@@ -37,6 +41,8 @@ class StorefrontPlacement {
     if (productJson is! Map) {
       throw const FormatException('Placement is missing its product');
     }
+    final couponJson = json['coupon'];
+    final verifiedCoupon = couponJson is Map ? couponJson : null;
     return StorefrontPlacement(
       id: json['id'].toString(),
       productId: json['product_id'].toString(),
@@ -48,6 +54,8 @@ class StorefrontPlacement {
       endsAt: DateTime.tryParse(json['ends_at']?.toString() ?? ''),
       priority: int.tryParse(json['priority']?.toString() ?? '') ?? 100,
       isActive: json['is_active'] != false,
+      couponCode: verifiedCoupon?['code']?.toString(),
+      couponText: verifiedCoupon?['description']?.toString(),
       product: Product.fromJson(Map<String, dynamic>.from(productJson)),
     );
   }
@@ -92,6 +100,7 @@ class MerchandisingRepository {
     DateTime? startsAt,
     DateTime? endsAt,
     int priority = 100,
+    String? couponCode,
   }) async {
     await ref
         .read(dioProvider)
@@ -105,6 +114,7 @@ class MerchandisingRepository {
       'ends_at': endsAt?.toUtc().toIso8601String(),
       'priority': priority,
       'is_active': true,
+      'coupon_code': couponCode?.trim().toUpperCase(),
     });
   }
 

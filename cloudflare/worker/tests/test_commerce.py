@@ -156,6 +156,24 @@ def test_inventory_status_lookup(client):
         assert data["in_stock"] is True
 
 
+def test_published_catalogue_products_have_inventory_records(d1_db):
+    root = Path(__file__).resolve().parents[3]
+    catalogue = json.loads(
+        (root / "mobile/assets/catalogue/products.json").read_text(encoding="utf-8")
+    )
+    published_ids = {product["id"] for product in catalogue["products"]}
+    inventory_ids = {
+        row[0] for row in d1_db.conn.execute("SELECT product_id FROM inventory").fetchall()
+    }
+
+    assert published_ids <= inventory_ids
+    new_tin = d1_db.conn.execute(
+        "SELECT available_units, price_minor, currency, is_active FROM inventory WHERE product_id = ?",
+        ("e7c41a29-8f3b-410a-b28e-5b12da612002",),
+    ).fetchone()
+    assert new_tin == (0, 43000, "INR", 1)
+
+
 def test_readiness_rejects_migration_drift(client, d1_db):
     assert client.get("/ready").status_code == 200
     asyncio.run(d1_db.prepare("DROP TABLE coupons").run())

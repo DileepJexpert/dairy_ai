@@ -9,6 +9,7 @@ class HomeHeroProduct {
   const HomeHeroProduct({
     required this.productId,
     required this.heroImage,
+    this.mobileImage,
     this.hoverImage,
     this.hoverBadge,
     this.imageNote,
@@ -16,6 +17,7 @@ class HomeHeroProduct {
 
   final String productId;
   final String heroImage;
+  final String? mobileImage;
   final String? hoverImage;
   final String? hoverBadge;
   final String? imageNote;
@@ -84,10 +86,18 @@ class HomeHeroConfig {
           : _defaultHoverImages[id];
       final effectiveBadge =
           raw['hover_badge']?.toString() ?? _defaultHoverBadges[id];
+      final mobileImage = raw['mobile_image']?.toString().trim();
+      if (mobileImage != null &&
+          mobileImage.isNotEmpty &&
+          !mobileImage.startsWith('assets/store/')) {
+        throw const FormatException('Invalid mobile hero image');
+      }
 
       slides.add(HomeHeroProduct(
         productId: id,
         heroImage: image,
+        mobileImage:
+            mobileImage == null || mobileImage.isEmpty ? null : mobileImage,
         hoverImage: effectiveHover,
         hoverBadge: effectiveBadge,
         imageNote: raw['image_note']?.toString(),

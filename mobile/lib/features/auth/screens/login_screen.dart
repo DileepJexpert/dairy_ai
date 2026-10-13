@@ -394,12 +394,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         Icon(Icons.admin_panel_settings,
                                             size: 20, color: Color(0xffb45309)),
                                         SizedBox(width: 8),
-                                        Text(
-                                          'Quick Admin Login (1-Tap Autofill)',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 13,
-                                            color: Color(0xff92400e),
+                                        Expanded(
+                                          child: Text(
+                                            'Quick Admin Login (1-Tap Autofill)',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: Color(0xff92400e),
+                                            ),
                                           ),
                                         ),
                                       ],

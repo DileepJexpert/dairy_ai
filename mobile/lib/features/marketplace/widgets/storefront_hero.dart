@@ -37,16 +37,14 @@ class StorefrontHero extends ConsumerWidget {
         if (product.isActive) product.id: product,
     };
 
-    StorefrontPlacement? activeHighlight;
-    for (final pl in placements) {
-      if (pl.isActive &&
-          (pl.placementType == 'highlight' ||
-              pl.placementType == 'deal' ||
-              pl.placementType == 'new_launch')) {
-        activeHighlight = pl;
-        break;
-      }
-    }
+    final campaignByProduct = <String, StorefrontPlacement>{
+      for (final placement in placements)
+        if (placement.isActive &&
+            (placement.placementType == 'highlight' ||
+                placement.placementType == 'deal' ||
+                placement.placementType == 'new_launch'))
+          placement.productId: placement,
+    };
 
     final slides = <HeroProductSlide>[];
     for (final choice in config?.productSlides ?? <HomeHeroProduct>[]) {
@@ -57,94 +55,85 @@ class StorefrontHero extends ConsumerWidget {
           : ((product.media.isNotEmpty ? product.media.first : null) ??
               StoreImages.hero);
 
-      final isThisHighlight = activeHighlight != null &&
-          activeHighlight.productId == product.id;
+      final campaign = campaignByProduct[product.id];
+      final isThisHighlight = campaign != null;
 
       slides.add(HeroProductSlide(
         id: product.id,
         category: storeCategory(product),
-        badge: isThisHighlight && activeHighlight.badge?.isNotEmpty == true
-            ? activeHighlight.badge!
+        badge: isThisHighlight && campaign.badge?.isNotEmpty == true
+            ? campaign.badge!
             : (product.badge ?? ''),
         name: product.title,
         packSize: product.packSize ?? product.unit,
         price: product.price,
-        originalPrice: product.compareAtPrice ?? (product.price * 1.18),
+        originalPrice: product.compareAtPrice,
         description: product.description ?? '',
         imagePath: image,
+        mobileImagePath: choice.mobileImage,
         hoverImagePath: choice.hoverImage,
         hoverBadge: choice.hoverBadge,
         imageNote: choice.imageNote,
         targetRoute: '/shop/product/${product.id}',
         isHighlightedDeal: isThisHighlight,
         highlightBadge: isThisHighlight
-            ? (activeHighlight.badge?.isNotEmpty == true
-                ? activeHighlight.badge!
-                : (activeHighlight.placementType == 'new_launch'
+            ? (campaign.badge?.isNotEmpty == true
+                ? campaign.badge!
+                : (campaign.placementType == 'new_launch'
                     ? '✨ NEW LAUNCH'
-                    : (activeHighlight.placementType == 'deal'
+                    : (campaign.placementType == 'deal'
                         ? '🔥 DEAL OF THE DAY'
                         : '⚡ TOP SELLER OF THE DAY')))
             : null,
-        highlightHeadline: isThisHighlight ? activeHighlight.headline : null,
+        highlightHeadline: isThisHighlight ? campaign.headline : null,
+        shortBenefit: isThisHighlight ? campaign.subheadline : null,
+        campaignCouponCode: campaign?.couponCode,
+        campaignCouponText: campaign?.couponText,
       ));
     }
 
     // If an active highlight is from a product not in the default slides, inject it at position 2
+    StorefrontPlacement? activeHighlight;
+    for (final placement in campaignByProduct.values) {
+      activeHighlight = placement;
+      break;
+    }
     if (activeHighlight != null &&
         !slides.any((s) => s.id == activeHighlight!.productId)) {
-      final p = activeHighlight.product;
-      final heroImg = (p.media.isNotEmpty ? p.media.first : null) ??
-          StoreImages.hero;
-      final injectedSlide = HeroProductSlide(
-        id: p.id,
-        category: storeCategory(p),
-        badge: activeHighlight.badge?.isNotEmpty == true
-            ? activeHighlight.badge!
-            : (p.badge ?? 'TOP SELLER'),
-        name: p.title,
-        packSize: p.packSize ?? p.unit,
-        price: p.price,
-        originalPrice: p.compareAtPrice ?? (p.price * 1.20),
-        description: p.description ?? '',
-        imagePath: heroImg,
-        targetRoute: '/shop/product/${p.id}',
-        isHighlightedDeal: true,
-        highlightBadge: activeHighlight.badge?.isNotEmpty == true
-            ? activeHighlight.badge!
-            : (activeHighlight.placementType == 'new_launch'
-                ? '✨ NEW LAUNCH'
-                : '⚡ TOP SELLER OF THE DAY'),
-        highlightHeadline: activeHighlight.headline,
-      );
-      if (slides.length >= 2) {
-        slides.insert(2, injectedSlide);
-      } else {
-        slides.insert(0, injectedSlide);
+      final p = byId[activeHighlight.productId];
+      if (p != null) {
+        final heroImg = (p.media.isNotEmpty ? p.media.first : null) ??
+            StoreImages.hero;
+        final injectedSlide = HeroProductSlide(
+          id: p.id,
+          category: storeCategory(p),
+          badge: activeHighlight.badge?.isNotEmpty == true
+              ? activeHighlight.badge!
+              : (p.badge ?? 'TOP SELLER'),
+          name: p.title,
+          packSize: p.packSize ?? p.unit,
+          price: p.price,
+          originalPrice: p.compareAtPrice,
+          description: p.description ?? '',
+          imagePath: heroImg,
+          targetRoute: '/shop/product/${p.id}',
+          isHighlightedDeal: true,
+          highlightBadge: activeHighlight.badge?.isNotEmpty == true
+              ? activeHighlight.badge!
+              : (activeHighlight.placementType == 'new_launch'
+                  ? '✨ NEW LAUNCH'
+                  : '⚡ TOP SELLER OF THE DAY'),
+          highlightHeadline: activeHighlight.headline,
+          shortBenefit: activeHighlight.subheadline,
+          campaignCouponCode: activeHighlight.couponCode,
+          campaignCouponText: activeHighlight.couponText,
+        );
+        if (slides.length >= 2) {
+          slides.insert(2, injectedSlide);
+        } else {
+          slides.insert(0, injectedSlide);
+        }
       }
-    } else if (activeHighlight == null && slides.isNotEmpty) {
-      // Default fallback: highlight index 2 (or index 0) so there's always a live deal card
-      final targetIdx = slides.length > 2 ? 2 : 0;
-      final p = slides[targetIdx];
-      slides[targetIdx] = HeroProductSlide(
-        id: p.id,
-        category: p.category,
-        badge: 'TOP SELLER',
-        name: p.name,
-        packSize: p.packSize,
-        price: p.price,
-        originalPrice: p.originalPrice,
-        description: p.description,
-        shortBenefit: p.shortBenefit,
-        imagePath: p.imagePath,
-        hoverImagePath: p.hoverImagePath,
-        hoverBadge: p.hoverBadge,
-        imageNote: p.imageNote,
-        targetRoute: p.targetRoute,
-        isHighlightedDeal: true,
-        highlightBadge: '⚡ TOP SELLER OF THE DAY',
-        highlightHeadline: 'Farm-Fresh Daily Churn',
-      );
     }
 
     return HeroSplitShowcase(

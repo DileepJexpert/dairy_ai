@@ -1,6 +1,16 @@
 # Milterra Cloudflare migration status
 
-Last updated: 29 September 2026. Source plan: [milterra-cloudflare-development-brief.md](../milterra-cloudflare-development-brief.md). This is the handoff tracker for the next implementation agent. Update each row with source, tests, and staging evidence before marking it complete.
+Last updated: 12 October 2026. Source plan: [milterra-cloudflare-development-brief.md](../milterra-cloudflare-development-brief.md). This is the handoff tracker for the next implementation agent. Update each row with source, tests, and staging evidence before marking it complete.
+
+### Catalogue, inventory and visitor analytics correction — 12 October 2026
+
+The committed catalogue body had changed without updating its embedded content hash. A new immutable snapshot named with the verified SHA-256 `d1cd77b034d808e19250a9d24fbe15f0b42e002555274ea2eeb90c1ba5002b63` now matches the bundled catalogue and `current.json` pointer. A regression test verifies all three files against a freshly calculated canonical hash.
+
+Migration `0018_add_rectangular_mustard_oil_inventory.sql` adds the published 2-litre rectangular mustard-oil tin to D1 at ₹430 with zero available units until the owner enters authoritative stock. A catalogue-to-inventory regression test now prevents published products from silently lacking a checkout record. Migration `0019_analytics_query_indexes.sql` adds indexes used by the admin event views.
+
+Public telemetry now limits request bodies, event batches, field and metadata sizes, origins and per-IP request rates. Event writes use one D1 batch and update the registered visitor session's page-view, bounce and last-seen values. Admin traffic and session views use recorded visitor sessions and clickstream events; they no longer substitute login sessions, customer address cities, assumed devices, placeholder journeys or synthetic order events. Authenticated telemetry is linked only from a server-verified session. The Flutter sender registers the session before flushing and reports its detected platform instead of treating every web visit as desktop.
+
+Verification: 5 catalogue publication tests, 18 focused commerce tests, 3 focused telemetry tests and the complete 76-test Worker suite passed. Focused Flutter analysis reported no issues. Additive migrations 0018 and 0019 were applied to the existing `milterra-staging` D1; a read-only query confirmed the new inventory row with zero stock. Worker version `0704e0b1-006d-4331-be8f-2a680494bb73` is deployed and `/health` and `/ready` returned 200. At the owner's request, no live telemetry/order acceptance test was run and the Flutter Pages build was stopped before publication. The real storefront therefore remains on its previous Pages deployment; use the local backend/client for the next acceptance run.
 
 ### Owner-requested D1 account reset — 29 September 2026
 

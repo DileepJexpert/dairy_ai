@@ -9,6 +9,8 @@ from test_commerce import client, d1_db
 
 
 BASE = "/api/v1/marketplace"
+PUBLIC_PLACEMENTS = "/api/v1/marketplace/merchandising/placements"
+ADMIN_PLACEMENTS = "/api/v1/admin/marketplace/merchandising/placements"
 
 
 def _admin(client, db):
@@ -65,6 +67,45 @@ def test_admin_stock_price_coupon_and_public_inventory(client, d1_db):
         "discount_value": -1}).status_code == 422
     assert client.patch(f"{BASE}/admin/commerce/coupons/OLD20", json={
         "code": "MILTERRA10"}).status_code == 409
+
+
+def test_storefront_campaign_uses_catalogue_product_and_verified_coupon(client, d1_db):
+    _admin(client, d1_db)
+    product_id = d1_db.conn.execute(
+        "SELECT product_id FROM inventory WHERE is_active=1 LIMIT 1"
+    ).fetchone()[0]
+
+    assert client.get(PUBLIC_PLACEMENTS).json()["data"] == []
+    missing_coupon = client.post(
+        ADMIN_PLACEMENTS,
+        json={"product_id": product_id, "headline": "Invalid offer",
+              "coupon_code": "SARSO15"},
+    )
+    assert missing_coupon.status_code == 422
+
+    created = client.post(
+        ADMIN_PLACEMENTS,
+        json={"product_id": product_id, "placement_type": "deal",
+              "headline": "Backend verified offer", "coupon_code": "MILTERRA10"},
+    )
+    assert created.status_code == 200, created.text
+    placement_id = created.json()["data"]["id"]
+
+    public = client.get(PUBLIC_PLACEMENTS).json()["data"]
+    assert len(public) == 1
+    assert public[0]["product"]["id"] == product_id
+    assert public[0]["coupon"]["code"] == "MILTERRA10"
+
+    d1_db.conn.execute("UPDATE coupons SET is_active=0 WHERE code='MILTERRA10'")
+    public = client.get(PUBLIC_PLACEMENTS).json()["data"]
+    assert public[0]["coupon"] is None
+
+    paused = client.put(
+        f"{ADMIN_PLACEMENTS}/{placement_id}",
+        json={"is_active": False},
+    )
+    assert paused.status_code == 200, paused.text
+    assert client.get(PUBLIC_PLACEMENTS).json()["data"] == []
 
 
 def test_rto_restocks_once_and_blocks_delivery(client, d1_db):

@@ -14,6 +14,7 @@ class HeroProductSlide {
     required this.description,
     this.shortBenefit,
     required this.imagePath,
+    this.mobileImagePath,
     this.hoverImagePath,
     this.hoverBadge,
     this.imageNote,
@@ -22,6 +23,8 @@ class HeroProductSlide {
     this.isHighlightedDeal = false,
     this.highlightBadge,
     this.highlightHeadline,
+    this.campaignCouponCode,
+    this.campaignCouponText,
   });
 
   /// Unique product identifier matching the store catalogue
@@ -54,6 +57,9 @@ class HeroProductSlide {
   /// Asset path or network URL
   final String imagePath;
 
+  /// Optional transparent product image used by the compact mobile layout.
+  final String? mobileImagePath;
+
   /// Optional asset path displayed on mouse hover (e.g. cold-press machine or farm cows)
   final String? hoverImagePath;
 
@@ -77,6 +83,11 @@ class HeroProductSlide {
 
   /// Optional special headline
   final String? highlightHeadline;
+
+  /// Backend-verified coupon. Null unless the active campaign API returned an
+  /// active, non-expired coupon definition.
+  final String? campaignCouponCode;
+  final String? campaignCouponText;
 
   /// Calculate savings percentage if original price is provided
   int? get discountPercent {

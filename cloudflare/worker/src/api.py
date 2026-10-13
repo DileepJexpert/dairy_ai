@@ -67,10 +67,18 @@ async def storefront_cors(request: Request, call_next):
     configured = getattr(env, "CORS_ORIGINS", "") or ""
     allowed = {value.strip().rstrip("/") for value in configured.split(",") if value.strip()}
     valid_origin = bool(origin and origin in allowed and origin != "*")
+    analytics_write = (request.method == "POST" and request.url.path.startswith(
+        ("/api/v1/analytics/", "/api/v1/marketplace/analytics/", "/analytics/")
+    ))
     if request.url.path.startswith(("/api/v1/auth/", "/auth/")):
         if origin and not valid_origin:
             return JSONResponse({"detail": "Origin not allowed"}, status_code=403)
         if request.method == "POST" and len(await request.body()) > 8192:
+            return JSONResponse({"detail": "Request too large"}, status_code=413)
+    if analytics_write:
+        if origin and not valid_origin:
+            return JSONResponse({"detail": "Origin not allowed"}, status_code=403)
+        if len(await request.body()) > 65536:
             return JSONResponse({"detail": "Request too large"}, status_code=413)
     if request.method == "OPTIONS" and request.headers.get("access-control-request-method"):
         if not valid_origin:
@@ -84,7 +92,7 @@ async def storefront_cors(request: Request, call_next):
         response.headers["Access-Control-Max-Age"] = "600"
     else:
         response = await call_next(request)
-    if request.url.path.startswith(("/api/v1/marketplace/", "/api/v1/auth/", "/auth/")):
+    if request.url.path.startswith(("/api/v1/marketplace/", "/api/v1/auth/", "/auth/", "/analytics/")):
         response.headers["Cache-Control"] = "no-store"
     if valid_origin:
         response.headers["Access-Control-Allow-Origin"] = origin

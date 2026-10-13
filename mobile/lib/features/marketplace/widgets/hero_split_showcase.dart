@@ -23,153 +23,39 @@ class StoryHeroSlideItem extends HeroSlideItem {
 }
 
 class _CinematicBannerData {
-  final String headline;
-  final String feature1Icon;
-  final String feature1Text;
-  final String feature2Icon;
-  final String feature2Text;
-  final String panoramicImage;
-  final String cutoutImage;
-  final String stampText;
-  final String stampSub;
-  final String priceDropText;
-  final double salePrice;
-  final double regularPrice;
-  final String couponPillText;
-  final String footnoteText;
-  final String targetRoute;
-  final Alignment? desktopAlignment;
-  final Alignment? mobileAlignment;
+  const _CinematicBannerData(this.slide);
 
-  const _CinematicBannerData({
-    required this.headline,
-    required this.feature1Icon,
-    required this.feature1Text,
-    required this.feature2Icon,
-    required this.feature2Text,
-    required this.panoramicImage,
-    required this.cutoutImage,
-    required this.stampText,
-    required this.stampSub,
-    required this.priceDropText,
-    required this.salePrice,
-    required this.regularPrice,
-    required this.couponPillText,
-    required this.footnoteText,
-    required this.targetRoute,
-    this.desktopAlignment,
-    this.mobileAlignment,
-  });
+  final HeroProductSlide slide;
+
+  String get headline => '${slide.packSize} ${slide.name}'.toUpperCase();
+  String get feature1Icon => '📦';
+  String get feature1Text => slide.packSize;
+  String get feature2Icon => '🌿';
+  String get feature2Text => slide.shortBenefit ?? slide.category;
+  String get panoramicImage => slide.imagePath;
+  String get cutoutImage => slide.mobileImagePath ?? slide.imagePath;
+  String get stampText {
+    final source = slide.highlightBadge ?? slide.badge;
+    return source.trim().isEmpty ? 'MILTERRA' : source.replaceAll('✨', '').replaceAll('🔥', '').replaceAll('⚡', '').trim();
+  }
+  String get stampSub => slide.isHighlightedDeal ? 'FEATURED' : 'SELECT';
+  double get salePrice => slide.price;
+  double get regularPrice => slide.originalPrice ?? slide.price;
+  bool get hasDiscount => regularPrice > salePrice;
+  String get priceDropText {
+    final saving = regularPrice - salePrice;
+    return saving > 0 ? 'SAVE ${storeMoney(saving)}' : 'CATALOGUE PRICE';
+  }
+  String? get couponPillText {
+    final code = slide.campaignCouponCode?.trim();
+    if (code == null || code.isEmpty) return null;
+    final description = slide.campaignCouponText?.trim();
+    return '${description == null || description.isEmpty ? 'ACTIVE OFFER' : description} · CODE: $code';
+  }
+  String get footnoteText =>
+      slide.highlightHeadline ?? slide.shortBenefit ?? slide.description;
+  String get targetRoute => slide.targetRoute;
 }
-
-final List<_CinematicBannerData> _defaultCinematicBanners = [
-  const _CinematicBannerData(
-    headline: '1KG A2 GIR COW VEDIC BILONA GHEE\n(CLAY POT VALONA CHURN)',
-    feature1Icon: '🥄',
-    feature1Text: '100% Valona Churn',
-    feature2Icon: '🌿',
-    feature2Text: 'Certified A2 Beta-Casein',
-    panoramicImage: 'assets/store/panoramic-cow-ghee-hero.jpg',
-    cutoutImage: 'assets/store/tilted-cow-ghee-3d.png',
-    stampText: '100% PURE\nBILONA',
-    stampSub: 'NABL LAB',
-    priceDropText: 'PRICE DROPPED BY ₹396',
-    salePrice: 2200,
-    regularPrice: 2596,
-    couponPillText: '+ EXTRA 15% OFF · CODE: PURE15',
-    footnoteText: '*Prepaid orders get instant free shipping | 100% Valona Guarantee',
-    targetRoute: '/shop/product/ffd7186f-6cee-4b8e-9a87-6af173aabffd',
-  ),
-  const _CinematicBannerData(
-    headline: '1L KACCHI GHANI BLACK MUSTARD OIL\n(HEIRLOOM LAKDI GHANI)',
-    feature1Icon: '🪵',
-    feature1Text: 'Wood Kolhu <38°C',
-    feature2Icon: '⚡',
-    feature2Text: '100% Unrefined & Sulfur-Free',
-    panoramicImage: 'assets/store/panoramic-mustard-oil-hero.jpg',
-    cutoutImage: 'assets/store/tilted-mustard-oil-3d.png',
-    stampText: 'COLD PRESS\nKOLHU',
-    stampSub: 'VIRGIN',
-    priceDropText: 'PRICE DROPPED BY ₹40',
-    salePrice: 220,
-    regularPrice: 260,
-    couponPillText: '+ FLAT 10% OFF · CODE: KOLHU10',
-    footnoteText: '*Preserves Natural Allyl Isothiocyanate & Native Omega-3',
-    targetRoute: '/shop/product/54b52256-c0d6-436c-b8aa-737b35ab1636',
-  ),
-  const _CinematicBannerData(
-    headline: '1L CULTURED MURRAH BUFFALO GHEE\n(THICK DANEDAR GRAIN)',
-    feature1Icon: '🍯',
-    feature1Text: 'Thick Danedar Grain',
-    feature2Icon: '💪',
-    feature2Text: 'High Smoke Point for Cooking',
-    panoramicImage: 'assets/store/panoramic-buffalo-ghee-hero.jpg',
-    cutoutImage: 'assets/store/tilted-buffalo-ghee-3d.png',
-    stampText: 'MURRAH\nHERITAGE',
-    stampSub: 'DANEDAR',
-    priceDropText: 'PRICE DROPPED BY ₹233',
-    salePrice: 1299,
-    regularPrice: 1532,
-    couponPillText: '+ SAVE EXTRA ₹200 · CODE: MURRAH200',
-    footnoteText: '*Naturally Sweet Aroma · Churned from Live Murrah Curd',
-    targetRoute: '/shop/product/ad431721-27f9-477b-85ce-53def61d7f36',
-  ),
-  const _CinematicBannerData(
-    headline: '500G FRESH LIVING MALAI PANEER\n(SAME-DAY CHURNED FRESH)',
-    feature1Icon: '🥛',
-    feature1Text: 'Pure Whole A2 Cow Milk',
-    feature2Icon: '🧊',
-    feature2Text: 'Melt-In-Mouth Zero Starch',
-    panoramicImage: 'assets/store/panoramic-paneer-hero.jpg',
-    cutoutImage: 'assets/store/tilted-paneer-3d.png',
-    stampText: 'SAME-DAY\nCHURN',
-    stampSub: 'NO STARCH',
-    priceDropText: 'PRICE DROPPED BY ₹60',
-    salePrice: 240,
-    regularPrice: 300,
-    couponPillText: '+ INTRO COMBO 20% OFF · CODE: FRESH20',
-    footnoteText: '*Cold-Chain Vacuum Sealed & Delivered Direct from Farm',
-    targetRoute: '/shop/product/b20f6def-861a-4ba7-b7fa-dab5f4504278',
-  ),
-  const _CinematicBannerData(
-    headline: '2L VEDIC A2 GIR COW BILONA GHEE\n(HERITAGE RECTANGULAR TIN)',
-    feature1Icon: '🥄',
-    feature1Text: '100% Valona Churn',
-    feature2Icon: '🛡️',
-    feature2Text: '100% UV & Plastic-Free Tin',
-    panoramicImage: 'assets/store/panoramic-ghee-tin-hero-v2.png',
-    cutoutImage: 'assets/store/tilted-cow-ghee-3d.png',
-    stampText: 'HERITAGE\nTIN',
-    stampSub: 'UV SAFE',
-    priceDropText: 'PRICE DROPPED BY ₹499',
-    salePrice: 2999,
-    regularPrice: 3498,
-    couponPillText: '+ EXTRA 15% OFF · CODE: BILONA15',
-    footnoteText: '*Food-grade tin protects living nutrients from UV oxidation',
-    targetRoute: '/shop/product/0e12db10-a3a8-40c2-a004-6ccdcb9d710b',
-    desktopAlignment: Alignment(0.0, 0.22),
-    mobileAlignment: Alignment(-0.6, 0.22),
-  ),
-  const _CinematicBannerData(
-    headline: '2L KACCHI GHANI BLACK MUSTARD OIL\n(HERITAGE RECTANGULAR TIN)',
-    feature1Icon: '🪵',
-    feature1Text: 'Wood Kolhu <38°C',
-    feature2Icon: '🛡️',
-    feature2Text: '100% UV & Plastic-Free Tin',
-    panoramicImage: 'assets/store/panoramic-mustard-tin-hero-v2.png',
-    cutoutImage: 'assets/store/tilted-mustard-oil-3d.png',
-    stampText: 'HERITAGE\nTIN',
-    stampSub: 'UV SAFE',
-    priceDropText: 'PRICE DROPPED BY ₹60',
-    salePrice: 430,
-    regularPrice: 490,
-    couponPillText: '+ EXTRA 15% OFF · CODE: SARSO15',
-    footnoteText: '*Preserves Natural Allyl Isothiocyanate & Native Omega-3',
-    targetRoute: '/shop/product/e7c41a29-8f3b-410a-b28e-5b12da612002',
-    desktopAlignment: Alignment(0.0, 0.22),
-    mobileAlignment: Alignment(-0.6, 0.22),
-  ),
-];
 
 /// 100% Full-width HealthKart panoramic edge-to-edge cinematic studio carousel.
 /// The entire banner is clickable, product rests naturally on perspective shelf.
@@ -197,32 +83,111 @@ class HeroSplitShowcase extends StatefulWidget {
 
 class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
   late final PageController _bannerController;
+  late final FocusNode _carouselFocusNode;
   int _activeBanner = 0;
   Timer? _autoTimer;
+  bool _isPointerHovering = false;
+  bool _hasCarouselFocus = false;
+
+  bool get _isAutoPlayPaused => _isPointerHovering || _hasCarouselFocus;
+  List<_CinematicBannerData> get _banners => widget.productSlides
+      .map(_CinematicBannerData.new)
+      .toList(growable: false);
 
   @override
   void initState() {
     super.initState();
     _bannerController = PageController();
-    if (widget.autoPlay) {
-      _autoTimer = Timer.periodic(const Duration(seconds: 7), (_) {
-        if (!_bannerController.hasClients) return;
-        final next = (_activeBanner + 1) % _defaultCinematicBanners.length;
-        _bannerController.animateToPage(
-          next,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOutCubic,
-        );
-      });
+    _carouselFocusNode = FocusNode(debugLabel: 'Featured products carousel');
+    _startAutoPlayTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant HeroSplitShowcase oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.autoPlay != widget.autoPlay) {
+      _startAutoPlayTimer();
     }
   }
 
   @override
   void dispose() {
     _autoTimer?.cancel();
+    _carouselFocusNode.dispose();
     _bannerController.dispose();
     super.dispose();
   }
+
+  void _startAutoPlayTimer() {
+    _autoTimer?.cancel();
+    _autoTimer = null;
+    if (!widget.autoPlay || widget.productSlides.length <= 1) {
+      return;
+    }
+    if (WidgetsBinding.instance.runtimeType.toString().contains('Test')) {
+      return;
+    }
+
+    _autoTimer = Timer.periodic(const Duration(seconds: 7), (_) {
+      if (_isAutoPlayPaused ||
+          !_bannerController.hasClients ||
+          widget.productSlides.isEmpty) {
+        return;
+      }
+      _showBanner(
+        (_activeBanner + 1) % widget.productSlides.length,
+        duration: const Duration(milliseconds: 500),
+      );
+    });
+  }
+
+  void _showBanner(
+    int index, {
+    Duration duration = const Duration(milliseconds: 400),
+  }) {
+    if (!_bannerController.hasClients) {
+      return;
+    }
+    final bannerCount = widget.productSlides.length;
+    if (bannerCount == 0) return;
+    final normalizedIndex = (index % bannerCount + bannerCount) % bannerCount;
+    _bannerController.animateToPage(
+      normalizedIndex,
+      duration: duration,
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
+  void _showPreviousBanner() => _showBanner(_activeBanner - 1);
+
+  void _showNextBanner() => _showBanner(_activeBanner + 1);
+
+  KeyEventResult _handleCarouselKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      _showPreviousBanner();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+      _showNextBanner();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.home) {
+      _showBanner(0);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.end) {
+      _showBanner(widget.productSlides.length - 1);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  String _spokenHeadline(_CinematicBannerData item) =>
+      item.headline.replaceAll('\n', ' ');
 
   void navigateToFirstStory() {
     FarmStoryShowcase.showStoryDetail(
@@ -235,8 +200,16 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
   Widget build(BuildContext context) {
     final isMobile = widget.screenWidth < 880;
     final double bannerHeight = isMobile ? 210.0 : 275.0;
+    final banners = _banners;
 
-    return SizedBox(
+    if (banners.isEmpty) {
+      return SizedBox(
+        height: bannerHeight,
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final carousel = SizedBox(
       height: bannerHeight,
       width: double.infinity,
       child: Stack(
@@ -244,11 +217,11 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
           // 100% Full-Width Edge-to-Edge PageView
           PageView.builder(
             controller: _bannerController,
-            itemCount: _defaultCinematicBanners.length,
+            itemCount: banners.length,
             onPageChanged: (idx) => setState(() => _activeBanner = idx),
             itemBuilder: (context, idx) {
-              final item = _defaultCinematicBanners[idx];
-              return _buildSingleHeroSlide(item, isMobile);
+              final item = banners[idx];
+              return _buildSingleHeroSlide(item, isMobile, idx);
             },
           ),
 
@@ -261,17 +234,8 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
               child: Center(
                 child: _buildChevronCircle(
                   icon: Icons.chevron_left,
-                  onTap: () {
-                    final prev = (_activeBanner -
-                            1 +
-                            _defaultCinematicBanners.length) %
-                        _defaultCinematicBanners.length;
-                    _bannerController.animateToPage(
-                      prev,
-                      duration: const Duration(milliseconds: 400),
-                      curve: Curves.easeInOutCubic,
-                    );
-                  },
+                  label: 'Show previous featured product',
+                  onTap: _showPreviousBanner,
                 ),
               ),
             ),
@@ -285,15 +249,8 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
               child: Center(
                 child: _buildChevronCircle(
                   icon: Icons.chevron_right,
-                  onTap: () {
-                    final next =
-                        (_activeBanner + 1) % _defaultCinematicBanners.length;
-                    _bannerController.animateToPage(
-                      next,
-                      duration: const Duration(milliseconds: 400),
-                      curve: Curves.easeInOutCubic,
-                    );
-                  },
+                  label: 'Show next featured product',
+                  onTap: _showNextBanner,
                 ),
               ),
             ),
@@ -313,18 +270,41 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: List.generate(_defaultCinematicBanners.length, (i) {
+                  children: List.generate(banners.length, (i) {
                     final isCurrent = i == _activeBanner;
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      width: isCurrent ? 20 : 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: isCurrent
-                            ? const Color(0xff0d9488)
-                            : Colors.white.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(3),
+                    final item = banners[i];
+                    final label =
+                        'Show featured product ${i + 1} of ${banners.length}: ${_spokenHeadline(item)}';
+                    return Semantics(
+                      button: true,
+                      selected: isCurrent,
+                      label: label,
+                      onTap: () => _showBanner(i),
+                      child: ExcludeSemantics(
+                        child: Tooltip(
+                          message: label,
+                          child: InkWell(
+                            onTap: () => _showBanner(i),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 3,
+                                vertical: 6,
+                              ),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 250),
+                                width: isCurrent ? 20 : 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: isCurrent
+                                      ? const Color(0xff0d9488)
+                                      : Colors.white.withValues(alpha: 0.5),
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     );
                   }),
@@ -335,15 +315,44 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
         ],
       ),
     );
+
+    return MouseRegion(
+      onEnter: (_) => _isPointerHovering = true,
+      onExit: (_) => _isPointerHovering = false,
+      child: Focus(
+        focusNode: _carouselFocusNode,
+        onFocusChange: (hasFocus) => _hasCarouselFocus = hasFocus,
+        onKeyEvent: _handleCarouselKeyEvent,
+        child: Semantics(
+          container: true,
+          explicitChildNodes: true,
+          label: 'Featured products carousel',
+          child: carousel,
+        ),
+      ),
+    );
   }
 
   /// The entire banner is clickable! Clicking navigates straight to the product page.
-  Widget _buildSingleHeroSlide(_CinematicBannerData item, bool isMobile) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: InkWell(
-        onTap: () => context.push(item.targetRoute),
-        child: SizedBox(
+  Widget _buildSingleHeroSlide(
+    _CinematicBannerData item,
+    bool isMobile,
+    int index,
+  ) {
+    void navigateToProduct() => context.push(item.targetRoute);
+    return Semantics(
+      container: true,
+      button: true,
+      label:
+          'Featured product ${index + 1} of ${widget.productSlides.length}: ${_spokenHeadline(item)}',
+      hint: 'Open product details',
+      onTap: navigateToProduct,
+      child: ExcludeSemantics(
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: InkWell(
+            onTap: navigateToProduct,
+            child: SizedBox(
           width: double.infinity,
           height: double.infinity,
           child: Stack(
@@ -353,9 +362,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
               Image.asset(
                 item.panoramicImage,
                 fit: BoxFit.cover,
-                alignment: isMobile
-                    ? (item.mobileAlignment ?? Alignment.centerLeft)
-                    : (item.desktopAlignment ?? Alignment.center),
+                alignment: Alignment.center,
               ),
 
               // 2. Subtle soft studio light vignette for guaranteed text contrast
@@ -382,6 +389,8 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                     : _buildDesktopHeroSlide(item),
               ),
             ],
+          ),
+            ),
           ),
         ),
       ),
@@ -527,42 +536,47 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          if (item.hasDiscount) ...[
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Regular Price',
+                                  style: TextStyle(
+                                    color: Color(0xff94a3b8),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  storeMoney(item.regularPrice),
+                                  style: const TextStyle(
+                                    color: Color(0xffcbd5e1),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    decoration: TextDecoration.lineThrough,
+                                    decorationColor: Color(0xff94a3b8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              margin:
+                                  const EdgeInsets.symmetric(horizontal: 14),
+                              height: 28,
+                              width: 1,
+                              color: const Color(0xff475569),
+                            ),
+                          ],
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Regular Price',
-                                style: TextStyle(
-                                  color: Color(0xff94a3b8),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
                               Text(
-                                storeMoney(item.regularPrice),
+                                item.hasDiscount
+                                    ? 'Sale Price'
+                                    : 'Current Price',
                                 style: const TextStyle(
-                                  color: Color(0xffcbd5e1),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                  decoration: TextDecoration.lineThrough,
-                                  decorationColor: Color(0xff94a3b8),
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 14),
-                            height: 28,
-                            width: 1,
-                            color: const Color(0xff475569),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Sale Price',
-                                style: TextStyle(
                                   color: Color(0xff94a3b8),
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
@@ -584,25 +598,28 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                     ),
                     const SizedBox(height: 8),
 
-                    // HealthKart Cyan / Teal Discount Pill
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 4.5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xff0284c7),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        item.couponPillText,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.4,
+                    if (item.couponPillText != null) ...[
+                      // Only rendered when the campaign API includes a
+                      // backend-verified active coupon definition.
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xff0284c7),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          item.couponPillText!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.4,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
+                      const SizedBox(height: 8),
+                    ],
 
                     // Footnote
                     Text(
@@ -669,15 +686,17 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        storeMoney(item.regularPrice),
-                        style: const TextStyle(
-                          color: Color(0xff94a3b8),
-                          fontSize: 11,
-                          decoration: TextDecoration.lineThrough,
+                      if (item.hasDiscount) ...[
+                        Text(
+                          storeMoney(item.regularPrice),
+                          style: const TextStyle(
+                            color: Color(0xff94a3b8),
+                            fontSize: 11,
+                            decoration: TextDecoration.lineThrough,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
+                        const SizedBox(width: 8),
+                      ],
                       Text(
                         storeMoney(item.salePrice),
                         style: const TextStyle(
@@ -689,23 +708,25 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 5),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xff0284c7),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    item.couponPillText,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 8.5,
-                      fontWeight: FontWeight.w900,
+                if (item.couponPillText != null) ...[
+                  const SizedBox(height: 5),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 7, vertical: 2.5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xff0284c7),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      item.couponPillText!,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -784,17 +805,28 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
 
   Widget _buildChevronCircle({
     required IconData icon,
+    required String label,
     required VoidCallback onTap,
   }) {
-    return Material(
-      color: const Color(0x66000000),
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: Padding(
-          padding: const EdgeInsets.all(9),
-          child: Icon(icon, size: 22, color: Colors.white),
+    return Semantics(
+      button: true,
+      label: label,
+      onTap: onTap,
+      child: ExcludeSemantics(
+        child: Tooltip(
+          message: label,
+          child: Material(
+            color: const Color(0x66000000),
+            shape: const CircleBorder(),
+            child: InkWell(
+              onTap: onTap,
+              customBorder: const CircleBorder(),
+              child: Padding(
+                padding: const EdgeInsets.all(9),
+                child: Icon(icon, size: 22, color: Colors.white),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -896,13 +928,17 @@ class _StorefrontCampaignPostersState
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Text(
-                    'Artisanal Harvest Ranges',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xff111827),
-                      letterSpacing: -0.3,
+                  const Flexible(
+                    child: Text(
+                      'Artisanal Harvest Ranges',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xff111827),
+                        letterSpacing: -0.3,
+                      ),
                     ),
                   ),
                   if (isAdmin) ...[

@@ -2865,7 +2865,7 @@ class _EcommerceAdminPanelScreenState
                       ),
                       SizedBox(height: 2),
                       Text(
-                        'Configure HealthKart-style deal tags, price drops (Was/Now), coupons (BILONA200, SARSO15, MURRAH50), and loyalty coin perks for the 4 homepage range cards.',
+                        'Configure deal tags, price drops, verified backend coupons, and loyalty coin perks for the homepage range cards.',
                         style: TextStyle(fontSize: 12, color: Color(0xff15803d)),
                       ),
                     ],
@@ -3327,13 +3327,22 @@ class _EcommerceAdminPanelScreenState
     final subtitleCtrl = TextEditingController(
         text: 'Featured by Milterra · Tap to explore the product');
     final badgeCtrl = TextEditingController(text: 'NEW LAUNCH');
+    final now = DateTime.now();
+    final activeCoupons = ref
+        .read(adminMarketplaceProvider)
+        .coupons
+        .where((coupon) =>
+            coupon.isActive &&
+            (coupon.validUntil == null || coupon.validUntil!.isAfter(now)))
+        .toList();
     String productId = products.first.id;
     String placementType = 'new_launch';
+    String couponCode = '';
     double durationHours = 24;
     bool saving = false;
 
     if (!mounted) return;
-    showDialog(
+    await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(builder: (context, setDialogState) {
         return AlertDialog(
@@ -3374,7 +3383,7 @@ class _EcommerceAdminPanelScreenState
                     DropdownMenuItem(
                         value: 'new_launch', child: Text('New Launch')),
                     DropdownMenuItem(
-                        value: 'festival_offer', child: Text('Festival Offer')),
+                        value: 'featured', child: Text('Featured Campaign')),
                   ],
                   onChanged: saving
                       ? null
@@ -3398,6 +3407,35 @@ class _EcommerceAdminPanelScreenState
                     decoration: const InputDecoration(
                         labelText: 'Badge (e.g. NEW LAUNCH)',
                         border: OutlineInputBorder())),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: couponCode,
+                  decoration: const InputDecoration(
+                    labelText: 'Verified Coupon (optional)',
+                    border: OutlineInputBorder(),
+                    helperText:
+                        'Only active, unexpired backend coupons can be advertised.',
+                  ),
+                  items: [
+                    const DropdownMenuItem(
+                      value: '',
+                      child: Text('No coupon'),
+                    ),
+                    for (final coupon in activeCoupons)
+                      DropdownMenuItem(
+                        value: coupon.code,
+                        child: Text(
+                          '${coupon.code} · ${coupon.description}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                  onChanged: saving
+                      ? null
+                      : (value) => setDialogState(
+                            () => couponCode = value ?? '',
+                          ),
+                ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<double>(
                   initialValue: durationHours,
@@ -3437,17 +3475,19 @@ class _EcommerceAdminPanelScreenState
                       final messenger = ScaffoldMessenger.of(this.context);
                       setDialogState(() => saving = true);
                       try {
-                        final now = DateTime.now();
+                        final startsAt = DateTime.now();
                         await ref.read(merchandisingRepositoryProvider).create(
                               productId: productId,
                               placementType: placementType,
                               headline: headline,
                               subheadline: subtitleCtrl.text.trim(),
                               badge: badgeCtrl.text.trim(),
-                              startsAt: now,
-                              endsAt: now
+                              startsAt: startsAt,
+                              endsAt: startsAt
                                   .add(Duration(hours: durationHours.round())),
                               priority: 200,
+                              couponCode:
+                                  couponCode.isEmpty ? null : couponCode,
                             );
                         ref.invalidate(adminStorefrontPlacementsProvider);
                         ref.invalidate(storefrontPlacementsProvider);
@@ -3464,7 +3504,8 @@ class _EcommerceAdminPanelScreenState
                         if (mounted) {
                           messenger.showSnackBar(
                             SnackBar(
-                                content: Text('Could not publish: $error')),
+                                content: Text(
+                                    'Could not publish: ${commerceError(error)}')),
                           );
                         }
                       }
@@ -3482,6 +3523,9 @@ class _EcommerceAdminPanelScreenState
         );
       }),
     );
+    titleCtrl.dispose();
+    subtitleCtrl.dispose();
+    badgeCtrl.dispose();
   }
 
   Future<void> _showCreateCouponDialog({PlatformCoupon? existing}) async {

@@ -122,7 +122,7 @@ const List<CampaignPosterConfig> defaultCampaignPosters = [
     rewardTag: '+ 5% Milterra Coins',
     couponCode: 'GREENS20',
     imagePath: 'assets/store/live-microgreens.jpg',
-    category: 'Hydroponic & Organic Greens',
+    category: 'Fresh Living Harvest (Microgreens)',
     accentColor: Color(0xff15803d),
   ),
   CampaignPosterConfig(
@@ -140,7 +140,8 @@ const List<CampaignPosterConfig> defaultCampaignPosters = [
   ),
 ];
 
-class CampaignPostersNotifier extends StateNotifier<List<CampaignPosterConfig>> {
+class CampaignPostersNotifier
+    extends StateNotifier<List<CampaignPosterConfig>> {
   CampaignPostersNotifier() : super(defaultCampaignPosters) {
     _loadFromStorage();
   }
@@ -184,7 +185,8 @@ class CampaignPostersNotifier extends StateNotifier<List<CampaignPosterConfig>> 
   }
 }
 
-final campaignPostersProvider = StateNotifierProvider<
-    CampaignPostersNotifier, List<CampaignPosterConfig>>((ref) {
+final campaignPostersProvider =
+    StateNotifierProvider<CampaignPostersNotifier, List<CampaignPosterConfig>>(
+        (ref) {
   return CampaignPostersNotifier();
 });

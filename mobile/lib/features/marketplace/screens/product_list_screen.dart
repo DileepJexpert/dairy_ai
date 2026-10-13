@@ -85,6 +85,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       return '🌵 Pure Aloe Vera & Living Botanicals';
     }
     if (lower.contains('microgreen') ||
+        lower.contains('hydroponic') ||
+        lower.contains('organic greens') ||
         lower.contains('living-harvest') ||
         lower.contains('living harvest') ||
         lower.contains('punnet') ||
@@ -433,16 +435,26 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _catModalChip(ctx, '🛒 All Essentials', 'All Organic Essentials'),
-                  _catModalChip(ctx, '🧈 A2 Cow Bilona Ghee', 'Vedic Bilona Ghee'),
-                  _catModalChip(ctx, '🥛 Fresh Milk & Paneer', 'Fresh Milk & Dairy'),
-                  _catModalChip(ctx, '🌻 Cold-Pressed Mustard Oil', 'Cold-Pressed Sarso (Mustard) Oil'),
-                  _catModalChip(ctx, '🌾 Stone-Ground Chakki Atta', 'Stone-Ground Chakki Atta & Flours'),
-                  _catModalChip(ctx, '🍯 Wood-Pressed Oils & Gur', 'Pure Sweeteners'),
-                  _catModalChip(ctx, '🧂 Native Spices & Salts', 'Terroir Salts & Native Spices'),
-                  _catModalChip(ctx, '🌱 Living Microgreens', 'Fresh Living Harvest'),
-                  _catModalChip(ctx, '🎁 Curated Gift Boxes', 'Curated Kitchen & Wellness Boxes'),
-                  _catModalChip(ctx, '🪔 Sacred Puja & Hawan', 'Puja & Hawan Samagri'),
+                  _catModalChip(
+                      ctx, '🛒 All Essentials', 'All Organic Essentials'),
+                  _catModalChip(
+                      ctx, '🧈 A2 Cow Bilona Ghee', 'Vedic Bilona Ghee'),
+                  _catModalChip(
+                      ctx, '🥛 Fresh Milk & Paneer', 'Fresh Milk & Dairy'),
+                  _catModalChip(ctx, '🌻 Cold-Pressed Mustard Oil',
+                      'Cold-Pressed Sarso (Mustard) Oil'),
+                  _catModalChip(ctx, '🌾 Stone-Ground Chakki Atta',
+                      'Stone-Ground Chakki Atta & Flours'),
+                  _catModalChip(
+                      ctx, '🍯 Wood-Pressed Oils & Gur', 'Pure Sweeteners'),
+                  _catModalChip(ctx, '🧂 Native Spices & Salts',
+                      'Terroir Salts & Native Spices'),
+                  _catModalChip(
+                      ctx, '🌱 Living Microgreens', 'Fresh Living Harvest'),
+                  _catModalChip(ctx, '🎁 Curated Gift Boxes',
+                      'Curated Kitchen & Wellness Boxes'),
+                  _catModalChip(
+                      ctx, '🪔 Sacred Puja & Hawan', 'Puja & Hawan Samagri'),
                 ],
               ),
             ],
@@ -467,7 +479,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
           color: isSelected ? const Color(0xff164e2e) : const Color(0xfff1f5f9),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? const Color(0xff164e2e) : const Color(0xffe2e8f0),
+            color:
+                isSelected ? const Color(0xff164e2e) : const Color(0xffe2e8f0),
           ),
         ),
         child: Text(
@@ -656,8 +669,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                     if (_search.text.isEmpty &&
                         (_category == 'All products' ||
                             _category == 'All' ||
-                            _category ==
-                                'All Organic Essentials'))
+                            _category == 'All Organic Essentials'))
                       StorefrontHero(
                         showcaseKey: _heroKey,
                         screenWidth: size.maxWidth,
@@ -1058,8 +1070,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                   borderRadius: BorderRadius.circular(6),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: active ? const Color(0xff111827) : Colors.white,
                       borderRadius: BorderRadius.circular(6),
@@ -1083,8 +1095,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       cat.label,
                       style: TextStyle(
                         fontSize: 12.5,
-                        fontWeight:
-                            active ? FontWeight.w700 : FontWeight.w600,
+                        fontWeight: active ? FontWeight.w700 : FontWeight.w600,
                         color: active ? Colors.white : const Color(0xff374151),
                       ),
                     ),
@@ -1399,8 +1410,6 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       ),
     );
   }
-
-
 
   Widget _buildRFQBanner(bool isMobile) {
     return LayoutBuilder(builder: (context, constraints) {
@@ -2149,6 +2158,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         catLower.contains('peanut');
 
     final isMicrogreenCategory = catLower.contains('microgreen') ||
+        catLower.contains('hydroponic') ||
+        catLower.contains('organic greens') ||
         catLower.contains('living harvest') ||
         catLower.contains('living-harvest') ||
         catLower.contains('punnet') ||

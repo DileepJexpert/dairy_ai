@@ -92,7 +92,9 @@ async def storefront_cors(request: Request, call_next):
         response.headers["Access-Control-Max-Age"] = "600"
     else:
         response = await call_next(request)
-    if request.url.path.startswith(("/api/v1/marketplace/", "/api/v1/auth/", "/auth/", "/analytics/")):
+    if "Cache-Control" not in response.headers and request.url.path.startswith(
+        ("/api/v1/marketplace/", "/api/v1/auth/", "/auth/", "/analytics/")
+    ):
         response.headers["Cache-Control"] = "no-store"
     if valid_origin:
         response.headers["Access-Control-Allow-Origin"] = origin

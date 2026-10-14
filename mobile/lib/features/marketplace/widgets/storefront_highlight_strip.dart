@@ -415,7 +415,9 @@ class _StorefrontHighlightStripState
           }
         }
 
-        final isMobile = MediaQuery.sizeOf(context).width < StoreLayout.mobile;
+        final screenWidth = MediaQuery.sizeOf(context).width;
+        final isMobile = screenWidth < StoreLayout.mobile;
+        final isCompact = screenWidth < 880;
         final endsAtChip = _buildEndsAtChip(theme, placement.endsAt);
         final tickerSpans = _buildTickerSpans(
           placement: placement,
@@ -427,7 +429,10 @@ class _StorefrontHighlightStripState
         return Container(
           width: double.infinity,
           color: const Color(0xfffffdfa),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          padding: EdgeInsets.symmetric(
+            horizontal: isCompact ? 8 : 16,
+            vertical: 6,
+          ),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: StoreLayout.maxWidth),
@@ -442,7 +447,7 @@ class _StorefrontHighlightStripState
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
                       padding: EdgeInsets.symmetric(
-                        horizontal: isMobile ? 10 : 16,
+                        horizontal: isCompact ? 10 : 16,
                         vertical: isMobile ? 6 : 7,
                       ),
                       decoration: BoxDecoration(

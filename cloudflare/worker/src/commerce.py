@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import time
 import uuid
 import urllib.parse
 from datetime import datetime, timezone
@@ -33,6 +34,14 @@ def _d1_rows(result: Any) -> list[dict[str, Any]]:
         return []
     rows = getattr(result, "results", result)
     return rows.to_py() if hasattr(rows, "to_py") else list(rows)
+
+
+_PUBLIC_PLACEMENTS_CACHE: dict[str, Any] = {"data": None, "expires_at": 0.0}
+
+
+def _invalidate_placements_cache() -> None:
+    _PUBLIC_PLACEMENTS_CACHE["data"] = None
+    _PUBLIC_PLACEMENTS_CACHE["expires_at"] = 0.0
 
 
 def _test_commerce(env):
@@ -1833,6 +1842,7 @@ async def update_product_visibility(
             SET is_active=0, updated_at=CURRENT_TIMESTAMP
             WHERE product_id=? AND is_active=1""").bind(product_id))
     await db.batch(statements)
+    _invalidate_placements_cache()
     return {"success": True, "message": "Storefront visibility updated", "data": {
         "product_id": product_id,
         "storefront_visible": data.visible,
@@ -3248,12 +3258,20 @@ _CAMPAIGN_SELECT = """SELECT c.*, i.title AS product_title, i.price_minor,
 @commerce_router.get("/marketplace/merchandising/placements")
 @commerce_router.get("/merchandising/placements")
 async def list_merchandising_placements(request: Request):
-    db = _env(request).DB
+    env = _env(request)
+    db = env.DB
     is_admin = "/admin/" in request.url.path
+    is_test = getattr(env, "ENVIRONMENT", "") == "test"
     if is_admin:
         await _require_auth(request, allowed_roles={"admin", "super_admin"})
         where = ""
     else:
+        now = time.time()
+        if not is_test and _PUBLIC_PLACEMENTS_CACHE["data"] is not None and now < _PUBLIC_PLACEMENTS_CACHE["expires_at"]:
+            return JSONResponse(
+                content=_PUBLIC_PLACEMENTS_CACHE["data"],
+                headers={"Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600"}
+            )
         where = """ WHERE c.is_active=1 AND i.is_active=1
             AND COALESCE(sv.is_visible, 1)=1
             AND (c.starts_at IS NULL OR datetime(c.starts_at) <= datetime('now'))
@@ -3261,8 +3279,17 @@ async def list_merchandising_placements(request: Request):
     rows = _d1_rows(await db.prepare(
         f"{_CAMPAIGN_SELECT}{where} ORDER BY c.priority DESC, c.created_at DESC"
     ).all())
-    return {"success": True,
-            "data": [await _campaign_view(db, row) for row in rows]}
+    result = {"success": True,
+              "data": [await _campaign_view(db, row) for row in rows]}
+    if not is_admin:
+        if not is_test:
+            _PUBLIC_PLACEMENTS_CACHE["data"] = result
+            _PUBLIC_PLACEMENTS_CACHE["expires_at"] = time.time() + 60.0
+        return JSONResponse(
+            content=result,
+            headers={"Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600"}
+        )
+    return result
 
 
 @commerce_router.post("/admin/marketplace/merchandising/placements")
@@ -3289,6 +3316,7 @@ async def create_merchandising_placement(data: PlacementInput, request: Request)
         placement_id, product_id, data.placement_type, data.headline.strip(),
         data.subheadline, data.badge, coupon_code, data.starts_at, data.ends_at,
         data.priority, 1 if data.is_active else 0).run()
+    _invalidate_placements_cache()
     return {"success": True, "message": "Placement created",
             "data": {"id": placement_id}}
 
@@ -3323,6 +3351,7 @@ async def update_merchandising_placement(
         data.priority if data.priority is not None else current["priority"],
         is_active,
         placement_id).run()
+    _invalidate_placements_cache()
     return {"success": True, "message": f"Placement {placement_id} updated"}
 
 
@@ -3331,6 +3360,7 @@ async def delete_merchandising_placement(placement_id: str, request: Request):
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
     db = _env(request).DB
     await db.prepare("DELETE FROM storefront_campaigns WHERE id=?").bind(placement_id).run()
+    _invalidate_placements_cache()
     return {"success": True, "message": f"Placement {placement_id} deleted"}
 
 

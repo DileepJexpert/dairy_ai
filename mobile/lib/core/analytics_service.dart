@@ -34,7 +34,12 @@ class AnalyticsService {
 
   void _startFlushTimer() {
     _flushTimer?.cancel();
-    if (WidgetsBinding.instance.runtimeType.toString().contains('Test')) {
+    try {
+      final binding = WidgetsBinding.instance;
+      if (binding.runtimeType.toString().contains('Test')) {
+        return;
+      }
+    } catch (_) {
       return;
     }
     _flushTimer = Timer.periodic(const Duration(seconds: 4), (_) => flush());

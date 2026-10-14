@@ -594,8 +594,8 @@ class _StoreHeaderState extends ConsumerState<StoreHeader>
                       ),
                     ),
 
-                    // Amazon-Style Delivery Pincode Widget (Desktop / Tablet)
-                    if (!isMobile) ...[
+                    // Amazon-Style Delivery Pincode Widget (Desktop only, hidden on compact/tablet)
+                    if (!isCompact) ...[
                       const SizedBox(width: 12),
                       InkWell(
                         onTap: () => _showLocationSelector(context),
@@ -1122,10 +1122,23 @@ class _StoreCategoryNavigationState
                           onTap: () => storeBrowse(context, sort: 'Best Sellers'),
                         ),
                         _buildQuickLink(
-                          icon: Icons.spa_outlined,
-                          iconColor: const Color(0xff166534),
-                          label: 'Our Farm Story',
-                          onTap: () => context.go('/farm-story'),
+                          icon: Icons.science_outlined,
+                          iconColor: const Color(0xff0284c7),
+                          label: 'Lab Reports',
+                          onTap: () => showLabPurityDialog(context),
+                        ),
+                        _buildQuickLink(
+                          icon: Icons.card_giftcard_rounded,
+                          iconColor: const Color(0xffd97706),
+                          label: 'Curated Boxes',
+                          onTap: () => storeBrowse(context,
+                              category: 'Curated Kitchen & Wellness Boxes'),
+                        ),
+                        _buildQuickLink(
+                          icon: Icons.headset_mic_rounded,
+                          iconColor: const Color(0xff059669),
+                          label: 'Customer Support',
+                          onTap: () => context.go('/help'),
                         ),
                         _buildQuickLink(
                           icon: Icons.info_outline_rounded,
@@ -1140,17 +1153,10 @@ class _StoreCategoryNavigationState
                           onTap: () => context.go('/contact'),
                         ),
                         _buildQuickLink(
-                          icon: Icons.science_outlined,
-                          iconColor: const Color(0xff0284c7),
-                          label: 'Lab Reports',
-                          onTap: () => showLabPurityDialog(context),
-                        ),
-                        _buildQuickLink(
-                          icon: Icons.card_giftcard_rounded,
-                          iconColor: const Color(0xffd97706),
-                          label: 'Curated Boxes',
-                          onTap: () => storeBrowse(context,
-                              category: 'Curated Kitchen & Wellness Boxes'),
+                          icon: Icons.spa_outlined,
+                          iconColor: const Color(0xff166534),
+                          label: 'Our Farm Story',
+                          onTap: () => context.go('/farm-story'),
                         ),
                       ],
                     ),

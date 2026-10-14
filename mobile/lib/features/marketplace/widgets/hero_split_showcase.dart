@@ -203,10 +203,7 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
     final banners = _banners;
 
     if (banners.isEmpty) {
-      return SizedBox(
-        height: bannerHeight,
-        child: const Center(child: CircularProgressIndicator()),
-      );
+      return const SizedBox.shrink();
     }
 
     final carousel = SizedBox(

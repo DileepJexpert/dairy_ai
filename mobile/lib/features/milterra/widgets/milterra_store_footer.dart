@@ -123,6 +123,10 @@ class MilterraStoreFooter extends StatelessWidget {
                           _footerLink(context, 'Admin Operations Login', '/admin/login'),
                           _footerLink(context, 'Commerce Fulfillment Orders', '/admin/commerce/orders'),
                           _footerLink(context, 'Help & Customer Support', '/help'),
+                          _footerLink(context, 'About Us', '/about'),
+                          _footerLink(context, 'Contact Us', '/contact'),
+                          _footerLink(
+                              context, 'Our Farm Story', '/farm-story'),
                         ],
                       ),
                     ),
@@ -148,11 +152,14 @@ class MilterraStoreFooter extends StatelessWidget {
     );
   }
 
-  Widget _footerLink(BuildContext context, String title, String route) {
+  Widget _footerLink(BuildContext context, String title, String route) =>
+      _footerAction(title, () => context.go(route));
+
+  Widget _footerAction(String title, VoidCallback onTap) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: InkWell(
-        onTap: () => context.go(route),
+        onTap: onTap,
         child: Text(
           title,
           style: const TextStyle(

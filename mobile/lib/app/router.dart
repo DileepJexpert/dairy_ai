@@ -225,11 +225,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           location == '/marketplace/wishlist' ||
           location == '/about' ||
           location == '/shop/about' ||
+          location == '/farm-story' ||
+          location == '/shop/farm-story' ||
           location == '/earth' ||
           location == '/shop/earth' ||
           location == '/marketplace/earth' ||
           location == '/help' ||
           location == '/shop/help' ||
+          location == '/contact' ||
+          location == '/shop/contact' ||
           location == '/register' ||
           location == '/profile' ||
           location == '/shop/profile' ||
@@ -452,6 +456,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/shop/about',
         redirect: (_, __) => '/about',
+      ),
+      StoreRoute(
+        path: '/farm-story',
+        builder: (context, state) => const FarmStoryScreen(),
+      ),
+      GoRoute(
+        path: '/shop/farm-story',
+        redirect: (_, __) => '/farm-story',
+      ),
+      StoreRoute(
+        path: '/contact',
+        builder: (context, state) => const ContactUsScreen(),
+      ),
+      GoRoute(
+        path: '/shop/contact',
+        redirect: (_, __) => '/contact',
       ),
       StoreRoute(
         path: '/earth',

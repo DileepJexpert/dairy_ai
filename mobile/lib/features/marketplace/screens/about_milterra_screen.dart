@@ -1,659 +1,372 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../widgets/store_design.dart';
 
 class AboutMilterraScreen extends StatelessWidget {
   const AboutMilterraScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: true,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
-          context.go('/shop');
-        }
-      },
-      child: Scaffold(
-        backgroundColor: storeCream,
-        body: Column(
+  Widget build(BuildContext context) => _BrandPage(
+        selected: 'About Us',
+        hero: const _Hero(
+          eyebrow: 'ABOUT MILTERRA',
+          title: 'Food feels different when its source is visible.',
+          body:
+              'Milterra is building a more transparent way to discover food: one that makes the source, maker, method and available proof easier to understand before you buy.',
+          icon: Icons.eco_outlined,
+        ),
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const StoreHeader(currentCategory: 'All'),
-            StoreCategoryNavigation(
-              selected: 'About',
-              onSelected: (cat) {
-                context.go(Uri(
-                  path: '/shop',
-                  queryParameters: {'category': cat},
-                ).toString());
-              },
+            const _Heading(
+              title: 'What guides us',
+              body:
+                  'Know Your Source is the standard we use when presenting every product and every claim.',
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1080),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Navigation & Back Action Bar
-                              _buildBackAndBreadcrumbs(context),
-                              const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            const _CardGrid(cards: [
+              _CardData(Icons.location_on_outlined, 'Traceable sourcing',
+                  'Explain where a product comes from and identify its producer when that information is verified.'),
+              _CardData(Icons.menu_book_outlined, 'Honest product information',
+                  'Describe ingredients, pack size and process clearly, without hiding behind vague marketing language.'),
+              _CardData(Icons.fact_check_outlined, 'Evidence before claims',
+                  'Publish lab reports, certificates and batch details only when the supporting evidence is available.'),
+            ]),
+            const SizedBox(height: 32),
+            _Statement(
+              title: 'What we are building',
+              body:
+                  'A direct marketplace where people can understand the journey behind their food. As verified information becomes available, product pages can connect the producer, origin, method, batch and quality records in one place.',
+              actions: [
+                _Action('Read Our Farm Story', Icons.agriculture_outlined,
+                    () => context.go('/farm-story')),
+                _Action('Contact Us', Icons.chat_bubble_outline,
+                    () => context.go('/contact'), outlined: true),
+              ],
+            ),
+          ],
+        ),
+      );
+}
 
-                            // Hero Banner
-                            _buildHeroBanner(),
-                            const SizedBox(height: 32),
+class FarmStoryScreen extends StatelessWidget {
+  const FarmStoryScreen({super.key});
 
-                            // 3 Pillars Overview
-                            _buildPillarsRow(),
-                            const SizedBox(height: 40),
+  static const _steps = [
+    _Step('01', Icons.landscape_outlined, 'The farm',
+        'The place and growing environment are the beginning of the story. We show origin details when they are confirmed.'),
+    _Step('02', Icons.person_outline, 'The farmer or maker',
+        'Food has people behind it. Producer profiles should use real names, records and photographs with permission.'),
+    _Step('03', Icons.grass_outlined, 'The animal or crop',
+        'Breed, crop variety, feed and cultivation details are shown only when the source can support them.'),
+    _Step('04', Icons.settings_outlined, 'The process',
+        'How the product is made matters. We explain the actual method and avoid invented tradition or process claims.'),
+    _Step('05', Icons.science_outlined, 'Purity testing',
+        'When a product is tested, the relevant report and testing context should be available for customers to review.'),
+    _Step('06', Icons.qr_code_2_outlined, 'Your product and batch',
+        'Batch-level records connect the product in your hand to the source and evidence collected for that production run.'),
+  ];
 
-                            // 5 Vedic Sanskaras of Bilona Churning
-                            _buildVedicSanskarasSection(),
-                            const SizedBox(height: 40),
+  @override
+  Widget build(BuildContext context) => _BrandPage(
+        selected: 'Our Farm Story',
+        hero: const _Hero(
+          eyebrow: 'OUR FARM STORY',
+          title: 'We believe you should know your source.',
+          body:
+              'Know where your food comes from, who produced it, how it was made and how its purity was checked. That is what Know Your Source means to us.',
+          icon: Icons.agriculture_outlined,
+        ),
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _Heading(
+              title: 'From source to product',
+              body:
+                  'A connected record is more useful than a marketing promise. This is the journey Milterra is designed to make visible.',
+            ),
+            const SizedBox(height: 16),
+            LayoutBuilder(builder: (context, box) {
+              final columns = box.maxWidth >= 900 ? 3 : (box.maxWidth >= 600 ? 2 : 1);
+              final width = (box.maxWidth - (columns - 1) * 16) / columns;
+              return Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                children: _steps
+                    .map((step) => SizedBox(width: width, child: _StepCard(step)))
+                    .toList(),
+              );
+            }),
+            const SizedBox(height: 32),
+            _Statement(
+              title: 'Our standard for proof',
+              body:
+                  'We publish source records, dated photographs, process details, test reports and batch information only after they are verified. If proof is not available yet, we do not present the claim as established fact.',
+              actions: [
+                _Action('Browse Products', Icons.storefront_outlined,
+                    () => context.go('/shop')),
+                _Action('Ask About a Source', Icons.chat_bubble_outline,
+                    () => context.go('/contact'), outlined: true),
+              ],
+            ),
+          ],
+        ),
+      );
+}
 
-                            // Direct Farmer Collective Section
-                            _buildFarmerCollectiveSection(context),
-                            const SizedBox(height: 40),
+class ContactUsScreen extends StatelessWidget {
+  const ContactUsScreen({super.key});
 
-                            // Laboratory Purity & Quality Assurance
-                            _buildLabPuritySection(context),
-                            const SizedBox(height: 40),
+  static final _whatsApp = Uri.parse(
+      'https://wa.me/919839769808?text=Hello%20Milterra%2C%20I%20need%20help.');
+  static final _email = Uri(
+    scheme: 'mailto',
+    path: 'support@milterra.in',
+    queryParameters: {'subject': 'Milterra enquiry'},
+  );
 
-                            // Bottom Call to Action
-                            _buildBottomCTA(context),
-                            const SizedBox(height: 24),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const StoreFooter(),
-                ],
+  Future<void> _open(BuildContext context, Uri uri) async {
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('This contact option could not be opened.'),
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => _BrandPage(
+        selected: 'Contact Us',
+        hero: const _Hero(
+          eyebrow: 'CONTACT US',
+          title: 'Talk directly with Milterra.',
+          body:
+              'Ask about an order, a product source, available proof or working with Milterra. Choose the channel that suits you.',
+          icon: Icons.chat_bubble_outline,
+        ),
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LayoutBuilder(builder: (context, box) {
+              final width = box.maxWidth >= 720 ? (box.maxWidth - 16) / 2 : box.maxWidth;
+              return Wrap(spacing: 16, runSpacing: 16, children: [
+                _ContactCard(width, Icons.chat_outlined, 'WhatsApp',
+                    '+91 98397 69808', 'Start a conversation', () => _open(context, _whatsApp)),
+                _ContactCard(width, Icons.email_outlined, 'Email',
+                    'support@milterra.in', 'Send an email', () => _open(context, _email)),
+                _ContactCard(width, Icons.support_agent_outlined, 'Customer support',
+                    'Orders, delivery, account and returns', 'Open help centre', () => context.go('/help')),
+                _ContactCard(width, Icons.handshake_outlined, 'Farm and sourcing enquiries',
+                    'Farmers, producers and responsible partnerships', 'Contact our team', () => _open(context, _email)),
+              ]);
+            }),
+            const SizedBox(height: 32),
+            const _Heading(
+              title: 'How we can help',
+              body:
+                  'Share your order number for order questions, or the product and batch details when asking about a source or quality record.',
+            ),
+            const SizedBox(height: 16),
+            const _CardGrid(cards: [
+              _CardData(Icons.local_shipping_outlined, 'Orders and delivery',
+                  'Order status, delivery questions, cancellation and returns.'),
+              _CardData(Icons.travel_explore_outlined, 'Product and source',
+                  'Ingredients, origin, process, lab evidence and batch records.'),
+              _CardData(Icons.inventory_2_outlined, 'Partnerships and boxes',
+                  'Producer partnerships, business orders and curated boxes.'),
+            ]),
+          ],
+        ),
+      );
+}
+
+class _BrandPage extends StatelessWidget {
+  const _BrandPage({required this.selected, required this.hero, required this.content});
+  final String selected;
+  final Widget hero;
+  final Widget content;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        backgroundColor: storeCream,
+        body: Column(children: [
+          const StoreHeader(currentCategory: 'All'),
+          StoreCategoryNavigation(selected: selected),
+          Expanded(child: SingleChildScrollView(child: Column(children: [
+            Center(child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1180),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: MediaQuery.sizeOf(context).width < 600 ? 16 : 28,
+                  vertical: 28,
+                ),
+                child: Column(children: [hero, const SizedBox(height: 28), content]),
               ),
-            ),
-          ),
-        ],
-      ),
-    ),
+            )),
+            const StoreFooter(),
+          ]))),
+        ]),
+      );
+}
+
+class _Hero extends StatelessWidget {
+  const _Hero({required this.eyebrow, required this.title, required this.body, required this.icon});
+  final String eyebrow, title, body;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 600 ? 24 : 40),
+        decoration: BoxDecoration(color: storeGreen, borderRadius: BorderRadius.circular(18)),
+        child: LayoutBuilder(builder: (context, box) => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(eyebrow, style: const TextStyle(color: storeAmber, fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 1.4)),
+              const SizedBox(height: 12),
+              Text(title, style: TextStyle(color: Colors.white, fontSize: box.maxWidth < 600 ? 28 : 40, fontWeight: FontWeight.w900, height: 1.12)),
+              const SizedBox(height: 14),
+              Text(body, style: const TextStyle(color: Color(0xffd9e5df), fontSize: 16, height: 1.55)),
+            ])),
+            if (box.maxWidth >= 700) ...[
+              const SizedBox(width: 36),
+              Container(padding: const EdgeInsets.all(22), decoration: BoxDecoration(color: Colors.white.withValues(alpha: .1), shape: BoxShape.circle), child: Icon(icon, size: 62, color: storeAmber)),
+            ],
+          ],
+        )),
+      );
+}
+
+class _Heading extends StatelessWidget {
+  const _Heading({required this.title, required this.body});
+  final String title, body;
+  @override
+  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Text(title, style: const TextStyle(color: storeGreen, fontSize: 25, fontWeight: FontWeight.w900)),
+    const SizedBox(height: 6),
+    Text(body, style: const TextStyle(color: storeMuted, fontSize: 15, height: 1.5)),
+  ]);
+}
+
+class _CardData {
+  const _CardData(this.icon, this.title, this.body);
+  final IconData icon;
+  final String title, body;
+}
+
+class _CardGrid extends StatelessWidget {
+  const _CardGrid({required this.cards});
+  final List<_CardData> cards;
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, box) {
+    final columns = box.maxWidth >= 880 ? 3 : (box.maxWidth >= 580 ? 2 : 1);
+    final width = (box.maxWidth - (columns - 1) * 16) / columns;
+    return Wrap(spacing: 16, runSpacing: 16, children: cards.map((card) => SizedBox(
+      width: width,
+      child: _ContentCard(icon: card.icon, title: card.title, body: card.body),
+    )).toList());
+  });
+}
+
+class _ContentCard extends StatelessWidget {
+  const _ContentCard({required this.icon, required this.title, required this.body});
+  final IconData icon;
+  final String title, body;
+  @override
+  Widget build(BuildContext context) => Container(
+    constraints: const BoxConstraints(minHeight: 190),
+    padding: const EdgeInsets.all(22),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: storeBorder)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: storeSage, borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: storeGreen, size: 24)),
+      const SizedBox(height: 14),
+      Text(title, style: const TextStyle(color: storeGreen, fontSize: 17, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 7),
+      Text(body, style: const TextStyle(color: storeMuted, fontSize: 13.5, height: 1.45)),
+    ]),
   );
 }
 
-  Widget _buildBackAndBreadcrumbs(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: storeBorder.withValues(alpha: 0.6)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Prominent Back to Shopping button
-          InkWell(
-            onTap: () {
-              if (Navigator.of(context).canPop()) {
-                Navigator.of(context).pop();
-              } else {
-                context.go('/shop');
-              }
-            },
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: storeGreen.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: storeGreen.withValues(alpha: 0.2)),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.arrow_back_rounded, size: 16, color: storeGreen),
-                  SizedBox(width: 6),
-                  Text(
-                    'Back to Store',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: storeGreen,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          const Text('│', style: TextStyle(color: Color(0xffcbd5e1), fontSize: 14)),
-          const SizedBox(width: 14),
+class _Step {
+  const _Step(this.number, this.icon, this.title, this.body);
+  final String number, title, body;
+  final IconData icon;
+}
 
-          // Breadcrumbs
-          Expanded(
-            child: Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                InkWell(
-                  onTap: () => context.go('/shop'),
-                  child: const Text(
-                    'Home',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: storeMuted,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                const Text(' › ', style: TextStyle(fontSize: 12.5, color: storeMuted)),
-                InkWell(
-                  onTap: () => context.go('/shop'),
-                  child: const Text(
-                    'Store',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: storeMuted,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                const Text(' › ', style: TextStyle(fontSize: 12.5, color: storeMuted)),
-                const Text(
-                  'About Milterra & Vedic Craft',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.bold,
-                    color: storeGreen,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+class _StepCard extends StatelessWidget {
+  const _StepCard(this.step);
+  final _Step step;
+  @override
+  Widget build(BuildContext context) => Container(
+    constraints: const BoxConstraints(minHeight: 220),
+    padding: const EdgeInsets.all(22),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: storeBorder)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: storeSage, borderRadius: BorderRadius.circular(10)), child: Icon(step.icon, color: storeGreen, size: 24)),
+        Text(step.number, style: const TextStyle(color: storeAmber, fontSize: 22, fontWeight: FontWeight.w900)),
+      ]),
+      const SizedBox(height: 16),
+      Text(step.title, style: const TextStyle(color: storeGreen, fontSize: 17, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 7),
+      Text(step.body, style: const TextStyle(color: storeMuted, fontSize: 13.5, height: 1.45)),
+    ]),
+  );
+}
 
-  Widget _buildHeroBanner() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
-      decoration: BoxDecoration(
-        color: storeGreen,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: storeGreen.withValues(alpha: 0.18),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: storeAmber.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: storeAmber),
-            ),
-            child: const Text(
-              'OUR PHILOSOPHY & CRAFT',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: storeAmber,
-                letterSpacing: 1.2,
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          const Text(
-            'Pure Sourcing. Vedic Craft.\nFarmer Prosperity.',
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-              height: 1.2,
-            ),
-          ),
-          const SizedBox(height: 14),
-          const Text(
-            'Milterra was founded on a singular conviction: genuine dairy should be produced with patience, deep respect for indigenous cattle, and direct economic fairness for rural dairy farming families. We reject industrial shortcuts, synthetic additives, and unfair middlemen.',
-            style: TextStyle(
-              fontSize: 15,
-              color: Colors.white70,
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+class _Statement extends StatelessWidget {
+  const _Statement({required this.title, required this.body, required this.actions});
+  final String title, body;
+  final List<Widget> actions;
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(28),
+    decoration: BoxDecoration(color: storeSage, borderRadius: BorderRadius.circular(16), border: Border.all(color: storeBorder)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(title, style: const TextStyle(color: storeGreen, fontSize: 23, fontWeight: FontWeight.w900)),
+      const SizedBox(height: 9),
+      Text(body, style: const TextStyle(color: Color(0xff33443b), fontSize: 15, height: 1.55)),
+      const SizedBox(height: 20),
+      Wrap(spacing: 12, runSpacing: 10, children: actions),
+    ]),
+  );
+}
 
-  Widget _buildPillarsRow() {
-    final pillars = [
-      {
-        'icon': Icons.grass_outlined,
-        'title': '100% Grass-Fed Indigenous Breeds',
-        'desc':
-            'Sourced exclusively from ethically grazed Indian Gir cows and Murrah buffaloes free to roam open pastures.',
-      },
-      {
-        'icon': Icons.local_fire_department_outlined,
-        'title': 'Vedic Bilona Churning',
-        'desc':
-            'Cultured whole-milk curd churned slowly with wooden bi-directional bilonas and simmered on firewood.',
-      },
-      {
-        'icon': Icons.account_balance_wallet_outlined,
-        'title': 'Direct Farmer Payouts',
-        'desc':
-            'Transparent Fat & SNF digital pricing paid instantly to farmer Milterra Wallets with zero broker margins.',
-      },
-    ];
+class _Action extends StatelessWidget {
+  const _Action(this.label, this.icon, this.onPressed, {this.outlined = false});
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+  final bool outlined;
+  @override
+  Widget build(BuildContext context) => outlined
+      ? OutlinedButton.icon(onPressed: onPressed, icon: Icon(icon, size: 18), label: Text(label), style: OutlinedButton.styleFrom(foregroundColor: storeGreen, side: const BorderSide(color: storeGreen), padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14)))
+      : FilledButton.icon(onPressed: onPressed, icon: Icon(icon, size: 18), label: Text(label), style: FilledButton.styleFrom(backgroundColor: storeGreen, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14)));
+}
 
-    return Row(
-      children: pillars.map((p) {
-        return Expanded(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 6),
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: storeBorder),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: storeSage,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(p['icon'] as IconData, color: storeGreen, size: 24),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  p['title'] as String,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: storeGreen,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  p['desc'] as String,
-                  style: const TextStyle(fontSize: 12, color: storeMuted, height: 1.4),
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildVedicSanskarasSection() {
-    final sanskaras = [
-      {
-        'step': '01',
-        'title': 'Ethical Milking (Ahinsa)',
-        'desc':
-            'The newborn calf is fed to satisfaction before morning milking begins. Hand-milked in serene stress-free open sheds.',
-      },
-      {
-        'step': '02',
-        'title': 'Earthen Boiling (Mitti ke Bartan)',
-        'desc':
-            'Fresh whole milk is slowly brought to a simmer over dung-cake firewood in heavy clay vats, preserving vital A2 beta-casein proteins.',
-      },
-      {
-        'step': '03',
-        'title': 'Overnight Curd Culturing',
-        'desc':
-            'Cooled milk is inoculated with pure heritage starter culture and left to set undisturbed in clay pots into dense probiotic dahi.',
-      },
-      {
-        'step': '04',
-        'title': 'Brahma Muhurta Wooden Bilona',
-        'desc':
-            'Before sunrise, cultured curd is churned bi-directionally using hand-carved wooden bilonas to separate rich makkhan from butter-milk.',
-      },
-      {
-        'step': '05',
-        'title': 'Slow Firewood Clarification',
-        'desc':
-            'Fresh white makkhan is slowly clarified on low heat with betel leaves until golden granular crystal granules emerge naturally.',
-      },
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: storeBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.auto_awesome, color: storeAmber, size: 22),
-              SizedBox(width: 8),
-              Text(
-                'The 5 Vedic Sanskaras of Bilona Ghee',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  color: storeGreen,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Unlike industrial ghee made from heated separator cream in hours, Milterra Vedic Bilona Ghee requires 30 liters of pure milk and 36 hours of patient artisan craftsmanship for a single liter.',
-            style: TextStyle(fontSize: 13, color: storeMuted, height: 1.4),
-          ),
-          const SizedBox(height: 22),
-          ...sanskaras.map((s) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: storeCream,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: storeBorder),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: storeGreen,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        s['step']!,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          color: storeAmber,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            s['title']!,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                              color: storeGreen,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            s['desc']!,
-                            style: const TextStyle(fontSize: 12, color: Colors.black87, height: 1.3),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFarmerCollectiveSection(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: storeSage,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: storeBorder),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            flex: 6,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '124+ Farmer Families. Zero Middlemen.',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: storeGreen,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'Every morning and evening, our cooperative members deliver milk to digital collection kiosks. Milk Fat & SNF percentages are measured transparently via ultrasonic analyzers, and earnings are credited directly into their Milterra Wallets within minutes. This guarantees farmers fair compensation 25% higher than traditional dairy conglomerates.',
-                  style: TextStyle(fontSize: 13, color: Colors.black87, height: 1.4),
-                ),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: storeGreen,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () => context.push('/cooperative/intake'),
-                  icon: const Icon(Icons.receipt_long, size: 16),
-                  label: const Text('View Cooperative Milk Intake Slip System'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 28),
-          Expanded(
-            flex: 4,
-            child: Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: storeBorder),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('COOPERATIVE IMPACT',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: storeMuted)),
-                  SizedBox(height: 10),
-                  Text('₹8.92 Lakhs+',
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: storeGreen)),
-                  Text('Direct Milk Payouts Disbursed',
-                      style: TextStyle(fontSize: 11, color: storeMuted)),
-                  Divider(height: 20),
-                  Text('100% Traceable',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: storeGreen)),
-                  Text('Tag-level Herd Health Records',
-                      style: TextStyle(fontSize: 11, color: storeMuted)),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLabPuritySection(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: storeBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.verified, color: storeGreen, size: 24),
-                  SizedBox(width: 10),
-                  Text(
-                    'NABL Accredited Lab Testing & Verifiable Batches',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: storeGreen,
-                    ),
-                  ),
-                ],
-              ),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: storeGreen,
-                  side: const BorderSide(color: storeGreen),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: () => context.push('/purity/certificate/BATCH-2026-0911A'),
-                icon: const Icon(Icons.qr_code, size: 16),
-                label: const Text('View Sample Lab Certificate'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Every batch of Milterra A2 Ghee and Dairy is tested under ISO/IEC 17025 standards for moisture, free fatty acids, RM value, Baudouin test, aflatoxins, and 100% A2 beta-casein allele verification.',
-            style: TextStyle(fontSize: 13, color: storeMuted, height: 1.4),
-          ),
-          const SizedBox(height: 18),
-          Wrap(
-            spacing: 12,
-            runSpacing: 10,
-            children: [
-              _metricPill('99.4% Purity Score', Icons.check_circle_outline),
-              _metricPill('100% A2 Beta-Casein', Icons.biotech_outlined),
-              _metricPill('Zero Preservatives', Icons.block_outlined),
-              _metricPill('Zero Added Water', Icons.water_drop_outlined),
-              _metricPill('Zero Synthetic Dyes', Icons.palette_outlined),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _metricPill(String label, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: storeCream,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: storeBorder),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: storeGreen),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: storeGreen,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomCTA(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: storeGreen,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          const Text(
-            'Taste Genuine Vedic Dairy from Indigenous Herds',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Direct farm-to-table delivery in temperature-controlled sustainable packaging.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: Colors.white70),
-          ),
-          const SizedBox(height: 20),
-          Wrap(
-            spacing: 14,
-            runSpacing: 10,
-            children: [
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: storeAmber,
-                  foregroundColor: storeGreen,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-                ),
-                onPressed: () => context.go('/shop'),
-                icon: const Icon(Icons.shopping_bag_outlined, size: 18),
-                label: const Text('Explore Dairy Collection',
-                    style: TextStyle(fontWeight: FontWeight.w800)),
-              ),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.white60),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-                ),
-                onPressed: () => context.push('/herd/lifecycle/MIL-2024-0842'),
-                icon: const Icon(Icons.pets_outlined, size: 18),
-                label: const Text('Meet Our Cattle Herd',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+class _ContactCard extends StatelessWidget {
+  const _ContactCard(this.width, this.icon, this.title, this.detail, this.actionLabel, this.onPressed);
+  final double width;
+  final IconData icon;
+  final String title, detail, actionLabel;
+  final VoidCallback onPressed;
+  @override
+  Widget build(BuildContext context) => SizedBox(width: width, child: Container(
+    padding: const EdgeInsets.all(22),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: storeBorder)),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: storeSage, borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: storeGreen, size: 25)),
+      const SizedBox(width: 16),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: const TextStyle(color: storeGreen, fontSize: 17, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 5),
+        Text(detail, style: const TextStyle(color: storeMuted, fontSize: 13.5)),
+        const SizedBox(height: 12),
+        TextButton(onPressed: onPressed, style: TextButton.styleFrom(foregroundColor: storeGreen, padding: EdgeInsets.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap), child: Text(actionLabel)),
+      ])),
+    ]),
+  ));
 }

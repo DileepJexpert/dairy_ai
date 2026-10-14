@@ -1125,18 +1125,24 @@ class _StoreCategoryNavigationState
                           icon: Icons.spa_outlined,
                           iconColor: const Color(0xff166534),
                           label: 'Our Farm Story',
-                          onTap: () {
-                            if (widget.onOurStoryPressed != null) {
-                              widget.onOurStoryPressed!();
-                            } else {
-                              context.push('/about');
-                            }
-                          },
+                          onTap: () => context.go('/farm-story'),
+                        ),
+                        _buildQuickLink(
+                          icon: Icons.info_outline_rounded,
+                          iconColor: const Color(0xff4b5563),
+                          label: 'About Us',
+                          onTap: () => context.go('/about'),
+                        ),
+                        _buildQuickLink(
+                          icon: Icons.mail_outline_rounded,
+                          iconColor: const Color(0xff2563eb),
+                          label: 'Contact Us',
+                          onTap: () => context.go('/contact'),
                         ),
                         _buildQuickLink(
                           icon: Icons.science_outlined,
                           iconColor: const Color(0xff0284c7),
-                          label: 'Lab Reports (NABL)',
+                          label: 'Lab Reports',
                           onTap: () => showLabPurityDialog(context),
                         ),
                         _buildQuickLink(
@@ -1145,12 +1151,6 @@ class _StoreCategoryNavigationState
                           label: 'Curated Boxes',
                           onTap: () => storeBrowse(context,
                               category: 'Curated Kitchen & Wellness Boxes'),
-                        ),
-                        _buildQuickLink(
-                          icon: Icons.chat_bubble_outline_rounded,
-                          iconColor: const Color(0xff059669),
-                          label: 'Customer Support',
-                          onTap: () => context.push('/contact'),
                         ),
                       ],
                     ),
@@ -1930,6 +1930,11 @@ class StoreFooter extends ConsumerWidget {
                                         style: StoreType.inverseLabel)),
                                 TextButton(
                                     onPressed: () =>
+                                        context.go('/farm-story'),
+                                    child: const Text('Our Farm Story',
+                                        style: StoreType.inverseLabel)),
+                                TextButton(
+                                    onPressed: () =>
                                         showProductQuality(context),
                                     child: const Text('Quality & Research',
                                         style: StoreType.inverseLabel)),
@@ -1973,6 +1978,10 @@ class StoreFooter extends ConsumerWidget {
                                 TextButton(
                                     onPressed: () => context.go('/help'),
                                     child: const Text('Help & Support',
+                                        style: StoreType.inverseLabel)),
+                                TextButton(
+                                    onPressed: () => context.go('/contact'),
+                                    child: const Text('Contact Us',
                                         style: StoreType.inverseLabel)),
                               ]),
                         ]))),

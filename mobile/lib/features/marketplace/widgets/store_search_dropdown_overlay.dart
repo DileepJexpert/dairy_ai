@@ -128,8 +128,7 @@ class _StoreSearchDropdownOverlayState
     // Calculate header bottom coordinate so backdrop starts beneath header
     final headerBox =
         widget.headerKey.currentContext?.findRenderObject() as RenderBox?;
-    final headerOffset =
-        headerBox?.localToGlobal(Offset.zero) ?? Offset.zero;
+    final headerOffset = headerBox?.localToGlobal(Offset.zero) ?? Offset.zero;
     final headerHeight = headerBox?.size.height ?? 64.0;
     final headerBottom = headerOffset.dy + headerHeight;
 
@@ -138,8 +137,7 @@ class _StoreSearchDropdownOverlayState
         widget.searchBarKey.currentContext?.findRenderObject() as RenderBox?;
     final searchOffset =
         searchBox?.localToGlobal(Offset.zero) ?? Offset(16, headerBottom - 48);
-    final searchSize =
-        searchBox?.size ?? Size(screenSize.width - 32, 42);
+    final searchSize = searchBox?.size ?? Size(screenSize.width - 32, 42);
 
     double dropdownLeft;
     double dropdownWidth;
@@ -157,8 +155,7 @@ class _StoreSearchDropdownOverlayState
       dropdownLeft = searchOffset.dx;
       dropdownWidth = searchSize.width;
       if (dropdownLeft + dropdownWidth > screenSize.width - 16) {
-        dropdownLeft =
-            math.max(8.0, screenSize.width - dropdownWidth - 16);
+        dropdownLeft = math.max(8.0, screenSize.width - dropdownWidth - 16);
       }
     }
 
@@ -242,8 +239,8 @@ class _StoreSearchDropdownOverlayState
 
   Widget _buildDropdownContent(BuildContext context) {
     final query = widget.searchController.text.trim();
-    final catalogue = ref.watch(staticCatalogueProvider).valueOrNull;
-    final allProducts = catalogue?.products ?? const <Product>[];
+    final allProducts =
+        ref.watch(productsProvider(null)).valueOrNull ?? const <Product>[];
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
@@ -254,14 +251,16 @@ class _StoreSearchDropdownOverlayState
   }
 
   /// Default view when search box is empty: Recent Searches, Trending searches, Trending Products
-  Widget _buildDefaultSections(BuildContext context, List<Product> allProducts) {
+  Widget _buildDefaultSections(
+      BuildContext context, List<Product> allProducts) {
     // Enrich default trending products with live catalogue if available
     final trendingProducts = <StoreTrendingProductItem>[];
     for (final def in kStoreDefaultTrendingProducts) {
       Product? matched;
       for (final p in allProducts) {
         if (p.id == def.id ||
-            p.variants.any((v) => v.sku.toLowerCase() == def.sku.toLowerCase())) {
+            p.variants
+                .any((v) => v.sku.toLowerCase() == def.sku.toLowerCase())) {
           matched = p;
           break;
         }
@@ -280,8 +279,6 @@ class _StoreSearchDropdownOverlayState
             category: catName,
           ),
         );
-      } else {
-        trendingProducts.add(def);
       }
     }
 
@@ -385,10 +382,9 @@ class _StoreSearchDropdownOverlayState
       final b = p.brand?.toLowerCase() ?? '';
       final dept =
           p.taxonomy?['department_name']?.toString().toLowerCase() ?? '';
-      final cat =
-          p.taxonomy?['category_name']?.toString().toLowerCase() ?? '';
-      final hasVariant = p.variants
-          .any((v) => v.sku.toLowerCase().contains(lowerQuery));
+      final cat = p.taxonomy?['category_name']?.toString().toLowerCase() ?? '';
+      final hasVariant =
+          p.variants.any((v) => v.sku.toLowerCase().contains(lowerQuery));
       return t.contains(lowerQuery) ||
           d.contains(lowerQuery) ||
           b.contains(lowerQuery) ||
@@ -479,8 +475,7 @@ class _StoreSearchDropdownOverlayState
         ] else ...[
           Column(
             children: [
-              for (final p in matched.take(5))
-                _buildLiveMatchProductCard(p),
+              for (final p in matched.take(5)) _buildLiveMatchProductCard(p),
             ],
           ),
           const SizedBox(height: 12),

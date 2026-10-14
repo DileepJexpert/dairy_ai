@@ -80,6 +80,7 @@ Product _withLiveInventory(
     price: price,
     availableQuantity: stock,
     inStock: row['is_active'] == true && stock > 0,
+    storefrontVisible: row['storefront_visible'] != false,
     stockKnown: true,
     compareAtPrice: (row['mrp'] as num?)?.toDouble() ?? product.compareAtPrice,
   );
@@ -135,8 +136,9 @@ final productsProvider = FutureProvider.family<List<Product>, ProductCategory?>(
     (ref, category) async {
   final snapshot = await ref.watch(staticCatalogueProvider.future);
   if (snapshot != null) {
-    final live = ref.watch(liveInventoryProvider).valueOrNull ?? const {};
+    final live = await ref.watch(liveInventoryProvider.future);
     final items = snapshot.products
+        .where((p) => live[p.id]?['storefront_visible'] != false)
         .where((p) => category == null || p.category == category)
         .map((p) => _withLiveInventory(p, live))
         .toList();
@@ -185,7 +187,7 @@ final productDetailProvider =
     FutureProvider.family<Product, String>((ref, id) async {
   final snapshot = await ref.watch(staticCatalogueProvider.future);
   if (snapshot != null) {
-    final live = ref.watch(liveInventoryProvider).valueOrNull ?? const {};
+    final live = await ref.watch(liveInventoryProvider.future);
     final conceptSlug = _legacyConceptSlugs[id];
     final family = conceptSlug != null
         ? snapshot.familyBySlug(conceptSlug)
@@ -198,6 +200,9 @@ final productDetailProvider =
     final sku = _legacyStorefrontSkuAliases[id];
     final product = sku == null ? snapshot.byId(id) : snapshot.bySku(sku);
     if (product == null) {
+      throw StateError('Product is no longer available.');
+    }
+    if (live[product.id]?['storefront_visible'] == false) {
       throw StateError('Product is no longer available.');
     }
     return _withLiveInventory(product, live);

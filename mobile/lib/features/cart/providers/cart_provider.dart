@@ -129,12 +129,15 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
     if (localItems.isEmpty) return _createEmptyCart();
 
     final snapshot = ref.read(staticCatalogueProvider).valueOrNull;
+    final liveInventory = ref.read(liveInventoryProvider).valueOrNull;
     final cartItems = <CartItem>[];
     double subtotal = 0.0;
     int totalCount = 0;
 
     for (final item in localItems) {
       final product = snapshot?.byId(item.productId);
+      final storefrontVisible =
+          liveInventory?[item.productId]?['storefront_visible'] != false;
       final price = product?.price ?? item.priceWhenAdded ?? 0.0;
       final lineTotal = price * item.quantity;
       subtotal += lineTotal;
@@ -147,8 +150,8 @@ class CartNotifier extends StateNotifier<AsyncValue<Cart>> {
         quantity: item.quantity,
         priceWhenAdded: item.priceWhenAdded ?? price,
         currentPrice: price,
-        inStock:
-            product != null ? (!product.stockKnown || product.inStock) : true,
+        inStock: storefrontVisible &&
+            (product != null ? (!product.stockKnown || product.inStock) : true),
         lineTotal: lineTotal,
         vendorName:
             product?.vendor?['business_name']?.toString() ?? 'Milterra Dairy',

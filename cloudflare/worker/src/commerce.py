@@ -363,10 +363,14 @@ def _validate_coupon_value(discount_type: str, discount_value: float) -> None:
 @commerce_router.get("/inventory")
 async def list_live_inventory(request: Request):
     rows = await _env(request).DB.prepare("""SELECT i.product_id, i.price_minor, i.available_units, i.is_active,
-        p.mrp_minor FROM inventory i LEFT JOIN inventory_pricing p ON p.product_id=i.product_id""").all()
+        p.mrp_minor, COALESCE(v.is_visible, 1) AS storefront_visible
+        FROM inventory i
+        LEFT JOIN inventory_pricing p ON p.product_id=i.product_id
+        LEFT JOIN storefront_product_visibility v ON v.product_id=i.product_id""").all()
     return {"success": True, "data": [{"product_id": row["product_id"],
         "price": row["price_minor"] / 100, "available_quantity": row["available_units"],
         "is_active": bool(row["is_active"]),
+        "storefront_visible": bool(row["storefront_visible"]),
         "mrp": row["mrp_minor"] / 100 if row["mrp_minor"] is not None else None}
         for row in _d1_rows(rows)]}
 
@@ -375,8 +379,12 @@ async def get_inventory_status(product_id: str, request: Request) -> dict:
     """Fetch live authoritative stock and price from D1."""
     db = _env(request).DB
     rows = await db.prepare(
-        "SELECT product_id, title, available_units, price_minor, currency, is_active "
-        "FROM inventory WHERE product_id = ?"
+        """SELECT i.product_id, i.title, i.available_units, i.price_minor,
+                  i.currency, i.is_active,
+                  COALESCE(v.is_visible, 1) AS storefront_visible
+           FROM inventory i
+           LEFT JOIN storefront_product_visibility v ON v.product_id=i.product_id
+           WHERE i.product_id = ?"""
     ).bind(product_id).all()
     records = _d1_rows(rows)
     if not records:
@@ -392,6 +400,7 @@ async def get_inventory_status(product_id: str, request: Request) -> dict:
             "currency": item["currency"],
             "in_stock": item["available_units"] > 0,
             "is_active": bool(item["is_active"]),
+            "storefront_visible": bool(item["storefront_visible"]),
         },
     }
 
@@ -407,9 +416,11 @@ async def get_cart(request: Request) -> dict:
     
     rows = await db.prepare(
         """SELECT c.id AS cart_item_id, c.product_id, c.quantity,
-                  i.title, i.price_minor, i.available_units, i.currency
+                  i.title, i.price_minor, i.available_units, i.currency,
+                  i.is_active, COALESCE(v.is_visible, 1) AS storefront_visible
            FROM cart_items c
            JOIN inventory i ON c.product_id = i.product_id
+           LEFT JOIN storefront_product_visibility v ON v.product_id=i.product_id
            WHERE c.customer_id = ?"""
     ).bind(customer["id"]).all()
     
@@ -431,7 +442,9 @@ async def get_cart(request: Request) -> dict:
             "current_price": price,
             "price_changed": False,
             "line_total": line_total,
-            "in_stock": r["available_units"] >= r["quantity"],
+            "in_stock": bool(r["is_active"] and r["storefront_visible"]
+                             and r["available_units"] >= r["quantity"]),
+            "storefront_visible": bool(r["storefront_visible"]),
             "available_quantity": r["available_units"],
         })
     
@@ -452,11 +465,17 @@ async def add_cart_item(payload: CartItemInput, request: Request) -> dict:
     db = _env(request).DB
 
     # Verify product exists in inventory
-    inv = await db.prepare("SELECT product_id, is_active FROM inventory WHERE product_id = ?").bind(payload.product_id).first()
+    inv = await db.prepare("""SELECT i.product_id, i.is_active,
+            COALESCE(v.is_visible, 1) AS storefront_visible
+        FROM inventory i
+        LEFT JOIN storefront_product_visibility v ON v.product_id=i.product_id
+        WHERE i.product_id = ?""").bind(payload.product_id).first()
     if not inv:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Product does not exist")
     if not inv.get("is_active", 1):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Product is not available for purchase")
+    if not inv.get("storefront_visible", 1):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Product is hidden from the storefront")
 
     item_id = str(uuid.uuid4())
     await db.prepare(
@@ -482,9 +501,11 @@ async def update_cart_item(item_id: str, payload: CartItemUpdateInput, request: 
 
     # Verify inventory exists and is active
     rows = await db.prepare(
-        """SELECT c.id, c.product_id, i.available_units, i.is_active, i.title
+        """SELECT c.id, c.product_id, i.available_units, i.is_active, i.title,
+                  COALESCE(v.is_visible, 1) AS storefront_visible
            FROM cart_items c
            JOIN inventory i ON c.product_id = i.product_id
+           LEFT JOIN storefront_product_visibility v ON v.product_id=i.product_id
            WHERE (c.id = ? OR c.product_id = ?) AND c.customer_id = ?"""
     ).bind(item_id, item_id, customer["id"]).all()
     records = _d1_rows(rows)
@@ -494,6 +515,8 @@ async def update_cart_item(item_id: str, payload: CartItemUpdateInput, request: 
     item = records[0]
     if not item.get("is_active", 1):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Product {item['title']} is inactive")
+    if not item.get("storefront_visible", 1):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Product {item['title']} is hidden")
     if item["available_units"] < payload.quantity:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -608,9 +631,12 @@ async def checkout_quote(payload: CheckoutQuoteInput, request: Request) -> dict:
 
     # 2. Fetch cart items
     rows = await db.prepare(
-        """SELECT c.product_id, c.quantity, i.title, i.price_minor, i.available_units, i.currency, i.is_active
+        """SELECT c.product_id, c.quantity, i.title, i.price_minor,
+                  i.available_units, i.currency, i.is_active,
+                  COALESCE(v.is_visible, 1) AS storefront_visible
            FROM cart_items c
            JOIN inventory i ON c.product_id = i.product_id
+           LEFT JOIN storefront_product_visibility v ON v.product_id=i.product_id
            WHERE c.customer_id = ?"""
     ).bind(customer["id"]).all()
     cart_records = _d1_rows(rows)
@@ -623,6 +649,8 @@ async def checkout_quote(payload: CheckoutQuoteInput, request: Request) -> dict:
     for r in cart_records:
         if not r.get("is_active", 1):
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Product {r['title']} is inactive")
+        if not r.get("storefront_visible", 1):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Product {r['title']} is hidden")
         if r["available_units"] < r["quantity"]:
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -709,9 +737,12 @@ async def checkout(payload: CheckoutInput, request: Request) -> dict:
 
     # 3. Fetch current cart items joined with inventory
     rows = await db.prepare(
-        """SELECT c.product_id, c.quantity, i.title, i.price_minor, i.available_units, i.currency
+        """SELECT c.product_id, c.quantity, i.title, i.price_minor,
+                  i.available_units, i.currency,
+                  COALESCE(v.is_visible, 1) AS storefront_visible
            FROM cart_items c
            JOIN inventory i ON c.product_id = i.product_id
+           LEFT JOIN storefront_product_visibility v ON v.product_id=i.product_id
            WHERE c.customer_id = ?"""
     ).bind(customer_id).all()
     cart_records = _d1_rows(rows)
@@ -723,6 +754,8 @@ async def checkout(payload: CheckoutInput, request: Request) -> dict:
     lines: list[tuple[str, int, int]] = []
     subtotal_minor = 0
     for r in cart_records:
+        if not r.get("storefront_visible", 1):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Product {r['title']} is hidden")
         lines.append((r["product_id"], r["quantity"], r["price_minor"]))
         subtotal_minor += r["price_minor"] * r["quantity"]
 
@@ -1201,14 +1234,17 @@ async def quote_coupon(payload: CouponQuoteInput, request: Request):
         raise HTTPException(422, "Enter a promo code")
     db = _env(request).DB
     rows = await db.prepare(
-        """SELECT c.quantity, i.price_minor, i.available_units, i.is_active
+        """SELECT c.quantity, i.price_minor, i.available_units, i.is_active,
+                  COALESCE(v.is_visible, 1) AS storefront_visible
            FROM cart_items c JOIN inventory i ON i.product_id = c.product_id
+           LEFT JOIN storefront_product_visibility v ON v.product_id=i.product_id
            WHERE c.customer_id = ?"""
     ).bind(customer["id"]).all()
     items = _d1_rows(rows)
     if not items:
         raise HTTPException(422, "Cart is empty")
-    if any(not item["is_active"] or item["quantity"] > item["available_units"] for item in items):
+    if any(not item["is_active"] or not item["storefront_visible"]
+           or item["quantity"] > item["available_units"] for item in items):
         raise HTTPException(422, "Review your cart before applying a coupon")
     subtotal = sum(item["quantity"] * item["price_minor"] for item in items) / 100.0
     code, discount = await _validate_coupon(db, payload.code, subtotal)
@@ -1765,6 +1801,45 @@ class OfferUpdateInput(BaseModel):
     available_stock: int | None = Field(default=None, ge=0)
 
 
+class ProductVisibilityInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    visible: bool
+    reason: str = Field(default="", max_length=500)
+
+
+@commerce_router.patch("/admin/commerce/products/{product_id}/visibility")
+async def update_product_visibility(
+        product_id: str, data: ProductVisibilityInput, request: Request):
+    actor = await _require_auth(request, allowed_roles={"admin", "super_admin"})
+    db = _env(request).DB
+    if not await db.prepare(
+            "SELECT product_id FROM inventory WHERE product_id=?").bind(product_id).first():
+        raise HTTPException(404, "Product not found")
+    reason = data.reason.strip() or None
+    statements = [
+        db.prepare("""INSERT INTO storefront_product_visibility
+            (product_id,is_visible,hidden_reason,updated_by,updated_at)
+            VALUES(?,?,?,?,CURRENT_TIMESTAMP)
+            ON CONFLICT(product_id) DO UPDATE SET
+                is_visible=excluded.is_visible,
+                hidden_reason=excluded.hidden_reason,
+                updated_by=excluded.updated_by,
+                updated_at=CURRENT_TIMESTAMP""").bind(
+                    product_id, 1 if data.visible else 0,
+                    None if data.visible else reason, actor["id"]),
+    ]
+    if not data.visible:
+        statements.append(db.prepare("""UPDATE storefront_campaigns
+            SET is_active=0, updated_at=CURRENT_TIMESTAMP
+            WHERE product_id=? AND is_active=1""").bind(product_id))
+    await db.batch(statements)
+    return {"success": True, "message": "Storefront visibility updated", "data": {
+        "product_id": product_id,
+        "storefront_visible": data.visible,
+        "hidden_reason": None if data.visible else reason,
+    }}
+
+
 @commerce_router.patch("/admin/commerce/offers/{offer_id}")
 @commerce_router.patch("/vendor/commerce/offers/{offer_id}")
 async def update_offer(offer_id: str, data: OfferUpdateInput, request: Request):
@@ -1845,10 +1920,14 @@ async def save_certificate(request: Request, data: CertificateInput, cert_id: st
 async def list_vendor_products(request: Request):
     await _require_auth(request, allowed_roles={"admin", "vendor", "super_admin"})
     db = _env(request).DB
-    rows = await db.prepare("""SELECT i.*, p.mrp_minor, f.department, v.pack_size, v.publication_status
+    rows = await db.prepare("""SELECT i.*, p.mrp_minor, f.department, v.pack_size, v.publication_status,
+        COALESCE(sv.is_visible, 1) AS storefront_visible,
+        sv.hidden_reason, sv.updated_by AS visibility_updated_by,
+        sv.updated_at AS visibility_updated_at
         FROM inventory i LEFT JOIN inventory_pricing p ON p.product_id=i.product_id
         LEFT JOIN product_family_variants v ON v.id=i.product_id
-        LEFT JOIN product_families f ON f.id=v.family_id""").all()
+        LEFT JOIN product_families f ON f.id=v.family_id
+        LEFT JOIN storefront_product_visibility sv ON sv.product_id=i.product_id""").all()
     products = [
         {
             "id": r["product_id"],
@@ -1866,6 +1945,10 @@ async def list_vendor_products(request: Request):
             "min_order_quantity": 1,
             "in_stock": r["available_units"] > 0 and r["is_active"] == 1,
             "is_active": r["is_active"] == 1,
+            "storefront_visible": r["storefront_visible"] == 1,
+            "hidden_reason": r.get("hidden_reason"),
+            "visibility_updated_by": r.get("visibility_updated_by"),
+            "visibility_updated_at": r.get("visibility_updated_at"),
             "publication_status": r["publication_status"] or ("published" if r["is_active"] else "draft"),
             "media": [],
             "specifications": {},
@@ -3152,11 +3235,13 @@ async def _campaign_view(db: Any, row: dict[str, Any]) -> dict[str, Any]:
 
 
 _CAMPAIGN_SELECT = """SELECT c.*, i.title AS product_title, i.price_minor,
-    i.available_units, i.is_active AS product_active, p.mrp_minor, v.pack_size
+    i.available_units, i.is_active AS product_active, p.mrp_minor, v.pack_size,
+    COALESCE(sv.is_visible, 1) AS storefront_visible
     FROM storefront_campaigns c
     JOIN inventory i ON i.product_id=c.product_id
     LEFT JOIN inventory_pricing p ON p.product_id=c.product_id
-    LEFT JOIN product_family_variants v ON v.id=c.product_id"""
+    LEFT JOIN product_family_variants v ON v.id=c.product_id
+    LEFT JOIN storefront_product_visibility sv ON sv.product_id=c.product_id"""
 
 
 @commerce_router.get("/admin/marketplace/merchandising/placements")
@@ -3170,6 +3255,7 @@ async def list_merchandising_placements(request: Request):
         where = ""
     else:
         where = """ WHERE c.is_active=1 AND i.is_active=1
+            AND COALESCE(sv.is_visible, 1)=1
             AND (c.starts_at IS NULL OR datetime(c.starts_at) <= datetime('now'))
             AND (c.ends_at IS NULL OR datetime(c.ends_at) > datetime('now'))"""
     rows = _d1_rows(await db.prepare(
@@ -3184,8 +3270,15 @@ async def create_merchandising_placement(data: PlacementInput, request: Request)
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
     db = _env(request).DB
     product_id = data.product_id.strip()
-    if not await db.prepare("SELECT product_id FROM inventory WHERE product_id=?").bind(product_id).first():
+    product = await db.prepare("""SELECT i.product_id,
+            COALESCE(v.is_visible, 1) AS storefront_visible
+        FROM inventory i
+        LEFT JOIN storefront_product_visibility v ON v.product_id=i.product_id
+        WHERE i.product_id=?""").bind(product_id).first()
+    if not product:
         raise HTTPException(404, "Product not found")
+    if not product["storefront_visible"]:
+        raise HTTPException(422, "Hidden products cannot be promoted")
     coupon_code = data.coupon_code.strip().upper() if data.coupon_code else None
     if coupon_code and not await db.prepare("SELECT code FROM coupons WHERE code=?").bind(coupon_code).first():
         raise HTTPException(422, "Coupon does not exist")

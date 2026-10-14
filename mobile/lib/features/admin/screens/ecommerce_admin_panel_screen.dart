@@ -9,6 +9,7 @@ import '../../marketplace/widgets/store_design.dart';
 import '../../marketplace/models/marketplace_models.dart';
 import '../../marketplace/models/product_models.dart';
 import '../../marketplace/providers/merchandising_provider.dart';
+import '../../marketplace/providers/product_provider.dart';
 import '../providers/admin_marketplace_provider.dart';
 import '../models/analytics_models.dart';
 import '../providers/admin_analytics_provider.dart';
@@ -220,7 +221,8 @@ class _EcommerceAdminPanelScreenState
     final remarks = order['return_remarks']?.toString() ?? '';
     final paymentCollected = order['payment_status'] == 'PAID';
     final simulatedRefund = AppConstants.flowSimulation &&
-        order['is_test_order'] == true && paymentCollected;
+        order['is_test_order'] == true &&
+        paymentCollected;
     var action =
         paymentCollected ? 'confirm_received_refund' : 'confirm_received';
     final refCtrl = TextEditingController();
@@ -1250,6 +1252,65 @@ class _EcommerceAdminPanelScreenState
     }
   }
 
+  Future<void> _setProductVisibility(Product product, bool visible) async {
+    String reason = '';
+    if (!visible) {
+      final reasonCtrl = TextEditingController();
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogCtx) => AlertDialog(
+          title: Text('Hide ${product.title}?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Customers will no longer see this product in the catalogue, search, direct links or active promotions. Existing order history is preserved.',
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: reasonCtrl,
+                maxLength: 500,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Internal reason (optional)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: storeError),
+              onPressed: () {
+                reason = reasonCtrl.text.trim();
+                Navigator.pop(dialogCtx, true);
+              },
+              child: const Text('Hide from customers'),
+            ),
+          ],
+        ),
+      );
+      reasonCtrl.dispose();
+      if (confirmed != true) return;
+    }
+
+    await _saveAdminAction(() async {
+      await ref.read(dioProvider).patch(
+        '/admin/commerce/products/${product.id}/visibility',
+        data: {'visible': visible, 'reason': reason},
+      );
+      ref.invalidate(liveInventoryProvider);
+      ref.invalidate(productsProvider);
+      ref.invalidate(storefrontPlacementsProvider);
+      ref.invalidate(adminStorefrontPlacementsProvider);
+    });
+  }
+
   Future<void> _approveProduct(Product product) async {
     await _saveAdminAction(() async {
       await ref.read(dioProvider).patch(
@@ -1399,7 +1460,8 @@ class _EcommerceAdminPanelScreenState
                 backgroundColor: const Color(0xfff59e0b),
                 foregroundColor: const Color(0xff78350f),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
               icon: const Icon(Icons.local_shipping, size: 18),
               label: const Text('Customer Orders',
@@ -1578,6 +1640,12 @@ class _EcommerceAdminPanelScreenState
               ),
               ChoiceChip(
                 label: Text(
+                    'Hidden (${allProducts.where((p) => !p.storefrontVisible).length})'),
+                selected: _catalogFilter == 'hidden',
+                onSelected: (_) => setState(() => _catalogFilter = 'hidden'),
+              ),
+              ChoiceChip(
+                label: Text(
                     'Rejected (${allProducts.where((p) => p.isRejected).length})'),
                 selected: _catalogFilter == 'rejected',
                 onSelected: (_) => setState(() => _catalogFilter = 'rejected'),
@@ -1628,6 +1696,7 @@ class _EcommerceAdminPanelScreenState
                 itemCount: allProducts.where((p) {
                   if (_catalogFilter == 'pending') return p.isPendingApproval;
                   if (_catalogFilter == 'published') return p.isPublished;
+                  if (_catalogFilter == 'hidden') return !p.storefrontVisible;
                   if (_catalogFilter == 'rejected') return p.isRejected;
                   return true;
                 }).length,
@@ -1636,6 +1705,9 @@ class _EcommerceAdminPanelScreenState
                   final filtered = allProducts.where((p) {
                     if (_catalogFilter == 'pending') return p.isPendingApproval;
                     if (_catalogFilter == 'published') return p.isPublished;
+                    if (_catalogFilter == 'hidden') {
+                      return !p.storefrontVisible;
+                    }
                     if (_catalogFilter == 'rejected') return p.isRejected;
                     return true;
                   }).toList();
@@ -1643,14 +1715,16 @@ class _EcommerceAdminPanelScreenState
                   final isConcept = p.isConcept;
                   final isPending = p.isPendingApproval;
                   final isRejected = p.isRejected;
-                  final status = isConcept
-                      ? 'Concept Preview'
-                      : isPending
-                          ? 'Pending Approval'
-                          : isRejected
-                              ? 'Rejected'
-                              : p.taxonomy?['status']?.toString() ??
-                                  'Active Commercial';
+                  final status = !p.storefrontVisible
+                      ? 'Hidden from customers'
+                      : isConcept
+                          ? 'Concept Preview'
+                          : isPending
+                              ? 'Pending Approval'
+                              : isRejected
+                                  ? 'Rejected'
+                                  : p.taxonomy?['status']?.toString() ??
+                                      'Active Commercial';
                   final pricing = isConcept
                       ? 'Price not announced · Not for sale'
                       : 'Base MRP: ${storeMoney(p.price)}';
@@ -1675,35 +1749,41 @@ class _EcommerceAdminPanelScreenState
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: isConcept
-                                ? const Color(0xffe8f5e9)
-                                : isPending
-                                    ? const Color(0xfffff8e1)
-                                    : isRejected
-                                        ? const Color(0xffffebee)
-                                        : const Color(0xffe3f2fd),
+                            color: !p.storefrontVisible
+                                ? const Color(0xffffebee)
+                                : isConcept
+                                    ? const Color(0xffe8f5e9)
+                                    : isPending
+                                        ? const Color(0xfffff8e1)
+                                        : isRejected
+                                            ? const Color(0xffffebee)
+                                            : const Color(0xffe3f2fd),
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
-                                color: isConcept
-                                    ? storeGreen
-                                    : isPending
-                                        ? storeAmberDark
-                                        : isRejected
-                                            ? storeError
-                                            : const Color(0xff90caf9)),
+                                color: !p.storefrontVisible
+                                    ? storeError
+                                    : isConcept
+                                        ? storeGreen
+                                        : isPending
+                                            ? storeAmberDark
+                                            : isRejected
+                                                ? storeError
+                                                : const Color(0xff90caf9)),
                           ),
                           child: Text(
                             status,
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: isConcept
-                                  ? storeGreen
-                                  : isPending
-                                      ? storeAmberDark
-                                      : isRejected
-                                          ? storeError
-                                          : const Color(0xff1565c0),
+                              color: !p.storefrontVisible
+                                  ? storeError
+                                  : isConcept
+                                      ? storeGreen
+                                      : isPending
+                                          ? storeAmberDark
+                                          : isRejected
+                                              ? storeError
+                                              : const Color(0xff1565c0),
                             ),
                           ),
                         ),
@@ -1747,6 +1827,19 @@ class _EcommerceAdminPanelScreenState
                           ),
                         ],
                         const SizedBox(width: 10),
+                        Tooltip(
+                          message: p.storefrontVisible
+                              ? 'Visible on customer site'
+                              : 'Hidden from customer site',
+                          child: Switch(
+                            value: p.storefrontVisible,
+                            activeThumbColor: storeGreen,
+                            onChanged: isConcept
+                                ? null
+                                : (visible) =>
+                                    _setProductVisibility(p, visible),
+                          ),
+                        ),
                         IconButton(
                           icon: const Icon(Icons.photo_library_outlined),
                           tooltip: 'Manage product images',
@@ -2805,7 +2898,8 @@ class _EcommerceAdminPanelScreenState
                       SizedBox(height: 2),
                       Text(
                         'Push any product with an animated glowing card, live blinking beacon, and custom deal badge on the front page hero.',
-                        style: TextStyle(fontSize: 12, color: Color(0xffb45309)),
+                        style:
+                            TextStyle(fontSize: 12, color: Color(0xffb45309)),
                       ),
                     ],
                   ),
@@ -2847,8 +2941,8 @@ class _EcommerceAdminPanelScreenState
                     color: Color(0xff16a34a),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.campaign,
-                      color: Colors.white, size: 24),
+                  child:
+                      const Icon(Icons.campaign, color: Colors.white, size: 24),
                 ),
                 const SizedBox(width: 14),
                 const Expanded(
@@ -2866,7 +2960,8 @@ class _EcommerceAdminPanelScreenState
                       SizedBox(height: 2),
                       Text(
                         'Configure deal tags, price drops, verified backend coupons, and loyalty coin perks for the homepage range cards.',
-                        style: TextStyle(fontSize: 12, color: Color(0xff15803d)),
+                        style:
+                            TextStyle(fontSize: 12, color: Color(0xff15803d)),
                       ),
                     ],
                   ),
@@ -7349,21 +7444,31 @@ class _EcommerceAdminPanelScreenState
                   decoration: BoxDecoration(
                     color: isApproved
                         ? const Color(0xffecfdf5)
-                        : isRejected ? const Color(0xfffef2f2) : const Color(0xfffffbeb),
+                        : isRejected
+                            ? const Color(0xfffef2f2)
+                            : const Color(0xfffffbeb),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
                         color: isApproved
                             ? const Color(0xffa7f3d0)
-                            : isRejected ? const Color(0xfffecaca) : const Color(0xfffde68a)),
+                            : isRejected
+                                ? const Color(0xfffecaca)
+                                : const Color(0xfffde68a)),
                   ),
                   child: Text(
-                    isApproved ? 'LIVE' : isRejected ? 'FLAGGED' : 'PENDING',
+                    isApproved
+                        ? 'LIVE'
+                        : isRejected
+                            ? 'FLAGGED'
+                            : 'PENDING',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                       color: isApproved
                           ? const Color(0xff065f46)
-                          : isRejected ? const Color(0xff991b1b) : const Color(0xff92400e),
+                          : isRejected
+                              ? const Color(0xff991b1b)
+                              : const Color(0xff92400e),
                     ),
                   ),
                 ),

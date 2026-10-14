@@ -252,6 +252,7 @@ class Product {
       this.taxonomyEnabled = false,
       this.specifications = const {},
       this.isActive = true,
+      this.storefrontVisible = true,
       this.inStock = false,
       this.stockKnown = true,
       this.isStaticSnapshot = false,
@@ -274,7 +275,7 @@ class Product {
   final Map<String, dynamic>? taxonomy;
   final bool taxonomyEnabled;
   final Map<String, dynamic> specifications;
-  final bool inStock, isRentable, isActive;
+  final bool inStock, isRentable, isActive, storefrontVisible;
 
   /// False for published catalogue snapshots, which intentionally omit stock.
   final bool stockKnown, isStaticSnapshot;
@@ -310,7 +311,8 @@ class Product {
   bool get isPublished =>
       (publicationStatus ?? 'published').toLowerCase() == 'published';
 
-  bool get canPurchase => !isConcept && !isDraft && isPublished;
+  bool get canPurchase =>
+      storefrontVisible && !isConcept && !isDraft && isPublished;
   String? get primaryImage => media.isNotEmpty ? media.first : null;
   bool get isFeatured =>
       specifications['is_featured'] == true ||
@@ -367,6 +369,7 @@ class Product {
     bool? taxonomyEnabled,
     Map<String, dynamic>? specifications,
     bool? isActive,
+    bool? storefrontVisible,
     bool? inStock,
     bool? stockKnown,
     bool? isStaticSnapshot,
@@ -397,6 +400,7 @@ class Product {
         taxonomyEnabled: taxonomyEnabled ?? this.taxonomyEnabled,
         specifications: specifications ?? this.specifications,
         isActive: isActive ?? this.isActive,
+        storefrontVisible: storefrontVisible ?? this.storefrontVisible,
         inStock: inStock ?? this.inStock,
         stockKnown: stockKnown ?? this.stockKnown,
         isStaticSnapshot: isStaticSnapshot ?? this.isStaticSnapshot,
@@ -433,6 +437,7 @@ class Product {
               : Map<String, dynamic>.from(j['taxonomy']),
           specifications: Map<String, dynamic>.from(j['specifications'] ?? {}),
           isActive: j['is_active'] ?? true,
+          storefrontVisible: j['storefront_visible'] ?? true,
           inStock: j['in_stock'] ?? false,
           stockKnown: !snapshot && j.containsKey('in_stock'),
           isStaticSnapshot: snapshot,

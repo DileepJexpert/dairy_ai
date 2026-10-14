@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import uuid
 
+import httpx
+import pytest
+
 from api import app
-from test_commerce import client, d1_db
+from test_commerce import MockEnv, client, d1_db
 
 
 BASE = "/api/v1/marketplace"
@@ -67,6 +70,64 @@ def test_admin_stock_price_coupon_and_public_inventory(client, d1_db):
         "discount_value": -1}).status_code == 422
     assert client.patch(f"{BASE}/admin/commerce/coupons/OLD20", json={
         "code": "MILTERRA10"}).status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_admin_storefront_visibility_hides_without_deleting_product(d1_db):
+    app.state.env = MockEnv(d1_db)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://test",
+            headers={"x-test-customer-id": "user-1"}) as client:
+        await _assert_storefront_visibility_flow(client, d1_db)
+
+
+async def _assert_storefront_visibility_flow(client, d1_db):
+    product_id = "visibility-product"
+    d1_db.conn.execute("""INSERT INTO inventory
+        (product_id,title,available_units,price_minor,currency,is_active)
+        VALUES(?, 'Visibility product', 5, 10000, 'INR', 1)""", (product_id,))
+    endpoint = f"{BASE}/admin/commerce/products/{product_id}/visibility"
+    assert (await client.patch(endpoint, json={"visible": False})).status_code == 403
+
+    _admin(client, d1_db)
+    assert (await client.post(f"{BASE}/cart/items", json={
+        "product_id": product_id, "quantity": 1})).status_code == 201
+    placement = await client.post(ADMIN_PLACEMENTS, json={
+        "product_id": product_id, "headline": "Visible campaign"})
+    assert placement.status_code == 200, placement.text
+    assert len((await client.get(PUBLIC_PLACEMENTS)).json()["data"]) == 1
+
+    hidden = await client.patch(endpoint, json={
+        "visible": False, "reason": "Temporarily unavailable"})
+    assert hidden.status_code == 200, hidden.text
+    assert hidden.json()["data"]["storefront_visible"] is False
+    saved = d1_db.conn.execute("""SELECT is_visible,hidden_reason,updated_by
+        FROM storefront_product_visibility WHERE product_id=?""",
+        (product_id,)).fetchone()
+    assert saved == (0, "Temporarily unavailable", "user-1")
+    assert d1_db.conn.execute("SELECT COUNT(*) FROM inventory WHERE product_id=?",
+        (product_id,)).fetchone()[0] == 1
+
+    live = (await client.get(f"{BASE}/inventory")).json()["data"]
+    assert next(item for item in live if item["product_id"] == product_id)[
+        "storefront_visible"] is False
+    admin_products = (await client.get(f"{BASE}/admin/products")).json()["data"]
+    assert next(item for item in admin_products if item["id"] == product_id)[
+        "storefront_visible"] is False
+    assert (await client.get(PUBLIC_PLACEMENTS)).json()["data"] == []
+    assert (await client.post(f"{BASE}/cart/items", json={
+        "product_id": product_id, "quantity": 1})).status_code == 422
+    quote = await client.post(f"{BASE}/checkout/quote", json={
+        "delivery_address_id": "addr-1", "payment_method": "cod"})
+    assert quote.status_code == 422 and "hidden" in quote.text
+
+    shown = await client.patch(endpoint, json={"visible": True})
+    assert shown.status_code == 200, shown.text
+    assert shown.json()["data"]["storefront_visible"] is True
+    assert (await client.post(f"{BASE}/cart/items", json={
+        "product_id": product_id, "quantity": 1})).status_code == 201
 
 
 def test_storefront_campaign_uses_catalogue_product_and_verified_coupon(client, d1_db):

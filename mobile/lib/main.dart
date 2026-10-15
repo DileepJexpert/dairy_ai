@@ -33,6 +33,9 @@ class AppLoggerObserver extends ProviderObserver {
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  // In-memory decoded image cache to eliminate redecoding lag across catalogue browsing
+  PaintingBinding.instance.imageCache.maximumSize = 1000;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 150 * 1024 * 1024;
   debugPrint('[APP] Initializing Milterra storefront...');
 
   FlutterError.onError = (FlutterErrorDetails details) {

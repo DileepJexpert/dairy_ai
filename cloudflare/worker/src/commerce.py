@@ -36,12 +36,57 @@ def _d1_rows(result: Any) -> list[dict[str, Any]]:
     return rows.to_py() if hasattr(rows, "to_py") else list(rows)
 
 
-_PUBLIC_PLACEMENTS_CACHE: dict[str, Any] = {"data": None, "expires_at": 0.0}
+class _TTLCache:
+    def __init__(self, ttl: float):
+        self.ttl = ttl
+        self.data: Any = None
+        self.expires_at: float = 0.0
+
+    def get(self) -> Any | None:
+        if self.data is not None and time.time() < self.expires_at:
+            return self.data
+        return None
+
+    def set(self, val: Any) -> None:
+        self.data = val
+        self.expires_at = time.time() + self.ttl
+
+    def clear(self) -> None:
+        self.data = None
+        self.expires_at = 0.0
+
+    def __getitem__(self, item: str) -> Any:
+        return getattr(self, item)
+
+    def __setitem__(self, item: str, value: Any) -> None:
+        setattr(self, item, value)
+
+
+_PUBLIC_PLACEMENTS_CACHE = _TTLCache(60.0)
+_PUBLIC_INVENTORY_CACHE = _TTLCache(30.0)
+_PUBLIC_CERTIFICATES_CACHE = _TTLCache(300.0)
+_PUBLIC_HELP_CACHE = _TTLCache(600.0)
+_PINCODE_LOOKUP_CACHE: dict[str, tuple[float, Any]] = {}
 
 
 def _invalidate_placements_cache() -> None:
-    _PUBLIC_PLACEMENTS_CACHE["data"] = None
-    _PUBLIC_PLACEMENTS_CACHE["expires_at"] = 0.0
+    _PUBLIC_PLACEMENTS_CACHE.clear()
+
+
+def _invalidate_inventory_cache() -> None:
+    _PUBLIC_INVENTORY_CACHE.clear()
+
+
+def _invalidate_certificates_cache() -> None:
+    _PUBLIC_CERTIFICATES_CACHE.clear()
+
+
+def _invalidate_help_cache() -> None:
+    _PUBLIC_HELP_CACHE.clear()
+
+
+def _invalidate_pincode_cache() -> None:
+    _PINCODE_LOOKUP_CACHE.clear()
 
 
 def _test_commerce(env):
@@ -371,17 +416,33 @@ def _validate_coupon_value(discount_type: str, discount_value: float) -> None:
 
 @commerce_router.get("/inventory")
 async def list_live_inventory(request: Request):
-    rows = await _env(request).DB.prepare("""SELECT i.product_id, i.price_minor, i.available_units, i.is_active,
+    env = _env(request)
+    is_test = getattr(env, "ENVIRONMENT", "") == "test"
+    if not is_test:
+        cached = _PUBLIC_INVENTORY_CACHE.get()
+        if cached is not None:
+            return JSONResponse(
+                content=cached,
+                headers={"Cache-Control": "public, max-age=15, s-maxage=30, stale-while-revalidate=60"}
+            )
+    rows = await env.DB.prepare("""SELECT i.product_id, i.price_minor, i.available_units, i.is_active,
         p.mrp_minor, COALESCE(v.is_visible, 1) AS storefront_visible
         FROM inventory i
         LEFT JOIN inventory_pricing p ON p.product_id=i.product_id
         LEFT JOIN storefront_product_visibility v ON v.product_id=i.product_id""").all()
-    return {"success": True, "data": [{"product_id": row["product_id"],
+    result = {"success": True, "data": [{"product_id": row["product_id"],
         "price": row["price_minor"] / 100, "available_quantity": row["available_units"],
         "is_active": bool(row["is_active"]),
         "storefront_visible": bool(row["storefront_visible"]),
         "mrp": row["mrp_minor"] / 100 if row["mrp_minor"] is not None else None}
         for row in _d1_rows(rows)]}
+    if not is_test:
+        _PUBLIC_INVENTORY_CACHE.set(result)
+        return JSONResponse(
+            content=result,
+            headers={"Cache-Control": "public, max-age=15, s-maxage=30, stale-while-revalidate=60"}
+        )
+    return result
 
 @commerce_router.get("/inventory/{product_id}")
 async def get_inventory_status(product_id: str, request: Request) -> dict:
@@ -877,6 +938,7 @@ async def checkout(payload: CheckoutInput, request: Request) -> dict:
     # 6. Execute D1 batch atomically
     try:
         await db.batch(statements)
+        _invalidate_inventory_cache()
     except Exception as exc:
         err_msg = str(exc)
         if "insufficient stock" in err_msg.lower():
@@ -1037,6 +1099,7 @@ async def cancel_order(order_id: str, request: Request) -> dict:
 
     try:
         await db.batch(statements)
+        _invalidate_inventory_cache()
     except Exception as exc:
         err_msg = str(exc)
         current = await db.prepare("SELECT status FROM orders WHERE id = ?").bind(order_id).first()
@@ -1085,7 +1148,10 @@ async def checkout_payment_link(order_id: str, request: Request) -> dict:
 @commerce_router.get("/locations")
 async def locations():
     from location_master import DATA
-    return DATA
+    return JSONResponse(
+        content=DATA,
+        headers={"Cache-Control": "public, max-age=86400, s-maxage=604800, immutable"}
+    )
 
 
 @commerce_router.get("/pincode/check")
@@ -1101,12 +1167,28 @@ async def check_pincode(pincode: str, request: Request):
 
 @commerce_router.get("/pincode/lookup")
 async def lookup_pincode(pincode: str, request: Request):
-    row = await _env(request).DB.prepare("SELECT city,state FROM serviceable_pincodes WHERE pincode=?").bind(pincode).first()
+    env = _env(request)
+    is_test = getattr(env, "ENVIRONMENT", "") == "test"
+    if not is_test and pincode in _PINCODE_LOOKUP_CACHE:
+        exp, cached = _PINCODE_LOOKUP_CACHE[pincode]
+        if time.time() < exp:
+            return JSONResponse(
+                content=cached,
+                headers={"Cache-Control": "public, max-age=300, s-maxage=600, stale-while-revalidate=1200"}
+            )
+    row = await env.DB.prepare("SELECT city,state FROM serviceable_pincodes WHERE pincode=?").bind(pincode).first()
     if not row:
         raise HTTPException(404, "PIN not in local coverage; enter location manually")
     city_lower = row["city"].lower()
     district = "Gautam Buddha Nagar" if "noida" in city_lower else ("New Delhi" if "delhi" in city_lower else row["city"])
-    return {**row, "pincode": pincode, "district": district}
+    result = {**row, "pincode": pincode, "district": district}
+    if not is_test:
+        _PINCODE_LOOKUP_CACHE[pincode] = (time.time() + 300.0, result)
+        return JSONResponse(
+            content=result,
+            headers={"Cache-Control": "public, max-age=300, s-maxage=600, stale-while-revalidate=1200"}
+        )
+    return result
 
 
 class DeliveryPolicyUpdate(BaseModel):
@@ -1150,6 +1232,7 @@ async def get_admin_delivery_policy(request: Request):
 
 @commerce_router.put("/admin/delivery-policy")
 async def update_admin_delivery_policy(data: DeliveryPolicyUpdate, request: Request):
+    _invalidate_pincode_cache()
     await _require_auth(request, allowed_roles={"admin", "super_admin"})
     db = _env(request).DB
     current = await db.prepare("SELECT free_delivery_above_minor FROM delivery_policy WHERE id=1").first()
@@ -1466,7 +1549,16 @@ class SupportTicketUpdate(BaseModel):
 
 @commerce_router.get("/help")
 async def get_help(request: Request):
-    db = _env(request).DB
+    env = _env(request)
+    is_test = getattr(env, "ENVIRONMENT", "") == "test"
+    if not is_test:
+        cached = _PUBLIC_HELP_CACHE.get()
+        if cached is not None:
+            return JSONResponse(
+                content=cached,
+                headers={"Cache-Control": "public, max-age=300, s-maxage=600, stale-while-revalidate=1200"}
+            )
+    db = env.DB
     row = None
     try:
         row = await db.prepare("SELECT content FROM store_help WHERE key='help'").first()
@@ -1474,10 +1566,17 @@ async def get_help(request: Request):
         pass
     if row and row.get("content"):
         try:
-            return {"success": True, "data": json.loads(row["content"])}
+            result = {"success": True, "data": json.loads(row["content"])}
+            if not is_test:
+                _PUBLIC_HELP_CACHE.set(result)
+                return JSONResponse(
+                    content=result,
+                    headers={"Cache-Control": "public, max-age=300, s-maxage=600, stale-while-revalidate=1200"}
+                )
+            return result
         except Exception:
             pass
-    return {
+    result = {
         "success": True,
         "data": {
             "contact_message": "For any questions about your orders, deliveries, or farm-direct products, submit an enquiry below or reach our team.",
@@ -1489,6 +1588,13 @@ async def get_help(request: Request):
             ],
         },
     }
+    if not is_test:
+        _PUBLIC_HELP_CACHE.set(result)
+        return JSONResponse(
+            content=result,
+            headers={"Cache-Control": "public, max-age=300, s-maxage=600, stale-while-revalidate=1200"}
+        )
+    return result
 
 
 @commerce_router.put("/admin/help")
@@ -1499,6 +1605,7 @@ async def update_help(request: Request):
     await db.prepare(
         "INSERT OR REPLACE INTO store_help (key, content) VALUES ('help', ?)"
     ).bind(json.dumps(body)).run()
+    _invalidate_help_cache()
     return {"success": True, "data": body}
 
 
@@ -1843,6 +1950,7 @@ async def update_product_visibility(
             WHERE product_id=? AND is_active=1""").bind(product_id))
     await db.batch(statements)
     _invalidate_placements_cache()
+    _invalidate_inventory_cache()
     return {"success": True, "message": "Storefront visibility updated", "data": {
         "product_id": product_id,
         "storefront_visible": data.visible,
@@ -1873,6 +1981,7 @@ async def update_offer(offer_id: str, data: OfferUpdateInput, request: Request):
         statements.append(db.prepare("""INSERT INTO inventory_pricing(product_id,mrp_minor) VALUES(?,?)
             ON CONFLICT(product_id) DO UPDATE SET mrp_minor=excluded.mrp_minor""").bind(offer_id, mrp_minor))
     await db.batch(statements)
+    _invalidate_inventory_cache()
     return {"success": True, "data": {"id": offer_id, "selling_price": price_minor / 100,
             "mrp": mrp_minor / 100 if mrp_minor is not None else None, "available_stock": available}}
 
@@ -1922,6 +2031,7 @@ async def save_certificate(request: Request, data: CertificateInput, cert_id: st
             data.test_date.isoformat(), data.laboratory, data.fssai_license, data.purity_percent,
             json.dumps(data.test_parameters), data.status, data.certified_by, data.remarks, data.report_url).run()
     saved = await db.prepare("SELECT b.*, i.title AS product_title FROM batch_certificates b JOIN inventory i ON i.product_id=b.product_id WHERE b.id=?").bind(cert_id).first()
+    _invalidate_certificates_cache()
     return {"success": True, "data": _certificate_view(saved)}
 
 
@@ -3078,10 +3188,26 @@ async def nudge_abandoned_cart(cart_id: str, request: Request):
 @commerce_router.get("/marketplace/certificates")
 @commerce_router.get("/certificates")
 async def list_certificates(request: Request):
-    rows = await _env(request).DB.prepare("""SELECT b.*, i.title AS product_title FROM batch_certificates b
+    env = _env(request)
+    is_test = getattr(env, "ENVIRONMENT", "") == "test"
+    if not is_test:
+        cached = _PUBLIC_CERTIFICATES_CACHE.get()
+        if cached is not None:
+            return JSONResponse(
+                content=cached,
+                headers={"Cache-Control": "public, max-age=300, s-maxage=600, stale-while-revalidate=1200"}
+            )
+    rows = await env.DB.prepare("""SELECT b.*, i.title AS product_title FROM batch_certificates b
         JOIN inventory i ON i.product_id=b.product_id WHERE b.status='CERTIFIED'
         ORDER BY b.test_date DESC""").all()
-    return {"success": True, "data": [_certificate_view(row) for row in _d1_rows(rows)]}
+    result = {"success": True, "data": [_certificate_view(row) for row in _d1_rows(rows)]}
+    if not is_test:
+        _PUBLIC_CERTIFICATES_CACHE.set(result)
+        return JSONResponse(
+            content=result,
+            headers={"Cache-Control": "public, max-age=300, s-maxage=600, stale-while-revalidate=1200"}
+        )
+    return result
 
 
 @commerce_router.get("/admin/dashboard")

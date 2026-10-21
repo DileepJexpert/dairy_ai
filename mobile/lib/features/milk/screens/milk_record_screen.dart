@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -18,6 +17,103 @@ class _MilkRecordScreenState extends ConsumerState<MilkRecordScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
+  // Shared date-wise archive of slips and collection records
+  List<Map<String, dynamic>> _dateArchives = [
+    {
+      'date': '21 Oct 2026',
+      'morning': {
+        'totalLitres': 175.0,
+        'coopLitres': 100.0,
+        'hotelLitres': 50.0,
+        'retailLitres': 20.0,
+        'slipNumber': 'PARCHI-8841',
+        'slipLitres': 98.2,
+        'slipFat': 4.05,
+        'slipSnf': 8.35,
+        'slipRate': 40.50,
+        'centerName': 'सरस दुग्ध सहकारी समिति (BMC-402)',
+        'hasMismatch': true,
+        'discrepancy': '-1.8L Shortage (-₹272.90)',
+      },
+      'evening': {
+        'totalLitres': 165.0,
+        'coopLitres': 95.0,
+        'hotelLitres': 50.0,
+        'retailLitres': 20.0,
+        'slipNumber': 'PARCHI-8892',
+        'slipLitres': 95.0,
+        'slipFat': 4.30,
+        'slipSnf': 8.60,
+        'slipRate': 42.50,
+        'centerName': 'सरस दुग्ध सहकारी समिति (BMC-402)',
+        'hasMismatch': false,
+        'discrepancy': '100% Matched',
+      },
+    },
+    {
+      'date': '20 Oct 2026',
+      'morning': {
+        'totalLitres': 172.0,
+        'coopLitres': 102.0,
+        'hotelLitres': 50.0,
+        'retailLitres': 20.0,
+        'slipNumber': 'PARCHI-8710',
+        'slipLitres': 102.0,
+        'slipFat': 4.25,
+        'slipSnf': 8.55,
+        'slipRate': 42.00,
+        'centerName': 'अमूल चिलिंग सेंटर (BMC-518)',
+        'hasMismatch': false,
+        'discrepancy': '100% Matched',
+      },
+      'evening': {
+        'totalLitres': 160.0,
+        'coopLitres': 90.0,
+        'hotelLitres': 50.0,
+        'retailLitres': 20.0,
+        'slipNumber': 'PARCHI-8765',
+        'slipLitres': 89.1,
+        'slipFat': 4.10,
+        'slipSnf': 8.40,
+        'slipRate': 41.00,
+        'centerName': 'अमूल चिलिंग सेंटर (BMC-518)',
+        'hasMismatch': true,
+        'discrepancy': '-0.9L Shortage (-₹85.00)',
+      },
+    },
+    {
+      'date': '19 Oct 2026',
+      'morning': {
+        'totalLitres': 170.0,
+        'coopLitres': 100.0,
+        'hotelLitres': 50.0,
+        'retailLitres': 20.0,
+        'slipNumber': 'PARCHI-8604',
+        'slipLitres': 100.0,
+        'slipFat': 4.35,
+        'slipSnf': 8.65,
+        'slipRate': 43.00,
+        'centerName': 'सरस दुग्ध सहकारी समिति (BMC-402)',
+        'hasMismatch': false,
+        'discrepancy': '100% Matched',
+      },
+      'evening': {
+        'totalLitres': 158.0,
+        'coopLitres': 88.0,
+        'hotelLitres': 50.0,
+        'retailLitres': 20.0,
+        'slipNumber': 'PARCHI-8651',
+        'slipLitres': 88.0,
+        'slipFat': 4.30,
+        'slipSnf': 8.60,
+        'slipRate': 42.50,
+        'centerName': 'सरस दुग्ध सहकारी समिति (BMC-402)',
+        'hasMismatch': false,
+        'discrepancy': '100% Matched',
+      },
+    },
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -28,6 +124,33 @@ class _MilkRecordScreenState extends ConsumerState<MilkRecordScreen>
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _onSlipSaved(Map<String, dynamic> newSlipData) {
+    setState(() {
+      // Prepend or update today's morning record in archive
+      final todayDate = DateFormat('dd MMM yyyy').format(DateTime.now());
+      final existingIndex =
+          _dateArchives.indexWhere((a) => a['date'] == todayDate);
+      if (existingIndex != -1) {
+        _dateArchives[existingIndex]['morning'] = newSlipData;
+      } else {
+        _dateArchives.insert(0, {
+          'date': todayDate,
+          'morning': newSlipData,
+          'evening': {
+            'totalLitres': 160.0,
+            'coopLitres': 90.0,
+            'hotelLitres': 50.0,
+            'retailLitres': 20.0,
+            'slipNumber': 'Pending',
+            'slipLitres': 0.0,
+            'hasMismatch': false,
+            'discrepancy': 'Evening shift pending',
+          },
+        });
+      }
+    });
   }
 
   @override
@@ -69,8 +192,11 @@ class _MilkRecordScreenState extends ConsumerState<MilkRecordScreen>
           _DailyMultiBuyerTab(
             onNavigateToScanner: () => _tabController.animateTo(1),
           ),
-          const _SlipScanAndMismatchTab(),
-          const _DateWiseSlipFolderTab(),
+          _SlipScanAndMismatchTab(
+            onSaveSlip: _onSlipSaved,
+            onNavigateToFolder: () => _tabController.animateTo(2),
+          ),
+          _DateWiseSlipFolderTab(archives: _dateArchives),
         ],
       ),
     );
@@ -126,8 +252,6 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
   final _avgFatController = TextEditingController(text: '4.30');
   final _avgSnfController = TextEditingController(text: '8.60');
 
-  // Pre-configured channels matching realistic Indian dairy operations:
-  // Cooperative Bulk (100L @ 42.50) + Private Hotel (50L @ 100.00) + Retail (20L @ 75.00) + Calf/Home (5L)
   late List<BuyerChannelItem> _channels;
 
   @override
@@ -314,7 +438,6 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
       ),
       child: Row(
         children: [
-          // Date Picker Button
           InkWell(
             onTap: _pickDate,
             borderRadius: BorderRadius.circular(8),
@@ -342,8 +465,6 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
             ),
           ),
           const SizedBox(width: 10),
-
-          // Shift Segmented Buttons
           Expanded(
             child: SegmentedButton<String>(
               segments: const [
@@ -378,7 +499,6 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
 
   Widget _buildHerdProductionCard(
       BuildContext context, AsyncValue<List<CattleRef>> cattleAsync) {
-    // Robust list of cattle including Bulk Vat
     final cattleList = cattleAsync.value ??
         const [
           CattleRef(id: 1, name: 'Ganga (गाय)', tagId: 'MIL-0842'),
@@ -428,7 +548,6 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
           const SizedBox(height: 12),
           Row(
             children: [
-              // Cattle / Herd Dropdown
               Expanded(
                 flex: 3,
                 child: DropdownButtonFormField<int>(
@@ -458,8 +577,6 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                 ),
               ),
               const SizedBox(width: 10),
-
-              // Total Litres in Vat
               Expanded(
                 flex: 2,
                 child: TextFormField(
@@ -560,8 +677,6 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
             style: TextStyle(fontSize: 11, color: Colors.grey),
           ),
           const SizedBox(height: 12),
-
-          // List of Channels
           ..._channels.asMap().entries.map((entry) {
             final idx = entry.key;
             final item = entry.value;
@@ -668,7 +783,6 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
           const SizedBox(height: 10),
           Row(
             children: [
-              // Litres
               Expanded(
                 flex: 2,
                 child: TextFormField(
@@ -688,8 +802,6 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                 ),
               ),
               const SizedBox(width: 8),
-
-              // Rate per L
               Expanded(
                 flex: 2,
                 child: TextFormField(
@@ -709,8 +821,6 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                 ),
               ),
               const SizedBox(width: 8),
-
-              // Total for Channel
               Expanded(
                 flex: 2,
                 child: Container(
@@ -743,7 +853,6 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
             ],
           ),
           const SizedBox(height: 6),
-          // Payment Mode Selector
           Row(
             children: [
               const Text('भुगतान माध्यम: ',
@@ -753,7 +862,10 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                 value: item.paymentMode,
                 isDense: true,
                 underline: const SizedBox(),
-                style: const TextStyle(fontSize: 11, color: Color(0xff0f172a), fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xff0f172a),
+                    fontWeight: FontWeight.bold),
                 items: const [
                   DropdownMenuItem(
                       value: '10_day_cycle',
@@ -868,15 +980,24 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
             children: [
               Text(
                 '💵 नगद/UPI: ₹${_cashUpiAmount.toStringAsFixed(0)}',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xff1e293b)),
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xff1e293b)),
               ),
               Text(
                 '🏛️ समिति चक्र: ₹${_coopAmount.toStringAsFixed(0)}',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xff047857)),
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xff047857)),
               ),
               Text(
                 '📒 ग्राहक उधार: ₹${_udharAmount.toStringAsFixed(0)}',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xffb45309)),
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xffb45309)),
               ),
             ],
           ),
@@ -917,7 +1038,13 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
 // TAB 2: Slip Scanner & Mismatch Cross-Verification ("पर्ची स्कैन व मिलान")
 // ============================================================================
 class _SlipScanAndMismatchTab extends StatefulWidget {
-  const _SlipScanAndMismatchTab();
+  final Function(Map<String, dynamic>) onSaveSlip;
+  final VoidCallback onNavigateToFolder;
+
+  const _SlipScanAndMismatchTab({
+    required this.onSaveSlip,
+    required this.onNavigateToFolder,
+  });
 
   @override
   State<_SlipScanAndMismatchTab> createState() =>
@@ -925,25 +1052,94 @@ class _SlipScanAndMismatchTab extends StatefulWidget {
 }
 
 class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
-  // Dispatched values from dairy
+  // Dispatched reference from dairy vat
   final double _dairyDispatchedLitres = 100.0;
   final double _dairyExpectedFat = 4.30;
   final double _dairyExpectedSnf = 8.60;
 
-  // Values printed on cooperative center slip
-  String _centerName = 'सरस दुग्ध उत्पादक सहकारी समिति (BMC-402)';
-  String _slipNumber = 'PARCHI-8841';
-  DateTime _slipDate = DateTime.now();
-  String _slipShift = 'Morning (प्रातः)';
-  double _slipLitres = 98.2; // 1.8 Litres shortage!
-  double _slipFat = 4.05; // 0.25% Fat under-testing!
-  double _slipSnf = 8.35; // 0.25% SNF shortage!
-  double _slipRatePerLitre = 40.50;
+  // Controllers for all extracted/autofilled slip data (100% editable by user!)
+  late final TextEditingController _litresController;
+  late final TextEditingController _fatController;
+  late final TextEditingController _snfController;
+  late final TextEditingController _rateController;
+  late final TextEditingController _centerNameController;
+  late final TextEditingController _slipNumberController;
 
-  bool _isUploading = false;
-  String? _uploadedFileName = 'dugdha_parchi_21oct_morning.jpg';
+  bool _isScanning = false;
+  bool _hasAutofilled = true;
+  String? _uploadedFileName = 'saras_parchi_8841.jpg';
 
-  // Differences
+  // Preset Slips for realistic 1-tap testing
+  final List<Map<String, dynamic>> _presetSlips = [
+    {
+      'label': 'पर्ची #1: सरस समिति',
+      'center': 'सरस दुग्ध उत्पादक सहकारी समिति (BMC-402)',
+      'slipNo': 'PARCHI-8841',
+      'litres': 98.2,
+      'fat': 4.05,
+      'snf': 8.35,
+      'rate': 40.50,
+      'tag': '1.8L Shortage (कटौती)',
+      'isShortage': true,
+    },
+    {
+      'label': 'पर्ची #2: अमूल बीएमसी',
+      'center': 'अमूल मिल्क कलेक्शन सेंटर (BMC-518)',
+      'slipNo': 'AMUL-9120',
+      'litres': 100.0,
+      'fat': 4.30,
+      'snf': 8.60,
+      'rate': 42.50,
+      'tag': '100% Match (सटीक)',
+      'isShortage': false,
+    },
+    {
+      'label': 'पर्ची #3: मदर डेयरी',
+      'center': 'मदर डेयरी किसान सेवा केंद्र (BMC-204)',
+      'slipNo': 'MD-7603',
+      'litres': 97.5,
+      'fat': 3.90,
+      'snf': 8.20,
+      'rate': 39.20,
+      'tag': '2.5L Shortage (बड़ा अंतर)',
+      'isShortage': true,
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _litresController = TextEditingController(text: '98.2');
+    _fatController = TextEditingController(text: '4.05');
+    _snfController = TextEditingController(text: '8.35');
+    _rateController = TextEditingController(text: '40.50');
+    _centerNameController = TextEditingController(
+        text: 'सरस दुग्ध उत्पादक सहकारी समिति (BMC-402)');
+    _slipNumberController = TextEditingController(text: 'PARCHI-8841');
+  }
+
+  @override
+  void dispose() {
+    _litresController.dispose();
+    _fatController.dispose();
+    _snfController.dispose();
+    _rateController.dispose();
+    _centerNameController.dispose();
+    _slipNumberController.dispose();
+    super.dispose();
+  }
+
+  // Dynamic values parsed from user-editable controllers
+  double get _slipLitres =>
+      double.tryParse(_litresController.text.trim()) ?? 0.0;
+  double get _slipFat => double.tryParse(_fatController.text.trim()) ?? 0.0;
+  double get _slipSnf => double.tryParse(_snfController.text.trim()) ?? 0.0;
+  double get _slipRatePerLitre =>
+      double.tryParse(_rateController.text.trim()) ?? 0.0;
+  String get _centerName => _centerNameController.text.trim();
+  String get _slipNumber => _slipNumberController.text.trim();
+
+  // Real-time Discrepancy Calculations
   double get _volumeDifference => _slipLitres - _dairyDispatchedLitres;
   double get _fatDifference => _slipFat - _dairyExpectedFat;
   double get _snfDifference => _slipSnf - _dairyExpectedSnf;
@@ -957,8 +1153,37 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
   double get _financialDiscrepancy =>
       _slipActualAmount - _dairyExpectedAmount;
 
-  Future<void> _pickSlipImage() async {
-    setState(() => _isUploading = true);
+  Future<void> _simulateOcrScan({Map<String, dynamic>? preset}) async {
+    setState(() => _isScanning = true);
+    await Future.delayed(const Duration(milliseconds: 700));
+
+    final data = preset ?? _presetSlips[0];
+    setState(() {
+      _isScanning = false;
+      _uploadedFileName = preset != null
+          ? '${data['slipNo']}.jpg'
+          : 'scanned_slip_${DateTime.now().millisecondsSinceEpoch % 10000}.jpg';
+      _centerNameController.text = data['center'] as String;
+      _slipNumberController.text = data['slipNo'] as String;
+      _litresController.text = (data['litres'] as double).toStringAsFixed(1);
+      _fatController.text = (data['fat'] as double).toStringAsFixed(2);
+      _snfController.text = (data['snf'] as double).toStringAsFixed(2);
+      _rateController.text = (data['rate'] as double).toStringAsFixed(2);
+      _hasAutofilled = true;
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              '✨ पर्ची स्कैन हुई व डेटा ऑटो-फिल हो गया! यदि कोई संख्या गलत हो तो नीचे बदलें।'),
+          backgroundColor: Color(0xff064e3b),
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickSlipFromFile() async {
     try {
       const typeGroup = XTypeGroup(
         label: 'images',
@@ -966,23 +1191,104 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
       );
       final file = await openFile(acceptedTypeGroups: [typeGroup]);
       if (file != null) {
-        setState(() {
-          _uploadedFileName = file.name;
-          // Simulated OCR reading from the scanned thermal slip
-          _slipNumber = 'PARCHI-${DateTime.now().millisecondsSinceEpoch % 10000}';
-        });
+        setState(() => _uploadedFileName = file.name);
+        await _simulateOcrScan();
       }
     } catch (_) {
       // Ignored
-    } finally {
-      if (mounted) setState(() => _isUploading = false);
     }
+  }
+
+  void _submitAndSaveVerifiedSlip() {
+    final hasShortage = _volumeDifference < -0.1 || _fatDifference < -0.05;
+    final discrepancyText = hasShortage
+        ? '${_volumeDifference.toStringAsFixed(1)}L Shortage (-₹${_financialDiscrepancy.abs().toStringAsFixed(0)})'
+        : '100% Matched';
+
+    final slipData = {
+      'totalLitres': 175.0,
+      'coopLitres': _slipLitres,
+      'hotelLitres': 50.0,
+      'retailLitres': 20.0,
+      'slipNumber': _slipNumber,
+      'slipLitres': _slipLitres,
+      'slipFat': _slipFat,
+      'slipSnf': _slipSnf,
+      'slipRate': _slipRatePerLitre,
+      'centerName': _centerName,
+      'hasMismatch': hasShortage,
+      'discrepancy': discrepancyText,
+    };
+
+    widget.onSaveSlip(slipData);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Color(0xff16a34a), size: 24),
+            SizedBox(width: 8),
+            Text('पर्ची सत्यापित व सुरक्षित!'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('पर्ची क्रमांक: $_slipNumber',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            Text('सत्यापित मात्रा: ${_slipLitres.toStringAsFixed(1)} Litres'),
+            Text('सत्यापित फैट/एसएनएफ: ${_slipFat.toStringAsFixed(2)}% / ${_slipSnf.toStringAsFixed(2)}%'),
+            Text('कुल शुद्ध भुगतान: ₹${_slipActualAmount.toStringAsFixed(1)}'),
+            const SizedBox(height: 8),
+            if (hasShortage)
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xfffee2e2),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'अंतर दर्ज: $discrepancyText',
+                  style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xff991b1b),
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+            const SizedBox(height: 8),
+            const Text(
+              'यह पर्ची आज के तारीख फोल्डर में सुरक्षित कर दी गई है।',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              widget.onNavigateToFolder();
+            },
+            child: const Text('तारीख फोल्डर देखें >'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xff064e3b)),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('ठीक है (Done)'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _raiseDisputeOnWhatsApp() async {
     final message = '''*⚠️ दुग्ध पर्ची व डिस्पैच मिलान आपत्ति (Dairy AI Dispute)*
 समिति/केंद्र: $_centerName
-पर्ची संख्या: $_slipNumber | दिनांक: ${DateFormat('dd MMM yyyy').format(_slipDate)} ($_slipShift)
+पर्ची संख्या: $_slipNumber | दिनांक: ${DateFormat('dd MMM yyyy').format(DateTime.now())} (प्रातः)
 
 *तुलनात्मक मिलान विवरण:*
 • डेयरी से भेजा दूध: ${_dairyDispatchedLitres.toStringAsFixed(1)} L | पर्ची में दर्ज: ${_slipLitres.toStringAsFixed(1)} L
@@ -1006,69 +1312,63 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Card with Scan Trigger
+          // 1. Header Card with Scan Trigger & Preset Chips
           _buildScanActionCard(context),
 
           const SizedBox(height: 14),
 
-          // Physical Thermal Slip Preview / Form
+          // 2. Physical Thermal Slip Preview / User-Editable Form
           _buildScannedSlipDataCard(context),
 
           const SizedBox(height: 14),
 
-          // Cross-Verification & Mismatch Comparison Table
+          // 3. Cross-Verification & Mismatch Comparison Table
           _buildMismatchComparisonCard(context),
 
           const SizedBox(height: 14),
 
-          // Action Buttons: Raise Dispute / Save to Folder
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _raiseDisputeOnWhatsApp,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xffb91c1c),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  icon: const Icon(Icons.warning, size: 18),
-                  label: const Text(
-                    'समिति पर आपत्ति दर्ज करें (WhatsApp)',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
+          // 4. Primary Action: Submit & Save Verified Slip
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: _submitAndSaveVerifiedSlip,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xff064e3b),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('✅ पर्ची दिनांक फोल्डर में सुरक्षित की गई!'),
-                        backgroundColor: Color(0xff064e3b),
-                      ),
-                    );
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xff064e3b),
-                    side: const BorderSide(color: Color(0xff064e3b), width: 1.5),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  icon: const Icon(Icons.folder, size: 18),
-                  label: const Text(
-                    'फोल्डर में सेव करें',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
+              icon: const Icon(Icons.verified),
+              label: const Text(
+                'सत्यापित पर्ची सुरक्षित करें (Submit & Save Verified Slip)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // 5. Secondary Action: Raise WhatsApp Dispute
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: OutlinedButton.icon(
+              onPressed: _raiseDisputeOnWhatsApp,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xffb91c1c),
+                side: const BorderSide(color: Color(0xffb91c1c), width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
-            ],
+              icon: const Icon(Icons.warning, size: 18),
+              label: const Text(
+                'समिति पर आपत्ति दर्ज करें (WhatsApp Dispute)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              ),
+            ),
           ),
 
           const SizedBox(height: 24),
@@ -1105,7 +1405,7 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'दैनिक दूध पर्ची स्कैन करें (Scan Daily Milk Slip)',
+                      'दैनिक दूध पर्ची स्कैन व ऑटो-रीड (Scan & Auto-Fill)',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
@@ -1113,7 +1413,7 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
                       ),
                     ),
                     Text(
-                      'थर्मल प्रिंट पर्ची की फोटो खींचें व वजन-फैट का तत्काल मिलान करें।',
+                      'थर्मल पर्ची की फोटो लें। फैट, मात्रा व दर ऑटो-फिल होंगे, जिन्हें आप सुधार भी सकते हैं।',
                       style: TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                   ],
@@ -1121,32 +1421,76 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _isUploading ? null : _pickSlipImage,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xff064e3b),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  icon: const Icon(Icons.camera_alt, size: 18),
-                  label: Text(_isUploading
-                      ? 'स्कैनिंग...'
-                      : 'कैमरा / गैलरी से पर्ची फोटो अपलोड करें'),
+          const SizedBox(height: 12),
+
+          // Main Upload/Camera Button
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton.icon(
+              onPressed: _isScanning ? null : _pickSlipFromFile,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xff064e3b),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
-            ],
+              icon: const Icon(Icons.camera_alt, size: 18),
+              label: Text(_isScanning
+                  ? '🤖 OCR पर्ची पढ़ी जा रही है...'
+                  : 'कैमरा / गैलरी से पर्ची फोटो अपलोड करें'),
+            ),
           ),
+
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+          const SizedBox(height: 10),
+
+          // 1-Click Preset Test Slips
+          const Text(
+            'त्वरित परीक्षण पर्चियां (1-Click Test Scans):',
+            style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xff334155)),
+          ),
+          const SizedBox(height: 6),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _presetSlips.map((p) {
+                final isShort = p['isShortage'] as bool;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ActionChip(
+                    avatar: Icon(
+                      isShort ? Icons.warning_amber : Icons.check,
+                      size: 14,
+                      color: isShort ? Colors.red : Colors.green,
+                    ),
+                    label: Text(
+                      '${p['label']} (${p['tag']})',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    backgroundColor: isShort
+                        ? const Color(0xfffef2f2)
+                        : const Color(0xfff0fdf4),
+                    side: BorderSide(
+                      color: isShort
+                          ? const Color(0xfffecaca)
+                          : const Color(0xffbbf7d0),
+                    ),
+                    onPressed: () => _simulateOcrScan(preset: p),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+
           if (_uploadedFileName != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Row(
               children: [
-                const Icon(Icons.image, size: 14, color: Colors.green),
+                const Icon(Icons.check_circle, size: 14, color: Colors.green),
                 const SizedBox(width: 6),
                 Text(
                   'स्कैन फ़ाइल: $_uploadedFileName (OCR Verified)',
@@ -1179,7 +1523,7 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
               const Icon(Icons.receipt_long, color: Color(0xffa16207), size: 20),
               const SizedBox(width: 8),
               const Text(
-                'पर्ची में मुद्रित विवरण (Data from Scanned Center Slip)',
+                'पर्ची में मुद्रित विवरण (Auto-Filled & Fully Editable)',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
@@ -1187,86 +1531,161 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
                 ),
               ),
               const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _slipNumber,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xffa16207),
+              if (_hasAutofilled)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xffdcfce7),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xff86efac)),
                   ),
+                  child: const Text('✨ AI OCR Read',
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xff166534))),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          // User guidance badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: const Color(0xfffef08a)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.edit_note, size: 16, color: Color(0xffa16207)),
+                SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'यदि स्कैन में कोई संख्या धुंधली या गलत पढ़ी गई हो, तो नीचे किसी भी बॉक्स पर क्लिक करके सही संख्या लिखें।',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xff854d0e),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Center & Slip Number
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: TextFormField(
+                  controller: _centerNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'समिति / केंद्र का नाम',
+                    isDense: true,
+                    fillColor: Colors.white,
+                    filled: true,
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: TextFormField(
+                  controller: _slipNumberController,
+                  decoration: const InputDecoration(
+                    labelText: 'पर्ची क्रमांक',
+                    isDense: true,
+                    fillColor: Colors.white,
+                    filled: true,
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => setState(() {}),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            _centerName,
-            style: const TextStyle(fontSize: 11, color: Color(0xff854d0e)),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+
+          // 4 Main Auto-Filled & Editable Numbers
           Row(
             children: [
               Expanded(
-                child: _buildSlipField(
-                  'पर्ची में दूध (L)',
-                  _slipLitres.toStringAsFixed(1),
-                  (val) => setState(
-                      () => _slipLitres = double.tryParse(val) ?? _slipLitres),
+                child: TextFormField(
+                  controller: _litresController,
+                  decoration: const InputDecoration(
+                    labelText: 'पर्ची दूध (L)',
+                    suffixText: 'L',
+                    isDense: true,
+                    fillColor: Colors.white,
+                    filled: true,
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setState(() {}),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _buildSlipField(
-                  'परीक्षित फैट %',
-                  _slipFat.toStringAsFixed(2),
-                  (val) => setState(
-                      () => _slipFat = double.tryParse(val) ?? _slipFat),
+                child: TextFormField(
+                  controller: _fatController,
+                  decoration: const InputDecoration(
+                    labelText: 'फैट % (Fat)',
+                    suffixText: '%',
+                    isDense: true,
+                    fillColor: Colors.white,
+                    filled: true,
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setState(() {}),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _buildSlipField(
-                  'परीक्षित एसएनएफ %',
-                  _slipSnf.toStringAsFixed(2),
-                  (val) => setState(
-                      () => _slipSnf = double.tryParse(val) ?? _slipSnf),
+                child: TextFormField(
+                  controller: _snfController,
+                  decoration: const InputDecoration(
+                    labelText: 'एसएनएफ %',
+                    suffixText: '%',
+                    isDense: true,
+                    fillColor: Colors.white,
+                    filled: true,
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setState(() {}),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _buildSlipField(
-                  'दर (₹/L)',
-                  _slipRatePerLitre.toStringAsFixed(2),
-                  (val) => setState(() => _slipRatePerLitre =
-                      double.tryParse(val) ?? _slipRatePerLitre),
+                child: TextFormField(
+                  controller: _rateController,
+                  decoration: const InputDecoration(
+                    labelText: 'दर (₹/L)',
+                    prefixText: '₹',
+                    isDense: true,
+                    fillColor: Colors.white,
+                    filled: true,
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setState(() {}),
                 ),
               ),
             ],
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSlipField(
-      String label, String initialValue, ValueChanged<String> onChanged) {
-    return TextFormField(
-      initialValue: initialValue,
-      decoration: InputDecoration(
-        labelText: label,
-        isDense: true,
-        fillColor: Colors.white,
-        filled: true,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      onChanged: onChanged,
     );
   }
 
@@ -1457,87 +1876,17 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
 // TAB 3: Date-Wise Scanned Slip Folder & Archive ("दिनांक अनुसार पर्ची फोल्डर")
 // ============================================================================
 class _DateWiseSlipFolderTab extends StatelessWidget {
-  const _DateWiseSlipFolderTab();
+  final List<Map<String, dynamic>> archives;
+
+  const _DateWiseSlipFolderTab({required this.archives});
 
   @override
   Widget build(BuildContext context) {
-    final sampleDateArchives = [
-      {
-        'date': '21 Oct 2026',
-        'morning': {
-          'totalLitres': 175.0,
-          'coopLitres': 100.0,
-          'hotelLitres': 50.0,
-          'retailLitres': 20.0,
-          'slipNumber': 'PARCHI-8841',
-          'slipLitres': 98.2,
-          'hasMismatch': true,
-          'discrepancy': '-1.8L Shortage (-₹272.90)',
-        },
-        'evening': {
-          'totalLitres': 165.0,
-          'coopLitres': 95.0,
-          'hotelLitres': 50.0,
-          'retailLitres': 20.0,
-          'slipNumber': 'PARCHI-8892',
-          'slipLitres': 95.0,
-          'hasMismatch': false,
-          'discrepancy': '100% Matched',
-        },
-      },
-      {
-        'date': '20 Oct 2026',
-        'morning': {
-          'totalLitres': 172.0,
-          'coopLitres': 102.0,
-          'hotelLitres': 50.0,
-          'retailLitres': 20.0,
-          'slipNumber': 'PARCHI-8710',
-          'slipLitres': 102.0,
-          'hasMismatch': false,
-          'discrepancy': '100% Matched',
-        },
-        'evening': {
-          'totalLitres': 160.0,
-          'coopLitres': 90.0,
-          'hotelLitres': 50.0,
-          'retailLitres': 20.0,
-          'slipNumber': 'PARCHI-8765',
-          'slipLitres': 89.1,
-          'hasMismatch': true,
-          'discrepancy': '-0.9L Shortage (-₹85.00)',
-        },
-      },
-      {
-        'date': '19 Oct 2026',
-        'morning': {
-          'totalLitres': 170.0,
-          'coopLitres': 100.0,
-          'hotelLitres': 50.0,
-          'retailLitres': 20.0,
-          'slipNumber': 'PARCHI-8604',
-          'slipLitres': 100.0,
-          'hasMismatch': false,
-          'discrepancy': '100% Matched',
-        },
-        'evening': {
-          'totalLitres': 158.0,
-          'coopLitres': 88.0,
-          'hotelLitres': 50.0,
-          'retailLitres': 20.0,
-          'slipNumber': 'PARCHI-8651',
-          'slipLitres': 88.0,
-          'hasMismatch': false,
-          'discrepancy': '100% Matched',
-        },
-      },
-    ];
-
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: sampleDateArchives.length,
+      itemCount: archives.length,
       itemBuilder: (context, index) {
-        final archive = sampleDateArchives[index];
+        final archive = archives[index];
         final date = archive['date'] as String;
         final morning = archive['morning'] as Map<String, dynamic>;
         final evening = archive['evening'] as Map<String, dynamic>;
@@ -1610,7 +1959,8 @@ class _DateWiseSlipFolderTab extends StatelessWidget {
     required Map<String, dynamic> shiftData,
     required String date,
   }) {
-    final hasMismatch = shiftData['hasMismatch'] as bool;
+    final hasMismatch = shiftData['hasMismatch'] as bool? ?? false;
+    final slipNo = shiftData['slipNumber'] ?? 'Pending';
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1663,18 +2013,20 @@ class _DateWiseSlipFolderTab extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        ElevatedButton.icon(
-          onPressed: () => _showSlipViewerDialog(context, date, shiftLabel, shiftData),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xff064e3b),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        if (slipNo != 'Pending')
+          ElevatedButton.icon(
+            onPressed: () => _showSlipViewerDialog(
+                context, date, shiftLabel, shiftData),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xff064e3b),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            icon: const Icon(Icons.receipt, size: 14),
+            label: const Text('पर्ची देखें', style: TextStyle(fontSize: 11)),
           ),
-          icon: const Icon(Icons.receipt, size: 14),
-          label: const Text('पर्ची देखें', style: TextStyle(fontSize: 11)),
-        ),
       ],
     );
   }
@@ -1685,6 +2037,13 @@ class _DateWiseSlipFolderTab extends StatelessWidget {
     String shiftLabel,
     Map<String, dynamic> shiftData,
   ) {
+    final slipRate = (shiftData['slipRate'] as num?)?.toDouble() ?? 40.50;
+    final slipLitres = (shiftData['slipLitres'] as num?)?.toDouble() ?? 98.2;
+    final slipFat = (shiftData['slipFat'] as num?)?.toDouble() ?? 4.05;
+    final slipSnf = (shiftData['slipSnf'] as num?)?.toDouble() ?? 8.35;
+    final centerName = shiftData['centerName'] ??
+        'सरस दुग्ध उत्पादक सहकारी समिति (बीएमसी केंद्र #402)';
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1695,16 +2054,15 @@ class _DateWiseSlipFolderTab extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
               Row(
                 children: [
                   const Icon(Icons.receipt_long, color: Color(0xff047857)),
                   const SizedBox(width: 8),
-                  Expanded(
+                  const Expanded(
                     child: Text(
                       'दुग्ध संकलन पर्ची (Dugdha Slip)',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 14),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                   ),
                   IconButton(
@@ -1728,11 +2086,11 @@ class _DateWiseSlipFolderTab extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Center(
+                    Center(
                       child: Text(
-                        'सरस दुग्ध उत्पादक सहकारी समिति\nबीएमसी केंद्र #402',
+                        centerName,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                             fontFamily: 'Courier',
                             fontWeight: FontWeight.bold,
                             fontSize: 12),
@@ -1740,43 +2098,64 @@ class _DateWiseSlipFolderTab extends StatelessWidget {
                     ),
                     const Divider(height: 14),
                     Text('दिनांक: $date ($shiftLabel)',
-                        style: const TextStyle(fontFamily: 'Courier', fontSize: 11)),
+                        style: const TextStyle(
+                            fontFamily: 'Courier', fontSize: 11)),
                     Text('पर्ची क्रमांक: ${shiftData['slipNumber']}',
-                        style: const TextStyle(fontFamily: 'Courier', fontSize: 11, fontWeight: FontWeight.bold)),
-                    Text('डेयरी उत्पादक: किसान कोड #482 (रामेश्वर लाल)',
-                        style: const TextStyle(fontFamily: 'Courier', fontSize: 11)),
+                        style: const TextStyle(
+                            fontFamily: 'Courier',
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold)),
+                    const Text('डेयरी उत्पादक: किसान कोड #482 (रामेश्वर लाल)',
+                        style: TextStyle(
+                            fontFamily: 'Courier', fontSize: 11)),
                     const Divider(height: 14),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text('दूध मात्रा (Qty):',
-                            style: TextStyle(fontFamily: 'Courier', fontSize: 12)),
-                        Text('${shiftData['slipLitres']} L',
+                            style: TextStyle(
+                                fontFamily: 'Courier', fontSize: 12)),
+                        Text('${slipLitres.toStringAsFixed(1)} L',
                             style: const TextStyle(
                                 fontFamily: 'Courier',
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13)),
                       ],
                     ),
-                    const Row(
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('फैट % (Fat):',
-                            style: TextStyle(fontFamily: 'Courier', fontSize: 12)),
-                        Text('4.05%',
+                        const Text('फैट % (Fat):',
                             style: TextStyle(
+                                fontFamily: 'Courier', fontSize: 12)),
+                        Text('${slipFat.toStringAsFixed(2)}%',
+                            style: const TextStyle(
                                 fontFamily: 'Courier',
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12)),
                       ],
                     ),
-                    const Row(
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('एसएनएफ % (SNF):',
-                            style: TextStyle(fontFamily: 'Courier', fontSize: 12)),
-                        Text('8.35%',
+                        const Text('एसएनएफ % (SNF):',
                             style: TextStyle(
+                                fontFamily: 'Courier', fontSize: 12)),
+                        Text('${slipSnf.toStringAsFixed(2)}%',
+                            style: const TextStyle(
+                                fontFamily: 'Courier',
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12)),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('लागू दर (Rate):',
+                            style: TextStyle(
+                                fontFamily: 'Courier', fontSize: 12)),
+                        Text('₹${slipRate.toStringAsFixed(2)}/L',
+                            style: const TextStyle(
                                 fontFamily: 'Courier',
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12)),
@@ -1792,7 +2171,7 @@ class _DateWiseSlipFolderTab extends StatelessWidget {
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13)),
                         Text(
-                          '₹${(shiftData['slipLitres'] * 40.50).toStringAsFixed(1)}',
+                          '₹${(slipLitres * slipRate).toStringAsFixed(1)}',
                           style: const TextStyle(
                               fontFamily: 'Courier',
                               fontWeight: FontWeight.bold,
@@ -1807,7 +2186,6 @@ class _DateWiseSlipFolderTab extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // Status message
               if (shiftData['hasMismatch'] == true) ...[
                 Container(
                   padding: const EdgeInsets.all(8),
@@ -1835,13 +2213,12 @@ class _DateWiseSlipFolderTab extends StatelessWidget {
                 const SizedBox(height: 10),
               ],
 
-              // WhatsApp Share button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
                     final msg =
-                        'दूध पर्ची: ${shiftData['slipNumber']} | दिनांक: $date | मात्रा: ${shiftData['slipLitres']}L | कुल राशि: ₹${(shiftData['slipLitres'] * 40.50).toStringAsFixed(0)}';
+                        'दूध पर्ची: ${shiftData['slipNumber']} | दिनांक: $date | मात्रा: ${slipLitres}L | कुल राशि: ₹${(slipLitres * slipRate).toStringAsFixed(0)}';
                     launchUrl(
                       Uri.parse(
                           'https://wa.me/?text=${Uri.encodeComponent(msg)}'),

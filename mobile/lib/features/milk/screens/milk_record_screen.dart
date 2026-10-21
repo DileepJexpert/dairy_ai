@@ -657,18 +657,25 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
           builder: (modalContext, setModalState) {
             final activePreset = getPresetForType(selectedType);
 
-            return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 14,
-                bottom: MediaQuery.of(modalContext).viewInsets.bottom + 18,
-              ),
-              child: SingleChildScrollView(
+            return Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: 580,
+                  maxHeight: MediaQuery.of(modalContext).size.height * 0.92,
+                ),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  padding: EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    top: 14,
+                    bottom: MediaQuery.of(modalContext).viewInsets.bottom + 18,
+                  ),
+                  child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -962,7 +969,9 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                   ],
                 ),
               ),
-            );
+            ),
+          ),
+        );
           },
         );
       },

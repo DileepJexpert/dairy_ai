@@ -1,0 +1,26 @@
+name = "milterra-api-staging"
+account_id = "24e366c9448ef4c466bffe6f17efa51b"
+main = "src/index.ts"
+compatibility_date = "2024-10-22"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[vars]
+ENVIRONMENT = "staging"
+ALLOW_TEST_AUTH = "false"
+CORS_ORIGINS = "https://milterra-staging.pages.dev,https://milterrafoods.com,https://www.milterrafoods.com,https://farmers.milterrafoods.com,https://farmers.katixo.com"
+CUSTOMER_AUTH_ENABLED = "true"
+TEST_COMMERCE_ENABLED = "false"
+LIVE_COD_ENABLED = "true"
+SIMULATION_ENABLED = "false"
+STOREFRONT_BASE_URL = "https://milterrafoods.com"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "milterra-staging"
+database_id = "a21abccf-65eb-4305-b27d-5c04efad65b1"
+migrations_dir = "migrations"
+
+[[services]]
+binding = "PASSWORD_HASHER"
+service = "milterra-password-hasher"

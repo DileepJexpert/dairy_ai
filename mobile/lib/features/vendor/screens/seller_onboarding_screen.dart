@@ -54,9 +54,10 @@ class _SellerOnboardingScreenState
           .read(sellerPortalProvider.notifier)
           .registerNewSeller(newSeller);
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(commerceError(error))));
+      }
       return;
     }
     if (!mounted) return;

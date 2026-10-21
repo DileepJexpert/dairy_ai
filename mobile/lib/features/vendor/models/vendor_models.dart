@@ -321,6 +321,9 @@ class VendorOrder {
     required this.createdAt,
   });
 
+  String get orderNumber =>
+      id.length >= 8 ? id.substring(0, 8).toUpperCase() : (id.isNotEmpty ? id.toUpperCase() : 'ORD');
+
   factory VendorOrder.fromJson(Map<String, dynamic> json) {
     return VendorOrder(
       id: json['id'] as String,

@@ -440,8 +440,11 @@ class _FarmDocumentsScreenState extends ConsumerState<FarmDocumentsScreen> {
         icon: const Icon(Icons.add_photo_alternate),
         label: const Text('Upload Chart'),
       ),
-      body: Column(
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: Column(
+            children: [
           // Category filter row
           Container(
             height: 48,
@@ -631,6 +634,8 @@ class _FarmDocumentsScreenState extends ConsumerState<FarmDocumentsScreen> {
             ),
           ),
         ],
+      ),
+        ),
       ),
     );
   }

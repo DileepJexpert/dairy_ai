@@ -43,13 +43,18 @@ class _FinanceReportScreenState extends ConsumerState<FinanceReportScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const [
-          _MonthlyPnLTab(),
-          _CategoryTab(),
-          _PerCattleTab(),
-        ],
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: TabBarView(
+            controller: _tabController,
+            children: const [
+              _MonthlyPnLTab(),
+              _CategoryTab(),
+              _PerCattleTab(),
+            ],
+          ),
+        ),
       ),
     );
   }

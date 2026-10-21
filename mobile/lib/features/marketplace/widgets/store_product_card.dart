@@ -285,9 +285,10 @@ class _StoreProductCardState extends State<StoreProductCard> {
 
                     // Price Row: Current Price + Strikethrough + Discount
                     if (!p.isConcept) ...[
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 6,
+                        runSpacing: 2,
                         children: [
                           Text(
                             storeMoney(p.price),
@@ -298,7 +299,6 @@ class _StoreProductCardState extends State<StoreProductCard> {
                             ),
                           ),
                           if (discountPercent > 0) ...[
-                            const SizedBox(width: 6),
                             Text(
                               storeMoney(p.compareAtPrice!),
                               style: const TextStyle(
@@ -307,7 +307,6 @@ class _StoreProductCardState extends State<StoreProductCard> {
                                 decoration: TextDecoration.lineThrough,
                               ),
                             ),
-                            const SizedBox(width: 5),
                             Text(
                               '$discountPercent% off',
                               style: const TextStyle(

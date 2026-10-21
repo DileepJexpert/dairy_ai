@@ -333,7 +333,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                     const SizedBox(height: 16),
                                     LayoutBuilder(builder: (context, space) {
                                       final columns = isMobile
-                                          ? (space.maxWidth < 360 ? 1 : 2)
+                                          ? (space.maxWidth < 310 ? 1 : 2)
                                           : (space.maxWidth >= 1000 ? 4 : 2);
                                       return Wrap(
                                         spacing: 16,

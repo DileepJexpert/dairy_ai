@@ -52,8 +52,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             ),
         ],
       ),
-      body: Column(
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: Column(
+            children: [
           // Filter tabs.
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -111,6 +114,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                           ),
           ),
         ],
+      ),
+        ),
       ),
     );
   }

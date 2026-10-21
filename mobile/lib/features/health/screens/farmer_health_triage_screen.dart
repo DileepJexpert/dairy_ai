@@ -260,8 +260,11 @@ $_vitalPrecaution
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: SingleChildScrollView(
+            child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Top Emergency Banner
@@ -281,6 +284,8 @@ $_vitalPrecaution
 
             const SizedBox(height: 40),
           ],
+        ),
+      ),
         ),
       ),
     );

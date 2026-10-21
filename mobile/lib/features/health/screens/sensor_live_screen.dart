@@ -91,11 +91,16 @@ class _SensorLiveScreenState extends ConsumerState<SensorLiveScreen> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(child: Text('Error: $_error'))
-              : _buildBody(context),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+                  ? Center(child: Text('Error: $_error'))
+                  : _buildBody(context),
+        ),
+      ),
     );
   }
 

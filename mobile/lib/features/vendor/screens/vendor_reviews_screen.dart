@@ -27,7 +27,7 @@ class _VendorReviewsScreenState extends ConsumerState<VendorReviewsScreen> {
     await showDialog<void>(
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (_, setDialogState) => AlertDialog(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(

@@ -378,7 +378,7 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String>(
-                      value: selectedProductId,
+                      initialValue: selectedProductId,
                       decoration: const InputDecoration(
                           labelText: 'Select Canonical Product',
                           border: OutlineInputBorder()),
@@ -391,8 +391,9 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
                         );
                       }).toList(),
                       onChanged: (v) {
-                        if (v != null)
+                        if (v != null) {
                           setModalState(() => selectedProductId = v);
+                        }
                       },
                     ),
                     const SizedBox(height: 12),
@@ -454,13 +455,15 @@ class _SellerPortalScreenState extends ConsumerState<SellerPortalScreen> {
                       .then((_) {
                     if (!ctx.mounted) return;
                     Navigator.pop(ctx);
-                    if (mounted)
+                    if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                           content: Text('Seller offer saved to backend.')));
+                    }
                   }).catchError((Object error) {
-                    if (mounted)
+                    if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(commerceError(error))));
+                    }
                   });
                 },
                 child: const Text('Publish Offer'),

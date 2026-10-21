@@ -83,9 +83,12 @@ class _HealthRecordScreenState extends ConsumerState<HealthRecordScreen> {
       appBar: AppBar(
         title: const Text('Add Health Record'),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: Form(
+            key: _formKey,
+            child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             // --- Cattle selector ---
@@ -278,6 +281,8 @@ class _HealthRecordScreenState extends ConsumerState<HealthRecordScreen> {
             ),
             const SizedBox(height: 32),
           ],
+        ),
+      ),
         ),
       ),
     );

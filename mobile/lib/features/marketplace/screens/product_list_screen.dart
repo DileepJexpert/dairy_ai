@@ -212,6 +212,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       'Buffalo ghee' => 'Rich Buffalo Ghee',
       'Herbal Ghee' || 'Herbal ghee' || 'herbal-ghee' => 'Herbal Infused Ghee',
       'Paneer' => 'Fresh Malai Paneer',
+      'Fresh Milk' || 'Farm Fresh Milk' => '🥛 Farm Fresh A2 Milk',
       'Other products' => 'White Butter (Makhan)',
       _ => value,
     };
@@ -367,6 +368,17 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   }
 
   Widget _buildWhatsAppFab(BuildContext context, {required bool isMobile}) {
+    if (isMobile) {
+      return FloatingActionButton.small(
+        heroTag: 'milterra-store-whatsapp-concierge',
+        backgroundColor: const Color(0xff25D366),
+        foregroundColor: Colors.white,
+        elevation: 4,
+        onPressed: _openWhatsAppConcierge,
+        tooltip: 'Chat on WhatsApp with Milterra Farm Specialist',
+        child: const Icon(Icons.chat_bubble_outline, size: 20),
+      );
+    }
     return FloatingActionButton.extended(
       heroTag: 'milterra-store-whatsapp-concierge',
       backgroundColor: const Color(0xff25D366),
@@ -374,9 +386,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       elevation: 4,
       onPressed: _openWhatsAppConcierge,
       icon: const Icon(Icons.chat_bubble_outline, size: 18),
-      label: Text(
-        isMobile ? 'WhatsApp' : 'Farm Specialist Concierge',
-        style: const TextStyle(
+      label: const Text(
+        'Farm Specialist Concierge',
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.2,
@@ -998,7 +1010,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       Text(
                         'Artisanal Harvests',
                         style: TextStyle(
-                          fontSize: isMobile ? 19 : 23,
+                          fontSize: isMobile ? 18 : 23,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.4,
                           color: const Color(0xff111827),
@@ -2665,7 +2677,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         columns = 4;
       } else if (bounds.maxWidth >= 650) {
         columns = 3;
-      } else if (bounds.maxWidth >= 360) {
+      } else if (bounds.maxWidth >= 310) {
         columns = 2;
       } else {
         columns = 1;

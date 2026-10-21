@@ -26,8 +26,11 @@ class _VaccinationScreenState extends ConsumerState<VaccinationScreen> {
       appBar: AppBar(
         title: const Text('Vaccinations'),
       ),
-      body: Column(
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: Column(
+            children: [
           // --- Cattle filter ---
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -132,6 +135,8 @@ class _VaccinationScreenState extends ConsumerState<VaccinationScreen> {
             ),
           ),
         ],
+      ),
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddVaccinationSheet(context),

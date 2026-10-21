@@ -59,9 +59,12 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
       appBar: AppBar(
         title: const Text('Add Transaction'),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: Form(
+            key: _formKey,
+            child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             // -- Type toggle --
@@ -199,6 +202,8 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                   actionState.isSubmitting ? 'Saving...' : 'Save Transaction'),
             ),
           ],
+        ),
+      ),
         ),
       ),
     );

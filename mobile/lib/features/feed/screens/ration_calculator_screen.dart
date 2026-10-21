@@ -140,8 +140,11 @@ Generated via farmers.milterrafoods.com''';
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: SingleChildScrollView(
+            child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Savings Impact Banner
@@ -161,6 +164,8 @@ Generated via farmers.milterrafoods.com''';
 
             const SizedBox(height: 30),
           ],
+        ),
+      ),
         ),
       ),
     );

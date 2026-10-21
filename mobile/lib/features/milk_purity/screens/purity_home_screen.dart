@@ -30,8 +30,6 @@ class _PurityHomeScreenState extends ConsumerState<PurityHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Milk Purity Checker'),
@@ -53,11 +51,14 @@ class _PurityHomeScreenState extends ConsumerState<PurityHomeScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: Column(
+            children: [
           // Search bar
           Container(
-            color: theme.colorScheme.primary,
+            color: const Color(0xff064e3b),
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: TextField(
               controller: _searchController,
@@ -132,6 +133,8 @@ class _PurityHomeScreenState extends ConsumerState<PurityHomeScreen> {
                 : const _TopBrandsList(),
           ),
         ],
+      ),
+        ),
       ),
     );
   }

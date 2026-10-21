@@ -73,8 +73,11 @@ class _VetSearchScreenState extends ConsumerState<VetSearchScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Find a Vet')),
-      body: Column(
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: Column(
+            children: [
           // --- Search bar ---
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -261,6 +264,8 @@ class _VetSearchScreenState extends ConsumerState<VetSearchScreen> {
             ),
           ),
         ],
+      ),
+        ),
       ),
     );
   }

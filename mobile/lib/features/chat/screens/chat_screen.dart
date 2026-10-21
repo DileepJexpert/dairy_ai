@@ -108,8 +108,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: Column(
+            children: [
           // Error banner.
           if (chatState.error != null)
             MaterialBanner(
@@ -161,6 +164,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onVoice: _openVoiceChat,
           ),
         ],
+      ),
+        ),
       ),
     );
   }

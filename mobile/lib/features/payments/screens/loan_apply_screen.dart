@@ -54,6 +54,181 @@ class _LoanApplyScreenState extends ConsumerState<LoanApplyScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // -- Verified Milk-Backed Kisan Credit Header Card --
+            Container(
+              margin: const EdgeInsets.only(bottom: 20),
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xff1b4332), Color(0xff2d6a4f)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.stars_rounded, color: Color(0xffffd166), size: 24),
+                          SizedBox(width: 8),
+                          Text(
+                            'KISAN CREDIT (MILK-BACKED)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xffffd166),
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xffffd166).withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xffffd166)),
+                        ),
+                        child: const Text(
+                          'Pre-Approved',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xffffd166),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Pre-Approved Credit Limit',
+                    style: TextStyle(fontSize: 13, color: Colors.white70),
+                  ),
+                  const SizedBox(height: 4),
+                  const Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        '₹45,000',
+                        style: TextStyle(
+                          fontSize: 34,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Text(
+                        '@ 7.0% p.a. Subsidized',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xffffd166),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.verified, color: Color(0xffffd166), size: 18),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Verified 90-Day Milk Deposit: 14.5 L/day avg • 86/90 days active • 92% Grade A quality',
+                            style: TextStyle(fontSize: 11, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Quick Presets:',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white70),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      ActionChip(
+                        label: const Text('🐮 Feed Advance (₹15,000)', style: TextStyle(fontSize: 11)),
+                        backgroundColor: Colors.white,
+                        onPressed: () {
+                          setState(() {
+                            _loanType = 'feed_advance';
+                            _principalController.text = '15000';
+                            _tenureController.text = '6';
+                            _interestController.text = '7.0';
+                          });
+                        },
+                      ),
+                      ActionChip(
+                        label: const Text('🌾 Silage Bales (₹25,000)', style: TextStyle(fontSize: 11)),
+                        backgroundColor: Colors.white,
+                        onPressed: () {
+                          setState(() {
+                            _loanType = 'feed_advance';
+                            _principalController.text = '25000';
+                            _tenureController.text = '6';
+                            _interestController.text = '7.0';
+                          });
+                        },
+                      ),
+                      ActionChip(
+                        label: const Text('🚜 Equipment (₹35,000)', style: TextStyle(fontSize: 11)),
+                        backgroundColor: Colors.white,
+                        onPressed: () {
+                          setState(() {
+                            _loanType = 'equipment';
+                            _principalController.text = '35000';
+                            _tenureController.text = '12';
+                            _interestController.text = '7.0';
+                          });
+                        },
+                      ),
+                      ActionChip(
+                        label: const Text('🌟 Max (₹45,000)', style: TextStyle(fontSize: 11)),
+                        backgroundColor: Colors.white,
+                        onPressed: () {
+                          setState(() {
+                            _principalController.text = '45000';
+                            _tenureController.text = '12';
+                            _interestController.text = '7.0';
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    '⚡ Repayment: Auto-deducted seamlessly at 10% from every 10-day Dugdhadhara milk collection payout slip. Disbursed instantly to your Milterra Wallet.',
+                    style: TextStyle(fontSize: 11, color: Colors.white70, height: 1.35),
+                  ),
+                ],
+              ),
+            ),
+
             // -- Loan type dropdown --
             DropdownButtonFormField<String>(
               value: _loanType,

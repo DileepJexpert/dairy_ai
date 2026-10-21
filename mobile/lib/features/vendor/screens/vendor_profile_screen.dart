@@ -350,7 +350,7 @@ class _VendorProfileScreenState extends ConsumerState<VendorProfileScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _selectedVendorType,
+              initialValue: _selectedVendorType,
               decoration: const InputDecoration(labelText: 'Vendor Type *'),
               items: VendorTypes.options.entries
                   .map((e) =>

@@ -5,7 +5,6 @@ import 'package:dairy_ai/core/extensions.dart';
 import 'package:dairy_ai/features/breeding/models/breeding_models.dart';
 import 'package:dairy_ai/features/breeding/providers/breeding_provider.dart';
 import 'package:dairy_ai/features/breeding/screens/add_breeding_event_screen.dart';
-import 'package:dairy_ai/features/feed/models/feed_models.dart';
 import 'package:dairy_ai/features/feed/providers/feed_provider.dart'
     show cattleListProvider;
 
@@ -35,8 +34,11 @@ class _BreedingScreenState extends ConsumerState<BreedingScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Add Event'),
       ),
-      body: Column(
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: Column(
+            children: [
           // -- Cattle filter --
           Padding(
             padding: const EdgeInsets.all(16),
@@ -104,6 +106,8 @@ class _BreedingScreenState extends ConsumerState<BreedingScreen> {
             ),
           ),
         ],
+      ),
+        ),
       ),
     );
   }

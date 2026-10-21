@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart' show NumberFormat;
 import '../../auth/providers/auth_provider.dart';
 import '../../cart/providers/cart_provider.dart';
@@ -21,6 +23,17 @@ import '../../../core/storage.dart';
 export 'store_category_mega_menu.dart';
 export 'store_search_dropdown_overlay.dart';
 export '../../../app/store_theme.dart';
+
+void openFarmerPortal(BuildContext context) {
+  if (kIsWeb) {
+    launchUrl(
+      Uri.parse('https://farmers.milterrafoods.com'),
+      webOnlyWindowName: '_self',
+    );
+  } else {
+    context.go('/home');
+  }
+}
 
 // Natural Earth Palette for MILTERRA Earth
 const storeEarthDarkGreen = Color(0xff1e3a2b);
@@ -480,6 +493,14 @@ class _StoreHeaderState extends ConsumerState<StoreHeader>
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) {
+      try {
+        final host = Uri.base.host.toLowerCase();
+        if (host.startsWith('farmers.') || host.startsWith('farmer.')) {
+          return const SizedBox.shrink();
+        }
+      } catch (_) {}
+    }
     final user = ref.watch(currentUserProvider);
     final count = ref.watch(cartItemCountProvider);
     final wishlistCount = ref.watch(wishlistItemCountProvider);
@@ -552,7 +573,16 @@ class _StoreHeaderState extends ConsumerState<StoreHeader>
                   children: [
                     // Brand Logo
                     InkWell(
-                      onTap: () => context.go('/shop'),
+                      onTap: () {
+                        if (kIsWeb) {
+                          final host = Uri.base.host.toLowerCase();
+                          if (host.startsWith('farmers.') || host.startsWith('farmer.')) {
+                            launchUrl(Uri.parse('https://milterrafoods.com'), webOnlyWindowName: '_self');
+                            return;
+                          }
+                        }
+                        context.go('/shop');
+                      },
                       borderRadius: BorderRadius.circular(4),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -683,6 +713,27 @@ class _StoreHeaderState extends ConsumerState<StoreHeader>
                         if (context.mounted) context.go('/shop');
                       },
                     ),
+
+                    // Farmer Portal Button
+                    if (!isCompact) ...[
+                      const SizedBox(width: 8),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xff047857),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          visualDensity: VisualDensity.compact,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6)),
+                        ),
+                        onPressed: () => openFarmerPortal(context),
+                        icon: const Icon(Icons.grass, size: 15),
+                        label: const Text('Farmer Portal',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 11.5)),
+                      ),
+                    ],
 
                     // Admin Button (if authorized)
                     if (canAdmin) ...[
@@ -815,6 +866,43 @@ class _StoreHeaderState extends ConsumerState<StoreHeader>
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                InkWell(
+                  onTap: () => openFarmerPortal(context),
+                  child: Container(
+                    margin: const EdgeInsets.fromLTRB(12, 4, 12, 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: const Color(0xffecfdf5),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xffa7f3d0)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.grass, color: Color(0xff047857), size: 16),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '🌾 Farmer & Veterinary Portal',
+                            style: TextStyle(
+                              color: Color(0xff065f46),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          'Open ➔',
+                          style: TextStyle(
+                            color: Color(0xff047857),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11.5,
                           ),
                         ),
                       ],
@@ -1034,6 +1122,14 @@ class _StoreCategoryNavigationState
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) {
+      try {
+        final host = Uri.base.host.toLowerCase();
+        if (host.startsWith('farmers.') || host.startsWith('farmer.')) {
+          return const SizedBox.shrink();
+        }
+      } catch (_) {}
+    }
     return Container(
       height: 42,
       decoration: const BoxDecoration(
@@ -1115,6 +1211,12 @@ class _StoreCategoryNavigationState
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
+                        _buildQuickLink(
+                          icon: Icons.grass,
+                          iconColor: const Color(0xff047857),
+                          label: '🌾 Farmer & Vet Portal',
+                          onTap: () => openFarmerPortal(context),
+                        ),
                         _buildQuickLink(
                           icon: Icons.star_rounded,
                           iconColor: const Color(0xfff59e0b),
@@ -1959,6 +2061,10 @@ class StoreFooter extends ConsumerWidget {
                                     onPressed: () =>
                                         context.go('/marketplace/sell'),
                                     child: const Text('Sell on Milterra',
+                                        style: StoreType.inverseLabel)),
+                                TextButton(
+                                    onPressed: () => openFarmerPortal(context),
+                                    child: const Text('Farmer & Vet Portal',
                                         style: StoreType.inverseLabel)),
                               ]),
                           Column(

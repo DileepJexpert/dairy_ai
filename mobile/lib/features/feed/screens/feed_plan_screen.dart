@@ -52,8 +52,11 @@ class _FeedPlanScreenState extends ConsumerState<FeedPlanScreen>
           ),
         ],
       ),
-      body: Column(
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: Column(
+            children: [
           // -- Cattle selector --
           Padding(
             padding: const EdgeInsets.all(16),
@@ -117,6 +120,8 @@ class _FeedPlanScreenState extends ConsumerState<FeedPlanScreen>
                   ),
           ),
         ],
+      ),
+        ),
       ),
     );
   }

@@ -367,12 +367,12 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      Colors.white.withValues(alpha: isMobile ? 0.70 : 0.30),
+                      Colors.white.withValues(alpha: isMobile ? 0.85 : 0.30),
+                      Colors.white.withValues(alpha: isMobile ? 0.60 : 0.0),
                       Colors.transparent,
-                      Colors.transparent,
-                      Colors.white.withValues(alpha: isMobile ? 0.65 : 0.20),
+                      Colors.white.withValues(alpha: isMobile ? 0.35 : 0.20),
                     ],
-                    stops: const [0.0, 0.32, 0.68, 1.0],
+                    stops: const [0.0, 0.40, 0.65, 1.0],
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                   ),
@@ -727,24 +727,16 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
               ],
             ),
           ),
-          const SizedBox(width: 6),
-          // Right: 3D Product Cutout on Shelf + Stamp
+          const SizedBox(width: 8),
+          // Right: Open focal area showcasing the panoramic background product + Circular Trust Stamp
           Expanded(
             flex: 5,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Image.asset(
-                  item.cutoutImage,
-                  height: 145,
-                  fit: BoxFit.contain,
-                ),
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: _buildCircularStamp(item.stampText, item.stampSub),
-                ),
-              ],
+            child: Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2, right: 2),
+                child: _buildCircularStamp(item.stampText, item.stampSub),
+              ),
             ),
           ),
         ],
@@ -925,15 +917,17 @@ class _StorefrontCampaignPostersState
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Flexible(
+                  Flexible(
                     child: Text(
-                      'Artisanal Harvest Ranges',
+                      widget.isMobile
+                          ? 'Artisanal Harvests'
+                          : 'Artisanal Harvest Ranges',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: widget.isMobile ? 16 : 18,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xff111827),
+                        color: const Color(0xff111827),
                         letterSpacing: -0.3,
                       ),
                     ),

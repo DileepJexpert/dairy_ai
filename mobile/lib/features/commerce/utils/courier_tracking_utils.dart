@@ -1,4 +1,5 @@
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/constants.dart';
 
 /// Resolves standard Indian and international courier tracking portal URLs.
 String? resolveCourierTrackingUrl(String carrier, String trackingNumber) {
@@ -27,6 +28,7 @@ String? resolveCourierTrackingUrl(String carrier, String trackingNumber) {
   return 'https://www.google.com/search?q=${Uri.encodeComponent('$carrier tracking $t')}';
 }
 
+
 /// Opens the courier tracking web page in external browser or in-app view.
 Future<bool> launchCourierTracking(String carrier, String trackingNumber) async {
   final urlStr = resolveCourierTrackingUrl(carrier, trackingNumber);
@@ -34,3 +36,17 @@ Future<bool> launchCourierTracking(String carrier, String trackingNumber) async 
   final uri = Uri.parse(urlStr);
   return await launchUrl(uri, mode: LaunchMode.externalApplication);
 }
+
+/// Opens the printable A4 Packing Slip or 4x6 Thermal Courier Label in a browser tab and triggers print.
+Future<bool> launchPrintablePackingSlip(
+  String orderId, {
+  String mode = 'a4',
+  bool autoprint = true,
+}) async {
+  if (orderId.trim().isEmpty) return false;
+  final urlStr =
+      '${AppConstants.baseUrl}/marketplace/orders/${orderId.trim()}/packing-slip?mode=$mode&autoprint=${autoprint ? '1' : '0'}';
+  final uri = Uri.parse(urlStr);
+  return await launchUrl(uri, mode: LaunchMode.externalApplication);
+}
+

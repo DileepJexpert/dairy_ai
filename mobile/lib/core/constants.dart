@@ -20,7 +20,9 @@ class AppConstants {
     if (_envAuthApiOrigin.isNotEmpty) return _envAuthApiOrigin;
     if (kIsWeb) {
       final host = Uri.base.host.toLowerCase();
-      if (host.contains('milterrafoods.com') || host.contains('pages.dev')) {
+      if (host.contains('milterrafoods.com') ||
+          host.contains('katixo.com') ||
+          host.contains('pages.dev')) {
         return 'https://milterra-api-staging.todileepmaurya.workers.dev';
       }
     }
@@ -35,7 +37,9 @@ class AppConstants {
     if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
     if (kIsWeb) {
       final host = Uri.base.host.toLowerCase();
-      if (host.contains('milterrafoods.com') || host.contains('pages.dev')) {
+      if (host.contains('milterrafoods.com') ||
+          host.contains('katixo.com') ||
+          host.contains('pages.dev')) {
         return 'https://milterra-api-staging.todileepmaurya.workers.dev';
       }
       final fallbackHost = Uri.base.host.isNotEmpty ? Uri.base.host : '127.0.0.1';

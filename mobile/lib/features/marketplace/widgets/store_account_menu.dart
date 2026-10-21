@@ -177,6 +177,7 @@ class _StoreAccountMenuState extends State<StoreAccountMenu> {
       const _AccountLink('Your profile', Icons.person_outline, '/profile'),
       const _AccountLink('Wallet & history',
           Icons.account_balance_wallet_outlined, '/balance'),
+      const _AccountLink('🌾 Farmer & Vet Portal', Icons.grass, '/farmer-portal'),
       const _AccountLink('Help & support', Icons.help_outline, '/help'),
     ];
     final adminOperations = [

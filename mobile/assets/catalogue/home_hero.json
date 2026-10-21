@@ -4,39 +4,41 @@
     {
       "product_id": "ffd7186f-6cee-4b8e-9a87-6af173aabffd",
       "hero_image": "assets/store/panoramic-cow-ghee-hero.jpg",
-      "mobile_image": "assets/store/tilted-cow-ghee-3d.png",
       "hover_image": "assets/store/farm-pasture-cinematic.jpg",
       "hover_badge": "Sahiwal Cows & Pasture",
-      "image_note": "A2 Sahiwal Cow Bilona Ghee Tilted 3D Jar"
+      "image_note": "A2 Sahiwal Cow Bilona Ghee 1kg Glass Jar"
     },
     {
       "product_id": "54b52256-c0d6-436c-b8aa-737b35ab1636",
       "hero_image": "assets/store/panoramic-mustard-oil-hero.jpg",
-      "mobile_image": "assets/store/tilted-mustard-oil-3d.png",
       "hover_image": "assets/store/lakdi-kolhu-craft-hd.jpg",
       "hover_badge": "Cold-Press Lakdi Kolhu",
-      "image_note": "Wood-Pressed Mustard Oil Tilted 3D Bottle & Kolhu"
+      "image_note": "Wood-Pressed Mustard Oil 1 Litre Glass Bottle"
     },
     {
       "product_id": "ad431721-27f9-477b-85ce-53def61d7f36",
       "hero_image": "assets/store/panoramic-buffalo-ghee-hero.jpg",
-      "mobile_image": "assets/store/tilted-buffalo-ghee-3d.png",
       "hover_image": "assets/store/farm-bilona-cinematic.jpg",
       "hover_badge": "Vedic Bilona Churning",
-      "image_note": "Cultured Buffalo Ghee Tilted 3D Jar"
+      "image_note": "Cultured Buffalo Ghee 1kg Glass Jar"
     },
     {
       "product_id": "b20f6def-861a-4ba7-b7fa-dab5f4504278",
       "hero_image": "assets/store/panoramic-paneer-hero.jpg",
-      "mobile_image": "assets/store/tilted-paneer-3d.png",
       "hover_image": "assets/store/farm-pasture-cinematic.jpg",
       "hover_badge": "Fresh A2 Sahiwal Milk",
-      "image_note": "Fresh Sahiwal Milk Malai Paneer Tilted 3D Pack"
+      "image_note": "Fresh Sahiwal Milk Malai Paneer 500g Stand-up Pouch"
+    },
+    {
+      "product_id": "9ab837fd-142d-4799-85ef-02a58e93bb8c",
+      "hero_image": "assets/store/milk-cow-bottle-1l.jpg",
+      "hover_image": "assets/store/farm-pasture-cinematic.jpg",
+      "hover_badge": "Farm Fresh A2 Milk",
+      "image_note": "MILTERRA Pure A2 Sahiwal Cow Milk 1 Litre Reusable Glass Bottle"
     },
     {
       "product_id": "0e12db10-a3a8-40c2-a004-6ccdcb9d710b",
       "hero_image": "assets/store/panoramic-ghee-tin-hero-v2.png",
-      "mobile_image": "assets/store/a2-bilona-ghee-tin-cutout.png",
       "hover_image": "assets/store/farm-bilona-cinematic.jpg",
       "hover_badge": "Traditional Valona Bilona",
       "image_note": "2 Litre Heritage A2 Bilona Ghee Tin"
@@ -44,7 +46,6 @@
     {
       "product_id": "e7c41a29-8f3b-410a-b28e-5b12da612002",
       "hero_image": "assets/store/panoramic-mustard-tin-hero-v2.png",
-      "mobile_image": "assets/store/black-mustard-oil-2l-tin-cutout.png",
       "hover_image": "assets/store/lakdi-kolhu-craft-hd.jpg",
       "hover_badge": "Cold-Press Lakdi Kolhu",
       "image_note": "2 Litre Rectangular Mustard Oil Tin"

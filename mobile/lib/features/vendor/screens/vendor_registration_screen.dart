@@ -145,7 +145,7 @@ class _VendorRegistrationScreenState
 
               // Vendor Type
               DropdownButtonFormField<String>(
-                value: _selectedVendorType,
+                initialValue: _selectedVendorType,
                 decoration: const InputDecoration(labelText: 'Vendor Type *'),
                 items: VendorTypes.options.entries
                     .map(

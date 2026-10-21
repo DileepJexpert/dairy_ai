@@ -20,8 +20,9 @@ class SellerPortalNotifier extends StateNotifier<SellerPortalSession> {
       state = SellerPortalSession(sellerAccount: account, isLoggedIn: true);
   Future<void> logout() async {
     await ref.read(authProvider.notifier).logout();
-    if (mounted)
+    if (mounted) {
       state = const SellerPortalSession(sellerAccount: null, isLoggedIn: false);
+    }
   }
 
   Future<void> registerNewSeller(SellerAccount account) async {

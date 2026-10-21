@@ -225,13 +225,16 @@ class _AddCattleScreenState extends ConsumerState<AddCattleScreen> {
       appBar: AppBar(
         title: Text(widget.isEditing ? 'Edit Cattle' : 'Add Cattle'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
               // Photo placeholder
               Center(
                 child: GestureDetector(
@@ -398,6 +401,8 @@ class _AddCattleScreenState extends ConsumerState<AddCattleScreen> {
               ),
             ],
           ),
+        ),
+      ),
         ),
       ),
     );

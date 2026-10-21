@@ -42,6 +42,7 @@ backend/storage/
 
 # Node (if applicable)
 node_modules/
+.vite/
 .wrangler/
 cloudflare/worker/.uv-cache/
 cloudflare/worker/.wrangler/

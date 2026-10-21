@@ -66,7 +66,10 @@ class _CattleDetailBody extends StatelessWidget {
     return DefaultTabController(
       length: 4,
       child: Scaffold(
-        body: NestedScrollView(
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 860),
+            child: NestedScrollView(
           headerSliverBuilder: (context, innerBoxIsScrolled) => [
             SliverAppBar(
               expandedHeight: 260,
@@ -185,6 +188,8 @@ class _CattleDetailBody extends StatelessWidget {
               _MilkTab(cattleId: cattle.id, dateFormat: dateFormat),
               _BreedingTab(cattleId: cattle.id),
             ],
+          ),
+        ),
           ),
         ),
       ),

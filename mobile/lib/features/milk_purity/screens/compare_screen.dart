@@ -47,7 +47,10 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Compare Brands')),
-      body: ListView(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           // Brand selectors
@@ -100,6 +103,8 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
             _ComparisonTable(result: _result!),
           ],
         ],
+      ),
+        ),
       ),
     );
   }

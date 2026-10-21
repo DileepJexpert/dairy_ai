@@ -101,7 +101,7 @@ class _TriageQuickAccessCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          Navigator.of(context).pushNamed('/health/add-record');
+          context.push('/health/triage');
         },
         child: Padding(
           padding: const EdgeInsets.all(20),

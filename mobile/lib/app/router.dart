@@ -41,6 +41,8 @@ import 'package:dairy_ai/features/finance/screens/milterra_wallet_screen.dart';
 import 'package:dairy_ai/features/milk/screens/milk_record_screen.dart';
 import 'package:dairy_ai/features/milk/screens/milk_summary_screen.dart';
 import 'package:dairy_ai/features/feed/screens/feed_plan_screen.dart';
+import 'package:dairy_ai/features/health/screens/farmer_health_triage_screen.dart';
+import 'package:dairy_ai/features/feed/screens/ration_calculator_screen.dart';
 import 'package:dairy_ai/features/breeding/screens/breeding_screen.dart';
 import 'package:dairy_ai/features/chat/screens/chat_screen.dart';
 import 'package:dairy_ai/features/profile/screens/profile_screen.dart';
@@ -680,6 +682,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/breeding',
         builder: (context, state) => const BreedingScreen(),
+      ),
+      GoRoute(
+        path: '/health/triage',
+        builder: (context, state) => const FarmerHealthTriageScreen(),
+      ),
+      GoRoute(
+        path: '/feed/calculator',
+        builder: (context, state) => const RationCalculatorScreen(),
       ),
       GoRoute(
         path: '/herd/lifecycle/:cattleId',

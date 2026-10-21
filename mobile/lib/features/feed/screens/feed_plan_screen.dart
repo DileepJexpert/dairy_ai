@@ -44,6 +44,13 @@ class _FeedPlanScreenState extends ConsumerState<FeedPlanScreen>
             Tab(text: 'History'),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: 'संतुलित चारा कैलकुलेटर (Ration Balancer)',
+            icon: const Icon(Icons.calculate_outlined, color: Colors.white),
+            onPressed: () => context.push('/feed/calculator'),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -77,14 +84,28 @@ class _FeedPlanScreenState extends ConsumerState<FeedPlanScreen>
           // -- Tab content --
           Expanded(
             child: _selectedCattleId == null
-                ? const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.grass, size: 64, color: Colors.grey),
-                        SizedBox(height: 12),
-                        Text('Select cattle to view feed plan'),
-                      ],
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.grass, size: 64, color: Color(0xff047857)),
+                          const SizedBox(height: 12),
+                          const Text('Select cattle above to view feed plan, or calculate custom diet:'),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: () => context.push('/feed/calculator'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xff064e3b),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            ),
+                            icon: const Icon(Icons.calculate),
+                            label: const Text('चारा व राशन कैलकुलेटर (Ration Balancer)'),
+                          ),
+                        ],
+                      ),
                     ),
                   )
                 : TabBarView(

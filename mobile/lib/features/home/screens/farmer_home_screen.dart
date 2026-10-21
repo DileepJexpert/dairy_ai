@@ -28,6 +28,16 @@ import '../providers/home_provider.dart';
 class FarmerHomeScreen extends ConsumerWidget {
   const FarmerHomeScreen({super.key});
 
+  Widget _wrapDesktopWidth(Widget child) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1200),
+        child: child,
+      ),
+    );
+  }
+
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboardAsync = ref.watch(dashboardStatsProvider);
@@ -51,43 +61,47 @@ class FarmerHomeScreen extends ConsumerWidget {
               _buildAppBar(context, ref, stats, isAuthenticated: isAuthenticated),
               if (!isAuthenticated) ...[
                 // Open Ecosystem Portal View
-                SliverToBoxAdapter(child: _buildHeroWelcome(context, ref)),
-                SliverToBoxAdapter(child: _buildNetworkVitals(context)),
+                SliverToBoxAdapter(child: _wrapDesktopWidth(_buildHeroWelcome(context, ref))),
+                SliverToBoxAdapter(child: _wrapDesktopWidth(_buildNetworkVitals(context))),
                 SliverToBoxAdapter(
-                  child: _buildVeterinaryPortalSection(
-                    context,
-                    ref,
-                    isAuthenticated: isAuthenticated,
+                  child: _wrapDesktopWidth(
+                    _buildVeterinaryPortalSection(
+                      context,
+                      ref,
+                      isAuthenticated: isAuthenticated,
+                    ),
                   ),
                 ),
-                SliverToBoxAdapter(child: _buildCommerceSection(context)),
-                SliverToBoxAdapter(child: _buildCommunitySocialSection(context, ref, isAuthenticated: isAuthenticated)),
-                SliverToBoxAdapter(child: _buildCommunityBulletin(context)),
-                SliverToBoxAdapter(child: _buildErpGatewayBanner(context, ref)),
+                SliverToBoxAdapter(child: _wrapDesktopWidth(_buildCommerceSection(context))),
+                SliverToBoxAdapter(child: _wrapDesktopWidth(_buildCommunitySocialSection(context, ref, isAuthenticated: isAuthenticated))),
+                SliverToBoxAdapter(child: _wrapDesktopWidth(_buildCommunityBulletin(context))),
+                SliverToBoxAdapter(child: _wrapDesktopWidth(_buildErpGatewayBanner(context, ref))),
               ] else ...[
                 // Authenticated Dairy Farmer ERP View
-                SliverToBoxAdapter(child: _buildStatsGrid(context, stats)),
-                SliverToBoxAdapter(child: _buildBreedingAlertCard(context)),
-                SliverToBoxAdapter(child: _buildQuickActions(context)),
-                SliverToBoxAdapter(child: _buildFarmerShortcuts(context)),
-                SliverToBoxAdapter(child: _buildCommunitySocialSection(context, ref, isAuthenticated: isAuthenticated)),
+                SliverToBoxAdapter(child: _wrapDesktopWidth(_buildStatsGrid(context, stats))),
+                SliverToBoxAdapter(child: _wrapDesktopWidth(_buildBreedingAlertCard(context))),
+                SliverToBoxAdapter(child: _wrapDesktopWidth(_buildQuickActions(context))),
+                SliverToBoxAdapter(child: _wrapDesktopWidth(_buildFarmerShortcuts(context))),
+                SliverToBoxAdapter(child: _wrapDesktopWidth(_buildCommunitySocialSection(context, ref, isAuthenticated: isAuthenticated))),
                 SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Recent Activity',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        TextButton(
-                          onPressed: () => context.push('/more/milk-summary'),
-                          child: const Text('View All'),
-                        ),
-                      ],
+                  child: _wrapDesktopWidth(
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Recent Activity',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          TextButton(
+                            onPressed: () => context.push('/more/milk-summary'),
+                            child: const Text('View All'),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -494,43 +508,48 @@ class FarmerHomeScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 10),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.5,
-            children: [
-              StatCard(
-                icon: Icons.medical_services_outlined,
-                label: 'Certified Vets',
-                value: '18+ Doctors',
-                color: Colors.teal,
-                onTap: () => context.push('/more/vet'),
-              ),
-              StatCard(
-                icon: Icons.pets,
-                label: 'Tracked Cattle',
-                value: '8,500+ Herd',
-                color: Colors.indigo,
-                onTap: () => context.push('/login?next=/herd'),
-              ),
-              StatCard(
-                icon: Icons.water_drop_outlined,
-                label: 'Daily Milk Flow',
-                value: '45,000+ L',
-                color: Colors.blue,
-                onTap: () => context.push('/purity'),
-              ),
-              StatCard(
-                icon: Icons.shopping_bag_outlined,
-                label: 'Feed & Supplies',
-                value: '60+ Products',
-                color: Colors.amber.shade800,
-                onTap: () => launchUrl(Uri.parse('https://milterrafoods.com'), mode: LaunchMode.externalApplication),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 720;
+              return GridView.count(
+                crossAxisCount: isWide ? 4 : 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: isWide ? 1.75 : 1.45,
+                children: [
+                  StatCard(
+                    icon: Icons.medical_services_outlined,
+                    label: 'Certified Vets',
+                    value: '18+ Doctors',
+                    color: Colors.teal,
+                    onTap: () => context.push('/more/vet'),
+                  ),
+                  StatCard(
+                    icon: Icons.pets,
+                    label: 'Tracked Cattle',
+                    value: '8,500+ Herd',
+                    color: Colors.indigo,
+                    onTap: () => context.push('/login?next=/herd'),
+                  ),
+                  StatCard(
+                    icon: Icons.water_drop_outlined,
+                    label: 'Daily Milk Flow',
+                    value: '45,000+ L',
+                    color: Colors.blue,
+                    onTap: () => context.push('/purity'),
+                  ),
+                  StatCard(
+                    icon: Icons.shopping_bag_outlined,
+                    label: 'Feed & Supplies',
+                    value: '60+ Products',
+                    color: Colors.amber.shade800,
+                    onTap: () => launchUrl(Uri.parse('https://milterrafoods.com'), mode: LaunchMode.externalApplication),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -1577,43 +1596,48 @@ class FarmerHomeScreen extends ConsumerWidget {
   Widget _buildStatsGrid(BuildContext context, DashboardStats stats) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: GridView.count(
-        crossAxisCount: 2,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 1.5,
-        children: [
-          StatCard(
-            icon: Icons.pets,
-            label: 'Total Cattle',
-            value: '${stats.totalCattle}',
-            color: Colors.teal,
-            onTap: () => context.push('/herd'),
-          ),
-          StatCard(
-            icon: Icons.receipt_long,
-            label: "Dugdha Passbook",
-            value: '${stats.todayMilkLitres.toStringAsFixed(1)} L',
-            color: Colors.blue,
-            onTap: () => context.push('/passbook'),
-          ),
-          StatCard(
-            icon: Icons.warning_amber_rounded,
-            label: 'Health Alerts',
-            value: '${stats.pendingHealthAlerts}',
-            color: stats.pendingHealthAlerts > 0 ? Colors.red : Colors.green,
-            onTap: () => context.push('/health'),
-          ),
-          StatCard(
-            icon: Icons.vaccines,
-            label: 'Vaccinations Due',
-            value: '${stats.upcomingVaccinations}',
-            color: Colors.orange,
-            onTap: () => context.push('/health/vaccinations'),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 720;
+          return GridView.count(
+            crossAxisCount: isWide ? 4 : 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: isWide ? 1.75 : 1.45,
+            children: [
+              StatCard(
+                icon: Icons.pets,
+                label: 'Total Cattle',
+                value: '${stats.totalCattle}',
+                color: Colors.teal,
+                onTap: () => context.push('/herd'),
+              ),
+              StatCard(
+                icon: Icons.receipt_long,
+                label: "Dugdha Passbook",
+                value: '${stats.todayMilkLitres.toStringAsFixed(1)} L',
+                color: Colors.blue,
+                onTap: () => context.push('/passbook'),
+              ),
+              StatCard(
+                icon: Icons.warning_amber_rounded,
+                label: 'Health Alerts',
+                value: '${stats.pendingHealthAlerts}',
+                color: stats.pendingHealthAlerts > 0 ? Colors.red : Colors.green,
+                onTap: () => context.push('/health'),
+              ),
+              StatCard(
+                icon: Icons.vaccines,
+                label: 'Vaccinations Due',
+                value: '${stats.upcomingVaccinations}',
+                color: Colors.orange,
+                onTap: () => context.push('/health/vaccinations'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

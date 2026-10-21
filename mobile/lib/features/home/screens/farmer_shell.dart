@@ -5,7 +5,8 @@ import 'package:dairy_ai/shared/widgets/farmer_responsive.dart';
 
 /// Responsive navigation shell for farmer role.
 /// - Mobile (< 640px): Standard bottom navigation bar with 48px+ thumb targets.
-/// - Tablet & Desktop (>= 640px): Left navigation rail with dedicated branding and centered layout.
+/// - Tablet (640px - 1024px): Compact left navigation rail (72px).
+/// - Desktop / Big Monitor (>= 1024px): Extended full sidebar (220px) with icons & labels.
 class FarmerShell extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
@@ -13,57 +14,95 @@ class FarmerShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isCompact = FarmerBreakpoints.isMobile(context);
+    final width = MediaQuery.sizeOf(context).width;
+    final isMobile = width < FarmerBreakpoints.mobileMax;
+    final isDesktop = width >= 1024;
 
-    if (!isCompact) {
-      // Tablet & Desktop view: Left Navigation Rail + Centered Content
+    if (!isMobile) {
+      // Tablet & Desktop view: Left Navigation Rail / Extended Sidebar
       return Scaffold(
+        backgroundColor: const Color(0xfff8fafc),
         body: Row(
           children: [
             NavigationRail(
+              extended: isDesktop,
+              minExtendedWidth: 220,
+              backgroundColor: Colors.white,
               selectedIndex: navigationShell.currentIndex,
               onDestinationSelected: (index) => navigationShell.goBranch(
                 index,
                 initialLocation: index == navigationShell.currentIndex,
               ),
-              labelType: NavigationRailLabelType.all,
+              labelType: isDesktop
+                  ? NavigationRailLabelType.none
+                  : NavigationRailLabelType.all,
               leading: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Column(
+                padding: EdgeInsets.symmetric(
+                  vertical: 18,
+                  horizontal: isDesktop ? 16 : 8,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
-                        color: DairyTheme.primaryGreen.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.agriculture_rounded,
-                          color: DairyTheme.primaryGreen, size: 28),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Milterra\nFarmer',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
                         color: DairyTheme.primaryGreen,
-                        height: 1.1,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x22064e3b),
+                            blurRadius: 6,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.pets,
+                        color: Colors.white,
+                        size: 22,
                       ),
                     ),
+                    if (isDesktop) ...[
+                      const SizedBox(width: 12),
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Milterra Dairy',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Color(0xff064e3b),
+                            ),
+                          ),
+                          Text(
+                            'Farmer Portal',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Color(0xff64748b),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
               selectedIconTheme:
                   const IconThemeData(color: DairyTheme.primaryGreen),
+              unselectedIconTheme:
+                  const IconThemeData(color: Color(0xff64748b)),
               selectedLabelTextStyle: const TextStyle(
                 color: DairyTheme.primaryGreen,
                 fontWeight: FontWeight.bold,
-                fontSize: 12,
+                fontSize: 13,
               ),
               unselectedLabelTextStyle: const TextStyle(
-                color: DairyTheme.subtleGrey,
-                fontSize: 11,
+                color: Color(0xff64748b),
+                fontSize: 12,
               ),
               destinations: const [
                 NavigationRailDestination(
@@ -89,19 +128,15 @@ class FarmerShell extends StatelessWidget {
                 NavigationRailDestination(
                   icon: Icon(Icons.more_horiz),
                   selectedIcon: Icon(Icons.more_horiz),
-                  label: Text('More'),
+                  label: Text('More Features'),
                 ),
               ],
             ),
             const VerticalDivider(
                 thickness: 1, width: 1, color: Color(0xffe2e8f0)),
+            // Main content area fills remaining screen without narrow box restriction
             Expanded(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 860),
-                  child: navigationShell,
-                ),
-              ),
+              child: navigationShell,
             ),
           ],
         ),

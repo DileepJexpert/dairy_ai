@@ -248,6 +248,7 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
   DateTime _selectedDate = DateTime.now();
   String _selectedShift = 'morning'; // 'morning', 'evening', 'full_day'
   int _selectedCattleId = 0; // 0 = All Herd Bulk
+  bool _autoCalculateTotal = true; // Auto-sums channels into Total Production
   final _totalProductionController = TextEditingController(text: '175.0');
   final _avgFatController = TextEditingController(text: '4.30');
   final _avgSnfController = TextEditingController(text: '8.60');
@@ -298,6 +299,9 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
         hasSlipAttached: false,
       ),
     ];
+    // Sync total production with initial channels
+    final initSum = _channels.fold(0.0, (sum, item) => sum + item.litres);
+    _totalProductionController.text = initSum.toStringAsFixed(1);
   }
 
   @override
@@ -343,12 +347,20 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
           paymentMode: 'cash_upi',
         ),
       );
+      if (_autoCalculateTotal) {
+        _totalProductionController.text = _totalDispatched.toStringAsFixed(1);
+      }
     });
   }
 
   void _removeChannel(int index) {
     if (_channels.length <= 1) return;
-    setState(() => _channels.removeAt(index));
+    setState(() {
+      _channels.removeAt(index);
+      if (_autoCalculateTotal) {
+        _totalProductionController.text = _totalDispatched.toStringAsFixed(1);
+      }
+    });
   }
 
   Future<void> _pickDate() async {
@@ -591,12 +603,54 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                   ),
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  onChanged: (_) => setState(() {}),
+                  onChanged: (val) {
+                    setState(() {
+                      _autoCalculateTotal = false; // User manually overridden
+                    });
+                  },
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _autoCalculateTotal = true;
+                    _totalProductionController.text = _totalDispatched.toStringAsFixed(1);
+                  });
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _autoCalculateTotal ? Icons.check_circle : Icons.sync,
+                        size: 13,
+                        color: _autoCalculateTotal ? const Color(0xff16a34a) : const Color(0xff2563eb),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _autoCalculateTotal
+                            ? 'चैनलों से स्वतः कुल योग: ${_totalDispatched.toStringAsFixed(1)} L'
+                            : 'चैनलों का कुल योग: ${_totalDispatched.toStringAsFixed(1)} L (यहाँ भरें 🔄)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: _autoCalculateTotal ? const Color(0xff16a34a) : const Color(0xff2563eb),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
           Row(
             children: [
               Expanded(
@@ -797,7 +851,12 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                       const TextInputType.numberWithOptions(decimal: true),
                   onChanged: (val) {
                     final d = double.tryParse(val) ?? 0.0;
-                    setState(() => item.litres = d);
+                    setState(() {
+                      item.litres = d;
+                      if (_autoCalculateTotal) {
+                        _totalProductionController.text = _totalDispatched.toStringAsFixed(1);
+                      }
+                    });
                   },
                 ),
               ),
@@ -915,29 +974,52 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                 ),
               ),
               const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: isDispatchedMatch
-                      ? const Color(0xffdcfce7)
-                      : const Color(0xfffee2e2),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
+              InkWell(
+                onTap: !isDispatchedMatch
+                    ? () {
+                        setState(() {
+                          _autoCalculateTotal = true;
+                          _totalProductionController.text = _totalDispatched.toStringAsFixed(1);
+                        });
+                      }
+                    : null,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
                     color: isDispatchedMatch
-                        ? const Color(0xff86efac)
-                        : const Color(0xfffca5a5),
+                        ? const Color(0xffdcfce7)
+                        : (_balanceLitres < -0.05
+                            ? const Color(0xfffee2e2)
+                            : const Color(0xfffef3c7)),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isDispatchedMatch
+                          ? const Color(0xff86efac)
+                          : (_balanceLitres < -0.05
+                              ? const Color(0xfffca5a5)
+                              : const Color(0xfffcd34d)),
+                    ),
                   ),
-                ),
-                child: Text(
-                  isDispatchedMatch
-                      ? 'दूध वितरण संतुलित (100% Dispatched)'
-                      : 'शेष दूध: ${_balanceLitres.toStringAsFixed(1)}L',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: isDispatchedMatch
-                        ? const Color(0xff15803d)
-                        : const Color(0xffb91c1c),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        isDispatchedMatch
+                            ? '✅ दूध वितरण संतुलित (100% Dispatched)'
+                            : (_balanceLitres < -0.05
+                                ? '⚠️ ${_balanceLitres.abs().toStringAsFixed(1)}L अतिरिक्त वितरण (कुल दूध ${_totalDispatched.toStringAsFixed(1)}L करें 🔄)'
+                                : '🥛 शेष दूध: +${_balanceLitres.toStringAsFixed(1)}L बचा'),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: isDispatchedMatch
+                              ? const Color(0xff15803d)
+                              : (_balanceLitres < -0.05
+                                  ? const Color(0xffb91c1c)
+                                  : const Color(0xffb45309)),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

@@ -38,6 +38,7 @@ import 'package:dairy_ai/features/health/screens/vaccination_screen.dart';
 import 'package:dairy_ai/features/finance/screens/finance_dashboard_screen.dart';
 import 'package:dairy_ai/features/finance/screens/add_transaction_screen.dart';
 import 'package:dairy_ai/features/finance/screens/milterra_wallet_screen.dart';
+import 'package:dairy_ai/features/finance/screens/pashu_credit_score_screen.dart';
 import 'package:dairy_ai/features/milk/screens/milk_record_screen.dart';
 import 'package:dairy_ai/features/milk/screens/milk_summary_screen.dart';
 import 'package:dairy_ai/features/feed/screens/feed_plan_screen.dart';
@@ -933,6 +934,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                     path: 'add',
                     builder: (context, state) => const AddTransactionScreen(),
                   ),
+                  GoRoute(
+                    path: 'pashu-credit',
+                    builder: (context, state) => const PashuCreditScoreScreen(),
+                  ),
                 ],
               ),
             ],
@@ -1273,6 +1278,12 @@ class _MoreMenuScreen extends StatelessWidget {
                 label: 'दूध सारांश व इतिहास (Milk Summary & Analytics)',
                 subtitle: 'उत्पादन चार्ट, गुणवत्ता फैट % व प्रति-पशु रिकॉर्ड',
                 onTap: () => context.go('/more/milk-summary'),
+              ),
+              _MoreTile(
+                icon: Icons.account_balance,
+                label: 'पशु क्रेडिट स्कोर व बैंक लोन (Pashu CIBIL & KCC Loans)',
+                subtitle: 'हेल्थ-समर्थित KCC लोन ₹1.6-3 लाख @ 4%, बैंक डॉसियर व दैनिक एस्क्रो EMI',
+                onTap: () => context.push('/finance/pashu-credit'),
               ),
               _MoreTile(
                 icon: Icons.folder_shared_outlined,

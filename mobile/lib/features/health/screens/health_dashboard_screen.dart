@@ -44,6 +44,8 @@ class HealthDashboardScreen extends ConsumerWidget {
             _TriageQuickAccessCard(),
             const SizedBox(height: 12),
             _DiseaseEncyclopediaCard(),
+            const SizedBox(height: 12),
+            const _PashuCreditHealthCard(),
             const SizedBox(height: 20),
 
             // --- Sensor Alerts ---
@@ -247,6 +249,100 @@ class _DiseaseEncyclopediaCard extends StatelessWidget {
                 color: Colors.teal.shade700,
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pashu CIBIL Credit & Loan Banner in Health Screen
+// ---------------------------------------------------------------------------
+class _PashuCreditHealthCard extends StatelessWidget {
+  const _PashuCreditHealthCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xfff0fdf4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xff86efac)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => context.push('/finance/pashu-credit'),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xff16a34a).withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.account_balance,
+                    color: Color(0xff16a34a),
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'हेल्थ समर्थित KCC लोन @ 4%',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13.5,
+                              color: Color(0xff14532d),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xffdcfce7),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'Pashu CIBIL',
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xff15803d),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'टीकाकरण व कम रोग जोखिम से पाएं पूर्व-स्वीकृत ₹1.6-3 लाख व 50% बीमा छूट',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: const Color(0xff166534).withValues(alpha: 0.85),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 14,
+                  color: Color(0xff16a34a),
+                ),
+              ],
+            ),
           ),
         ),
       ),

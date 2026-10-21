@@ -312,4 +312,76 @@ describe('Financial & Milk Collection Automation E2E Suite', () => {
     expect(data.data.loans.length).toBe(1);
     expect(data.data.loans[0].loan_type).toBe('feed_advance');
   });
+
+  it('GET /api/v1/finance/pashu-credit-score computes 300-900 score and pre-approved loan limits', async () => {
+    const res = await app.request(
+      `/api/v1/finance/pashu-credit-score?farmer_id=${createdFarmerId}`,
+      {
+        headers: { 'x-test-customer-id': farmerUserId },
+      },
+      testEnv
+    );
+
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as any;
+    expect(data.success).toBe(true);
+    expect(data.data.score).toBeGreaterThanOrEqual(300);
+    expect(data.data.score).toBeLessThanOrEqual(900);
+    expect(data.data.grade).toBeDefined();
+    expect(data.data.pillars.length).toBe(5);
+    expect(data.data.pre_approved_offers.length).toBeGreaterThanOrEqual(3);
+
+    // Verify KCC offer
+    const kccOffer = data.data.pre_approved_offers.find((o: any) => o.id === 'offer-kcc');
+    expect(kccOffer).toBeDefined();
+    expect(kccOffer.max_amount).toBeGreaterThanOrEqual(100000);
+    expect(kccOffer.interest_rate_pct).toBe(4.0);
+    expect(kccOffer.collateral_required).toBe(false);
+  });
+
+  it('GET /api/v1/finance/bank-dossier generates certified bank-ready loan audit document', async () => {
+    const res = await app.request(
+      `/api/v1/finance/bank-dossier?farmer_id=${createdFarmerId}`,
+      {
+        headers: { 'x-test-customer-id': farmerUserId },
+      },
+      testEnv
+    );
+
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as any;
+    expect(data.success).toBe(true);
+    expect(data.data.certificate_id).toMatch(/^MIL-DOSSIER-/);
+    expect(data.data.herd_health_audit.fmd_vaccine_status).toBeDefined();
+    expect(data.data.underwriting_recommendation.recommended_kcc_limit).toBe(160000);
+    expect(data.data.underwriting_recommendation.escrow_daily_deduction).toBeGreaterThan(0);
+  });
+
+  it('POST /api/v1/finance/loans/kcc-apply submits pre-approved KCC loan with milk escrow', async () => {
+    const res = await app.request(
+      '/api/v1/finance/loans/kcc-apply',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-test-customer-id': farmerUserId,
+        },
+        body: JSON.stringify({
+          loan_type: 'kcc_dairy',
+          requested_amount: 150000,
+          preferred_bank: 'State Bank of India (SBI)',
+          repayment_mode: 'daily_milk_escrow',
+        }),
+      },
+      testEnv
+    );
+
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as any;
+    expect(data.success).toBe(true);
+    expect(data.data.status).toBe('pre_approved');
+    expect(data.data.sanctioned_amount).toBe(150000);
+    expect(data.data.interest_rate_pct).toBe(4.0);
+    expect(data.data.daily_escrow).toBeGreaterThan(0);
+  });
 });

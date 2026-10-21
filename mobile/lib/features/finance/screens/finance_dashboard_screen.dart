@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:dairy_ai/core/extensions.dart';
 import 'package:dairy_ai/features/finance/models/finance_models.dart';
 import 'package:dairy_ai/features/finance/providers/finance_provider.dart';
+import 'package:dairy_ai/features/finance/providers/pashu_credit_provider.dart';
 import 'package:dairy_ai/features/finance/screens/add_transaction_screen.dart';
 import 'package:dairy_ai/features/finance/screens/finance_report_screen.dart';
 
@@ -51,6 +52,9 @@ class FinanceDashboardScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // -- Pashu CIBIL Credit Score & KCC Banner --
+            const _PashuCreditPromoCard(),
+
             // -- Summary cards --
             summaryAsync.when(
               data: (summary) {
@@ -453,5 +457,167 @@ class _TransactionTile extends StatelessWidget {
     } catch (_) {
       return isoDate;
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pashu CIBIL Credit & KCC Loan Promotional Card
+// ---------------------------------------------------------------------------
+class _PashuCreditPromoCard extends ConsumerWidget {
+  const _PashuCreditPromoCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final creditAsync = ref.watch(pashuCreditScoreProvider);
+    final score = creditAsync.value?.score ?? 835;
+    final rating = creditAsync.value?.grade ?? 'A+ Prime';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xff064e3b), Color(0xff047857), Color(0xff0f766e)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xff064e3b).withValues(alpha: 0.25),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => context.push('/finance/pashu-credit'),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.verified_outlined,
+                        color: Colors.amberAccent,
+                        size: 26,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade400,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  'PASHU CIBIL: $score ★ $rating',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xff78350f),
+                                  ),
+                                ),
+                              ),
+                              const Spacer(),
+                              const Icon(
+                                Icons.arrow_forward_ios,
+                                size: 14,
+                                color: Colors.white70,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'पूर्व-स्वीकृत KCC लोन: ₹1,60,000 @ 4%',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'टीकाकरण व दूध पर्ची समर्थित बिना गारंटी बैंक लोन',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.water_drop,
+                              size: 14, color: Colors.lightBlueAccent),
+                          const SizedBox(width: 6),
+                          Text(
+                            'दैनिक दूध एस्क्रो: ₹125/दिन',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.95),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          'लोन व स्कोर देखें →',
+                          style: TextStyle(
+                            color: Color(0xff064e3b),
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -18,13 +18,23 @@ class _CattleLifecycleScreenState extends State<CattleLifecycleScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: storeCream,
-      body: Column(
-        children: [
-          const StoreHeader(currentCategory: 'All'),
-          const StoreCategoryNavigation(selected: 'Cattle Lifecycle'),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      appBar: AppBar(
+        title: Text('Cattle #${widget.cattleId} Lifecycle'),
+        backgroundColor: const Color(0xff064e3b),
+        foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/herd');
+            }
+          },
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 860),
@@ -77,9 +87,6 @@ class _CattleLifecycleScreenState extends State<CattleLifecycleScreen> {
                 ),
               ),
             ),
-          ),
-        ],
-      ),
     );
   }
 

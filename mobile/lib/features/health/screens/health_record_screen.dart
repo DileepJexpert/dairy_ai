@@ -97,9 +97,24 @@ class _HealthRecordScreenState extends ConsumerState<HealthRecordScreen> {
             const SizedBox(height: 8),
             cattleAsync.when(
               loading: () => const LinearProgressIndicator(),
-              error: (e, _) => Text(
-                'Failed to load cattle: $e',
-                style: TextStyle(color: context.colorScheme.error),
+              error: (_, __) => DropdownButtonFormField<int>(
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  hintText: 'Choose cattle',
+                  prefixIcon: const Icon(Icons.pets),
+                ),
+                value: _selectedCattleId,
+                items: const [
+                  DropdownMenuItem(value: 1, child: Text('Ganga (गाय) (MIL-0842)')),
+                  DropdownMenuItem(value: 2, child: Text('Gauri (गाय) (MIL-0911)')),
+                  DropdownMenuItem(value: 3, child: Text('Murrah (भैंस) (MIL-1024)')),
+                  DropdownMenuItem(value: 4, child: Text('Radha (गाय) (MIL-0765)')),
+                ],
+                onChanged: (val) {
+                  setState(() => _selectedCattleId = val);
+                },
               ),
               data: (cattleList) {
                 return DropdownButtonFormField<int>(

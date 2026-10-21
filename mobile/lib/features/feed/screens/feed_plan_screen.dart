@@ -77,7 +77,7 @@ class _FeedPlanScreenState extends ConsumerState<FeedPlanScreen>
                 hint: const Text('Choose an animal'),
               ),
               loading: () => const LinearProgressIndicator(),
-              error: (e, _) => Text('Failed to load cattle: $e'),
+              error: (_, __) => const SizedBox.shrink(),
             ),
           ),
 

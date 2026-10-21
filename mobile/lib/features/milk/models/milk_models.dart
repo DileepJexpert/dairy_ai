@@ -41,9 +41,16 @@ class MilkRecord {
       (pricePerLitre ?? 0) * quantityLitres;
 
   factory MilkRecord.fromJson(Map<String, dynamic> json) {
+    final rawId = json['id'];
+    final int? parsedId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+    final rawCattleId = json['cattle_id'];
+    final int parsedCattleId = rawCattleId is int
+        ? rawCattleId
+        : (int.tryParse(rawCattleId?.toString() ?? '') ?? (rawCattleId.toString().hashCode.abs() % 100000));
+
     return MilkRecord(
-      id: json['id'] as int?,
-      cattleId: json['cattle_id'] as int,
+      id: parsedId,
+      cattleId: parsedCattleId,
       cattleName: json['cattle_name'] as String?,
       cattleTagId: json['cattle_tag_id'] as String?,
       date: DateTime.parse(json['date'] as String),
@@ -54,7 +61,7 @@ class MilkRecord {
       quantityLitres: (json['quantity_litres'] as num).toDouble(),
       fatPct: (json['fat_pct'] as num?)?.toDouble(),
       snfPct: (json['snf_pct'] as num?)?.toDouble(),
-      buyerType: _parseBuyerType(json['buyer'] as String?),
+      buyerType: _parseBuyerType(json['buyer'] as String? ?? json['buyer_name'] as String?),
       buyerName: json['buyer_name'] as String?,
       pricePerLitre: (json['price_per_litre'] as num?)?.toDouble(),
     );
@@ -191,8 +198,13 @@ class CattleMilkBreakdown {
   });
 
   factory CattleMilkBreakdown.fromJson(Map<String, dynamic> json) {
+    final rawCattleId = json['cattle_id'];
+    final int parsedCattleId = rawCattleId is int
+        ? rawCattleId
+        : (int.tryParse(rawCattleId?.toString() ?? '') ?? (rawCattleId.toString().hashCode.abs() % 100000));
+
     return CattleMilkBreakdown(
-      cattleId: json['cattle_id'] as int,
+      cattleId: parsedCattleId,
       cattleName: json['cattle_name'] as String? ?? 'Unknown',
       cattleTagId: json['cattle_tag_id'] as String?,
       totalLitres: (json['total_litres'] as num).toDouble(),
@@ -222,8 +234,11 @@ class MilkPrice {
   });
 
   factory MilkPrice.fromJson(Map<String, dynamic> json) {
+    final rawId = json['id'];
+    final int parsedId = rawId is int ? rawId : (int.tryParse(rawId?.toString() ?? '') ?? 1);
+
     return MilkPrice(
-      id: json['id'] as int,
+      id: parsedId,
       district: json['district'] as String,
       buyerName: json['buyer_name'] as String,
       pricePerLitre: (json['price_per_litre'] as num).toDouble(),

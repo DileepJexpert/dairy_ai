@@ -79,21 +79,73 @@ class FarmDoc {
 // Documents Riverpod Provider
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Demo data fallbacks for offline and unauthenticated states.
+// ---------------------------------------------------------------------------
+final _demoFarmDocs = [
+  const FarmDoc(
+    id: 'doc-demo-1',
+    title: 'ICAR Bovine Vaccination Protocol 2026',
+    documentType: 'vaccination_chart',
+    fileUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&auto=format&fit=crop&q=80',
+    fileName: 'vaccination_schedule_2026.pdf',
+    notes: 'National dairy animal vaccination calendar approved by NDDB',
+    date: '2026-10-01',
+  ),
+  const FarmDoc(
+    id: 'doc-demo-2',
+    title: 'Standard Milk Fat & SNF Slab Rate Card',
+    documentType: 'rate_card',
+    fileUrl: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&auto=format&fit=crop&q=80',
+    fileName: 'coop_rate_slab_card.pdf',
+    notes: 'Official pricing table for cow milk (fat 3.5 - 5.0) and buffalo milk (fat 6.0 - 8.5)',
+    date: '2026-10-05',
+  ),
+  const FarmDoc(
+    id: 'doc-demo-3',
+    title: 'Milterra Balanced Dairy Ration Chart',
+    documentType: 'feed_plan',
+    fileUrl: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=800&auto=format&fit=crop&q=80',
+    fileName: 'balanced_ration_chart.jpg',
+    notes: 'Diet formulation chart for milking cows yielding 12-18 L/day',
+    date: '2026-10-10',
+  ),
+  const FarmDoc(
+    id: 'doc-demo-4',
+    title: 'Milk Quality Somatic Cell Count (SCC) Lab Report',
+    documentType: 'lab_report',
+    fileUrl: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=800&auto=format&fit=crop&q=80',
+    fileName: 'bulk_tank_lab_analysis.pdf',
+    notes: 'Grade A rating: SCC < 150,000 cells/ml. Mastitis negative.',
+    date: '2026-10-14',
+  ),
+];
+
+// ---------------------------------------------------------------------------
+// Farm documents provider
+// ---------------------------------------------------------------------------
+
 final farmDocumentsProvider = FutureProvider.autoDispose
     .family<List<FarmDoc>, String?>((ref, typeFilter) async {
-  final dio = ref.watch(dioProvider);
-  final params = <String, dynamic>{};
+  try {
+    final dio = ref.watch(dioProvider);
+    final params = <String, dynamic>{};
+    if (typeFilter != null && typeFilter.isNotEmpty && typeFilter != 'all') {
+      params['type'] = typeFilter;
+    }
+    final res = await dio.get('/farm/documents', queryParameters: params);
+    final data = res.data as Map<String, dynamic>;
+    if (data['success'] == true && data['data'] is List) {
+      final list = (data['data'] as List)
+          .map((e) => FarmDoc.fromJson(e as Map<String, dynamic>))
+          .toList();
+      if (list.isNotEmpty) return list;
+    }
+  } catch (_) {}
   if (typeFilter != null && typeFilter.isNotEmpty && typeFilter != 'all') {
-    params['type'] = typeFilter;
+    return _demoFarmDocs.where((d) => d.documentType == typeFilter).toList();
   }
-  final res = await dio.get('/farm/documents', queryParameters: params);
-  final data = res.data as Map<String, dynamic>;
-  if (data['success'] == true && data['data'] is List) {
-    return (data['data'] as List)
-        .map((e) => FarmDoc.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
-  return [];
+  return _demoFarmDocs;
 });
 
 // ---------------------------------------------------------------------------

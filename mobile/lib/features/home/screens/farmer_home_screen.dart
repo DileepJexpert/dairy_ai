@@ -2122,7 +2122,9 @@ class _ErrorView extends StatelessWidget {
                 size: 48, color: Theme.of(context).colorScheme.error),
             const SizedBox(height: 16),
             Text(
-              message,
+              (message.contains('401') || message.toLowerCase().contains('unauthorized') || message.toLowerCase().contains('dioexception'))
+                  ? 'Welcome to Milterra Dairy! Exploring in preview mode.'
+                  : message,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),

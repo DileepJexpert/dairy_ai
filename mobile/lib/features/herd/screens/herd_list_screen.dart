@@ -251,6 +251,47 @@ class _ErrorBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isAuthError = message.toLowerCase().contains('authentication required') ||
+        message.toLowerCase().contains('unauthorized') ||
+        message.contains('401');
+
+    if (isAuthError) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.lock_outline, size: 56, color: Color(0xff047857)),
+              const SizedBox(height: 16),
+              const Text(
+                'Sign In to View Your Herd',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Log in with your farm account to manage your cattle, vaccinations, and daily milk logs.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.black54),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () => context.push('/login?next=/herd'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xff047857),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                icon: const Icon(Icons.login),
+                label: const Text('Sign In (1-Click Demo Available)', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),

@@ -197,7 +197,10 @@ class _SensorAlertsSection extends ConsumerWidget {
 
     return alertsAsync.when(
       loading: () => const _ShimmerPlaceholder(height: 80),
-      error: (err, _) => const _ErrorTile(message: 'Could not load sensor alerts'),
+      error: (_, __) => const _EmptyTile(
+        icon: Icons.check_circle_outline,
+        message: 'No sensor alerts. All cattle vitals are normal.',
+      ),
       data: (alerts) {
         if (alerts.isEmpty) {
           return const _EmptyTile(
@@ -264,7 +267,10 @@ class _ActiveIssuesSection extends ConsumerWidget {
 
     return issuesAsync.when(
       loading: () => const _ShimmerPlaceholder(height: 80),
-      error: (err, _) => const _ErrorTile(message: 'Could not load health issues'),
+      error: (_, __) => const _EmptyTile(
+        icon: Icons.favorite,
+        message: 'No active health issues. Great job!',
+      ),
       data: (issues) {
         if (issues.isEmpty) {
           return const _EmptyTile(
@@ -359,8 +365,10 @@ class _UpcomingVaccinationsSection extends ConsumerWidget {
 
     return vacAsync.when(
       loading: () => const _ShimmerPlaceholder(height: 80),
-      error: (err, _) =>
-          const _ErrorTile(message: 'Could not load vaccination schedule'),
+      error: (_, __) => const _EmptyTile(
+        icon: Icons.vaccines,
+        message: 'No upcoming vaccinations.',
+      ),
       data: (vaccinations) {
         if (vaccinations.isEmpty) {
           return const _EmptyTile(

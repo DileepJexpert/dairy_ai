@@ -206,8 +206,8 @@ class _VetSearchScreenState extends ConsumerState<VetSearchScreen> {
                     Text('Failed to load vets',
                         style: context.textTheme.titleMedium),
                     const SizedBox(height: 4),
-                    Text(error.toString(),
-                        style: context.textTheme.bodySmall,
+                    const Text('Please check your connection or retry.',
+                        style: TextStyle(color: Colors.grey),
                         textAlign: TextAlign.center),
                     const SizedBox(height: 16),
                     FilledButton.tonal(

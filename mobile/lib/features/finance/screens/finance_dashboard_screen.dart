@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:dairy_ai/core/extensions.dart';
 import 'package:dairy_ai/features/finance/models/finance_models.dart';
@@ -120,12 +121,49 @@ class FinanceDashboardScreen extends ConsumerWidget {
                   child: CircularProgressIndicator(),
                 ),
               ),
-              error: (e, _) => Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text('Error: $e'),
-                ),
-              ),
+              error: (e, _) {
+                final isAuth = e.toString().toLowerCase().contains('authentication required') || e.toString().contains('401');
+                if (isAuth) {
+                  return Card(
+                    color: const Color(0xffecfdf5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: const BorderSide(color: Color(0xffa7f3d0)),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.lock_outline, size: 44, color: Color(0xff047857)),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Sign In to View Dairy Finance',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xff065f46)),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Manage your milk payouts, feed expenses, and profit & loss statements.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 12, color: Color(0xff047857)),
+                          ),
+                          const SizedBox(height: 14),
+                          ElevatedButton.icon(
+                            onPressed: () => context.push('/login?next=/finance'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xff047857),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            icon: const Icon(Icons.login, size: 16),
+                            label: const Text('Sign In (1-Click Demo Available)', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
             ),
 
             // -- Recent transactions --
@@ -157,7 +195,7 @@ class FinanceDashboardScreen extends ConsumerWidget {
                 padding: EdgeInsets.all(32),
                 child: Center(child: CircularProgressIndicator()),
               ),
-              error: (e, _) => Text('Error: $e'),
+              error: (_, __) => const SizedBox.shrink(),
             ),
 
             // Spacer for FAB

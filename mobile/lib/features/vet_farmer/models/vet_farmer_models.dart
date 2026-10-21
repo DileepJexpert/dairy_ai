@@ -99,25 +99,35 @@ class VetProfile {
   }
 
   factory VetProfile.fromJson(Map<String, dynamic> json) {
+    int parseSafeInt(dynamic val, int fallback) {
+      if (val is int) return val;
+      if (val is num) return val.toInt();
+      if (val is String) {
+        final digits = val.replaceAll(RegExp(r'[^0-9]'), '');
+        return int.tryParse(digits) ?? fallback;
+      }
+      return fallback;
+    }
+
     return VetProfile(
-      id: json['id'] as int,
-      userId: json['user_id'] as int,
+      id: parseSafeInt(json['id'], 1),
+      userId: parseSafeInt(json['user_id'], 1),
       name: json['name'] as String? ?? 'Unknown',
       photoUrl: json['photo_url'] as String?,
-      licenseNo: json['license_no'] as String? ?? '',
+      licenseNo: json['license_no'] as String? ?? json['license_number'] as String? ?? '',
       qualification: json['qualification'] as String? ?? '',
       specializations: (json['specializations'] as List<dynamic>?)
-              ?.map((e) => e as String)
+              ?.map((e) => e.toString())
               .toList() ??
-          [],
+          (json['specialization'] != null ? [json['specialization'].toString()] : []),
       languages: (json['languages'] as List<dynamic>?)
-              ?.map((e) => e as String)
+              ?.map((e) => e.toString())
               .toList() ??
-          [],
-      fee: (json['fee'] as num?)?.toDouble() ?? 0.0,
-      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
-      totalConsultations: json['total_consultations'] as int? ?? 0,
-      isAvailable: json['is_available'] as bool? ?? true,
+          ['Hindi', 'English'],
+      fee: (json['fee'] as num?)?.toDouble() ?? (json['consultation_fee'] as num?)?.toDouble() ?? 0.0,
+      rating: (json['rating'] as num?)?.toDouble() ?? (json['rating_avg'] as num?)?.toDouble() ?? 0.0,
+      totalConsultations: (json['total_consultations'] as num?)?.toInt() ?? 0,
+      isAvailable: json['is_available'] == true || json['is_available'] == 1,
       distanceKm: (json['distance_km'] as num?)?.toDouble(),
       city: json['city'] as String?,
       district: json['district'] as String?,

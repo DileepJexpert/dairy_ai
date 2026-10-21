@@ -29,18 +29,20 @@ const List<String> _indianBreeds = [
 
 /// Screen for adding or editing a cattle entry.
 ///
-/// When [cattle] is provided the screen operates in edit mode.
+/// When [cattle] or [cattleId] is provided the screen operates in edit mode.
 class AddCattleScreen extends ConsumerStatefulWidget {
   const AddCattleScreen({
     super.key,
     required this.farmerId,
     this.cattle,
+    this.cattleId,
   });
 
   final String farmerId;
   final Cattle? cattle;
+  final String? cattleId;
 
-  bool get isEditing => cattle != null;
+  bool get isEditing => cattle != null || (cattleId != null && cattleId!.isNotEmpty);
 
   @override
   ConsumerState<AddCattleScreen> createState() => _AddCattleScreenState();
@@ -54,6 +56,19 @@ class _AddCattleScreenState extends ConsumerState<AddCattleScreen> {
   late CattleSex _selectedSex;
   DateTime? _selectedDob;
   bool _isSubmitting = false;
+  bool _initializedFromAsync = false;
+
+  static String _normalizeBreed(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return _indianBreeds.first;
+    final target = raw.toLowerCase().replaceAll('_', ' ').replaceAll('-', ' ').trim();
+    for (final b in _indianBreeds) {
+      final bNorm = b.toLowerCase().replaceAll('_', ' ').replaceAll('-', ' ').trim();
+      if (bNorm == target || bNorm.contains(target) || target.contains(bNorm)) {
+        return b;
+      }
+    }
+    return 'Other';
+  }
 
   @override
   void initState() {
@@ -61,7 +76,7 @@ class _AddCattleScreenState extends ConsumerState<AddCattleScreen> {
     final c = widget.cattle;
     _nameController = TextEditingController(text: c?.name ?? '');
     _tagController = TextEditingController(text: c?.tagId ?? '');
-    _selectedBreed = c?.breed ?? _indianBreeds.first;
+    _selectedBreed = _normalizeBreed(c?.breed);
     _selectedSex = c?.sex ?? CattleSex.female;
     _selectedDob = c?.dob;
   }
@@ -92,9 +107,10 @@ class _AddCattleScreenState extends ConsumerState<AddCattleScreen> {
       final notifier =
           ref.read(cattleListProvider(widget.farmerId).notifier);
 
-      if (widget.isEditing) {
+      final idToUpdate = widget.cattle?.id ?? widget.cattleId;
+      if (widget.isEditing && idToUpdate != null) {
         await notifier.updateCattle(
-          widget.cattle!.id,
+          idToUpdate,
           UpdateCattleRequest(
             name: _nameController.text.trim(),
             tagId: _tagController.text.trim(),
@@ -103,6 +119,7 @@ class _AddCattleScreenState extends ConsumerState<AddCattleScreen> {
             dob: _selectedDob,
           ),
         );
+        ref.invalidate(cattleDetailProvider(idToUpdate));
       } else {
         await notifier.addCattle(
           CreateCattleRequest(
@@ -160,6 +177,47 @@ class _AddCattleScreenState extends ConsumerState<AddCattleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.cattle == null && widget.cattleId != null && widget.cattleId!.isNotEmpty) {
+      final cattleAsync = ref.watch(cattleDetailProvider(widget.cattleId!));
+      return cattleAsync.when(
+        data: (loadedCattle) {
+          if (!_initializedFromAsync) {
+            _initializedFromAsync = true;
+            _nameController.text = loadedCattle.name;
+            _tagController.text = loadedCattle.tagId;
+            _selectedBreed = _normalizeBreed(loadedCattle.breed);
+            _selectedSex = loadedCattle.sex;
+            _selectedDob = loadedCattle.dob;
+          }
+          return _buildForm(context);
+        },
+        loading: () => Scaffold(
+          appBar: AppBar(title: const Text('Edit Cattle')),
+          body: const Center(child: CircularProgressIndicator()),
+        ),
+        error: (err, _) => Scaffold(
+          appBar: AppBar(title: const Text('Edit Cattle')),
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Unable to load cattle details'),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () => ref.invalidate(cattleDetailProvider(widget.cattleId!)),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return _buildForm(context);
+  }
+
+  Widget _buildForm(BuildContext context) {
     final theme = Theme.of(context);
     final dateFormat = DateFormat('dd MMM yyyy');
 

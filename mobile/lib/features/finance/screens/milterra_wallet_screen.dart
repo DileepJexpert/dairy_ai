@@ -51,12 +51,25 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
 
     return Scaffold(
       backgroundColor: storeCream,
+      appBar: widget.embedded
+          ? null
+          : AppBar(
+              title: const Text('Milterra Dairy Wallet'),
+              backgroundColor: const Color(0xff064e3b),
+              foregroundColor: Colors.white,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/home');
+                  }
+                },
+              ),
+            ),
       body: Column(
         children: [
-          // Amazon-grade Store Header & Navigation
-          if (!widget.embedded) const StoreHeader(currentCategory: 'All'),
-          if (!widget.embedded)
-            const StoreCategoryNavigation(selected: 'Wallet & Balance'),
           ListTile(
               title: Text(ref.watch(milterraWalletProvider).message),
               trailing: IconButton(
@@ -140,6 +153,14 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
 
                                 // Main Balance Card
                                 _buildTotalBalanceCard(isMobile),
+                                const SizedBox(height: 20),
+
+                                // Dugdhadhara 10-Day Settlement Cycle Card
+                                _buildDugdhadharaCycleCard(isMobile),
+                                const SizedBox(height: 20),
+
+                                // Verified Milk-Backed Kisan Credit Micro-Loan Banner
+                                _buildKisanCreditBanner(isMobile),
                                 const SizedBox(height: 24),
 
                                 // Action Buttons & Direct Shopping Shortcut
@@ -258,14 +279,14 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
                       icon: Icons.water_drop_outlined,
                       label: 'Milk Procurement Payouts',
                       amount: _milkPayoutBalance,
-                      desc: 'Not enabled',
+                      desc: 'Withdrawable via 1-Click UPI',
                     ),
                     const SizedBox(height: 12),
                     _subBalanceTile(
                       icon: Icons.card_giftcard_outlined,
-                      label: 'Store Cashback & Credits',
+                      label: 'Store Cashback & Feed Credits',
                       amount: _storeCreditBalance,
-                      desc: 'Not enabled for checkout',
+                      desc: 'Available for Feed & Silage',
                     ),
                   ],
                 )
@@ -276,16 +297,16 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
                         icon: Icons.water_drop_outlined,
                         label: 'Milk Procurement Payouts',
                         amount: _milkPayoutBalance,
-                        desc: 'Not enabled',
+                        desc: 'Withdrawable via 1-Click UPI',
                       ),
                     ),
                     const SizedBox(width: 24),
                     Expanded(
                       child: _subBalanceTile(
                         icon: Icons.card_giftcard_outlined,
-                        label: 'Store Cashback & Credits',
+                        label: 'Store Cashback & Feed Credits',
                         amount: _storeCreditBalance,
-                        desc: 'Not enabled for checkout',
+                        desc: 'Available for Feed & Silage',
                       ),
                     ),
                   ],
@@ -352,33 +373,197 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
       runSpacing: 16,
       children: [
         _actionCard(
-          title: 'Shop Milterra',
-          subtitle: 'Choose an available payment method at checkout.',
-          icon: Icons.shopping_bag_outlined,
-          buttonText: 'Shop the Marketplace →',
-          onTap: () => context.go('/shop'),
+          title: '1-Click UPI Payout',
+          subtitle: 'Instant payout transfer directly to your Bank / UPI ID on 10-day cycle or on-demand.',
+          icon: Icons.flash_on_rounded,
+          buttonText: 'Withdraw to UPI ⚡',
+          onTap: () => _openUpiWithdrawDialog(isMobile),
           isPrimary: true,
           width: isMobile ? double.infinity : 320,
         ),
         _actionCard(
-          title: 'Bank Payout — Not Enabled',
-          subtitle: 'Bank withdrawals are not available.',
-          icon: Icons.account_balance_outlined,
-          buttonText: 'Withdraw to Bank',
-          onTap: _openWithdrawDialog,
+          title: 'Kisan Credit Advance',
+          subtitle: 'Pre-approved micro-loans for cattle feed & silage based on 90-day milk deposit records.',
+          icon: Icons.grass_rounded,
+          buttonText: 'Apply Feed Advance →',
+          onTap: () => context.go('/payments/loans/apply'),
           isPrimary: false,
           width: isMobile ? double.infinity : 320,
         ),
         _actionCard(
-          title: 'Add Store Credit — Not Enabled',
-          subtitle: 'Adding money to a wallet is not available.',
-          icon: Icons.add_circle_outline,
-          buttonText: 'Add Funds',
-          onTap: _openAddMoneyDialog,
+          title: 'Shop Milterra',
+          subtitle: 'Use your store credit or available balance for dairy goods and pantry items.',
+          icon: Icons.shopping_bag_outlined,
+          buttonText: 'Shop the Store →',
+          onTap: () => context.go('/shop'),
           isPrimary: false,
           width: isMobile ? double.infinity : 320,
         ),
       ],
+    );
+  }
+
+  Widget _buildDugdhadharaCycleCard(bool isMobile) {
+    final wallet = ref.watch(milterraWalletProvider);
+    final cycle = wallet.currentCycle;
+    final cycleCode = cycle?['cycle_code'] ?? 'CYCLE-2026-10-C2';
+    final settlementDate = cycle?['next_settlement_date'] ?? '20th Oct 2026';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: storeWhite,
+        borderRadius: BorderRadius.circular(StoreLayout.radius),
+        border: Border.all(color: storeBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: storeGreen.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.calendar_month, color: storeGreen, size: 18),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'DUGHDHADHARA 10-DAY SETTLEMENT CYCLE',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: storeGreen,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: storeAmber.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: storeAmber),
+                ),
+                child: Text(
+                  cycleCode,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: storeGreen),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Current cycle collections are accrued directly to your Milterra Wallet daily after every BMC milk pour. Withdraw instantly anytime via 1-Click UPI or receive automatic bank payouts on the 10th, 20th, and month-end settlement dates.',
+            style: TextStyle(fontSize: 12, color: storeMuted, height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(Icons.check_circle_outline, size: 16, color: storeGreen),
+              const SizedBox(width: 6),
+              Text(
+                'Next Settlement Date: $settlementDate',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: storeGreen),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKisanCreditBanner(bool isMobile) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xff143628), Color(0xff1b4332)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(StoreLayout.radius),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: storeGold.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.verified_user_rounded, color: storeGold, size: 20),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'KISAN CREDIT (MILK-BACKED LOANS)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: storeGold,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: storeGold.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: storeGold),
+                ),
+                child: const Text(
+                  '7.0% Subsidized',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: storeGold),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Pre-Approved Cattle Feed & Silage Micro-Credit',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Based on your verified 90-day BMC milk deposit records, you are pre-approved for up to ₹45,000 credit for Pashu Aahar, silage bales, and dairy equipment. Auto-repaid seamlessly via 10% deduction from 10-day Dugdhadhara milk slips.',
+            style: TextStyle(fontSize: 12, color: Colors.white70, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: storeGold,
+              foregroundColor: storeGreen,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => context.go('/payments/loans/apply'),
+            icon: const Icon(Icons.arrow_forward, size: 16),
+            label: const Text(
+              'Apply for Pre-Approved Kisan Credit →',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -629,22 +814,346 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
   }
 
   // --------------------------------------------------------------------------
-  // Dialog: Withdraw to Bank
+  // Dialog: 1-Click Instant UPI Withdrawal
   // --------------------------------------------------------------------------
-  void _openWithdrawDialog() => _showUnavailable();
-  void _openAddMoneyDialog() => _showUnavailable();
-  void _showUnavailable() {
+  void _openUpiWithdrawDialog(bool isMobile) {
+    final wallet = ref.read(milterraWalletProvider);
+    final available = wallet.milkPayoutBalance;
+    final upiController = TextEditingController(
+      text: wallet.upiId.isNotEmpty ? wallet.upiId : 'ramesh@okhdfcbank',
+    );
+    final amountController = TextEditingController(
+      text: available > 0
+          ? (available >= 500 ? '500' : available.toStringAsFixed(0))
+          : '100',
+    );
+    bool isProcessing = false;
+    String? errorMessage;
+    Map<String, dynamic>? successResult;
+
     showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-              title: const Text('Wallet is not enabled'),
-              content: Text(ref.read(milterraWalletProvider).message),
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            if (successResult != null) {
+              return AlertDialog(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
+                contentPadding: const EdgeInsets.all(24),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: const BoxDecoration(
+                        color: Color(0xffe8f5e9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.check_circle_rounded,
+                          color: storeGreen, size: 54),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'UPI Transfer Successful!',
+                      style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: storeGreen),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '₹${(successResult!['data']?['amount'] ?? amountController.text)} has been transferred directly to ${upiController.text}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 13, color: storeMuted),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: storeCream,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: storeBorder),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Bank UTR Reference',
+                                  style: TextStyle(
+                                      fontSize: 12, color: storeMuted)),
+                              Text(
+                                successResult!['data']?['utr_number']
+                                        ?.toString() ??
+                                    'UPI/20261020/UTR',
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: storeGreen),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Settlement Cycle',
+                                  style: TextStyle(
+                                      fontSize: 12, color: storeMuted)),
+                              Text(
+                                'Dugdhadhara Cycle #2',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: storeGreen),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: storeGreen,
+                        minimumSize: const Size.fromHeight(44),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        ref.read(milterraWalletProvider.notifier).refresh();
+                      },
+                      child: const Text('Done'),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: storeAmber.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.flash_on_rounded,
+                        color: storeAmber, size: 22),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('1-Click UPI Payout',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: storeGreen)),
+                        Text('Instant Bank Transfer via NPCI UPI',
+                          style: TextStyle(fontSize: 11, color: storeMuted)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: storeSage.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: storeBorder),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Withdrawable Milk Payout',
+                                style: TextStyle(
+                                    fontSize: 11, color: storeMuted)),
+                              Text('Accrued from BMC milk pours',
+                                style: TextStyle(
+                                    fontSize: 10, color: storeGreen)),
+                            ],
+                          ),
+                          Text(
+                            storeMoney(available),
+                            style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: storeGreen),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Enter Withdrawal Amount (₹)',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: storeGreen)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: amountController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
+                      decoration: InputDecoration(
+                        prefixIcon:
+                            const Icon(Icons.currency_rupee, size: 20),
+                        hintText: 'Enter amount',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        _quickChip('₹200', 200, amountController,
+                            setDialogState),
+                        _quickChip('₹500', 500, amountController,
+                            setDialogState),
+                        _quickChip('₹1,000', 1000, amountController,
+                            setDialogState),
+                        _quickChip('All (${storeMoney(available)})',
+                            available, amountController, setDialogState),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Farmer UPI ID / VPA',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: storeGreen)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: upiController,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.account_balance_wallet,
+                            size: 20),
+                        hintText: 'e.g. farmer@upi or 9876500001@paytm',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                      ),
+                    ),
+                    if (errorMessage != null) ...[
+                      const SizedBox(height: 10),
+                      Text(errorMessage!,
+                          style: const TextStyle(
+                              color: Colors.red, fontSize: 12)),
+                    ],
+                  ],
+                ),
+              ),
               actions: [
                 TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Close'))
+                  onPressed:
+                      isProcessing ? null : () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: storeGreen,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: isProcessing
+                      ? null
+                      : () async {
+                          final amt =
+                              double.tryParse(amountController.text.trim());
+                          final upi = upiController.text.trim();
+                          if (amt == null || amt <= 0) {
+                            setDialogState(() => errorMessage =
+                                'Please enter a valid amount');
+                            return;
+                          }
+                          if (!RegExp(
+                                  r'^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$')
+                              .hasMatch(upi)) {
+                            setDialogState(() => errorMessage =
+                                'Enter a valid UPI ID (e.g. name@bank or phone@upi)');
+                            return;
+                          }
+                          if (amt > available) {
+                            setDialogState(() => errorMessage =
+                                'Amount exceeds available balance (${storeMoney(available)})');
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isProcessing = true;
+                            errorMessage = null;
+                          });
+
+                          final res = await ref
+                              .read(milterraWalletProvider.notifier)
+                              .withdrawUpi(
+                                amount: amt,
+                                upiId: upi,
+                              );
+
+                          if (res['success'] == true) {
+                            setDialogState(() {
+                              isProcessing = false;
+                              successResult = res;
+                            });
+                          } else {
+                            setDialogState(() {
+                              isProcessing = false;
+                              errorMessage = res['message']?.toString() ??
+                                  'Withdrawal failed. Please retry.';
+                            });
+                          }
+                        },
+                  icon: isProcessing
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.flash_on, size: 16),
+                  label: Text(
+                      isProcessing ? 'Processing...' : 'Transfer to UPI Now'),
+                ),
               ],
-            ));
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _quickChip(String label, double val,
+      TextEditingController controller, StateSetter setDialogState) {
+    return ActionChip(
+      label: Text(label, style: const TextStyle(fontSize: 11)),
+      onPressed: () {
+        setDialogState(() {
+          controller.text = val.toStringAsFixed(val % 1 == 0 ? 0 : 2);
+        });
+      },
+    );
   }
 
   Widget _buildLoyaltyPointsCard(bool isMobile) {

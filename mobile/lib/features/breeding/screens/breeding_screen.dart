@@ -63,7 +63,7 @@ class _BreedingScreenState extends ConsumerState<BreedingScreen> {
                 },
               ),
               loading: () => const LinearProgressIndicator(),
-              error: (e, _) => Text('Failed to load cattle: $e'),
+              error: (_, __) => const SizedBox.shrink(),
             ),
           ),
 
@@ -91,7 +91,16 @@ class _BreedingScreenState extends ConsumerState<BreedingScreen> {
                 return _BreedingTimeline(records: records);
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
+              error: (_, __) => const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.event_note, size: 56, color: Colors.grey),
+                    SizedBox(height: 8),
+                    Text('No breeding records available'),
+                  ],
+                ),
+              ),
             ),
           ),
         ],

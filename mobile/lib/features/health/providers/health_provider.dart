@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dairy_ai/core/api_client.dart';
+import 'package:dairy_ai/features/health/models/livestock_disease_model.dart';
 import 'package:dairy_ai/features/health/models/health_models.dart';
 
 // ---------------------------------------------------------------------------
@@ -361,3 +362,24 @@ Future<Vaccination> addVaccination(
 
   return vaccination;
 }
+
+// ---------------------------------------------------------------------------
+// Livestock Disease Directory Provider
+// ---------------------------------------------------------------------------
+final livestockDiseasesProvider =
+    FutureProvider.autoDispose<List<LivestockDisease>>((ref) async {
+  try {
+    final dio = ref.watch(_dioProvider);
+    final response = await dio.get('/health/diseases');
+    final body = response.data as Map<String, dynamic>;
+    if (body['success'] == true && body['data'] is List) {
+      final items = (body['data'] as List<dynamic>)
+          .map((e) => LivestockDisease.fromJson(e as Map<String, dynamic>))
+          .toList();
+      if (items.isNotEmpty) return items;
+    }
+  } catch (_) {
+    // Offline or network error - gracefully fall back to local encyclopedia
+  }
+  return fallbackLivestockDiseases;
+});

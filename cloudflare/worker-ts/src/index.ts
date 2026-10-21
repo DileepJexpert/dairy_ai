@@ -155,6 +155,7 @@ app.route('/api/v1', milkRouter);
 app.route('/api/v1/milk', milkRouter);
 app.route('/api/v1', breedingRouter);
 app.route('/api/v1/breeding', breedingRouter);
+app.route('/api/v1/health', healthRouter);
 app.route('/api/v1', healthRouter);
 app.route('/api/v1', feedRouter);
 app.route('/api/v1/collection', collectionRouter);

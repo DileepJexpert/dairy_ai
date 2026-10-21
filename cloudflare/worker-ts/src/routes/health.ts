@@ -4,8 +4,87 @@ import { z } from 'zod';
 import type { Env } from '../types/env.js';
 import { requireAuth } from './commerce.js';
 import { getFarmerByUserId } from './farmers.js';
+import { LIVESTOCK_DISEASES, type LivestockDisease } from '../data/livestock_diseases.js';
 
 export const healthRouter = new Hono<{ Bindings: Env }>();
+
+// ---------------------------------------------------------------------------
+// 0. Livestock Disease Directory & Clinical Protocols (Public / Instant Access)
+// ---------------------------------------------------------------------------
+
+healthRouter.get('/diseases', async (c) => {
+  const animal = c.req.query('animal')?.toLowerCase();
+  const category = c.req.query('category')?.toLowerCase();
+  const severity = c.req.query('severity')?.toLowerCase();
+  const symptom = c.req.query('symptom')?.toLowerCase();
+  const search = c.req.query('search')?.toLowerCase().trim();
+
+  let results: LivestockDisease[] = [...LIVESTOCK_DISEASES];
+
+  if (animal && animal !== 'all') {
+    results = results.filter((d) => d.animalTypes.includes(animal as any));
+  }
+
+  if (category && category !== 'all') {
+    results = results.filter((d) => d.category.toLowerCase() === category);
+  }
+
+  if (severity && severity !== 'all') {
+    results = results.filter((d) => d.severity.toLowerCase() === severity);
+  }
+
+  if (symptom) {
+    results = results.filter((d) => {
+      const allSymptoms = [
+        ...d.symptoms.primary,
+        ...d.symptoms.secondary,
+        d.symptoms.vitals.temperatureF,
+      ].join(' ').toLowerCase();
+      return allSymptoms.includes(symptom);
+    });
+  }
+
+  if (search) {
+    results = results.filter((d) => {
+      const searchBlob = [
+        d.name,
+        d.hindiName,
+        d.scientificName,
+        d.category,
+        d.categoryHindi,
+        ...d.symptoms.primary,
+        ...d.symptoms.secondary,
+        ...d.firstAid.ingredients,
+        d.firstAid.preparation,
+        d.firstAid.application,
+        ...d.suggestedMedicines.map((m) => `${m.molecule} ${m.tradeNames.join(' ')}`),
+      ].join(' ').toLowerCase();
+
+      return searchBlob.includes(search);
+    });
+  }
+
+  return c.json({
+    success: true,
+    total: results.length,
+    data: results,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+healthRouter.get('/diseases/:id', async (c) => {
+  const id = c.req.param('id');
+  const disease = LIVESTOCK_DISEASES.find((d) => d.id === id);
+
+  if (!disease) {
+    throw new HTTPException(404, { message: 'Disease not found in encyclopedia' });
+  }
+
+  return c.json({
+    success: true,
+    data: disease,
+  });
+});
 
 const RecordTypeEnum = z.enum(['checkup', 'illness', 'treatment', 'surgery', 'observation']);
 

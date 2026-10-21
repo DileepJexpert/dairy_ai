@@ -42,6 +42,8 @@ class HealthDashboardScreen extends ConsumerWidget {
           children: [
             // --- AI Triage Quick Access ---
             _TriageQuickAccessCard(),
+            const SizedBox(height: 12),
+            _DiseaseEncyclopediaCard(),
             const SizedBox(height: 20),
 
             // --- Sensor Alerts ---
@@ -152,6 +154,97 @@ class _TriageQuickAccessCard extends StatelessWidget {
                 Icons.arrow_forward_ios,
                 size: 16,
                 color: context.colorScheme.onPrimaryContainer,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Livestock Disease Directory card
+// ---------------------------------------------------------------------------
+class _DiseaseEncyclopediaCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: Colors.teal.shade50,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.teal.shade200),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          context.push('/health/diseases');
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: Colors.teal.shade700,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.menu_book,
+                  color: Colors.white,
+                  size: 26,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'पशु रोग ज्ञानकोश',
+                          style: context.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal.shade900,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.teal.shade100,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'देसी लेप व दवाएं',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.teal.shade900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '15+ प्रमुख रोग: लक्षण, जांच विधि, स्वर्णिम समय, प्राथमिक देसी उपचार व दूध निकासी सुरक्षा',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Colors.teal.shade900.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: Colors.teal.shade700,
               ),
             ],
           ),
@@ -463,6 +556,7 @@ class _EmptyTile extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _ErrorTile extends StatelessWidget {
   final String message;
   const _ErrorTile({required this.message});

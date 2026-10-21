@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:dairy_ai/features/health/models/health_models.dart';
-import 'package:dairy_ai/features/health/providers/health_provider.dart';
 
 class FarmerHealthTriageScreen extends ConsumerStatefulWidget {
   const FarmerHealthTriageScreen({super.key});
@@ -270,6 +269,9 @@ $_vitalPrecaution
             // Top Emergency Banner
             _buildEmergencyCallHeader(context),
 
+            // Link to Full Disease Directory
+            _buildEncyclopediaBanner(context),
+
             // Visual Quick Select Carousel
             _buildQuickDiseaseCarousel(context),
 
@@ -339,6 +341,64 @@ $_vitalPrecaution
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             child: const Text('Call 1962', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEncyclopediaBanner(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xfff0fdf4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xffbbf7d0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xff16a34a),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.menu_book, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '📚 संपूर्ण पशु रोग ज्ञानकोश (Veterinary Directory)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12.5,
+                    color: Color(0xff166534),
+                  ),
+                ),
+                Text(
+                  '15+ प्रमुख रोग, जांच विधियां, स्वर्णिम समय, देसी लेप व दवाएं',
+                  style: TextStyle(fontSize: 11, color: Color(0xff15803d)),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              context.push('/health/diseases');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xff16a34a),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('ज्ञानकोश खोलें', style: TextStyle(fontSize: 11.5)),
           ),
         ],
       ),

@@ -42,6 +42,7 @@ import 'package:dairy_ai/features/milk/screens/milk_record_screen.dart';
 import 'package:dairy_ai/features/milk/screens/milk_summary_screen.dart';
 import 'package:dairy_ai/features/feed/screens/feed_plan_screen.dart';
 import 'package:dairy_ai/features/health/screens/farmer_health_triage_screen.dart';
+import 'package:dairy_ai/features/health/screens/livestock_disease_directory_screen.dart';
 import 'package:dairy_ai/features/feed/screens/ration_calculator_screen.dart';
 import 'package:dairy_ai/features/breeding/screens/breeding_screen.dart';
 import 'package:dairy_ai/features/chat/screens/chat_screen.dart';
@@ -688,6 +689,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const FarmerHealthTriageScreen(),
       ),
       GoRoute(
+        path: '/health/diseases',
+        builder: (context, state) => const LivestockDiseaseDirectoryScreen(),
+      ),
+      GoRoute(
         path: '/feed/calculator',
         builder: (context, state) => const RationCalculatorScreen(),
       ),
@@ -907,6 +912,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'vaccinations',
                     builder: (context, state) => const VaccinationScreen(),
+                  ),
+                  GoRoute(
+                    path: 'diseases',
+                    builder: (context, state) =>
+                        const LivestockDiseaseDirectoryScreen(),
                   ),
                 ],
               ),
@@ -1287,6 +1297,12 @@ class _MoreMenuScreen extends StatelessWidget {
                 label: 'पशु चिकित्सक खोजें व परामर्श (Find Vet / Tele-Clinic)',
                 subtitle: 'सत्यापित डेयरी डॉक्टर्स से ऑनलाइन वीडियो परामर्श',
                 onTap: () => context.go('/more/vet'),
+              ),
+              _MoreTile(
+                icon: Icons.menu_book,
+                label: 'पशु रोग ज्ञानकोश व प्राथमिक उपचार (Disease Directory)',
+                subtitle: 'लक्षण, जांच विधियां, स्वर्णिम समय, देसी लेप व दवाएं',
+                onTap: () => context.push('/health/diseases'),
               ),
               _MoreTile(
                 icon: Icons.smart_toy,

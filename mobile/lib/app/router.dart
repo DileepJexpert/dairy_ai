@@ -1245,55 +1245,70 @@ class _MoreMenuScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('More')),
-      body: ListView(
-        children: [
-          _MoreTile(
-            icon: Icons.water_drop,
-            label: 'Milk Records',
-            onTap: () => context.go('/more/milk'),
+      appBar: AppBar(title: const Text('More Features & Tools')),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            children: [
+              _MoreTile(
+                icon: Icons.water_drop,
+                label: 'दैनिक दूध संकलन व बहु-विक्री (Milk Sales & Slips)',
+                subtitle: 'समिति, होटल, खुदरा दूध बिक्री व थर्मल पर्ची स्कैन',
+                onTap: () => context.go('/more/milk'),
+              ),
+              _MoreTile(
+                icon: Icons.bar_chart,
+                label: 'दूध सारांश व इतिहास (Milk Summary & Analytics)',
+                subtitle: 'उत्पादन चार्ट, गुणवत्ता फैट % व प्रति-पशु रिकॉर्ड',
+                onTap: () => context.go('/more/milk-summary'),
+              ),
+              _MoreTile(
+                icon: Icons.folder_shared_outlined,
+                label: 'फार्म चार्ट्स व दस्तावेज (Farm Documents & Rate Cards)',
+                subtitle: 'टीकाकरण चार्ट, दर सूची व लैब रिपोर्ट्स',
+                onTap: () => context.go('/more/documents'),
+              ),
+              _MoreTile(
+                icon: Icons.grass,
+                label: 'संतुलित चारा योजना (Feed & Ration Optimizer)',
+                subtitle: 'साइलेज, मिनरल मिक्स व पोषण कैलकुलेटर',
+                onTap: () => context.go('/more/feed'),
+              ),
+              _MoreTile(
+                icon: Icons.favorite,
+                label: 'प्रजनन व गर्भावधि ट्रैकर (Breeding & Gestation)',
+                subtitle: 'कृत्रिम गर्भाधान (AI), हीट व प्रसव कैलेंडर',
+                onTap: () => context.go('/more/breeding'),
+              ),
+              _MoreTile(
+                icon: Icons.local_hospital,
+                label: 'पशु चिकित्सक खोजें व परामर्श (Find Vet / Tele-Clinic)',
+                subtitle: 'सत्यापित डेयरी डॉक्टर्स से ऑनलाइन वीडियो परामर्श',
+                onTap: () => context.go('/more/vet'),
+              ),
+              _MoreTile(
+                icon: Icons.smart_toy,
+                label: 'एआई डेयरी सहायक (AI Assistant Chat)',
+                subtitle: 'दूध, बीमारी व प्रबंधन पर 24/7 तुरंत सलाह',
+                onTap: () => context.go('/more/chat'),
+              ),
+              _MoreTile(
+                icon: Icons.verified,
+                label: 'दूध शुद्धता जांच (Milk Purity Checker)',
+                subtitle: 'ब्रांड तुलना, यूरिया/डिटर्जेंट व लैब सर्टिफिकेट',
+                onTap: () => context.push('/purity'),
+              ),
+              _MoreTile(
+                icon: Icons.person,
+                label: 'किसान प्रोफ़ाइल व सेटिंग्स (Farmer Profile)',
+                subtitle: 'व्यक्तिगत जानकारी, भाषा व अलर्ट प्राथमिकताएं',
+                onTap: () => context.go('/more/profile'),
+              ),
+            ],
           ),
-          _MoreTile(
-            icon: Icons.bar_chart,
-            label: 'Milk Summary',
-            onTap: () => context.go('/more/milk-summary'),
-          ),
-          _MoreTile(
-            icon: Icons.folder_shared_outlined,
-            label: 'Farm Charts & Documents',
-            onTap: () => context.go('/more/documents'),
-          ),
-          _MoreTile(
-            icon: Icons.grass,
-            label: 'Feed Plans',
-            onTap: () => context.go('/more/feed'),
-          ),
-          _MoreTile(
-            icon: Icons.favorite,
-            label: 'Breeding',
-            onTap: () => context.go('/more/breeding'),
-          ),
-          _MoreTile(
-            icon: Icons.local_hospital,
-            label: 'Find a Vet',
-            onTap: () => context.go('/more/vet'),
-          ),
-          _MoreTile(
-            icon: Icons.smart_toy,
-            label: 'AI Chat',
-            onTap: () => context.go('/more/chat'),
-          ),
-          _MoreTile(
-            icon: Icons.verified,
-            label: 'Milk Purity Checker',
-            onTap: () => context.push('/purity'),
-          ),
-          _MoreTile(
-            icon: Icons.person,
-            label: 'Profile',
-            onTap: () => context.go('/more/profile'),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1302,21 +1317,55 @@ class _MoreMenuScreen extends StatelessWidget {
 class _MoreTile extends StatelessWidget {
   final IconData icon;
   final String label;
+  final String? subtitle;
   final VoidCallback onTap;
 
   const _MoreTile({
     required this.icon,
     required this.label,
+    this.subtitle,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(label),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xffe2e8f0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xff064e3b).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: const Color(0xff064e3b), size: 22),
+        ),
+        title: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xff0f172a)),
+        ),
+        subtitle: subtitle != null
+            ? Text(
+                subtitle!,
+                style: const TextStyle(fontSize: 11, color: Color(0xff64748b)),
+              )
+            : null,
+        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xff94a3b8)),
+        onTap: onTap,
+      ),
     );
   }
 }

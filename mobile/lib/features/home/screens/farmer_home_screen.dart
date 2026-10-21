@@ -9,7 +9,7 @@ import 'package:dairy_ai/features/vet_farmer/providers/vet_farmer_provider.dart'
 import 'package:dairy_ai/features/vet_farmer/screens/consultation_request_screen.dart';
 import 'package:dairy_ai/shared/widgets/stat_card.dart';
 import 'package:dairy_ai/features/home/widgets/voice_entry_dialog.dart';
-import 'package:dairy_ai/features/milk/widgets/thermal_slip_dialog.dart';
+import 'package:dairy_ai/features/milk/widgets/milk_slip_selector_modal.dart';
 import '../models/dashboard_model.dart';
 import '../providers/home_provider.dart';
 
@@ -82,7 +82,7 @@ class FarmerHomeScreen extends ConsumerWidget {
                 // Authenticated Dairy Farmer ERP View
                 SliverToBoxAdapter(child: _wrapDesktopWidth(_buildStatsGrid(context, stats))),
                 SliverToBoxAdapter(child: _wrapDesktopWidth(_buildBreedingAlertCard(context))),
-                SliverToBoxAdapter(child: _wrapDesktopWidth(_buildQuickActions(context))),
+                SliverToBoxAdapter(child: _wrapDesktopWidth(_buildQuickActions(context, farmerName: stats.farmerName))),
                 SliverToBoxAdapter(child: _wrapDesktopWidth(_buildFarmerShortcuts(context))),
                 SliverToBoxAdapter(child: _wrapDesktopWidth(_buildCommunitySocialSection(context, ref, isAuthenticated: isAuthenticated))),
                 SliverToBoxAdapter(
@@ -1814,7 +1814,7 @@ class FarmerHomeScreen extends ConsumerWidget {
   // Authenticated ERP: Quick Actions
   // ---------------------------------------------------------------------------
 
-  Widget _buildQuickActions(BuildContext context) {
+  Widget _buildQuickActions(BuildContext context, {required String farmerName}) {
     final theme = Theme.of(context);
 
     return Padding(
@@ -1845,7 +1845,7 @@ class FarmerHomeScreen extends ConsumerWidget {
                         color: Colors.indigo,
                         onTap: () => showDialog(
                           context: context,
-                          builder: (_) => const VoiceEntryDialog(),
+                          builder: (_) => VoiceEntryDialog(farmerName: farmerName),
                         ),
                       ),
                       _QuickActionButton(
@@ -1854,14 +1854,8 @@ class FarmerHomeScreen extends ConsumerWidget {
                         color: Colors.blueGrey,
                         onTap: () => showDialog(
                           context: context,
-                          builder: (_) => const ThermalSlipDialog(
-                            farmerName: 'Ramesh Patel',
-                            tagId: 'MIL-0842 (Ganga)',
-                            shift: 'MORNING',
-                            quantityLitres: 8.5,
-                            fatPct: 6.8,
-                            snfPct: 9.1,
-                            ratePerLitre: 58.5,
+                          builder: (_) => MilkSlipSelectorModal(
+                            farmerName: farmerName,
                           ),
                         ),
                       ),

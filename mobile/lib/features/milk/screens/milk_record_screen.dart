@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:dairy_ai/features/health/models/health_models.dart';
 import 'package:dairy_ai/features/health/providers/health_provider.dart';
+import 'package:dairy_ai/features/milk/widgets/thermal_slip_dialog.dart';
 
 class MilkRecordScreen extends ConsumerStatefulWidget {
   const MilkRecordScreen({super.key});
@@ -3160,7 +3161,7 @@ class _DateWiseSlipFolderTab extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        if (slipNo != 'Pending')
+        if (slipNo != 'Pending') ...[
           ElevatedButton.icon(
             onPressed: () => _showSlipViewerDialog(
                 context, date, shiftLabel, shiftData),
@@ -3174,6 +3175,29 @@ class _DateWiseSlipFolderTab extends StatelessWidget {
             icon: const Icon(Icons.receipt, size: 14),
             label: const Text('पर्ची देखें', style: TextStyle(fontSize: 11)),
           ),
+          const SizedBox(width: 6),
+          IconButton(
+            tooltip: '🖨️ ESC/POS 58mm पर्ची प्रिंट करें',
+            icon: const Icon(Icons.print, size: 18, color: Color(0xff064e3b)),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: () => showDialog(
+              context: context,
+              builder: (_) => ThermalSlipDialog(
+                farmerName: 'Suresh Kumar',
+                tagId: shiftData['slipNumber'] ?? 'समिति पर्ची',
+                shift: shiftLabel.contains('Morning') || shiftLabel.contains('प्रातः') ? 'MORNING' : 'EVENING',
+                quantityLitres: (shiftData['slipLitres'] as num?)?.toDouble() ?? 98.2,
+                fatPct: (shiftData['slipFat'] as num?)?.toDouble() ?? 4.05,
+                snfPct: (shiftData['slipSnf'] as num?)?.toDouble() ?? 8.35,
+                ratePerLitre: (shiftData['slipRate'] as num?)?.toDouble() ?? 40.50,
+                slipId: shiftData['slipNumber'] ?? 'SLIP',
+                centerName: shiftData['centerName'] ?? 'सरस दुग्ध सहकारी समिति (BMC-402)',
+                date: date,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -3360,25 +3384,59 @@ class _DateWiseSlipFolderTab extends StatelessWidget {
                 const SizedBox(height: 10),
               ],
 
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    final msg =
-                        'दूध पर्ची: ${shiftData['slipNumber']} | दिनांक: $date | मात्रा: ${slipLitres}L | कुल राशि: ₹${(slipLitres * slipRate).toStringAsFixed(0)}';
-                    launchUrl(
-                      Uri.parse(
-                          'https://wa.me/?text=${Uri.encodeComponent(msg)}'),
-                      mode: LaunchMode.externalApplication,
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xff15803d),
-                    foregroundColor: Colors.white,
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        final msg =
+                            'दूध पर्ची: ${shiftData['slipNumber']} | दिनांक: $date | मात्रा: ${slipLitres}L | कुल राशि: ₹${(slipLitres * slipRate).toStringAsFixed(0)}';
+                        launchUrl(
+                          Uri.parse(
+                              'https://wa.me/?text=${Uri.encodeComponent(msg)}'),
+                          mode: LaunchMode.externalApplication,
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xff15803d),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      icon: const Icon(Icons.share, size: 16),
+                      label: const Text('WhatsApp शेयर', style: TextStyle(fontSize: 12)),
+                    ),
                   ),
-                  icon: const Icon(Icons.share, size: 16),
-                  label: const Text('WhatsApp पर शेयर करें'),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        showDialog(
+                          context: context,
+                          builder: (_) => ThermalSlipDialog(
+                            farmerName: 'Suresh Kumar',
+                            tagId: shiftData['slipNumber'] ?? 'समिति पर्ची',
+                            shift: shiftLabel.contains('Morning') || shiftLabel.contains('प्रातः') ? 'MORNING' : 'EVENING',
+                            quantityLitres: slipLitres,
+                            fatPct: slipFat,
+                            snfPct: slipSnf,
+                            ratePerLitre: slipRate,
+                            slipId: shiftData['slipNumber'] ?? 'SLIP',
+                            centerName: centerName,
+                            date: date,
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xff064e3b),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      icon: const Icon(Icons.print, size: 16),
+                      label: const Text('🖨️ पर्ची प्रिंट', style: TextStyle(fontSize: 12)),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

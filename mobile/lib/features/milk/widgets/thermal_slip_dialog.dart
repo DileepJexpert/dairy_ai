@@ -12,6 +12,9 @@ class ThermalSlipDialog extends StatefulWidget {
   final double fatPct;
   final double snfPct;
   final double ratePerLitre;
+  final String? slipId;
+  final String? centerName;
+  final String? date;
 
   const ThermalSlipDialog({
     super.key,
@@ -22,6 +25,9 @@ class ThermalSlipDialog extends StatefulWidget {
     required this.fatPct,
     required this.snfPct,
     required this.ratePerLitre,
+    this.slipId,
+    this.centerName,
+    this.date,
   });
 
   @override
@@ -49,7 +55,20 @@ class _ThermalSlipDialogState extends State<ThermalSlipDialog> {
     );
     if (mounted) {
       setState(() {
-        _slipData = data;
+        _slipData = ThermalSlipData(
+          slipId: widget.slipId ?? data.slipId,
+          date: widget.date ?? data.date,
+          shift: widget.shift,
+          farmerName: widget.farmerName,
+          quantityLitres: widget.quantityLitres,
+          fatPct: widget.fatPct,
+          snfPct: widget.snfPct,
+          ratePerLitre: widget.ratePerLitre,
+          totalAmount: widget.quantityLitres * widget.ratePerLitre,
+          formattedText: data.formattedText,
+          escposHex: data.escposHex,
+          barcode: widget.slipId != null ? 'MIL${widget.slipId}' : data.barcode,
+        );
         _isLoading = false;
       });
     }
@@ -70,9 +89,11 @@ class _ThermalSlipDialogState extends State<ThermalSlipDialog> {
 
   void _printThermal() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🖨️ ESC/POS 58mm प्रिंटर को कमांड भेजी गई (Printer Online)'),
-        backgroundColor: Colors.green,
+      SnackBar(
+        content: Text(
+          '🖨️ ESC/POS 58mm प्रिंटर को कमांड भेजी गई (${_slipData?.slipId ?? 'SLIP'})',
+        ),
+        backgroundColor: const Color(0xff064e3b),
       ),
     );
   }
@@ -137,17 +158,18 @@ class _ThermalSlipDialogState extends State<ThermalSlipDialog> {
                       Center(
                         child: Column(
                           children: [
-                            const Text(
-                              'MILTERRA DAIRY',
-                              style: TextStyle(
+                            Text(
+                              widget.centerName ?? 'MILTERRA DAIRY',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
                                 fontFamily: 'monospace',
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                letterSpacing: 1.5,
+                                fontSize: 14,
+                                letterSpacing: 1.2,
                               ),
                             ),
                             const Text(
-                              'दुग्ध संकलन पर्ची (SLIP)',
+                              'दुग्ध संकलन पर्ची (MILK SLIP)',
                               style: TextStyle(fontFamily: 'monospace', fontSize: 12),
                             ),
                             Text(
@@ -158,13 +180,20 @@ class _ThermalSlipDialogState extends State<ThermalSlipDialog> {
                         ),
                       ),
                       Text(
-                        'पर्ची: ${_slipData!.slipId}',
-                        style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                        'पर्ची क्र.: ${_slipData!.slipId}',
+                        style: const TextStyle(
+                            fontFamily: 'monospace', fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                       Text(
                         'किसान: ${_slipData!.farmerName}',
-                        style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold, fontSize: 13),
+                        style: const TextStyle(
+                            fontFamily: 'monospace', fontWeight: FontWeight.bold, fontSize: 13),
                       ),
+                      if (widget.tagId.isNotEmpty)
+                        Text(
+                          'स्रोत/पशु: ${widget.tagId}',
+                          style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                        ),
                       Text(
                         'समय: ${_slipData!.shift} | ${_slipData!.date}',
                         style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
@@ -185,7 +214,7 @@ class _ThermalSlipDialogState extends State<ThermalSlipDialog> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            'कुल राशि:',
+                            'कुल देय राशि:',
                             style: TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold, fontSize: 14),
                           ),
                           Text(
@@ -205,7 +234,7 @@ class _ThermalSlipDialogState extends State<ThermalSlipDialog> {
                       ),
                       const Center(
                         child: Text(
-                          '* डिजिटल सत्यापित पर्ची *',
+                          '* डिजिटल सत्यापित पर्ची | ESC/POS *',
                           style: TextStyle(fontFamily: 'monospace', fontSize: 10, color: Colors.grey),
                         ),
                       ),

@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:dairy_ai/features/milk/widgets/thermal_slip_dialog.dart';
 
 class VoiceEntryDialog extends StatefulWidget {
-  const VoiceEntryDialog({super.key});
+  final String? farmerName;
+  const VoiceEntryDialog({super.key, this.farmerName});
 
   @override
   State<VoiceEntryDialog> createState() => _VoiceEntryDialogState();
@@ -65,7 +66,7 @@ class _VoiceEntryDialogState extends State<VoiceEntryDialog>
     showDialog(
       context: context,
       builder: (_) => ThermalSlipDialog(
-        farmerName: 'Ramesh Patel',
+        farmerName: widget.farmerName ?? 'Suresh Kumar',
         tagId: _parsedCattle,
         shift: 'MORNING',
         quantityLitres: _parsedQuantity ?? 8.5,

@@ -34,7 +34,7 @@ class MilkSummaryView extends ConsumerWidget {
 
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 580),
+        constraints: const BoxConstraints(maxWidth: 760),
         child: Column(
           children: [
             // Period selector

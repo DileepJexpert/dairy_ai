@@ -40,7 +40,10 @@ class FinanceDashboardScreen extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('Transaction'),
       ),
-      body: RefreshIndicator(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(financeSummaryProvider(null));
           ref.invalidate(transactionsProvider(null));
@@ -201,6 +204,8 @@ class FinanceDashboardScreen extends ConsumerWidget {
             // Spacer for FAB
             const SizedBox(height: 80),
           ],
+        ),
+      ),
         ),
       ),
     );

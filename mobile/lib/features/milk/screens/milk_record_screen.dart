@@ -396,7 +396,7 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
 
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 580),
+        constraints: const BoxConstraints(maxWidth: 760),
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Column(
@@ -1640,7 +1640,7 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
   Widget build(BuildContext context) {
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 580),
+        constraints: const BoxConstraints(maxWidth: 760),
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Column(
@@ -2237,7 +2237,7 @@ class _DateWiseSlipFolderTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 580),
+        constraints: const BoxConstraints(maxWidth: 760),
         child: ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           itemCount: archives.length,

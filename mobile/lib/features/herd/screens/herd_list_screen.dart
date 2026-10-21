@@ -56,8 +56,11 @@ class _HerdListScreenState extends ConsumerState<HerdListScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: Column(
+            children: [
           // Status filter chips
           _StatusFilterBar(
             selected: activeFilter,
@@ -136,6 +139,8 @@ class _HerdListScreenState extends ConsumerState<HerdListScreen> {
             ),
           ),
         ],
+      ),
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/herd/add'),

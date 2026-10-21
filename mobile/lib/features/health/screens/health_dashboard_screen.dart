@@ -26,7 +26,10 @@ class HealthDashboardScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(activeHealthIssuesProvider);
           ref.invalidate(upcomingVaccinationsProvider);
@@ -75,6 +78,8 @@ class HealthDashboardScreen extends ConsumerWidget {
             _UpcomingVaccinationsSection(),
             const SizedBox(height: 80),
           ],
+        ),
+      ),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(

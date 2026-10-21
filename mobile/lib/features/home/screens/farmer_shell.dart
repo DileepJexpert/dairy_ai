@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dairy_ai/app/theme.dart';
 import 'package:dairy_ai/shared/widgets/farmer_responsive.dart';
 
 /// Responsive navigation shell for farmer role.
@@ -48,7 +47,7 @@ class FarmerShell extends StatelessWidget {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: DairyTheme.primaryGreen,
+                        color: const Color(0xff064e3b),
                         borderRadius: BorderRadius.circular(10),
                         boxShadow: const [
                           BoxShadow(
@@ -92,11 +91,11 @@ class FarmerShell extends StatelessWidget {
                 ),
               ),
               selectedIconTheme:
-                  const IconThemeData(color: DairyTheme.primaryGreen),
+                  const IconThemeData(color: Color(0xff064e3b)),
               unselectedIconTheme:
                   const IconThemeData(color: Color(0xff64748b)),
               selectedLabelTextStyle: const TextStyle(
-                color: DairyTheme.primaryGreen,
+                color: Color(0xff064e3b),
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
               ),
@@ -153,8 +152,8 @@ class FarmerShell extends StatelessWidget {
           initialLocation: index == navigationShell.currentIndex,
         ),
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: DairyTheme.primaryGreen,
-        unselectedItemColor: DairyTheme.subtleGrey,
+        selectedItemColor: const Color(0xff064e3b),
+        unselectedItemColor: const Color(0xff64748b),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),

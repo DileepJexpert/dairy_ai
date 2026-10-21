@@ -125,13 +125,12 @@ class FarmerHomeScreen extends ConsumerWidget {
     DashboardStats stats, {
     required bool isAuthenticated,
   }) {
-    final theme = Theme.of(context);
     final greeting = _greeting();
 
     return SliverAppBar(
       expandedHeight: isAuthenticated ? 120 : 100,
       pinned: true,
-      backgroundColor: theme.colorScheme.primary,
+      backgroundColor: const Color(0xff064e3b),
       flexibleSpace: FlexibleSpaceBar(
         titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
         title: Column(
@@ -141,15 +140,16 @@ class FarmerHomeScreen extends ConsumerWidget {
             if (isAuthenticated) ...[
               Text(
                 '$greeting,',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onPrimary.withOpacity(0.85),
+                style: const TextStyle(
+                  color: Color(0xffa7f3d0),
                   fontSize: 11,
+                  fontWeight: FontWeight.normal,
                 ),
               ),
               Text(
                 stats.farmerName,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: theme.colorScheme.onPrimary,
+                style: const TextStyle(
+                  color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
@@ -163,10 +163,10 @@ class FarmerHomeScreen extends ConsumerWidget {
                   fontSize: 15,
                 ),
               ),
-              Text(
+              const Text(
                 'Open Vet, Commerce & Dairy ERP',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.85),
+                  color: Color(0xffa7f3d0),
                   fontSize: 10,
                   fontWeight: FontWeight.normal,
                 ),
@@ -200,17 +200,17 @@ class FarmerHomeScreen extends ConsumerWidget {
           IconButton(
             tooltip: 'Notifications',
             onPressed: () => context.push('/home/notifications'),
-            icon: Icon(
+            icon: const Icon(
               Icons.notifications_outlined,
-              color: theme.colorScheme.onPrimary,
+              color: Colors.white,
             ),
           ),
           IconButton(
             tooltip: 'Profile',
             onPressed: () => context.push('/more/profile'),
-            icon: Icon(
+            icon: const Icon(
               Icons.person_outline,
-              color: theme.colorScheme.onPrimary,
+              color: Colors.white,
             ),
           ),
           Padding(
@@ -639,181 +639,219 @@ class FarmerHomeScreen extends ConsumerWidget {
     List<VetProfile> vets, {
     required bool isAuthenticated,
   }) {
-    return Column(
-      children: vets.map((vet) {
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          elevation: 1,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: Colors.grey.shade200),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 720;
+        if (!isWide) {
+          return Column(
+            children: vets
+                .map((vet) => _buildVetCard(
+                      context,
+                      ref,
+                      vet,
+                      isAuthenticated: isAuthenticated,
+                    ))
+                .toList(),
+          );
+        }
+
+        final cardWidth = (constraints.maxWidth - 16) / 2;
+        return Wrap(
+          spacing: 16,
+          runSpacing: 0,
+          children: vets
+              .map((vet) => SizedBox(
+                    width: cardWidth,
+                    child: _buildVetCard(
+                      context,
+                      ref,
+                      vet,
+                      isAuthenticated: isAuthenticated,
+                    ),
+                  ))
+              .toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildVetCard(
+    BuildContext context,
+    WidgetRef ref,
+    VetProfile vet, {
+    required bool isAuthenticated,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      radius: 26,
-                      backgroundColor: const Color(0xffecfdf5),
-                      child: Text(
-                        vet.name.isNotEmpty ? vet.name.replaceAll('Dr. ', '')[0] : 'V',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xff047857),
-                          fontSize: 20,
-                        ),
-                      ),
+                CircleAvatar(
+                  radius: 26,
+                  backgroundColor: const Color(0xffecfdf5),
+                  child: Text(
+                    vet.name.isNotEmpty ? vet.name.replaceAll('Dr. ', '')[0] : 'V',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xff047857),
+                      fontSize: 20,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  vet.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
-                                ),
+                          Expanded(
+                            child: Text(
+                              vet.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xffecfdf5),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xffa7f3d0)),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.star, size: 12, color: Colors.amber),
-                                    const SizedBox(width: 2),
-                                    Text(
-                                      '${vet.rating.toStringAsFixed(1)} (${vet.totalConsultations}+)',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xff065f46),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            vet.qualification,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade700,
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(Icons.location_on_outlined, size: 13, color: Colors.grey),
-                              const SizedBox(width: 2),
-                              Text(
-                                vet.locationLabel ?? (vet.city ?? 'India'),
-                                style: const TextStyle(fontSize: 11, color: Colors.grey),
-                              ),
-                              const SizedBox(width: 12),
-                              const Icon(Icons.payments_outlined, size: 13, color: Color(0xff047857)),
-                              const SizedBox(width: 2),
-                              Text(
-                                '₹${vet.fee.toInt()} / consult',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xff047857),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xffecfdf5),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xffa7f3d0)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.star, size: 12, color: Colors.amber),
+                                const SizedBox(width: 2),
+                                Text(
+                                  '${vet.rating.toStringAsFixed(1)} (${vet.totalConsultations}+)',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xff065f46),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
-                if (vet.specializations.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: vet.specializations.take(3).map((spec) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xfff1f5f9),
-                          borderRadius: BorderRadius.circular(8),
+                      const SizedBox(height: 2),
+                      Text(
+                        vet.qualification,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade700,
                         ),
-                        child: Text(
-                          spec,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Color(0xff334155),
-                            fontWeight: FontWeight.w500,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on_outlined, size: 13, color: Colors.grey),
+                          const SizedBox(width: 2),
+                          Text(
+                            vet.locationLabel ?? (vet.city ?? 'India'),
+                            style: const TextStyle(fontSize: 11, color: Colors.grey),
                           ),
-                        ),
-                      );
-                    }).toList(),
+                          const SizedBox(width: 12),
+                          const Icon(Icons.payments_outlined, size: 13, color: Color(0xff047857)),
+                          const SizedBox(width: 2),
+                          Text(
+                            '₹${vet.fee.toInt()} / consult',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xff047857),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => context.push('/more/vet'),
-                        icon: const Icon(Icons.info_outline, size: 14),
-                        label: const Text('View Profile', style: TextStyle(fontSize: 12)),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () => _handleVetBooking(
-                          context,
-                          ref,
-                          vet,
-                          isAuthenticated: isAuthenticated,
-                        ),
-                        icon: const Icon(Icons.calendar_month, size: 14),
-                        label: const Text('Book Consult', style: TextStyle(fontSize: 12)),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xff047857),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
-          ),
-        );
-      }).toList(),
+            if (vet.specializations.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: vet.specializations.take(3).map((spec) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xfff1f5f9),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      spec,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Color(0xff334155),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => context.push('/more/vet'),
+                    icon: const Icon(Icons.info_outline, size: 14),
+                    label: const Text('View Profile', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => _handleVetBooking(
+                      context,
+                      ref,
+                      vet,
+                      isAuthenticated: isAuthenticated,
+                    ),
+                    icon: const Icon(Icons.calendar_month, size: 14),
+                    label: const Text('Book Consult', style: TextStyle(fontSize: 12)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xff047857),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1208,33 +1246,54 @@ class FarmerHomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
 
-          // Featured Discussion 1: Mastitis with Dr. Deshmukh
-          _buildFeaturedCaseCard(
-            context,
-            authorName: 'Ramesh Patel',
-            authorRole: '🌾 Dairy Farmer (Anand)',
-            cattleTag: 'Gir #GIR-0104',
-            title: 'Swelling and heat in rear right teat after milking, yield dropped by 3L',
-            tag: 'Mastitis & Udder Care',
-            imageUrl: 'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?w=800',
-            vetName: 'Dr. Hasmukh Deshmukh',
-            vetDegree: 'MVSc Animal Reproduction & Surgery',
-            vetAdvice: 'Do not massage harshly. Strip out affected quarter completely every 2 hours. Apply fresh Aloe vera (250g) + Turmeric (50g) + Chuna (15g) paste externally. Book consult if temp exceeds 103°F.',
-          ),
-          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 720;
+              final case1 = _buildFeaturedCaseCard(
+                context,
+                authorName: 'Ramesh Patel',
+                authorRole: '🌾 Dairy Farmer (Anand)',
+                cattleTag: 'Gir #GIR-0104',
+                title: 'Swelling and heat in rear right teat after milking, yield dropped by 3L',
+                tag: 'Mastitis & Udder Care',
+                imageUrl: 'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?w=800',
+                vetName: 'Dr. Hasmukh Deshmukh',
+                vetDegree: 'MVSc Animal Reproduction & Surgery',
+                vetAdvice: 'Do not massage harshly. Strip out affected quarter completely every 2 hours. Apply fresh Aloe vera (250g) + Turmeric (50g) + Chuna (15g) paste externally. Book consult if temp exceeds 103°F.',
+              );
+              final case2 = _buildFeaturedCaseCard(
+                context,
+                authorName: 'Suresh Yadav',
+                authorRole: '🐃 Dairy Farmer (Karnal)',
+                cattleTag: 'Murrah #MUR-0208',
+                title: 'Buffalo not showing clear estrus heat after 90 days postpartum',
+                tag: 'Breeding & Infertility',
+                imageUrl: 'https://images.unsplash.com/photo-1546445317-29f4545e9d53?w=800',
+                vetName: 'Dr. Rakesh Verma',
+                vetDegree: 'PhD Animal Genetics & Breeding (NDRI)',
+                vetAdvice: 'Silent estrus is frequent. Check at 5 AM & 9 PM for subtle vulvar swelling and stringy mucus. Feed 50g chelated mineral mixture with organic chromium daily for 21 days.',
+              );
 
-          // Featured Discussion 2: Silent heat with Dr. Verma
-          _buildFeaturedCaseCard(
-            context,
-            authorName: 'Suresh Yadav',
-            authorRole: '🐃 Dairy Farmer (Karnal)',
-            cattleTag: 'Murrah #MUR-0208',
-            title: 'Buffalo not showing clear estrus heat after 90 days postpartum',
-            tag: 'Breeding & Infertility',
-            imageUrl: 'https://images.unsplash.com/photo-1546445317-29f4545e9d53?w=800',
-            vetName: 'Dr. Rakesh Verma',
-            vetDegree: 'PhD Animal Genetics & Breeding (NDRI)',
-            vetAdvice: 'Silent estrus is frequent. Check at 5 AM & 9 PM for subtle vulvar swelling and stringy mucus. Feed 50g chelated mineral mixture with organic chromium daily for 21 days.',
+              if (!isWide) {
+                return Column(
+                  children: [
+                    case1,
+                    const SizedBox(height: 12),
+                    case2,
+                  ],
+                );
+              }
+
+              final cardWidth = (constraints.maxWidth - 16) / 2;
+              return Wrap(
+                spacing: 16,
+                runSpacing: 12,
+                children: [
+                  SizedBox(width: cardWidth, child: case1),
+                  SizedBox(width: cardWidth, child: case2),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 12),
 
@@ -1768,46 +1827,57 @@ class FarmerHomeScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _QuickActionButton(
-                icon: Icons.receipt_long_outlined,
-                label: 'Passbook',
-                color: const Color(0xff064e3b),
-                onTap: () => context.push('/passbook'),
-              ),
-              _QuickActionButton(
-                icon: Icons.favorite_border,
-                label: 'Breeding',
-                color: Colors.pink,
-                onTap: () => context.push('/breeding'),
-              ),
-              _QuickActionButton(
-                icon: Icons.healing_outlined,
-                label: 'Rog Pehchan',
-                color: Colors.red,
-                onTap: () => context.push('/health/triage'),
-              ),
-              _QuickActionButton(
-                icon: Icons.grass_outlined,
-                label: 'Feed Calc',
-                color: const Color(0xffb45309),
-                onTap: () => context.push('/feed/calculator'),
-              ),
-              _QuickActionButton(
-                icon: Icons.video_call_outlined,
-                label: 'Call Vet',
-                color: Colors.green,
-                onTap: () => context.push('/more/vet'),
-              ),
-              _QuickActionButton(
-                icon: Icons.verified_outlined,
-                label: 'Milk Purity',
-                color: Colors.teal,
-                onTap: () => context.push('/purity'),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _QuickActionButton(
+                        icon: Icons.receipt_long_outlined,
+                        label: 'Passbook',
+                        color: const Color(0xff064e3b),
+                        onTap: () => context.push('/passbook'),
+                      ),
+                      _QuickActionButton(
+                        icon: Icons.favorite_border,
+                        label: 'Breeding',
+                        color: Colors.pink,
+                        onTap: () => context.push('/breeding'),
+                      ),
+                      _QuickActionButton(
+                        icon: Icons.healing_outlined,
+                        label: 'Rog Pehchan',
+                        color: Colors.red,
+                        onTap: () => context.push('/health/triage'),
+                      ),
+                      _QuickActionButton(
+                        icon: Icons.grass_outlined,
+                        label: 'Feed Calc',
+                        color: const Color(0xffb45309),
+                        onTap: () => context.push('/feed/calculator'),
+                      ),
+                      _QuickActionButton(
+                        icon: Icons.video_call_outlined,
+                        label: 'Call Vet',
+                        color: Colors.green,
+                        onTap: () => context.push('/more/vet'),
+                      ),
+                      _QuickActionButton(
+                        icon: Icons.verified_outlined,
+                        label: 'Milk Purity',
+                        color: Colors.teal,
+                        onTap: () => context.push('/purity'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -1935,7 +2005,7 @@ class FarmerHomeScreen extends ConsumerWidget {
       itemCount: activities.length,
       itemBuilder: (context, index) {
         final activity = activities[index];
-        return _ActivityTile(activity: activity);
+        return _wrapDesktopWidth(_ActivityTile(activity: activity));
       },
     );
   }

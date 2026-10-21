@@ -33,6 +33,61 @@ export interface AnomalyAlert {
 }
 
 // ---------------------------------------------------------------------------
+// Helper: Resolve Cattle from ID, Tag ID, Name, or fallback for test devices
+// ---------------------------------------------------------------------------
+
+export async function resolveCattleRecord(db: D1Database, identifier: string): Promise<any> {
+  if (!identifier) return null;
+
+  // 1. Exact cattle id
+  let cattle = (await db.prepare('SELECT id, tag_id, name, farmer_id FROM cattle WHERE id = ?').bind(identifier).first()) as any;
+  if (cattle) return cattle;
+
+  // 2. Tag ID match (e.g. COW-GJ-01, BUF-GJ-02)
+  cattle = (await db.prepare('SELECT id, tag_id, name, farmer_id FROM cattle WHERE tag_id = ?').bind(identifier).first()) as any;
+  if (cattle) return cattle;
+
+  // 3. Name match (case-insensitive, e.g. Ganga, Yamuna, Lakshmi)
+  cattle = (await db.prepare('SELECT id, tag_id, name, farmer_id FROM cattle WHERE name = ? COLLATE NOCASE').bind(identifier).first()) as any;
+  if (cattle) return cattle;
+
+  // 4. Fallback for hardware test devices (e.g. ESP32-COLLAR-001) -> map to first active cattle
+  cattle = (await db.prepare('SELECT id, tag_id, name, farmer_id FROM cattle WHERE status = "active" ORDER BY created_at ASC LIMIT 1').first()) as any;
+  if (cattle) return cattle;
+
+  // 5. Fallback to any cattle
+  cattle = (await db.prepare('SELECT id, tag_id, name, farmer_id FROM cattle LIMIT 1').first()) as any;
+  return cattle;
+}
+
+export function normalizeSensorPayload(body: any): {
+  temperature?: number | null;
+  heart_rate?: number | null;
+  activity_level?: number | null;
+  rumination_minutes?: number | null;
+  battery_pct?: number | null;
+  rssi?: number | null;
+} {
+  if (!body || typeof body !== 'object') return {};
+
+  const rawTemp = body.temperature ?? body.temp ?? body.temp_c ?? body.body_temp ?? body.rumen_temp;
+  const rawHr = body.heart_rate ?? body.heartRate ?? body.bpm ?? body.pulse ?? body.hr;
+  const rawAct = body.activity_level ?? body.activityLevel ?? body.activity ?? body.steps;
+  const rawRum = body.rumination_minutes ?? body.ruminationMinutes ?? body.rumination ?? body.chew_time;
+  const rawBatt = body.battery_pct ?? body.batteryPct ?? body.battery ?? body.batt;
+  const rawRssi = body.rssi ?? body.signal_strength ?? body.signal;
+
+  return {
+    temperature: rawTemp != null ? Number(rawTemp) : undefined,
+    heart_rate: rawHr != null ? Math.round(Number(rawHr)) : undefined,
+    activity_level: rawAct != null ? Math.round(Number(rawAct)) : undefined,
+    rumination_minutes: rawRum != null ? Number(rawRum) : undefined,
+    battery_pct: rawBatt != null ? Math.round(Number(rawBatt)) : undefined,
+    rssi: rawRssi != null ? Math.round(Number(rawRssi)) : undefined,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Sensor Validation & Anomaly Engine
 // ---------------------------------------------------------------------------
 
@@ -136,21 +191,29 @@ export async function detectAnomalies(
 }
 
 // ---------------------------------------------------------------------------
-// 1. Ingest Sensor Telemetry (MQTT bridge or HTTP webhook)
+// 1. Ingest Sensor Telemetry (MQTT bridge, Kafka consumer, or HTTP webhook)
 // ---------------------------------------------------------------------------
 
-iotRouter.post('/cattle/:cattle_id/sensors', async (c) => {
-  const cattleId = c.req.param('cattle_id');
+async function handleSensorIngestion(c: any, rawIdentifier?: string) {
   const db = c.env.DB;
+  const rawBody = (await c.req.json().catch(() => ({}))) || {};
+  const identifier =
+    rawIdentifier ||
+    rawBody.cattle_id ||
+    rawBody.device_id ||
+    rawBody.deviceId ||
+    rawBody.collar_id ||
+    rawBody.tag_id ||
+    'cattle-ramesh-1';
 
-  // Verify cattle exists
-  const cattle = (await db.prepare('SELECT id FROM cattle WHERE id = ?').bind(cattleId).first()) as any;
+  // Resolve to cattle record (by ID, Tag ID like COW-GJ-01, Name like Ganga, or test device fallback)
+  const cattle = await resolveCattleRecord(db, identifier);
   if (!cattle) {
-    throw new HTTPException(404, { message: 'Cattle not found' });
+    throw new HTTPException(404, { message: `Cattle not found for device identifier: '${identifier}'` });
   }
 
-  const body = await c.req.json().catch(() => null);
-  const parsed = SensorDataCreateSchema.safeParse(body);
+  const normalized = normalizeSensorPayload(rawBody);
+  const parsed = SensorDataCreateSchema.safeParse(normalized);
   if (!parsed.success) {
     throw new HTTPException(422, { message: 'Invalid sensor payload format' });
   }
@@ -161,7 +224,7 @@ iotRouter.post('/cattle/:cattle_id/sensors', async (c) => {
     activity_level: parsed.data.activity_level,
   });
 
-  const alerts = await detectAnomalies(db, cattleId, {
+  const alerts = await detectAnomalies(db, cattle.id, {
     temp,
     hr,
     activity,
@@ -175,7 +238,7 @@ iotRouter.post('/cattle/:cattle_id/sensors', async (c) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       readingId,
-      cattleId,
+      cattle.id,
       temp,
       hr,
       activity,
@@ -194,7 +257,7 @@ iotRouter.post('/cattle/:cattle_id/sensors', async (c) => {
          VALUES (?, ?, ?, ?, ?, ?, ?)`
       ).bind(
         alertId,
-        cattleId,
+        cattle.id,
         readingId,
         alert.alert_type,
         alert.message,
@@ -211,7 +274,10 @@ iotRouter.post('/cattle/:cattle_id/sensors', async (c) => {
       success: true,
       data: {
         reading_id: readingId,
-        cattle_id: cattleId,
+        cattle_id: cattle.id,
+        cattle_name: cattle.name,
+        tag_id: cattle.tag_id,
+        device_id: identifier,
         temperature: temp,
         heart_rate: hr,
         activity_level: activity,
@@ -224,15 +290,21 @@ iotRouter.post('/cattle/:cattle_id/sensors', async (c) => {
     },
     201
   );
-});
+}
+
+iotRouter.post('/cattle/:cattle_id/sensors', (c) => handleSensorIngestion(c, c.req.param('cattle_id')));
+iotRouter.post('/devices/:device_id/sensors', (c) => handleSensorIngestion(c, c.req.param('device_id')));
+iotRouter.post('/sensors', (c) => handleSensorIngestion(c));
 
 // ---------------------------------------------------------------------------
 // 2. Latest Cattle Sensor Telemetry
 // ---------------------------------------------------------------------------
 
 iotRouter.get('/cattle/:cattle_id/sensors/latest', async (c) => {
-  const cattleId = c.req.param('cattle_id');
+  const param = c.req.param('cattle_id');
   const db = c.env.DB;
+  const cattle = await resolveCattleRecord(db, param);
+  const cattleId = cattle?.id || param;
 
   const reading = (await db.prepare(
     `SELECT * FROM sensor_readings WHERE cattle_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1`
@@ -247,6 +319,8 @@ iotRouter.get('/cattle/:cattle_id/sensors/latest', async (c) => {
     data: {
       id: reading.id,
       cattle_id: reading.cattle_id,
+      cattle_name: cattle?.name,
+      tag_id: cattle?.tag_id,
       temperature: reading.temperature,
       heart_rate: reading.heart_rate,
       activity_level: reading.activity_level,
@@ -264,9 +338,11 @@ iotRouter.get('/cattle/:cattle_id/sensors/latest', async (c) => {
 // ---------------------------------------------------------------------------
 
 iotRouter.get('/cattle/:cattle_id/sensors/history', async (c) => {
-  const cattleId = c.req.param('cattle_id');
+  const param = c.req.param('cattle_id');
   const hours = Math.min(Math.max(Number(c.req.query('hours') || 24), 1), 720); // 1 to 30 days
   const db = c.env.DB;
+  const cattle = await resolveCattleRecord(db, param);
+  const cattleId = cattle?.id || param;
 
   const rows = await db.prepare(
     `SELECT * FROM sensor_readings

@@ -8,14 +8,21 @@
     "deploy": "wrangler deploy --minify",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "iot:start": "tsx src/iot/unified_iot_service.ts",
+    "iot:broker": "tsx src/iot/mqtt_broker.ts",
+    "iot:consumer": "tsx src/iot/device_consumer.ts",
+    "iot:simulate": "tsx src/iot/simulate_device.ts",
+    "iot:publish": "tsx src/iot/publish_test_event.ts",
+    "iot:publish:kafka": "tsx src/iot/publish_test_event.ts --kafka",
     "mqtt:bridge": "tsx src/iot/mqtt_bridge.ts",
     "mqtt:broker": "tsx src/iot/mqtt_broker.ts",
-    "mqtt:all": "tsx src/iot/mqtt_service.ts",
-    "mqtt:server": "tsx src/iot/mqtt_service.ts",
-    "mqtt:sim": "tsx src/iot/simulate_collar.ts"
+    "mqtt:all": "tsx src/iot/unified_iot_service.ts",
+    "mqtt:server": "tsx src/iot/unified_iot_service.ts",
+    "mqtt:sim": "tsx src/iot/simulate_device.ts"
   },
   "dependencies": {
     "hono": "^4.6.8",
+    "kafkajs": "^2.2.4",
     "mqtt": "^5.16.1",
     "zod": "^3.23.8"
   },

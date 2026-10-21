@@ -10,74 +10,88 @@ import 'package:dairy_ai/features/milk/providers/milk_provider.dart';
 
 /// Milk analytics screen with daily/weekly/monthly totals,
 /// a production bar chart, per-cattle breakdown, and revenue summary.
-class MilkSummaryScreen extends ConsumerWidget {
+class MilkSummaryScreen extends StatelessWidget {
   const MilkSummaryScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('दूध सारांश व इतिहास (Milk Summary)'),
+      ),
+      body: const MilkSummaryView(),
+    );
+  }
+}
+
+class MilkSummaryView extends ConsumerWidget {
+  const MilkSummaryView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final period = ref.watch(milkPeriodProvider);
     final summaryAsync = ref.watch(milkSummaryProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Milk Analytics'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => ref.invalidate(milkSummaryProvider),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Period selector
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: SegmentedButton<MilkPeriod>(
-              segments: const [
-                ButtonSegment(
-                    value: MilkPeriod.daily, label: Text('Daily')),
-                ButtonSegment(
-                    value: MilkPeriod.weekly, label: Text('Weekly')),
-                ButtonSegment(
-                    value: MilkPeriod.monthly, label: Text('Monthly')),
-              ],
-              selected: {period},
-              onSelectionChanged: (s) =>
-                  ref.read(milkPeriodProvider.notifier).state = s.first,
-              showSelectedIcon: false,
-            ),
-          ),
-
-          Expanded(
-            child: summaryAsync.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator.adaptive()),
-              error: (err, _) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.error_outline,
-                          size: 48, color: context.colorScheme.error),
-                      const SizedBox(height: 12),
-                      Text('Failed to load analytics',
-                          style: context.textTheme.bodyLarge),
-                      const SizedBox(height: 8),
-                      FilledButton.tonal(
-                        onPressed: () =>
-                            ref.invalidate(milkSummaryProvider),
-                        child: const Text('Retry'),
-                      ),
-                    ],
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 580),
+        child: Column(
+          children: [
+            // Period selector
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: SegmentedButton<MilkPeriod>(
+                segments: const [
+                  ButtonSegment(
+                      value: MilkPeriod.daily, label: Text('☀️ दैनिक (Daily)')),
+                  ButtonSegment(
+                      value: MilkPeriod.weekly, label: Text('📅 साप्ताहिक (Weekly)')),
+                  ButtonSegment(
+                      value: MilkPeriod.monthly, label: Text('🗓️ मासिक (Monthly)')),
+                ],
+                selected: {period},
+                onSelectionChanged: (s) =>
+                    ref.read(milkPeriodProvider.notifier).state = s.first,
+                showSelectedIcon: false,
+                style: ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  textStyle: WidgetStateProperty.all(
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
-              data: (summary) => _SummaryContent(summary: summary),
             ),
-          ),
-        ],
+
+            Expanded(
+              child: summaryAsync.when(
+                loading: () =>
+                    const Center(child: CircularProgressIndicator.adaptive()),
+                error: (err, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.error_outline,
+                            size: 48, color: context.colorScheme.error),
+                        const SizedBox(height: 12),
+                        Text('Failed to load analytics',
+                            style: context.textTheme.bodyLarge),
+                        const SizedBox(height: 8),
+                        FilledButton.tonal(
+                          onPressed: () =>
+                              ref.invalidate(milkSummaryProvider),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                data: (summary) => _SummaryContent(summary: summary),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

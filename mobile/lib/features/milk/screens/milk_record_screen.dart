@@ -1,3 +1,4 @@
+import 'package:dairy_ai/features/milk/screens/milk_summary_screen.dart' show MilkSummaryView;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -18,7 +19,7 @@ class _MilkRecordScreenState extends ConsumerState<MilkRecordScreen>
   late TabController _tabController;
 
   // Shared date-wise archive of slips and collection records
-  List<Map<String, dynamic>> _dateArchives = [
+  final List<Map<String, dynamic>> _dateArchives = [
     {
       'date': '21 Oct 2026',
       'morning': {
@@ -117,7 +118,7 @@ class _MilkRecordScreenState extends ConsumerState<MilkRecordScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -172,16 +173,20 @@ class _MilkRecordScreenState extends ConsumerState<MilkRecordScreen>
               const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: const [
             Tab(
-              icon: Icon(Icons.point_of_sale),
-              text: 'बहु-विक्री प्रविष्टि (Multi-Buyer)',
+              icon: Icon(Icons.point_of_sale, size: 20),
+              text: 'दैनिक बिक्री',
             ),
             Tab(
-              icon: Icon(Icons.document_scanner),
-              text: 'पर्ची स्कैन व मिलान (Cross-Verify)',
+              icon: Icon(Icons.document_scanner, size: 20),
+              text: 'पर्ची स्कैन',
             ),
             Tab(
-              icon: Icon(Icons.folder_shared),
-              text: 'दिनांक पर्ची फोल्डर (Date Slips)',
+              icon: Icon(Icons.folder_shared, size: 20),
+              text: 'पर्ची फोल्डर',
+            ),
+            Tab(
+              icon: Icon(Icons.bar_chart, size: 20),
+              text: 'दूध सारांश',
             ),
           ],
         ),
@@ -197,6 +202,7 @@ class _MilkRecordScreenState extends ConsumerState<MilkRecordScreen>
             onNavigateToFolder: () => _tabController.animateTo(2),
           ),
           _DateWiseSlipFolderTab(archives: _dateArchives),
+          const MilkSummaryView(),
         ],
       ),
     );
@@ -388,109 +394,134 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
   Widget build(BuildContext context) {
     final cattleAsync = ref.watch(cattleListProvider);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Date & Session Bar
-          _buildDateSessionCard(context),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 580),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Date & Session Bar
+              _buildDateSessionCard(context),
 
-          const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
-          // Total Herd & Production Vat Input
-          _buildHerdProductionCard(context, cattleAsync),
+              // Total Herd & Production Vat Input
+              _buildHerdProductionCard(context, cattleAsync),
 
-          const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
-          // Multi-Buyer Channel Breakdown
-          _buildMultiBuyerChannelsSection(context),
+              // Multi-Buyer Channel Breakdown
+              _buildMultiBuyerChannelsSection(context),
 
-          const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
-          // Daily Sales Financial Summary
-          _buildDailySummaryCard(context),
+              // Daily Sales Financial Summary
+              _buildDailySummaryCard(context),
 
-          const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-          // Save Button
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: _saveEntry,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xff064e3b),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              // Mobile-first Large Save Button
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: _saveEntry,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xff064e3b),
+                    foregroundColor: Colors.white,
+                    elevation: 3,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  icon: const Icon(Icons.check_circle_rounded, size: 22),
+                  label: const Text(
+                    '✅ दैनिक दूध प्रविष्टि सुरक्षित करें (Save)',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
                 ),
               ),
-              icon: const Icon(Icons.check_circle_outline),
-              label: const Text(
-                'दैनिक बहु-विक्री सुरक्षित करें (Save Daily Collection)',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-            ),
-          ),
 
-          const SizedBox(height: 24),
-        ],
+              const SizedBox(height: 36),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildDateSessionCard(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xffe2e8f0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          InkWell(
-            onTap: _pickDate,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xfff1f5f9),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xffcbd5e1)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.calendar_month,
-                      color: Color(0xff047857), size: 18),
-                  const SizedBox(width: 6),
-                  Text(
-                    DateFormat('dd MMM yyyy').format(_selectedDate),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
+          Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: _pickDate,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    height: 44,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xfff1f5f9),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xffcbd5e1)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.calendar_month_rounded,
+                            color: Color(0xff047857), size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          DateFormat('dd MMMM yyyy (EEE)').format(_selectedDate),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Color(0xff0f172a),
+                          ),
+                        ),
+                        const Spacer(),
+                        const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
             child: SegmentedButton<String>(
               segments: const [
                 ButtonSegment(
                   value: 'morning',
-                  label: Text('☀️ सुबह'),
+                  label: Text('☀️ सुबह (Morning)'),
                 ),
                 ButtonSegment(
                   value: 'evening',
-                  label: Text('🌙 शाम'),
+                  label: Text('🌙 शाम (Evening)'),
                 ),
                 ButtonSegment(
                   value: 'full_day',
-                  label: Text('🥛 पूरा दिन'),
+                  label: Text('🥛 पूरा दिन (All)'),
                 ),
               ],
               selected: {_selectedShift},
@@ -499,7 +530,7 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
               style: ButtonStyle(
                 visualDensity: VisualDensity.compact,
                 textStyle: WidgetStateProperty.all(
-                  const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -520,11 +551,18 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
         ];
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xffe2e8f0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -534,20 +572,21 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
               const Icon(Icons.inventory_2_outlined,
                   color: Color(0xff047857), size: 18),
               const SizedBox(width: 8),
-              const Text(
-                'डेयरी कुल उत्पादन व फैट/एसएनएफ (Farm Output Vat)',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: Color(0xff1e293b),
+              const Expanded(
+                child: Text(
+                  'डेयरी कुल उत्पादन (Farm Herd Vat)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Color(0xff1e293b),
+                  ),
                 ),
               ),
-              const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: const Color(0xffdcfce7),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Text('Bulk Vat Active',
                     style: TextStyle(
@@ -558,47 +597,54 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
             ],
           ),
           const SizedBox(height: 12),
+          // Full-width Cattle / Source selector
+          DropdownButtonFormField<int>(
+            value: _selectedCattleId,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: 'पशु / समूह (Milk Source)',
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            items: [
+              const DropdownMenuItem(
+                value: 0,
+                child: Text(
+                  'समस्त डेरी पशु (Total Farm Herd - 18 Animals)',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              ...cattleList.map(
+                (c) => DropdownMenuItem(
+                  value: c.id,
+                  child: Text('${c.name} (${c.tagId})'),
+                ),
+              ),
+            ],
+            onChanged: (val) {
+              if (val != null) setState(() => _selectedCattleId = val);
+            },
+          ),
+          const SizedBox(height: 10),
+          // 3 numeric inputs in clean responsive row: Total Litres, Fat%, SNF%
           Row(
             children: [
               Expanded(
-                flex: 3,
-                child: DropdownButtonFormField<int>(
-                  value: _selectedCattleId,
-                  decoration: InputDecoration(
-                    labelText: 'पशु / समूह (Source)',
-                    isDense: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  items: [
-                    const DropdownMenuItem(
-                      value: 0,
-                      child: Text('समस्त डेरी पशु (Total Farm Herd - 18 Animals)'),
-                    ),
-                    ...cattleList.map(
-                      (c) => DropdownMenuItem(
-                        value: c.id,
-                        child: Text('${c.name} (${c.tagId})'),
-                      ),
-                    ),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) setState(() => _selectedCattleId = val);
-                  },
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                flex: 2,
+                flex: 4,
                 child: TextFormField(
                   controller: _totalProductionController,
                   decoration: InputDecoration(
                     labelText: 'कुल दूध (L)',
                     suffixText: 'L',
                     isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 12),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                   keyboardType:
@@ -610,74 +656,38 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                   },
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              InkWell(
-                onTap: () {
-                  setState(() {
-                    _autoCalculateTotal = true;
-                    _totalProductionController.text = _totalDispatched.toStringAsFixed(1);
-                  });
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _autoCalculateTotal ? Icons.check_circle : Icons.sync,
-                        size: 13,
-                        color: _autoCalculateTotal ? const Color(0xff16a34a) : const Color(0xff2563eb),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _autoCalculateTotal
-                            ? 'चैनलों से स्वतः कुल योग: ${_totalDispatched.toStringAsFixed(1)} L'
-                            : 'चैनलों का कुल योग: ${_totalDispatched.toStringAsFixed(1)} L (यहाँ भरें 🔄)',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _autoCalculateTotal ? const Color(0xff16a34a) : const Color(0xff2563eb),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
+              const SizedBox(width: 8),
               Expanded(
+                flex: 3,
                 child: TextFormField(
                   controller: _avgFatController,
                   decoration: InputDecoration(
-                    labelText: 'औसत फैट % (Fat)',
+                    labelText: 'फैट %',
                     suffixText: '%',
                     isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 12),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
+                flex: 3,
                 child: TextFormField(
                   controller: _avgSnfController,
                   decoration: InputDecoration(
-                    labelText: 'औसत एस.एन.एफ % (SNF)',
+                    labelText: 'एस.एन.एफ %',
                     suffixText: '%',
                     isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 12),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                   keyboardType:
@@ -685,6 +695,61 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          // Auto sync chip with channels
+          InkWell(
+            onTap: () {
+              setState(() {
+                _autoCalculateTotal = true;
+                _totalProductionController.text =
+                    _totalDispatched.toStringAsFixed(1);
+              });
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: _autoCalculateTotal
+                    ? const Color(0xfff0fdf4)
+                    : const Color(0xffeff6ff),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _autoCalculateTotal
+                      ? const Color(0xffbbf7d0)
+                      : const Color(0xffbfdbfe),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  Icon(
+                    _autoCalculateTotal
+                        ? Icons.check_circle_rounded
+                        : Icons.sync_rounded,
+                    size: 14,
+                    color: _autoCalculateTotal
+                        ? const Color(0xff16a34a)
+                        : const Color(0xff2563eb),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      _autoCalculateTotal
+                          ? 'चैनलों से स्वतः कुल योग: ${_totalDispatched.toStringAsFixed(1)} L (Auto-Synced)'
+                          : 'चैनलों का कुल योग: ${_totalDispatched.toStringAsFixed(1)} L (यहाँ क्लिक कर स्वतः सेट करें 🔄)',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _autoCalculateTotal
+                            ? const Color(0xff16a34a)
+                            : const Color(0xff2563eb),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -693,41 +758,58 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
 
   Widget _buildMultiBuyerChannelsSection(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xffe2e8f0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.storefront, color: Color(0xffb45309), size: 20),
+              const Icon(Icons.storefront_rounded,
+                  color: Color(0xffb45309), size: 20),
               const SizedBox(width: 8),
-              const Text(
-                'विभिन्न खरीदार व दरें (Multi-Buyer Channels & Rates)',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: Color(0xff1e293b),
+              const Expanded(
+                child: Text(
+                  'विभिन्न खरीदार व दरें (Multi-Buyer Rates)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Color(0xff1e293b),
+                  ),
                 ),
               ),
-              const Spacer(),
-              TextButton.icon(
+              OutlinedButton.icon(
                 onPressed: _addCustomChannel,
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('खरीदार जोड़ें'),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                icon: const Icon(Icons.add, size: 14),
+                label: const Text('खरीदार जोड़ें',
+                    style:
+                        TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xff047857),
+                  side: const BorderSide(color: Color(0xff047857)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   visualDensity: VisualDensity.compact,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 4),
           const Text(
-            'एक ही समय में समिति, होटल और खुदरा ग्राहकों को अलग-अलग दरों पर दूध दर्ज करें।',
+            'समिति, निजी होटल व घर-घर ग्राहकों को अलग-अलग दरों पर दर्ज करें।',
             style: TextStyle(fontSize: 11, color: Colors.grey),
           ),
           const SizedBox(height: 12),
@@ -736,6 +818,38 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
             final item = entry.value;
             return _buildChannelRow(context, idx, item);
           }),
+          const SizedBox(height: 4),
+          // Large thumb-friendly "Add Another Buyer" button at the bottom of channels
+          InkWell(
+            onTap: _addCustomChannel,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xfff0fdf4),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: const Color(0xff86efac), style: BorderStyle.solid),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_circle_outline,
+                      color: Color(0xff166534), size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    '➕ नया खरीदार / ग्राहक जोड़ें (Add Buyer Channel)',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: Color(0xff166534),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -765,21 +879,22 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xfff8fafc),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xffe2e8f0)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xffcbd5e1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Row 1: Icon + Buyer Name + Total Amount Pill + Delete Button
           Row(
             children: [
               CircleAvatar(
-                radius: 12,
-                backgroundColor: badgeColor.withOpacity(0.12),
+                radius: 13,
+                backgroundColor: badgeColor.withValues(alpha: 0.14),
                 child: Icon(badgeIcon, size: 14, color: badgeColor),
               ),
               const SizedBox(width: 8),
@@ -793,59 +908,92 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                   ),
                 ),
               ),
-              if (item.hasSlipAttached) ...[
-                InkWell(
-                  onTap: widget.onNavigateToScanner,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xffdcfce7),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xff86efac)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.receipt,
-                            size: 11, color: Color(0xff166534)),
-                        const SizedBox(width: 4),
-                        Text(
-                          item.slipNumber ?? 'पर्ची संलग्न',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xff166534),
-                          ),
-                        ),
-                      ],
-                    ),
+              // Prominent Total Amount Green Pill
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xffdcfce7),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xff86efac)),
+                ),
+                child: Text(
+                  '₹${item.totalAmount.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Color(0xff14532d),
                   ),
                 ),
+              ),
+              if (_channels.length > 1) ...[
                 const SizedBox(width: 6),
-              ],
-              if (_channels.length > 1)
-                IconButton(
-                  icon: const Icon(Icons.close, size: 16, color: Colors.grey),
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  onPressed: () => _removeChannel(index),
+                InkWell(
+                  onTap: () => _removeChannel(index),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Color(0xfffee2e2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close,
+                        size: 14, color: Color(0xffb91c1c)),
+                  ),
                 ),
+              ],
             ],
           ),
+          if (item.hasSlipAttached) ...[
+            const SizedBox(height: 6),
+            InkWell(
+              onTap: widget.onNavigateToScanner,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xffecfdf5),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xffa7f3d0)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.receipt_long,
+                        size: 12, color: Color(0xff047857)),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${item.slipNumber ?? 'पर्ची संलग्न'} • पर्ची मिलान देखें ↗',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xff047857),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
+
+          // Row 2: Two spacious 50/50 columns for Litres and Rate
           Row(
             children: [
               Expanded(
-                flex: 2,
                 child: TextFormField(
-                  initialValue: item.litres.toStringAsFixed(1),
-                  decoration: const InputDecoration(
+                  key: ValueKey('litres_${item.id}_${item.litres}'),
+                  initialValue: item.litres > 0
+                      ? item.litres.toStringAsFixed(1)
+                      : '',
+                  decoration: InputDecoration(
                     labelText: 'मात्रा (Litres)',
                     suffixText: 'L',
                     isDense: true,
-                    border: OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
@@ -854,22 +1002,29 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                     setState(() {
                       item.litres = d;
                       if (_autoCalculateTotal) {
-                        _totalProductionController.text = _totalDispatched.toStringAsFixed(1);
+                        _totalProductionController.text =
+                            _totalDispatched.toStringAsFixed(1);
                       }
                     });
                   },
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
-                flex: 2,
                 child: TextFormField(
-                  initialValue: item.ratePerLitre.toStringAsFixed(1),
-                  decoration: const InputDecoration(
+                  key: ValueKey('rate_${item.id}_${item.ratePerLitre}'),
+                  initialValue: item.ratePerLitre > 0
+                      ? item.ratePerLitre.toStringAsFixed(1)
+                      : '',
+                  decoration: InputDecoration(
                     labelText: 'दर (Rate/L)',
                     prefixText: '₹',
                     isDense: true,
-                    border: OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
@@ -879,68 +1034,126 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                   },
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: Container(
-                  height: 48,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: const Color(0xffcbd5e1)),
-                  ),
-                  alignment: Alignment.centerLeft,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('कुल राशि',
-                          style: TextStyle(fontSize: 9, color: Colors.grey)),
-                      Text(
-                        '₹${item.totalAmount.toStringAsFixed(1)}',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xff064e3b),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              const Text('भुगतान माध्यम: ',
-                  style: TextStyle(fontSize: 11, color: Colors.grey)),
-              const SizedBox(width: 4),
-              DropdownButton<String>(
+          const SizedBox(height: 8),
+
+          // Row 3: Quick Stepper Chips for Litres (+1L, +5L, +10L, +20L, Clear)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                const Text(
+                  'त्वरित मात्रा:',
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 6),
+                ...[1, 5, 10, 20].map((inc) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          item.litres += inc;
+                          if (_autoCalculateTotal) {
+                            _totalProductionController.text =
+                                _totalDispatched.toStringAsFixed(1);
+                          }
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xfff1f5f9),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xffcbd5e1)),
+                        ),
+                        child: Text(
+                          '+${inc}L',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xff0f172a),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      item.litres = 0.0;
+                      if (_autoCalculateTotal) {
+                        _totalProductionController.text =
+                            _totalDispatched.toStringAsFixed(1);
+                      }
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xfffee2e2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Clear',
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: Color(0xff991b1b),
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Row 4: Full-width Payment Mode Selector
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xffe2e8f0)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
                 value: item.paymentMode,
                 isDense: true,
-                underline: const SizedBox(),
+                isExpanded: true,
                 style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xff0f172a),
-                    fontWeight: FontWeight.bold),
+                  fontSize: 12,
+                  color: Color(0xff0f172a),
+                  fontWeight: FontWeight.w600,
+                ),
                 items: const [
                   DropdownMenuItem(
-                      value: '10_day_cycle',
-                      child: Text('🏛️ समिति 10-दिवसीय भुगतान')),
+                    value: '10_day_cycle',
+                    child: Text('🏛️ समिति 10-दिवसीय भुगतान चक्र (10-Day Cycle)'),
+                  ),
                   DropdownMenuItem(
-                      value: 'cash_upi',
-                      child: Text('💵 नगद / UPI प्राप्त')),
+                    value: 'cash_upi',
+                    child: Text('💵 तुरंत नगद / UPI प्राप्त (Cash/UPI Received)'),
+                  ),
                   DropdownMenuItem(
-                      value: 'udhar_khata',
-                      child: Text('📒 ग्राहक उधार खाता')),
+                    value: 'udhar_khata',
+                    child: Text('📒 ग्राहक उधार खाता (Customer Udhar Ledger)'),
+                  ),
                 ],
                 onChanged: (val) {
                   if (val != null) setState(() => item.paymentMode = val);
                 },
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -951,86 +1164,115 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
     final isDispatchedMatch = _balanceLitres.abs() < 0.1;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xfff0fdf4),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xffbbf7d0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.summarize_outlined,
+              const Icon(Icons.summarize_rounded,
                   color: Color(0xff16a34a), size: 18),
               const SizedBox(width: 8),
-              const Text(
-                'दैनिक बिक्री व आय संतुलन (Sales & Revenue Summary)',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: Color(0xff166534),
-                ),
-              ),
-              const Spacer(),
-              InkWell(
-                onTap: !isDispatchedMatch
-                    ? () {
-                        setState(() {
-                          _autoCalculateTotal = true;
-                          _totalProductionController.text = _totalDispatched.toStringAsFixed(1);
-                        });
-                      }
-                    : null,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isDispatchedMatch
-                        ? const Color(0xffdcfce7)
-                        : (_balanceLitres < -0.05
-                            ? const Color(0xfffee2e2)
-                            : const Color(0xfffef3c7)),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isDispatchedMatch
-                          ? const Color(0xff86efac)
-                          : (_balanceLitres < -0.05
-                              ? const Color(0xfffca5a5)
-                              : const Color(0xfffcd34d)),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        isDispatchedMatch
-                            ? '✅ दूध वितरण संतुलित (100% Dispatched)'
-                            : (_balanceLitres < -0.05
-                                ? '⚠️ ${_balanceLitres.abs().toStringAsFixed(1)}L अतिरिक्त वितरण (कुल दूध ${_totalDispatched.toStringAsFixed(1)}L करें 🔄)'
-                                : '🥛 शेष दूध: +${_balanceLitres.toStringAsFixed(1)}L बचा'),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: isDispatchedMatch
-                              ? const Color(0xff15803d)
-                              : (_balanceLitres < -0.05
-                                  ? const Color(0xffb91c1c)
-                                  : const Color(0xffb45309)),
-                        ),
-                      ),
-                    ],
+              const Expanded(
+                child: Text(
+                  'दैनिक बिक्री व आय संतुलन (Summary)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Color(0xff166534),
                   ),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 8),
+
+          // Smart balance alert badge
+          InkWell(
+            onTap: !isDispatchedMatch
+                ? () {
+                    setState(() {
+                      _autoCalculateTotal = true;
+                      _totalProductionController.text =
+                          _totalDispatched.toStringAsFixed(1);
+                    });
+                  }
+                : null,
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isDispatchedMatch
+                    ? const Color(0xffdcfce7)
+                    : (_balanceLitres < -0.05
+                        ? const Color(0xfffee2e2)
+                        : const Color(0xfffef3c7)),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isDispatchedMatch
+                      ? const Color(0xff86efac)
+                      : (_balanceLitres < -0.05
+                          ? const Color(0xfffca5a5)
+                          : const Color(0xfffcd34d)),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isDispatchedMatch
+                        ? Icons.check_circle_rounded
+                        : Icons.warning_amber_rounded,
+                    size: 16,
+                    color: isDispatchedMatch
+                        ? const Color(0xff15803d)
+                        : (_balanceLitres < -0.05
+                            ? const Color(0xffb91c1c)
+                            : const Color(0xffb45309)),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      isDispatchedMatch
+                          ? 'दूध वितरण 100% संतुलित (उत्पादित = वितरित)'
+                          : (_balanceLitres < -0.05
+                              ? '${_balanceLitres.abs().toStringAsFixed(1)}L अतिरिक्त वितरण! कुल दूध ${_totalDispatched.toStringAsFixed(1)}L करें 🔄'
+                              : 'शेष दूध: +${_balanceLitres.toStringAsFixed(1)}L डेयरी में बचा हुआ है'),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: isDispatchedMatch
+                            ? const Color(0xff15803d)
+                            : (_balanceLitres < -0.05
+                                ? const Color(0xffb91c1c)
+                                : const Color(0xffb45309)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 12),
+
+          // 3 Metric Tiles in 1 Row
           Row(
             children: [
               Expanded(
                 child: _buildMetricTile(
-                  'कुल उत्पादित',
+                  '🥛 कुल उत्पादित',
                   '${_totalProduced.toStringAsFixed(1)} L',
                   Colors.blue.shade900,
                 ),
@@ -1038,7 +1280,7 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
               const SizedBox(width: 8),
               Expanded(
                 child: _buildMetricTile(
-                  'कुल वितरित',
+                  '🚚 कुल वितरित',
                   '${_totalDispatched.toStringAsFixed(1)} L',
                   Colors.teal.shade900,
                 ),
@@ -1046,7 +1288,7 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
               const SizedBox(width: 8),
               Expanded(
                 child: _buildMetricTile(
-                  'कुल दैनिक आय',
+                  '💰 कुल आय',
                   '₹${_totalRevenue.toStringAsFixed(0)}',
                   const Color(0xff15803d),
                   isBold: true,
@@ -1057,33 +1299,40 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
           const SizedBox(height: 10),
           const Divider(height: 1),
           const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+          // Wrap payment breakdown for phone screens
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
             children: [
-              Text(
-                '💵 नगद/UPI: ₹${_cashUpiAmount.toStringAsFixed(0)}',
-                style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xff1e293b)),
-              ),
-              Text(
-                '🏛️ समिति चक्र: ₹${_coopAmount.toStringAsFixed(0)}',
-                style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xff047857)),
-              ),
-              Text(
-                '📒 ग्राहक उधार: ₹${_udharAmount.toStringAsFixed(0)}',
-                style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xffb45309)),
-              ),
+              _buildPaymentChip(
+                  '💵 नगद/UPI', _cashUpiAmount, const Color(0xff1e293b)),
+              _buildPaymentChip(
+                  '🏛️ समिति चक्र', _coopAmount, const Color(0xff047857)),
+              _buildPaymentChip(
+                  '📒 ग्राहक उधार', _udharAmount, const Color(0xffb45309)),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentChip(String label, double amount, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xffe2e8f0)),
+      ),
+      child: Text(
+        '$label: ₹${amount.toStringAsFixed(0)}',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
       ),
     );
   }
@@ -1389,72 +1638,78 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 1. Header Card with Scan Trigger & Preset Chips
-          _buildScanActionCard(context),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 580),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. Header Card with Scan Trigger & Preset Chips
+              _buildScanActionCard(context),
 
-          const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
-          // 2. Physical Thermal Slip Preview / User-Editable Form
-          _buildScannedSlipDataCard(context),
+              // 2. Physical Thermal Slip Preview / User-Editable Form
+              _buildScannedSlipDataCard(context),
 
-          const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
-          // 3. Cross-Verification & Mismatch Comparison Table
-          _buildMismatchComparisonCard(context),
+              // 3. Cross-Verification & Mismatch Comparison Table
+              _buildMismatchComparisonCard(context),
 
-          const SizedBox(height: 14),
+              const SizedBox(height: 14),
 
-          // 4. Primary Action: Submit & Save Verified Slip
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: _submitAndSaveVerifiedSlip,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xff064e3b),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              // 4. Primary Action: Submit & Save Verified Slip
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: _submitAndSaveVerifiedSlip,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xff064e3b),
+                    foregroundColor: Colors.white,
+                    elevation: 3,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.verified_rounded, size: 20),
+                  label: const Text(
+                    '✅ सत्यापित पर्ची सुरक्षित करें (Submit Slip)',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
                 ),
               ),
-              icon: const Icon(Icons.verified),
-              label: const Text(
-                'सत्यापित पर्ची सुरक्षित करें (Submit & Save Verified Slip)',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-            ),
-          ),
 
-          const SizedBox(height: 10),
+              const SizedBox(height: 10),
 
-          // 5. Secondary Action: Raise WhatsApp Dispute
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: OutlinedButton.icon(
-              onPressed: _raiseDisputeOnWhatsApp,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xffb91c1c),
-                side: const BorderSide(color: Color(0xffb91c1c), width: 1.5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+              // 5. Secondary Action: Raise WhatsApp Dispute
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: _raiseDisputeOnWhatsApp,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xffb91c1c),
+                    side: const BorderSide(color: Color(0xffb91c1c), width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.warning_amber_rounded, size: 18),
+                  label: const Text(
+                    'समिति पर आपत्ति दर्ज करें (WhatsApp Dispute)',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
                 ),
               ),
-              icon: const Icon(Icons.warning, size: 18),
-              label: const Text(
-                'समिति पर आपत्ति दर्ज करें (WhatsApp Dispute)',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-              ),
-            ),
-          ),
 
-          const SizedBox(height: 24),
-        ],
+              const SizedBox(height: 36),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1475,7 +1730,7 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xff047857).withOpacity(0.1),
+                  color: const Color(0xff047857).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.document_scanner,
@@ -1694,70 +1949,86 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
           ),
           const SizedBox(height: 10),
 
-          // 4 Main Auto-Filled & Editable Numbers
+          // 4 Main Auto-Filled & Editable Numbers (Mobile 2x2 spacious grid)
           Row(
             children: [
               Expanded(
                 child: TextFormField(
                   controller: _litresController,
-                  decoration: const InputDecoration(
-                    labelText: 'पर्ची दूध (L)',
+                  decoration: InputDecoration(
+                    labelText: 'पर्ची दूध मात्रा (L)',
                     suffixText: 'L',
                     isDense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     fillColor: Colors.white,
                     filled: true,
-                    border: OutlineInputBorder(),
+                    border:
+                        OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   onChanged: (_) => setState(() {}),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextFormField(
-                  controller: _fatController,
-                  decoration: const InputDecoration(
-                    labelText: 'फैट % (Fat)',
-                    suffixText: '%',
-                    isDense: true,
-                    fillColor: Colors.white,
-                    filled: true,
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  onChanged: (_) => setState(() {}),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextFormField(
-                  controller: _snfController,
-                  decoration: const InputDecoration(
-                    labelText: 'एसएनएफ %',
-                    suffixText: '%',
-                    isDense: true,
-                    fillColor: Colors.white,
-                    filled: true,
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  onChanged: (_) => setState(() {}),
-                ),
-              ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: TextFormField(
                   controller: _rateController,
-                  decoration: const InputDecoration(
-                    labelText: 'दर (₹/L)',
+                  decoration: InputDecoration(
+                    labelText: 'पर्ची दर (Rate ₹/L)',
                     prefixText: '₹',
                     isDense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     fillColor: Colors.white,
                     filled: true,
-                    border: OutlineInputBorder(),
+                    border:
+                        OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _fatController,
+                  decoration: InputDecoration(
+                    labelText: 'फैट % (Fat)',
+                    suffixText: '%',
+                    isDense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    fillColor: Colors.white,
+                    filled: true,
+                    border:
+                        OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextFormField(
+                  controller: _snfController,
+                  decoration: InputDecoration(
+                    labelText: 'एस.एन.एफ % (SNF)',
+                    suffixText: '%',
+                    isDense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    fillColor: Colors.white,
+                    filled: true,
+                    border:
+                        OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
@@ -1964,10 +2235,13 @@ class _DateWiseSlipFolderTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: archives.length,
-      itemBuilder: (context, index) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 580),
+        child: ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          itemCount: archives.length,
+          itemBuilder: (context, index) {
         final archive = archives[index];
         final date = archive['date'] as String;
         final morning = archive['morning'] as Map<String, dynamic>;
@@ -1981,7 +2255,7 @@ class _DateWiseSlipFolderTab extends StatelessWidget {
             border: Border.all(color: const Color(0xffe2e8f0)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: Colors.black.withValues(alpha: 0.02),
                 blurRadius: 6,
                 offset: const Offset(0, 2),
               ),
@@ -2032,6 +2306,8 @@ class _DateWiseSlipFolderTab extends StatelessWidget {
           ),
         );
       },
+    ),
+    ),
     );
   }
 

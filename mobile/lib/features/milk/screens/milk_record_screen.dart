@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:dairy_ai/features/milk/screens/milk_summary_screen.dart' show MilkSummaryView;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -212,9 +214,102 @@ class _MilkRecordScreenState extends ConsumerState<MilkRecordScreen>
 // ============================================================================
 // TAB 1: Daily Multi-Buyer Sales Entry (बहु-विक्री प्रविष्टि)
 // ============================================================================
+class BuyerChannelPreset {
+  final String channelType;
+  final String defaultName;
+  final String label;
+  final IconData icon;
+  final Color color;
+  final double defaultRate;
+  final String defaultPayment;
+
+  const BuyerChannelPreset({
+    required this.channelType,
+    required this.defaultName,
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.defaultRate,
+    required this.defaultPayment,
+  });
+}
+
+const List<BuyerChannelPreset> kBuyerPresets = [
+  BuyerChannelPreset(
+    channelType: 'cooperative',
+    defaultName: 'दुग्ध समिति / BMC बल्क',
+    label: '🏛️ समिति (BMC)',
+    icon: Icons.account_balance,
+    color: Color(0xff047857),
+    defaultRate: 42.50,
+    defaultPayment: '10_day_cycle',
+  ),
+  BuyerChannelPreset(
+    channelType: 'tea_stall',
+    defaultName: 'चाय दुकान / टी-स्टॉल',
+    label: '☕ चाय दुकान',
+    icon: Icons.local_cafe,
+    color: Color(0xff9a3412),
+    defaultRate: 70.00,
+    defaultPayment: 'cash_upi',
+  ),
+  BuyerChannelPreset(
+    channelType: 'hotel',
+    defaultName: 'निजी होटल व रेस्टोरेंट',
+    label: '🏨 होटल / ढाबा',
+    icon: Icons.restaurant,
+    color: Color(0xffb45309),
+    defaultRate: 80.00,
+    defaultPayment: 'cash_upi',
+  ),
+  BuyerChannelPreset(
+    channelType: 'halwai',
+    defaultName: 'हलवाई व मिठाई दुकान',
+    label: '🍬 हलवाई (Sweets)',
+    icon: Icons.cake_outlined,
+    color: Color(0xffd97706),
+    defaultRate: 75.00,
+    defaultPayment: 'cash_upi',
+  ),
+  BuyerChannelPreset(
+    channelType: 'retail',
+    defaultName: 'घर-घर खुदरा ग्राहक',
+    label: '🏠 घर-घर ग्राहक',
+    icon: Icons.home,
+    color: Color(0xff1e40af),
+    defaultRate: 70.00,
+    defaultPayment: 'udhar_khata',
+  ),
+  BuyerChannelPreset(
+    channelType: 'self',
+    defaultName: 'घरेलू उपयोग व बछड़े',
+    label: '🐄 घरेलू / बछड़ा',
+    icon: Icons.pets,
+    color: Color(0xff475569),
+    defaultRate: 0.00,
+    defaultPayment: 'cash_upi',
+  ),
+  BuyerChannelPreset(
+    channelType: 'custom',
+    defaultName: 'नया निजी खरीदार',
+    label: '👤 अन्य खरीदार',
+    icon: Icons.person_add_alt_1,
+    color: Color(0xff0d9488),
+    defaultRate: 65.00,
+    defaultPayment: 'cash_upi',
+  ),
+];
+
+BuyerChannelPreset getPresetForType(String type) {
+  return kBuyerPresets.firstWhere(
+    (p) => p.channelType == type,
+    orElse: () => kBuyerPresets.last,
+  );
+}
+
 class BuyerChannelItem {
   String id;
-  String channelType; // 'cooperative', 'hotel', 'retail', 'self'
+  String channelType; // 'cooperative', 'tea_stall', 'hotel', 'halwai', 'retail', 'self', 'custom'
   String buyerName;
   double litres;
   double ratePerLitre;
@@ -238,6 +333,34 @@ class BuyerChannelItem {
   });
 
   double get totalAmount => litres * ratePerLitre;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'channelType': channelType,
+        'buyerName': buyerName,
+        'litres': litres,
+        'ratePerLitre': ratePerLitre,
+        'fat': fat,
+        'snf': snf,
+        'paymentMode': paymentMode,
+        'hasSlipAttached': hasSlipAttached,
+        'slipNumber': slipNumber,
+      };
+
+  factory BuyerChannelItem.fromJson(Map<String, dynamic> json) =>
+      BuyerChannelItem(
+        id: json['id'] as String? ??
+            DateTime.now().millisecondsSinceEpoch.toString(),
+        channelType: json['channelType'] as String? ?? 'custom',
+        buyerName: json['buyerName'] as String? ?? 'नया खरीदार',
+        litres: (json['litres'] as num?)?.toDouble() ?? 0.0,
+        ratePerLitre: (json['ratePerLitre'] as num?)?.toDouble() ?? 60.0,
+        fat: (json['fat'] as num?)?.toDouble(),
+        snf: (json['snf'] as num?)?.toDouble(),
+        paymentMode: json['paymentMode'] as String? ?? 'cash_upi',
+        hasSlipAttached: json['hasSlipAttached'] as bool? ?? false,
+        slipNumber: json['slipNumber'] as String?,
+      );
 }
 
 class _DailyMultiBuyerTab extends ConsumerStatefulWidget {
@@ -260,11 +383,12 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
   final _avgSnfController = TextEditingController(text: '8.60');
 
   late List<BuyerChannelItem> _channels;
+  final Map<String, TextEditingController> _litresControllers = {};
+  final Map<String, TextEditingController> _rateControllers = {};
+  static const _storageKey = 'farmer_milk_buyer_channels_v2';
 
-  @override
-  void initState() {
-    super.initState();
-    _channels = [
+  List<BuyerChannelItem> _getDefaultChannels() {
+    return [
       BuyerChannelItem(
         id: '1',
         channelType: 'cooperative',
@@ -282,7 +406,7 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
         channelType: 'hotel',
         buyerName: 'निजी होटल व हलवाई (Private Hotel)',
         litres: 50.0,
-        ratePerLitre: 100.00, // As specifically requested by user!
+        ratePerLitre: 100.00,
         paymentMode: 'cash_upi',
         hasSlipAttached: false,
       ),
@@ -305,9 +429,90 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
         hasSlipAttached: false,
       ),
     ];
-    // Sync total production with initial channels
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _channels = _getDefaultChannels();
+    for (final item in _channels) {
+      _syncControllersFor(item);
+    }
     final initSum = _channels.fold(0.0, (sum, item) => sum + item.litres);
     _totalProductionController.text = initSum.toStringAsFixed(1);
+    _loadChannelsFromStorage();
+  }
+
+  TextEditingController _getLitresController(BuyerChannelItem item) {
+    if (!_litresControllers.containsKey(item.id)) {
+      _litresControllers[item.id] = TextEditingController(
+        text: item.litres > 0 ? item.litres.toStringAsFixed(1) : '',
+      );
+    }
+    return _litresControllers[item.id]!;
+  }
+
+  TextEditingController _getRateController(BuyerChannelItem item) {
+    if (!_rateControllers.containsKey(item.id)) {
+      _rateControllers[item.id] = TextEditingController(
+        text: item.ratePerLitre > 0 ? item.ratePerLitre.toStringAsFixed(1) : '',
+      );
+    }
+    return _rateControllers[item.id]!;
+  }
+
+  void _syncControllersFor(BuyerChannelItem item) {
+    if (_litresControllers.containsKey(item.id)) {
+      _litresControllers[item.id]!.text =
+          item.litres > 0 ? item.litres.toStringAsFixed(1) : '';
+    } else {
+      _litresControllers[item.id] = TextEditingController(
+        text: item.litres > 0 ? item.litres.toStringAsFixed(1) : '',
+      );
+    }
+    if (_rateControllers.containsKey(item.id)) {
+      _rateControllers[item.id]!.text =
+          item.ratePerLitre > 0 ? item.ratePerLitre.toStringAsFixed(1) : '';
+    } else {
+      _rateControllers[item.id] = TextEditingController(
+        text: item.ratePerLitre > 0 ? item.ratePerLitre.toStringAsFixed(1) : '',
+      );
+    }
+  }
+
+  Future<void> _saveChannelsToStorage() async {
+    try {
+      const storage = FlutterSecureStorage();
+      final listJson = jsonEncode(_channels.map((c) => c.toJson()).toList());
+      await storage.write(key: _storageKey, value: listJson);
+    } catch (_) {}
+  }
+
+  Future<void> _loadChannelsFromStorage() async {
+    try {
+      const storage = FlutterSecureStorage();
+      final raw = await storage.read(key: _storageKey);
+      if (raw != null && raw.isNotEmpty) {
+        final decoded = jsonDecode(raw);
+        if (decoded is List && decoded.isNotEmpty) {
+          final loaded = decoded
+              .map((e) => BuyerChannelItem.fromJson(e as Map<String, dynamic>))
+              .toList();
+          if (mounted) {
+            setState(() {
+              _channels = loaded;
+              for (final item in _channels) {
+                _syncControllersFor(item);
+              }
+              if (_autoCalculateTotal) {
+                _totalProductionController.text =
+                    _totalDispatched.toStringAsFixed(1);
+              }
+            });
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -315,6 +520,12 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
     _totalProductionController.dispose();
     _avgFatController.dispose();
     _avgSnfController.dispose();
+    for (final c in _litresControllers.values) {
+      c.dispose();
+    }
+    for (final c in _rateControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -341,32 +552,421 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
       .where((c) => c.paymentMode == 'udhar_khata')
       .fold(0.0, (sum, c) => sum + c.totalAmount);
 
-  void _addCustomChannel() {
+  void _resetToDefaultChannels() {
     setState(() {
-      _channels.add(
-        BuyerChannelItem(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          channelType: 'hotel',
-          buyerName: 'नया खरीदार (होटल/दुकान)',
-          litres: 10.0,
-          ratePerLitre: 80.00,
-          paymentMode: 'cash_upi',
-        ),
-      );
+      _channels = _getDefaultChannels();
+      for (final item in _channels) {
+        _syncControllersFor(item);
+      }
       if (_autoCalculateTotal) {
         _totalProductionController.text = _totalDispatched.toStringAsFixed(1);
       }
     });
+    _saveChannelsToStorage();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('🔄 डिफ़ॉल्ट 4 चैनल पुनः लोड कर दिए गए हैं।'),
+        backgroundColor: Color(0xff064e3b),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _clearAllChannels() {
+    setState(() {
+      _channels.clear();
+      if (_autoCalculateTotal) {
+        _totalProductionController.text = '0.0';
+      }
+    });
+    _saveChannelsToStorage();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('🗑️ सभी खरीदार सूची से हटा दिए गए हैं।'),
+        backgroundColor: Color(0xffb91c1c),
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   void _removeChannel(int index) {
-    if (_channels.length <= 1) return;
+    final removed = _channels[index];
     setState(() {
       _channels.removeAt(index);
       if (_autoCalculateTotal) {
         _totalProductionController.text = _totalDispatched.toStringAsFixed(1);
       }
     });
+    _saveChannelsToStorage();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('🗑️ "${removed.buyerName}" को हटा दिया गया'),
+        action: SnackBarAction(
+          label: 'वापस लाएं (Undo)',
+          textColor: Colors.amberAccent,
+          onPressed: () {
+            setState(() {
+              _channels.insert(index, removed);
+              _syncControllersFor(removed);
+              if (_autoCalculateTotal) {
+                _totalProductionController.text =
+                    _totalDispatched.toStringAsFixed(1);
+              }
+            });
+            _saveChannelsToStorage();
+          },
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Future<void> _showBuyerDialog({
+    BuyerChannelItem? existingItem,
+    int? editIndex,
+    String? initialChannelType,
+  }) async {
+    final isEditing = existingItem != null && editIndex != null;
+    String selectedType = existingItem?.channelType ??
+        initialChannelType ??
+        'tea_stall';
+    final initialPreset = getPresetForType(selectedType);
+
+    final nameCtrl = TextEditingController(
+      text: existingItem?.buyerName ?? initialPreset.defaultName,
+    );
+    final rateCtrl = TextEditingController(
+      text: existingItem != null
+          ? existingItem.ratePerLitre.toStringAsFixed(1)
+          : initialPreset.defaultRate.toStringAsFixed(1),
+    );
+    final litresCtrl = TextEditingController(
+      text: existingItem != null && existingItem.litres > 0
+          ? existingItem.litres.toStringAsFixed(1)
+          : '',
+    );
+    String paymentMode =
+        existingItem?.paymentMode ?? initialPreset.defaultPayment;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (modalContext, setModalState) {
+            final activePreset = getPresetForType(selectedType);
+
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 14,
+                bottom: MediaQuery.of(modalContext).viewInsets.bottom + 18,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 14,
+                          backgroundColor:
+                              activePreset.color.withValues(alpha: 0.15),
+                          child: Icon(activePreset.icon,
+                              size: 16, color: activePreset.color),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            isEditing
+                                ? 'खरीदार विवरण बदलें (Edit Buyer)'
+                                : '➕ नया खरीदार जोड़ें (Add Buyer)',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xff0f172a),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(modalContext),
+                          icon: const Icon(Icons.close,
+                              size: 20, color: Colors.grey),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ],
+                    ),
+                    const Text(
+                      'खरीदार श्रेणी, नाम, दर व भुगतान विकल्प अपनी सुविधा अनुसार सेट करें:',
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Category Selector
+                    const Text(
+                      '1. खरीदार का प्रकार (Buyer Category):',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xff334155)),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: kBuyerPresets.map((preset) {
+                        final isSelected = preset.channelType == selectedType;
+                        return ChoiceChip(
+                          selected: isSelected,
+                          label: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(preset.icon,
+                                  size: 13,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : preset.color),
+                              const SizedBox(width: 4),
+                              Text(preset.label),
+                            ],
+                          ),
+                          selectedColor: preset.color,
+                          backgroundColor: const Color(0xfff1f5f9),
+                          labelStyle: TextStyle(
+                            color: isSelected
+                                ? Colors.white
+                                : const Color(0xff334155),
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.w500,
+                            fontSize: 11,
+                          ),
+                          onSelected: (val) {
+                            if (val) {
+                              setModalState(() {
+                                selectedType = preset.channelType;
+                                if (!isEditing || nameCtrl.text.isEmpty) {
+                                  nameCtrl.text = preset.defaultName;
+                                }
+                                rateCtrl.text =
+                                    preset.defaultRate.toStringAsFixed(1);
+                                paymentMode = preset.defaultPayment;
+                              });
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // Name input
+                    TextFormField(
+                      controller: nameCtrl,
+                      decoration: InputDecoration(
+                        labelText: '2. खरीदार / दुकान का नाम (Name)',
+                        hintText:
+                            'उदा. शर्मा टी स्टॉल, बालाजी स्वीट्स, अमूल संकलन केंद्र...',
+                        isDense: true,
+                        prefixIcon:
+                            const Icon(Icons.storefront_outlined, size: 20),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Rate and Litres inputs
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: rateCtrl,
+                            decoration: InputDecoration(
+                              labelText: 'दर (Rate/L)',
+                              prefixText: '₹ ',
+                              isDense: true,
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextFormField(
+                            controller: litresCtrl,
+                            decoration: InputDecoration(
+                              labelText: isEditing
+                                  ? 'मात्रा (Litres)'
+                                  : 'मात्रा (L) (वैकल्पिक)',
+                              suffixText: 'L',
+                              hintText: '0.0',
+                              isDense: true,
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Payment Mode Dropdown
+                    DropdownButtonFormField<String>(
+                      initialValue: paymentMode,
+                      decoration: InputDecoration(
+                        labelText: 'भुगतान का माध्यम (Payment Method)',
+                        isDense: true,
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'cash_upi',
+                          child:
+                              Text('💵 तुरंत नगद / UPI प्राप्त (Cash/UPI)'),
+                        ),
+                        DropdownMenuItem(
+                          value: '10_day_cycle',
+                          child:
+                              Text('🏛️ समिति 10-दिवसीय चक्र (10-Day Cycle)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'udhar_khata',
+                          child: Text(
+                              '📒 ग्राहक उधार खाता (Customer Udhar Ledger)'),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) setModalState(() => paymentMode = val);
+                      },
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // Action buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(modalContext),
+                            style: OutlinedButton.styleFrom(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: const Text('रद्द करें (Cancel)'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              final name = nameCtrl.text.trim().isEmpty
+                                  ? activePreset.defaultName
+                                  : nameCtrl.text.trim();
+                              final rate =
+                                  double.tryParse(rateCtrl.text.trim()) ??
+                                      activePreset.defaultRate;
+                              final litres =
+                                  double.tryParse(litresCtrl.text.trim()) ??
+                                      0.0;
+
+                              if (isEditing) {
+                                setState(() {
+                                  final item = _channels[editIndex];
+                                  item.channelType = selectedType;
+                                  item.buyerName = name;
+                                  item.ratePerLitre = rate;
+                                  item.litres = litres;
+                                  item.paymentMode = paymentMode;
+                                  _syncControllersFor(item);
+                                  if (_autoCalculateTotal) {
+                                    _totalProductionController.text =
+                                        _totalDispatched.toStringAsFixed(1);
+                                  }
+                                });
+                                _saveChannelsToStorage();
+                              } else {
+                                final newItem = BuyerChannelItem(
+                                  id: DateTime.now()
+                                      .millisecondsSinceEpoch
+                                      .toString(),
+                                  channelType: selectedType,
+                                  buyerName: name,
+                                  litres: litres,
+                                  ratePerLitre: rate,
+                                  paymentMode: paymentMode,
+                                );
+                                setState(() {
+                                  _channels.add(newItem);
+                                  _syncControllersFor(newItem);
+                                  if (_autoCalculateTotal) {
+                                    _totalProductionController.text =
+                                        _totalDispatched.toStringAsFixed(1);
+                                  }
+                                });
+                                _saveChannelsToStorage();
+                              }
+
+                              Navigator.pop(modalContext);
+                            },
+                            icon: Icon(
+                                isEditing ? Icons.check : Icons.add_circle,
+                                size: 18),
+                            label: Text(
+                              isEditing
+                                  ? 'अपडेट करें (Save)'
+                                  : 'खरीदार जोड़ें (Add)',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xff064e3b),
+                              foregroundColor: Colors.white,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _pickDate() async {
@@ -380,6 +980,7 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
   }
 
   void _saveEntry() {
+    _saveChannelsToStorage();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -599,7 +1200,7 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
           const SizedBox(height: 12),
           // Full-width Cattle / Source selector
           DropdownButtonFormField<int>(
-            value: _selectedCattleId,
+            initialValue: _selectedCattleId,
             isExpanded: true,
             decoration: InputDecoration(
               labelText: 'पशु / समूह (Milk Source)',
@@ -790,7 +1391,7 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                 ),
               ),
               OutlinedButton.icon(
-                onPressed: _addCustomChannel,
+                onPressed: () => _showBuyerDialog(),
                 icon: const Icon(Icons.add, size: 14),
                 label: const Text('खरीदार जोड़ें',
                     style:
@@ -805,23 +1406,175 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                       borderRadius: BorderRadius.circular(8)),
                 ),
               ),
+              const SizedBox(width: 4),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, size: 18, color: Colors.grey),
+                tooltip: 'खरीदार विकल्प (Channel Options)',
+                padding: EdgeInsets.zero,
+                onSelected: (val) {
+                  if (val == 'reset') {
+                    _resetToDefaultChannels();
+                  } else if (val == 'clear') {
+                    _clearAllChannels();
+                  }
+                },
+                itemBuilder: (ctx) => const [
+                  PopupMenuItem(
+                    value: 'reset',
+                    child: Row(
+                      children: [
+                        Icon(Icons.restart_alt,
+                            size: 16, color: Color(0xff047857)),
+                        SizedBox(width: 8),
+                        Text('डिफ़ॉल्ट 4 चैनल रीसेट करें',
+                            style: TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'clear',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_sweep_outlined,
+                            size: 16, color: Color(0xffb91c1c)),
+                        SizedBox(width: 8),
+                        Text('सभी खरीदार साफ़ करें',
+                            style: TextStyle(
+                                fontSize: 12, color: Color(0xffb91c1c))),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 4),
           const Text(
-            'समिति, निजी होटल व घर-घर ग्राहकों को अलग-अलग दरों पर दर्ज करें।',
+            'समिति, चाय दुकान, होटल, हलवाई या घर-घर ग्राहकों को अलग-अलग दरों पर दर्ज करें।',
             style: TextStyle(fontSize: 11, color: Colors.grey),
           ),
+          const SizedBox(height: 10),
+
+          // Quick Presets 1-Tap Bar
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                const Text(
+                  'त्वरित जोड़ें:',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xff64748b)),
+                ),
+                const SizedBox(width: 6),
+                ...kBuyerPresets.map((preset) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ActionChip(
+                      avatar:
+                          Icon(preset.icon, size: 13, color: preset.color),
+                      label: Text(preset.label,
+                          style: const TextStyle(
+                              fontSize: 11, fontWeight: FontWeight.w600)),
+                      backgroundColor: preset.color.withValues(alpha: 0.08),
+                      side: BorderSide(
+                          color: preset.color.withValues(alpha: 0.3)),
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      onPressed: () {
+                        _showBuyerDialog(
+                            initialChannelType: preset.channelType);
+                      },
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
           const SizedBox(height: 12),
+
+          // If empty state
+          if (_channels.isEmpty)
+            Container(
+              width: double.infinity,
+              padding:
+                  const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xfff8fafc),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: const Color(0xffcbd5e1),
+                    style: BorderStyle.solid),
+              ),
+              child: Column(
+                children: [
+                  const Icon(Icons.storefront_outlined,
+                      size: 38, color: Color(0xff94a3b8)),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'बिक्री सूची में कोई खरीदार नहीं है',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: Color(0xff334155)),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'अपनी आवश्यकतानुसार समिति, होटल, चाय दुकान या खुदरा ग्राहक जोड़ें:',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    alignment: WrapAlignment.center,
+                    children: kBuyerPresets.take(5).map((preset) {
+                      return ActionChip(
+                        avatar:
+                            Icon(preset.icon, size: 13, color: preset.color),
+                        label: Text(preset.label,
+                            style: const TextStyle(fontSize: 11)),
+                        backgroundColor: Colors.white,
+                        side: BorderSide(
+                            color: preset.color.withValues(alpha: 0.4)),
+                        onPressed: () {
+                          _showBuyerDialog(
+                              initialChannelType: preset.channelType);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 10),
+                  TextButton.icon(
+                    onPressed: _resetToDefaultChannels,
+                    icon: const Icon(Icons.restart_alt,
+                        size: 15, color: Color(0xff047857)),
+                    label: const Text(
+                      'डिफ़ॉल्ट 4 चैनल पुनः लोड करें (Restore Defaults)',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xff047857),
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // If has channels
           ..._channels.asMap().entries.map((entry) {
             final idx = entry.key;
             final item = entry.value;
             return _buildChannelRow(context, idx, item);
           }),
           const SizedBox(height: 4),
-          // Large thumb-friendly "Add Another Buyer" button at the bottom of channels
+
+          // Large thumb-friendly "Add Another Buyer" button
           InkWell(
-            onTap: _addCustomChannel,
+            onTap: () => _showBuyerDialog(),
             borderRadius: BorderRadius.circular(12),
             child: Container(
               width: double.infinity,
@@ -857,26 +1610,12 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
 
   Widget _buildChannelRow(
       BuildContext context, int index, BuyerChannelItem item) {
-    Color badgeColor;
-    IconData badgeIcon;
+    final preset = getPresetForType(item.channelType);
+    final badgeColor = preset.color;
+    final badgeIcon = preset.icon;
 
-    switch (item.channelType) {
-      case 'cooperative':
-        badgeColor = const Color(0xff047857);
-        badgeIcon = Icons.account_balance;
-        break;
-      case 'hotel':
-        badgeColor = const Color(0xffb45309);
-        badgeIcon = Icons.restaurant;
-        break;
-      case 'retail':
-        badgeColor = const Color(0xff1e40af);
-        badgeIcon = Icons.home;
-        break;
-      default:
-        badgeColor = const Color(0xff64748b);
-        badgeIcon = Icons.pets;
-    }
+    final litresCtrl = _getLitresController(item);
+    final rateCtrl = _getRateController(item);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -889,29 +1628,65 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Row 1: Icon + Buyer Name + Total Amount Pill + Delete Button
+          // Row 1: Icon + Buyer Name (Click to edit) + Category Pill + Amount Pill + Delete Button
           Row(
             children: [
               CircleAvatar(
-                radius: 13,
+                radius: 14,
                 backgroundColor: badgeColor.withValues(alpha: 0.14),
-                child: Icon(badgeIcon, size: 14, color: badgeColor),
+                child: Icon(badgeIcon, size: 15, color: badgeColor),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  item.buyerName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: Color(0xff0f172a),
+                child: InkWell(
+                  onTap: () =>
+                      _showBuyerDialog(existingItem: item, editIndex: index),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            item.buyerName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Color(0xff0f172a),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(Icons.edit_outlined,
+                            size: 14, color: Colors.blueGrey.shade400),
+                      ],
+                    ),
                   ),
                 ),
               ),
-              // Prominent Total Amount Green Pill
+              // Category Pill
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: badgeColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  preset.label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: badgeColor,
+                  ),
+                ),
+              ),
+              // Total Amount Green Pill
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xffdcfce7),
                   borderRadius: BorderRadius.circular(8),
@@ -926,22 +1701,21 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                   ),
                 ),
               ),
-              if (_channels.length > 1) ...[
-                const SizedBox(width: 6),
-                InkWell(
-                  onTap: () => _removeChannel(index),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Color(0xfffee2e2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.close,
-                        size: 14, color: Color(0xffb91c1c)),
+              const SizedBox(width: 6),
+              // Delete Channel Button (Always available)
+              InkWell(
+                onTap: () => _removeChannel(index),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Color(0xfffee2e2),
+                    shape: BoxShape.circle,
                   ),
+                  child: const Icon(Icons.close,
+                      size: 14, color: Color(0xffb91c1c)),
                 ),
-              ],
+              ),
             ],
           ),
           if (item.hasSlipAttached) ...[
@@ -949,7 +1723,8 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
             InkWell(
               onTap: widget.onNavigateToScanner,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: const Color(0xffecfdf5),
                   borderRadius: BorderRadius.circular(6),
@@ -976,15 +1751,12 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
           ],
           const SizedBox(height: 10),
 
-          // Row 2: Two spacious 50/50 columns for Litres and Rate
+          // Row 2: Two 50/50 input fields for Litres and Rate
           Row(
             children: [
               Expanded(
                 child: TextFormField(
-                  key: ValueKey('litres_${item.id}_${item.litres}'),
-                  initialValue: item.litres > 0
-                      ? item.litres.toStringAsFixed(1)
-                      : '',
+                  controller: litresCtrl,
                   decoration: InputDecoration(
                     labelText: 'मात्रा (Litres)',
                     suffixText: 'L',
@@ -1012,10 +1784,7 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
               const SizedBox(width: 10),
               Expanded(
                 child: TextFormField(
-                  key: ValueKey('rate_${item.id}_${item.ratePerLitre}'),
-                  initialValue: item.ratePerLitre > 0
-                      ? item.ratePerLitre.toStringAsFixed(1)
-                      : '',
+                  controller: rateCtrl,
                   decoration: InputDecoration(
                     labelText: 'दर (Rate/L)',
                     prefixText: '₹',
@@ -1038,7 +1807,7 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
           ),
           const SizedBox(height: 8),
 
-          // Row 3: Quick Stepper Chips for Litres (+1L, +5L, +10L, +20L, Clear)
+          // Row 3: Quick Stepper Chips (+0.5L, +1L, +2L, +5L, +10L, +20L, Clear)
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -1051,13 +1820,18 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                       fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(width: 6),
-                ...[1, 5, 10, 20].map((inc) {
+                ...[0.5, 1.0, 2.0, 5.0, 10.0, 20.0].map((inc) {
+                  final label =
+                      inc == 0.5 ? '+0.5L' : '+${inc.toInt()}L';
                   return Padding(
                     padding: const EdgeInsets.only(right: 6),
                     child: InkWell(
                       onTap: () {
                         setState(() {
                           item.litres += inc;
+                          litresCtrl.text = item.litres > 0
+                              ? item.litres.toStringAsFixed(1)
+                              : '';
                           if (_autoCalculateTotal) {
                             _totalProductionController.text =
                                 _totalDispatched.toStringAsFixed(1);
@@ -1074,7 +1848,7 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                           border: Border.all(color: const Color(0xffcbd5e1)),
                         ),
                         child: Text(
-                          '+${inc}L',
+                          label,
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -1089,6 +1863,7 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                   onTap: () {
                     setState(() {
                       item.litres = 0.0;
+                      litresCtrl.text = '';
                       if (_autoCalculateTotal) {
                         _totalProductionController.text =
                             _totalDispatched.toStringAsFixed(1);
@@ -1097,8 +1872,8 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                   },
                   borderRadius: BorderRadius.circular(6),
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 3),
                     decoration: BoxDecoration(
                       color: const Color(0xfffee2e2),
                       borderRadius: BorderRadius.circular(6),
@@ -1137,12 +1912,14 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                 ),
                 items: const [
                   DropdownMenuItem(
-                    value: '10_day_cycle',
-                    child: Text('🏛️ समिति 10-दिवसीय भुगतान चक्र (10-Day Cycle)'),
+                    value: 'cash_upi',
+                    child:
+                        Text('💵 तुरंत नगद / UPI प्राप्त (Cash/UPI Received)'),
                   ),
                   DropdownMenuItem(
-                    value: 'cash_upi',
-                    child: Text('💵 तुरंत नगद / UPI प्राप्त (Cash/UPI Received)'),
+                    value: '10_day_cycle',
+                    child:
+                        Text('🏛️ समिति 10-दिवसीय चक्र (10-Day Payment Cycle)'),
                   ),
                   DropdownMenuItem(
                     value: 'udhar_khata',
@@ -1150,7 +1927,10 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                   ),
                 ],
                 onChanged: (val) {
-                  if (val != null) setState(() => item.paymentMode = val);
+                  if (val != null) {
+                    setState(() => item.paymentMode = val);
+                    _saveChannelsToStorage();
+                  }
                 },
               ),
             ),
@@ -1180,12 +1960,12 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.summarize_rounded,
+              Icon(Icons.summarize_rounded,
                   color: Color(0xff16a34a), size: 18),
-              const SizedBox(width: 8),
-              const Expanded(
+              SizedBox(width: 8),
+              Expanded(
                 child: Text(
                   'दैनिक बिक्री व आय संतुलन (Summary)',
                   style: TextStyle(
@@ -2098,9 +2878,9 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
               3: FlexColumnWidth(2.5),
             },
             children: [
-              TableRow(
-                decoration: const BoxDecoration(color: Color(0xfff1f5f9)),
-                children: const [
+              const TableRow(
+                decoration: BoxDecoration(color: Color(0xfff1f5f9)),
+                children: [
                   Padding(
                     padding: EdgeInsets.all(8),
                     child: Text('मापदंड (Metric)',

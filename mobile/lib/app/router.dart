@@ -46,6 +46,11 @@ import 'package:dairy_ai/features/health/screens/farmer_health_triage_screen.dar
 import 'package:dairy_ai/features/health/screens/livestock_disease_directory_screen.dart';
 import 'package:dairy_ai/features/feed/screens/ration_calculator_screen.dart';
 import 'package:dairy_ai/features/breeding/screens/breeding_screen.dart';
+import 'package:dairy_ai/features/breeding/screens/heat_detection_screen.dart';
+import 'package:dairy_ai/features/collection/screens/bmc_cold_chain_screen.dart';
+import 'package:dairy_ai/features/finance/screens/gobardhan_carbon_screen.dart';
+import 'package:dairy_ai/features/health/screens/cattle_insurance_claim_screen.dart';
+import 'package:dairy_ai/features/feed/screens/group_feed_pool_screen.dart';
 import 'package:dairy_ai/features/chat/screens/chat_screen.dart';
 import 'package:dairy_ai/features/profile/screens/profile_screen.dart';
 import 'package:dairy_ai/features/notifications/screens/notifications_screen.dart';
@@ -686,6 +691,26 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const BreedingScreen(),
       ),
       GoRoute(
+        path: '/breeding/heat-detection',
+        builder: (context, state) => const HeatDetectionScreen(),
+      ),
+      GoRoute(
+        path: '/cold-chain/bmc',
+        builder: (context, state) => const BmcColdChainScreen(),
+      ),
+      GoRoute(
+        path: '/finance/carbon-credits',
+        builder: (context, state) => const GobardhanCarbonScreen(),
+      ),
+      GoRoute(
+        path: '/health/insurance-claim',
+        builder: (context, state) => const CattleInsuranceClaimScreen(),
+      ),
+      GoRoute(
+        path: '/feed/group-buying',
+        builder: (context, state) => const GroupFeedPoolScreen(),
+      ),
+      GoRoute(
         path: '/health/triage',
         builder: (context, state) => const FarmerHealthTriageScreen(),
       ),
@@ -1302,6 +1327,36 @@ class _MoreMenuScreen extends StatelessWidget {
                 label: 'प्रजनन व गर्भावधि ट्रैकर (Breeding & Gestation)',
                 subtitle: 'कृत्रिम गर्भाधान (AI), हीट व प्रसव कैलेंडर',
                 onTap: () => context.go('/more/breeding'),
+              ),
+              _MoreTile(
+                icon: Icons.whatshot,
+                label: 'स्मार्ट हीट अलर्ट व गर्भाधान (Smart Estrus & Sexed Semen)',
+                subtitle: 'स्मार्ट कॉलर मद पहचान, 12 घंटे स्वर्णिम गर्भाधान विंडो व बछिया सीमेन',
+                onTap: () => context.push('/breeding/heat-detection'),
+              ),
+              _MoreTile(
+                icon: Icons.severe_cold,
+                label: 'बीएमसी शीतलन टैंक लाइव (BMC Cold Chain IoT)',
+                subtitle: 'दूध चिलिंग तापमान <= 4°C, एजिटेटर व दूध खराबी रोकथाम ट्रैकिंग',
+                onTap: () => context.push('/cold-chain/bmc'),
+              ),
+              _MoreTile(
+                icon: Icons.recycling,
+                label: 'गोबरधन व कार्बन क्रेडिट्स (GOBARdhan Biogas & Carbon)',
+                subtitle: 'बायोगैस ईंधन बचत, स्लरी खाद व ₹3,780/माह कार्बन क्रेडिट्स वॉलेट',
+                onTap: () => context.push('/finance/carbon-credits'),
+              ),
+              _MoreTile(
+                icon: Icons.fingerprint,
+                label: 'पशु बीमा व थूथन बायोमेट्रिक क्लेम (Insurance & Muzzle)',
+                subtitle: 'थूथन प्रिंट मिलान व IoT सेंसर साक्ष्य द्वारा 48 घंटे फास्ट-ट्रैक क्लेम',
+                onTap: () => context.push('/health/insurance-claim'),
+              ),
+              _MoreTile(
+                icon: Icons.group_work,
+                label: 'सामूहिक चारा व साइलेज खरीद (Group Feed & Silage Pool)',
+                subtitle: 'गांव क्लस्टर बल्क बुकिंग से पाएं 15-25% सीधी फैक्ट्री छूट',
+                onTap: () => context.push('/feed/group-buying'),
               ),
               _MoreTile(
                 icon: Icons.local_hospital,

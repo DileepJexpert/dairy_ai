@@ -8,6 +8,8 @@ import 'package:dairy_ai/features/vet_farmer/models/vet_farmer_models.dart';
 import 'package:dairy_ai/features/vet_farmer/providers/vet_farmer_provider.dart';
 import 'package:dairy_ai/features/vet_farmer/screens/consultation_request_screen.dart';
 import 'package:dairy_ai/shared/widgets/stat_card.dart';
+import 'package:dairy_ai/features/home/widgets/voice_entry_dialog.dart';
+import 'package:dairy_ai/features/milk/widgets/thermal_slip_dialog.dart';
 import '../models/dashboard_model.dart';
 import '../providers/home_provider.dart';
 
@@ -1837,6 +1839,38 @@ class FarmerHomeScreen extends ConsumerWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
+                      _QuickActionButton(
+                        icon: Icons.mic,
+                        label: 'Voice Entry',
+                        color: Colors.indigo,
+                        onTap: () => showDialog(
+                          context: context,
+                          builder: (_) => const VoiceEntryDialog(),
+                        ),
+                      ),
+                      _QuickActionButton(
+                        icon: Icons.print_outlined,
+                        label: 'Print Slip',
+                        color: Colors.blueGrey,
+                        onTap: () => showDialog(
+                          context: context,
+                          builder: (_) => const ThermalSlipDialog(
+                            farmerName: 'Ramesh Patel',
+                            tagId: 'MIL-0842 (Ganga)',
+                            shift: 'MORNING',
+                            quantityLitres: 8.5,
+                            fatPct: 6.8,
+                            snfPct: 9.1,
+                            ratePerLitre: 58.5,
+                          ),
+                        ),
+                      ),
+                      _QuickActionButton(
+                        icon: Icons.whatshot,
+                        label: 'Heat Alert',
+                        color: Colors.deepOrange,
+                        onTap: () => context.push('/breeding/heat-detection'),
+                      ),
                       _QuickActionButton(
                         icon: Icons.receipt_long_outlined,
                         label: 'Passbook',

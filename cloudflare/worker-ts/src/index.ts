@@ -29,6 +29,7 @@ import { aiChatRouter } from './routes/ai_chat.js';
 import { financeRouter } from './routes/finance.js';
 import { erpRouter } from './routes/erp.js';
 import { communityRouter } from './routes/community.js';
+import { maturityRouter } from './routes/maturity.js';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -203,6 +204,9 @@ app.route('/farm', erpRouter);
 // Farmer Community Social Feed & Doctor Advisory
 app.route('/api/v1', communityRouter);
 app.route('/community', communityRouter);
+
+// Enterprise Maturity Suite (Thermal Slips, WhatsApp, Heat Detection, BMC Cold Chain, Carbon & Group Buying)
+app.route('/api/v1', maturityRouter);
 
 // Parity Milk Records & Prices
 app.route('/milk-records', milkRouter);

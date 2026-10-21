@@ -1,23 +1,41 @@
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
+import 'package:dairy_ai/features/vet_farmer/models/vet_farmer_models.dart';
+import 'package:dairy_ai/features/vet_farmer/providers/vet_farmer_provider.dart';
+import 'package:dairy_ai/features/vet_farmer/screens/consultation_request_screen.dart';
 import 'package:dairy_ai/shared/widgets/stat_card.dart';
-import '../providers/home_provider.dart';
 import '../models/dashboard_model.dart';
+import '../providers/home_provider.dart';
 
-/// The main farmer dashboard screen.
+/// The main Milterra Home Screen.
 ///
-/// Shows a greeting, quick stats, quick-action buttons, and a recent-activity
-/// feed. All data is loaded via [dashboardStatsProvider] and supports
-/// pull-to-refresh.
+/// Features a unified ecosystem architecture:
+/// 1. When Unauthenticated:
+///    - Open Veterinary Portal: browse certified bovine vets, ratings, specialties.
+///    - Open Cattle Commerce: browse balanced feed, silage, minerals, and A2 dairy.
+///    - Community Bulletin & Daily BMC milk rates.
+///    - Generic Platform Vitals (no fake private farm data).
+///    - 1-Click Multi-tenant Demo Accounts (Ramesh, Suresh, Priya, Admin).
+/// 2. When Authenticated:
+///    - Private Dairy ERP Dashboard with real herd counts, milk yield, health alerts.
+///    - Top-right Sign Out button in the exact same spot as Sign In.
+///    - Quick actions (Add Milk, Health Check, Call Vet, AI Chat, Milk Purity).
+///    - Farmer recent activity feed.
 class FarmerHomeScreen extends ConsumerWidget {
   const FarmerHomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboardAsync = ref.watch(dashboardStatsProvider);
+    final authState = ref.watch(authProvider);
+    final isAuthenticated = authState.maybeWhen(
+      authenticated: (_) => true,
+      orElse: () => false,
+    );
 
     return Scaffold(
       body: dashboardAsync.when(
@@ -30,22 +48,51 @@ class FarmerHomeScreen extends ConsumerWidget {
           onRefresh: () => ref.read(dashboardStatsProvider.notifier).refresh(),
           child: CustomScrollView(
             slivers: [
-              _buildAppBar(context, stats),
-              SliverToBoxAdapter(child: _buildStatsGrid(context, stats)),
-              SliverToBoxAdapter(child: _buildQuickActions(context)),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-                  child: Text(
-                    'Recent Activity',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+              _buildAppBar(context, ref, stats, isAuthenticated: isAuthenticated),
+              if (!isAuthenticated) ...[
+                // Open Ecosystem Portal View
+                SliverToBoxAdapter(child: _buildHeroWelcome(context, ref)),
+                SliverToBoxAdapter(child: _buildNetworkVitals(context)),
+                SliverToBoxAdapter(
+                  child: _buildVeterinaryPortalSection(
+                    context,
+                    ref,
+                    isAuthenticated: isAuthenticated,
                   ),
                 ),
-              ),
-              _buildActivityList(context, stats.recentActivities),
-              // Bottom padding so FAB / nav-bar doesn't overlap content
+                SliverToBoxAdapter(child: _buildCommerceSection(context)),
+                SliverToBoxAdapter(child: _buildCommunitySocialSection(context, ref, isAuthenticated: isAuthenticated)),
+                SliverToBoxAdapter(child: _buildCommunityBulletin(context)),
+                SliverToBoxAdapter(child: _buildErpGatewayBanner(context, ref)),
+              ] else ...[
+                // Authenticated Dairy Farmer ERP View
+                SliverToBoxAdapter(child: _buildStatsGrid(context, stats)),
+                SliverToBoxAdapter(child: _buildBreedingAlertCard(context)),
+                SliverToBoxAdapter(child: _buildQuickActions(context)),
+                SliverToBoxAdapter(child: _buildFarmerShortcuts(context)),
+                SliverToBoxAdapter(child: _buildCommunitySocialSection(context, ref, isAuthenticated: isAuthenticated)),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Recent Activity',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        TextButton(
+                          onPressed: () => context.push('/more/milk-summary'),
+                          child: const Text('View All'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                _buildActivityList(context, stats.recentActivities),
+              ],
               const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
             ],
           ),
@@ -55,52 +102,1391 @@ class FarmerHomeScreen extends ConsumerWidget {
   }
 
   // ---------------------------------------------------------------------------
-  // App bar with greeting
+  // Top App Bar
   // ---------------------------------------------------------------------------
 
-  SliverAppBar _buildAppBar(BuildContext context, DashboardStats stats) {
-    final greeting = _greeting();
+  SliverAppBar _buildAppBar(
+    BuildContext context,
+    WidgetRef ref,
+    DashboardStats stats, {
+    required bool isAuthenticated,
+  }) {
     final theme = Theme.of(context);
+    final greeting = _greeting();
 
     return SliverAppBar(
-      expandedHeight: 120,
+      expandedHeight: isAuthenticated ? 120 : 100,
       pinned: true,
+      backgroundColor: theme.colorScheme.primary,
       flexibleSpace: FlexibleSpaceBar(
         titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
         title: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '$greeting,',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onPrimary.withOpacity(0.8),
+            if (isAuthenticated) ...[
+              Text(
+                '$greeting,',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onPrimary.withOpacity(0.85),
+                  fontSize: 11,
+                ),
               ),
-            ),
-            Text(
-              stats.farmerName,
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onPrimary,
-                fontWeight: FontWeight.bold,
+              Text(
+                stats.farmerName,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.onPrimary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
-            ),
+            ] else ...[
+              const Text(
+                'Milterra Dairy Portal',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+              Text(
+                'Open Vet, Commerce & Dairy ERP',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.85),
+                  fontSize: 10,
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
+            ],
           ],
         ),
       ),
-      backgroundColor: theme.colorScheme.primary,
       actions: [
-        IconButton(
-          onPressed: () => context.push('/home/notifications'),
-          icon: Icon(
-            Icons.notifications_outlined,
-            color: theme.colorScheme.onPrimary,
+        if (!isAuthenticated)
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: TextButton.icon(
+              onPressed: () => context.push('/login?next=/home'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.white.withOpacity(0.18),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              ),
+              icon: const Icon(Icons.login, size: 16),
+              label: const Text(
+                'Sign In',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          )
+        else ...[
+          IconButton(
+            tooltip: 'Notifications',
+            onPressed: () => context.push('/home/notifications'),
+            icon: Icon(
+              Icons.notifications_outlined,
+              color: theme.colorScheme.onPrimary,
+            ),
+          ),
+          IconButton(
+            tooltip: 'Profile',
+            onPressed: () => context.push('/more/profile'),
+            icon: Icon(
+              Icons.person_outline,
+              color: theme.colorScheme.onPrimary,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: ElevatedButton.icon(
+              onPressed: () => _confirmSignOut(context, ref),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xffdc2626),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                elevation: 0,
+              ),
+              icon: const Icon(Icons.logout, size: 16),
+              label: const Text(
+                'Sign Out',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.logout, color: Color(0xffdc2626)),
+            SizedBox(width: 8),
+            Text('Sign Out'),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to sign out from your Dairy ERP account? You will return to the open portal.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xffdc2626)),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await ref.read(authProvider.notifier).logout();
+      ref.invalidate(dashboardStatsProvider);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Open Portal: Hero Welcome & 1-Click Multi-tenant Test Accounts
+  // ---------------------------------------------------------------------------
+
+  Widget _buildHeroWelcome(BuildContext context, WidgetRef ref) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xff064e3b), Color(0xff047857)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xff064e3b).withOpacity(0.25),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xff34d399).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xff34d399)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.hub_outlined, color: Color(0xff6ee7b7), size: 14),
+                    SizedBox(width: 6),
+                    Text(
+                      'Open Cattle & Dairy Ecosystem',
+                      style: TextStyle(
+                        color: Color(0xffa7f3d0),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () => context.push('/login?next=/home'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.white.withOpacity(0.15),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                ),
+                child: const Text('Farmer Sign In >', style: TextStyle(fontSize: 12)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Connect, Consult & Manage Dairy',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Open access to certified bovine veterinarians, high-yield cattle feed, and purity verification. Sign in required only for appointment booking and private Dairy ERP.',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.88),
+              fontSize: 13,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Divider(color: Color(0xff065f46), height: 1),
+          const SizedBox(height: 12),
+          const Text(
+            '⚡ 1-Click Demo Accounts (Explore Private ERP):',
+            style: TextStyle(
+              color: Color(0xffa7f3d0),
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildDemoLoginChip(
+                context,
+                ref,
+                label: '🌾 Ramesh (Gir Dairy)',
+                phone: '9876510001',
+                password: 'Password@123',
+              ),
+              _buildDemoLoginChip(
+                context,
+                ref,
+                label: '🐃 Suresh (Murrah Buffalo)',
+                phone: '9876510002',
+                password: 'Password@123',
+              ),
+              _buildDemoLoginChip(
+                context,
+                ref,
+                label: '🥛 Priya (Dairy Co-op)',
+                phone: '9876510003',
+                password: 'Password@123',
+              ),
+              _buildDemoLoginChip(
+                context,
+                ref,
+                label: '👨‍⚕️ Dr. Deshmukh (Vet Portal)',
+                phone: '9825099001',
+                password: 'Password@123',
+              ),
+              _buildDemoLoginChip(
+                context,
+                ref,
+                label: '⚙️ Admin Portal',
+                phone: 'admin@milterra.in',
+                password: 'Admin@12345',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDemoLoginChip(
+    BuildContext context,
+    WidgetRef ref, {
+    required String label,
+    required String phone,
+    required String password,
+  }) {
+    return Material(
+      color: Colors.white.withOpacity(0.15),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: () => _executeQuickLogin(
+          context,
+          ref,
+          phone: phone,
+          password: password,
+          label: label,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.arrow_forward_ios, size: 10, color: Color(0xffa7f3d0)),
+            ],
           ),
         ),
-        IconButton(
-          onPressed: () => context.push('/more/profile'),
-          icon: Icon(
-            Icons.person_outline,
-            color: theme.colorScheme.onPrimary,
+      ),
+    );
+  }
+
+  Future<void> _executeQuickLogin(
+    BuildContext context,
+    WidgetRef ref, {
+    required String phone,
+    required String password,
+    required String label,
+  }) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    scaffoldMessenger.showSnackBar(
+      SnackBar(
+        content: Text('Logging in as $label...'),
+        duration: const Duration(milliseconds: 900),
+      ),
+    );
+
+    try {
+      await ref.read(authProvider.notifier).loginWithPassword(phone, password);
+      ref.invalidate(dashboardStatsProvider);
+    } catch (e) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text('Login failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Open Portal: Generic Platform Vitals (No fake counts!)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildNetworkVitals(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.bar_chart, size: 18, color: Color(0xff047857)),
+              const SizedBox(width: 6),
+              Text(
+                'Milterra Network Vitals',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xff047857),
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 1.5,
+            children: [
+              StatCard(
+                icon: Icons.medical_services_outlined,
+                label: 'Certified Vets',
+                value: '18+ Doctors',
+                color: Colors.teal,
+                onTap: () => context.push('/more/vet'),
+              ),
+              StatCard(
+                icon: Icons.pets,
+                label: 'Tracked Cattle',
+                value: '8,500+ Herd',
+                color: Colors.indigo,
+                onTap: () => context.push('/login?next=/herd'),
+              ),
+              StatCard(
+                icon: Icons.water_drop_outlined,
+                label: 'Daily Milk Flow',
+                value: '45,000+ L',
+                color: Colors.blue,
+                onTap: () => context.push('/purity'),
+              ),
+              StatCard(
+                icon: Icons.shopping_bag_outlined,
+                label: 'Feed & Supplies',
+                value: '60+ Products',
+                color: Colors.amber.shade800,
+                onTap: () => launchUrl(Uri.parse('https://milterrafoods.com'), mode: LaunchMode.externalApplication),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Open Portal: Veterinary Doctors Section
+  // ---------------------------------------------------------------------------
+
+  Widget _buildVeterinaryPortalSection(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool isAuthenticated,
+  }) {
+    final vetsAsync = ref.watch(vetSearchProvider);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.health_and_safety, color: Color(0xff047857), size: 20),
+                      SizedBox(width: 6),
+                      Text(
+                        'Certified Bovine Veterinarians',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Browse verified bovine doctors & tele-consultations',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+              TextButton(
+                onPressed: () => context.push('/more/vet'),
+                child: const Text('View All'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          vetsAsync.when(
+            loading: () => const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: CircularProgressIndicator(),
+              ),
+            ),
+            error: (_, __) => _buildVetsList(
+              context,
+              ref,
+              _fallbackVets,
+              isAuthenticated: isAuthenticated,
+            ),
+            data: (vets) {
+              final list = vets.isNotEmpty ? vets : _fallbackVets;
+              return _buildVetsList(
+                context,
+                ref,
+                list,
+                isAuthenticated: isAuthenticated,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVetsList(
+    BuildContext context,
+    WidgetRef ref,
+    List<VetProfile> vets, {
+    required bool isAuthenticated,
+  }) {
+    return Column(
+      children: vets.map((vet) {
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade200),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 26,
+                      backgroundColor: const Color(0xffecfdf5),
+                      child: Text(
+                        vet.name.isNotEmpty ? vet.name.replaceAll('Dr. ', '')[0] : 'V',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xff047857),
+                          fontSize: 20,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  vet.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xffecfdf5),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xffa7f3d0)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.star, size: 12, color: Colors.amber),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      '${vet.rating.toStringAsFixed(1)} (${vet.totalConsultations}+)',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xff065f46),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            vet.qualification,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(Icons.location_on_outlined, size: 13, color: Colors.grey),
+                              const SizedBox(width: 2),
+                              Text(
+                                vet.locationLabel ?? (vet.city ?? 'India'),
+                                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                              ),
+                              const SizedBox(width: 12),
+                              const Icon(Icons.payments_outlined, size: 13, color: Color(0xff047857)),
+                              const SizedBox(width: 2),
+                              Text(
+                                '₹${vet.fee.toInt()} / consult',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xff047857),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (vet.specializations.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: vet.specializations.take(3).map((spec) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xfff1f5f9),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          spec,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xff334155),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => context.push('/more/vet'),
+                        icon: const Icon(Icons.info_outline, size: 14),
+                        label: const Text('View Profile', style: TextStyle(fontSize: 12)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => _handleVetBooking(
+                          context,
+                          ref,
+                          vet,
+                          isAuthenticated: isAuthenticated,
+                        ),
+                        icon: const Icon(Icons.calendar_month, size: 14),
+                        label: const Text('Book Consult', style: TextStyle(fontSize: 12)),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xff047857),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  void _handleVetBooking(
+    BuildContext context,
+    WidgetRef ref,
+    VetProfile vet, {
+    required bool isAuthenticated,
+  }) {
+    if (isAuthenticated) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ConsultationRequestScreen(vet: vet),
+        ),
+      );
+    } else {
+      _showAppointmentLoginModal(context, ref, vet);
+    }
+  }
+
+  void _showAppointmentLoginModal(
+    BuildContext context,
+    WidgetRef ref,
+    VetProfile vet,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.lock_outline, color: Color(0xff047857)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Sign In to Book Appointment',
+                      style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'To link your cattle records and schedule an appointment with ${vet.name}, please sign in or choose a demo profile.',
+                style: const TextStyle(fontSize: 13, color: Colors.black87),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '1-Click Quick Demo Sign In:',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: Color(0xff047857),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton(
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      await _executeQuickLogin(
+                        context,
+                        ref,
+                        phone: '9876510001',
+                        password: 'Password@123',
+                        label: 'Ramesh Patel',
+                      );
+                      if (context.mounted) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                ConsultationRequestScreen(vet: vet),
+                          ),
+                        );
+                      }
+                    },
+                    child: const Text('🌾 Ramesh Patel'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      await _executeQuickLogin(
+                        context,
+                        ref,
+                        phone: '9876510002',
+                        password: 'Password@123',
+                        label: 'Suresh Yadav',
+                      );
+                      if (context.mounted) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                ConsultationRequestScreen(vet: vet),
+                          ),
+                        );
+                      }
+                    },
+                    child: const Text('🐃 Suresh Yadav'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    context.push('/login?next=/home');
+                  },
+                  icon: const Icon(Icons.login),
+                  label: const Text('Sign In with Phone / Password'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xff047857),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Open Portal: Cattle Commerce & Feeds Section
+  // ---------------------------------------------------------------------------
+
+  Widget _buildCommerceSection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.shopping_bag_outlined, color: Color(0xff047857), size: 20),
+                      SizedBox(width: 6),
+                      Text(
+                        'Cattle Feed & Farm Commerce',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Direct delivery of high-yield cattle feeds & supplements',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+              TextButton(
+                onPressed: () => launchUrl(Uri.parse('https://milterrafoods.com'), mode: LaunchMode.externalApplication),
+                child: const Text('Milterra Store ↗'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 210,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                _buildProductCard(
+                  context,
+                  title: 'Milterra Superfeed Bypass Fat (50kg)',
+                  category: 'High-Yield Rations',
+                  price: '₹1,450',
+                  badge: '22% Protein',
+                  icon: Icons.grass,
+                  color: Colors.green,
+                ),
+                _buildProductCard(
+                  context,
+                  title: 'Chelated Mineral Mixture (5kg)',
+                  category: 'Fertility & Conception',
+                  price: '₹620',
+                  badge: 'With Chromium',
+                  icon: Icons.science,
+                  color: Colors.teal,
+                ),
+                _buildProductCard(
+                  context,
+                  title: 'Super Napier Hybrid Slips (500)',
+                  category: 'Green Fodder',
+                  price: '₹850',
+                  badge: '18% Protein Fodder',
+                  icon: Icons.eco,
+                  color: Colors.lightGreen,
+                ),
+                _buildProductCard(
+                  context,
+                  title: 'Milterra Pure A2 Gir Cow Ghee (1L)',
+                  category: 'Dairy Products',
+                  price: '₹1,650',
+                  badge: 'Vedic Bilona',
+                  icon: Icons.verified,
+                  color: Colors.amber.shade800,
+                ),
+                _buildProductCard(
+                  context,
+                  title: 'Smart IoT Rumination Collar Tag',
+                  category: 'Smart Hardware',
+                  price: '₹2,499',
+                  badge: 'Heat & Mastitis Alert',
+                  icon: Icons.sensors,
+                  color: Colors.purple,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductCard(
+    BuildContext context, {
+    required String title,
+    required String category,
+    required String price,
+    required String badge,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      width: 170,
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: color.withOpacity(0.12),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  badge,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            category,
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+          ),
+          const Spacer(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                price,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Color(0xff047857),
+                ),
+              ),
+              InkWell(
+                onTap: () => launchUrl(Uri.parse('https://milterrafoods.com'), mode: LaunchMode.externalApplication),
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xff047857),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(Icons.arrow_forward, color: Colors.white, size: 14),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Open Portal & ERP: Community Social Cases & Doctor Advisory
+  // ---------------------------------------------------------------------------
+
+  Widget _buildCommunitySocialSection(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool isAuthenticated,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.forum_outlined, color: Color(0xff047857), size: 20),
+                      SizedBox(width: 6),
+                      Text(
+                        'Cattle Cases & Doctor Advice',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Farmers post cattle photos • Verified vets give clinical advice',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+              TextButton(
+                onPressed: () => context.push('/community'),
+                child: const Text('View All >'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Featured Discussion 1: Mastitis with Dr. Deshmukh
+          _buildFeaturedCaseCard(
+            context,
+            authorName: 'Ramesh Patel',
+            authorRole: '🌾 Dairy Farmer (Anand)',
+            cattleTag: 'Gir #GIR-0104',
+            title: 'Swelling and heat in rear right teat after milking, yield dropped by 3L',
+            tag: 'Mastitis & Udder Care',
+            imageUrl: 'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?w=800',
+            vetName: 'Dr. Hasmukh Deshmukh',
+            vetDegree: 'MVSc Animal Reproduction & Surgery',
+            vetAdvice: 'Do not massage harshly. Strip out affected quarter completely every 2 hours. Apply fresh Aloe vera (250g) + Turmeric (50g) + Chuna (15g) paste externally. Book consult if temp exceeds 103°F.',
+          ),
+          const SizedBox(height: 12),
+
+          // Featured Discussion 2: Silent heat with Dr. Verma
+          _buildFeaturedCaseCard(
+            context,
+            authorName: 'Suresh Yadav',
+            authorRole: '🐃 Dairy Farmer (Karnal)',
+            cattleTag: 'Murrah #MUR-0208',
+            title: 'Buffalo not showing clear estrus heat after 90 days postpartum',
+            tag: 'Breeding & Infertility',
+            imageUrl: 'https://images.unsplash.com/photo-1546445317-29f4545e9d53?w=800',
+            vetName: 'Dr. Rakesh Verma',
+            vetDegree: 'PhD Animal Genetics & Breeding (NDRI)',
+            vetAdvice: 'Silent estrus is frequent. Check at 5 AM & 9 PM for subtle vulvar swelling and stringy mucus. Feed 50g chelated mineral mixture with organic chromium daily for 21 days.',
+          ),
+          const SizedBox(height: 12),
+
+          // Action button to post or open community
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => context.push('/community'),
+                  icon: const Icon(Icons.add_a_photo_outlined, size: 16),
+                  label: const Text('Ask / Post Cattle Photo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xff047857),
+                    side: const BorderSide(color: Color(0xff047857), width: 1.5),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeaturedCaseCard(
+    BuildContext context, {
+    required String authorName,
+    required String authorRole,
+    required String cattleTag,
+    required String title,
+    required String tag,
+    required String imageUrl,
+    required String vetName,
+    required String vetDegree,
+    required String vetAdvice,
+  }) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: InkWell(
+        onTap: () => context.push('/community'),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: const Color(0xffecfdf5),
+                    child: Text(
+                      authorName.isNotEmpty ? authorName[0] : 'F',
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xff047857)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(authorName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        Text(authorRole, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xffecfdf5),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xffa7f3d0)),
+                    ),
+                    child: Text(
+                      tag,
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xff065f46)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  imageUrl,
+                  height: 140,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Verified Doctor Advice Callout
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xfff0fdf4),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xff86efac)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.verified, size: 14, color: Color(0xff047857)),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$vetName • Verified Doctor',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: Color(0xff065f46),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      vetDegree,
+                      style: const TextStyle(fontSize: 10, color: Color(0xff047857)),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      vetAdvice,
+                      style: const TextStyle(fontSize: 11, color: Color(0xff064e3b), height: 1.35),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Open Portal: Community Bulletin
+  // ---------------------------------------------------------------------------
+
+  Widget _buildCommunityBulletin(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.campaign_outlined, color: Color(0xff047857), size: 20),
+              SizedBox(width: 6),
+              Text(
+                'Community & Advisory Bulletin',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xfff8fafc),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xffe2e8f0)),
+            ),
+            child: Column(
+              children: [
+                _buildBulletinRow(
+                  icon: Icons.vaccines_outlined,
+                  color: Colors.orange,
+                  title: 'NADCP FMD Vaccination Camp',
+                  subtitle: 'Free Foot & Mouth Disease booster active across district veterinary dispensaries this week.',
+                ),
+                const Divider(height: 18),
+                _buildBulletinRow(
+                  icon: Icons.currency_rupee,
+                  color: Colors.green,
+                  title: 'Daily BMC Milk Procurement Rate',
+                  subtitle: 'Base ₹38.50/L (Fat 4.2% / SNF 8.5%). Automated direct bank credit within 24 hours.',
+                  actionLabel: 'Check Passbook >',
+                  onTap: () => context.push('/passbook'),
+                ),
+                const Divider(height: 18),
+                _buildBulletinRow(
+                  icon: Icons.favorite_border,
+                  color: Colors.pink,
+                  title: 'AI Garbhadhan & Heat Alerts ("गर्भधान कैलेंडर")',
+                  subtitle: '283-day bovine gestation cycles & repeat heat alerts. Prevent ₹10k/cycle lost milk yield.',
+                  actionLabel: 'Check Calendar >',
+                  onTap: () => context.push('/breeding'),
+                ),
+                const Divider(height: 18),
+                _buildBulletinRow(
+                  icon: Icons.verified_outlined,
+                  color: Colors.teal,
+                  title: 'NABL Milk Purity Scanner',
+                  subtitle: 'Test any brand or home milk sample for adulterants and get verified lab certification.',
+                  actionLabel: 'Check Purity >',
+                  onTap: () => context.push('/purity'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBulletinRow({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    String? actionLabel,
+    VoidCallback? onTap,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CircleAvatar(
+          radius: 14,
+          backgroundColor: color.withOpacity(0.12),
+          child: Icon(icon, size: 16, color: color),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade700, height: 1.3),
+              ),
+              if (actionLabel != null && onTap != null) ...[
+                const SizedBox(height: 4),
+                GestureDetector(
+                  onTap: onTap,
+                  child: Text(
+                    actionLabel,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xff047857),
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ],
@@ -108,7 +1494,66 @@ class FarmerHomeScreen extends ConsumerWidget {
   }
 
   // ---------------------------------------------------------------------------
-  // 2x2 Stats grid
+  // Open Portal: Dairy ERP Gateway Banner
+  // ---------------------------------------------------------------------------
+
+  Widget _buildErpGatewayBanner(BuildContext context, WidgetRef ref) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xffeff6ff),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xffbfdbfe)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.inventory_2_outlined, color: Color(0xff1d4ed8), size: 22),
+              SizedBox(width: 8),
+              Text(
+                'Commercial Dairy Farmer ERP',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: Color(0xff1e3a8a),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Run your entire dairy farm: cattle pedigrees, morning & evening milk collection logs, breeding heat cycles, health alerts, and instant UPI payout ledger.',
+            style: TextStyle(fontSize: 12, color: Color(0xff1e40af), height: 1.35),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => context.push('/login?next=/home'),
+                  icon: const Icon(Icons.login, size: 16),
+                  label: const Text('Access Private Dairy ERP'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xff1d4ed8),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Authenticated ERP: 2x2 Stats Grid
   // ---------------------------------------------------------------------------
 
   Widget _buildStatsGrid(BuildContext context, DashboardStats stats) {
@@ -130,11 +1575,11 @@ class FarmerHomeScreen extends ConsumerWidget {
             onTap: () => context.push('/herd'),
           ),
           StatCard(
-            icon: Icons.water_drop,
-            label: "Today's Milk",
+            icon: Icons.receipt_long,
+            label: "Dugdha Passbook",
             value: '${stats.todayMilkLitres.toStringAsFixed(1)} L',
             color: Colors.blue,
-            onTap: () => context.push('/more/milk-summary'),
+            onTap: () => context.push('/passbook'),
           ),
           StatCard(
             icon: Icons.warning_amber_rounded,
@@ -156,7 +1601,114 @@ class FarmerHomeScreen extends ConsumerWidget {
   }
 
   // ---------------------------------------------------------------------------
-  // Quick action buttons
+  Widget _buildBreedingAlertCard(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xfffdf2f8),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xfffbcfe8)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xffbe185d).withOpacity(0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.favorite, color: Color(0xffbe185d), size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'पशु गर्भधान व हीट अलर्ट (Breeding Alerts)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Color(0xff831843),
+                  ),
+                ),
+                const Spacer(),
+                InkWell(
+                  onTap: () => context.push('/breeding'),
+                  child: const Text(
+                    'Full Calendar >',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xffbe185d),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xfffce7f3)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xfffce7f3),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.notification_important,
+                        color: Color(0xffbe185d), size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Ganga (Tag #0842) - Day 19 (Repeat Heat Window ⚠️)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xff831843),
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Inseminated on Oct 2. Watch for morning clear mucus discharge & bellowing today.',
+                          style: TextStyle(fontSize: 11, color: Colors.black87),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  ElevatedButton(
+                    onPressed: () => context.push('/breeding'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xffbe185d),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text('Log Heat', style: TextStyle(fontSize: 11)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Authenticated ERP: Quick Actions
   // ---------------------------------------------------------------------------
 
   Widget _buildQuickActions(BuildContext context) {
@@ -177,6 +1729,12 @@ class FarmerHomeScreen extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
+              _QuickActionButton(
+                icon: Icons.receipt_long_outlined,
+                label: 'Passbook',
+                color: const Color(0xff064e3b),
+                onTap: () => context.push('/passbook'),
+              ),
               _QuickActionButton(
                 icon: Icons.water_drop_outlined,
                 label: 'Add Milk',
@@ -215,11 +1773,106 @@ class FarmerHomeScreen extends ConsumerWidget {
   }
 
   // ---------------------------------------------------------------------------
-  // Recent activity list
+  // Authenticated ERP: Farmer Ecosystem Shortcuts
+  // ---------------------------------------------------------------------------
+
+  Widget _buildFarmerShortcuts(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: () => context.push('/more/vet'),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xffecfdf5),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xffa7f3d0)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.video_camera_front_outlined, color: Color(0xff047857), size: 24),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Book Vet Call',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: Color(0xff065f46),
+                            ),
+                          ),
+                          Text(
+                            'Verified bovine doctors',
+                            style: TextStyle(fontSize: 10, color: Color(0xff047857)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: InkWell(
+              onTap: () => launchUrl(Uri.parse('https://milterrafoods.com'), mode: LaunchMode.externalApplication),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xfffffbeb),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xfffde68a)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.shopping_cart_outlined, color: Color(0xffb45309), size: 24),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Order Feed',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: Color(0xff78350f),
+                            ),
+                          ),
+                          Text(
+                            'High-yield bypass fat',
+                            style: TextStyle(fontSize: 10, color: Color(0xffb45309)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Authenticated ERP: Recent Activity List
   // ---------------------------------------------------------------------------
 
   SliverList _buildActivityList(
-      BuildContext context, List<RecentActivity> activities) {
+    BuildContext context,
+    List<RecentActivity> activities,
+  ) {
     if (activities.isEmpty) {
       return SliverList(
         delegate: SliverChildListDelegate([
@@ -227,7 +1880,7 @@ class FarmerHomeScreen extends ConsumerWidget {
             padding: EdgeInsets.all(32),
             child: Center(
               child: Text(
-                'No recent activity',
+                'No recent activity recorded yet.',
                 style: TextStyle(color: Colors.grey),
               ),
             ),
@@ -246,7 +1899,7 @@ class FarmerHomeScreen extends ConsumerWidget {
   }
 
   // ---------------------------------------------------------------------------
-  // Helpers
+  // Helpers & Fallbacks
   // ---------------------------------------------------------------------------
 
   String _greeting() {
@@ -255,10 +1908,58 @@ class FarmerHomeScreen extends ConsumerWidget {
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
   }
+
+  static const List<VetProfile> _fallbackVets = [
+    VetProfile(
+      id: 1,
+      userId: 1,
+      name: 'Dr. Hasmukh Deshmukh',
+      qualification: 'MVSc Animal Reproduction & Surgery',
+      licenseNo: 'VET-GJ-2014-88',
+      specializations: ['Bovine Infertility', 'Ultrasound', 'Mastitis Control'],
+      languages: ['Hindi', 'Gujarati', 'English'],
+      fee: 250.0,
+      rating: 4.9,
+      totalConsultations: 184,
+      city: 'Anand',
+      district: 'Anand',
+      isAvailable: true,
+    ),
+    VetProfile(
+      id: 2,
+      userId: 2,
+      name: 'Dr. Rakesh Verma',
+      qualification: 'PhD Animal Genetics & Breeding (NDRI)',
+      licenseNo: 'VET-HR-2011-42',
+      specializations: ['Pedigree Insemination', 'Murrah Lineage', 'TMR Ration'],
+      languages: ['Hindi', 'Punjabi', 'English'],
+      fee: 300.0,
+      rating: 4.9,
+      totalConsultations: 240,
+      city: 'Karnal',
+      district: 'Karnal',
+      isAvailable: true,
+    ),
+    VetProfile(
+      id: 3,
+      userId: 3,
+      name: 'Dr. Ananya Patwardhan',
+      qualification: 'BVSc & AH Preventive Veterinary Medicine',
+      licenseNo: 'VET-MH-2018-91',
+      specializations: ['Organic Herd Health', 'Herbal Udder Care', 'Calfhood Vaccines'],
+      languages: ['Marathi', 'Hindi', 'English'],
+      fee: 200.0,
+      rating: 4.8,
+      totalConsultations: 112,
+      city: 'Baramati',
+      district: 'Pune',
+      isAvailable: true,
+    ),
+  ];
 }
 
 // =============================================================================
-// Private widgets
+// Helper Widgets
 // =============================================================================
 
 class _QuickActionButton extends StatelessWidget {

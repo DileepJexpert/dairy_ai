@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:dairy_ai/app/theme.dart';
 import 'package:dairy_ai/core/extensions.dart';
@@ -460,6 +462,144 @@ class _ResultView extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(height: 16),
+
+          // ------------------------------------------------------------------
+          // WhatsApp Daily Milk Slip Card
+          // ------------------------------------------------------------------
+          if (!record.isRejected) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xffe7f8ef),
+                border: Border.all(color: const Color(0xff25D366), width: 1.5),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(
+                          color: Color(0xff25D366),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.chat, color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'WhatsApp Daily Milk Slip',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xff075E54),
+                              ),
+                            ),
+                            Text(
+                              'Instant digital slip & Milterra Wallet notification',
+                              style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xff25D366).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xff25D366)),
+                        ),
+                        child: const Text(
+                          'Ready to Send',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xff075E54),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xffc8e6c9)),
+                    ),
+                    child: SelectableText(
+                      record.generateDefaultWhatsAppSlip(),
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 13,
+                        color: Color(0xff1f2937),
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () async {
+                            final slip = record.generateDefaultWhatsAppSlip();
+                            final urlString = record.whatsappUrl ??
+                                'https://api.whatsapp.com/send?text=${Uri.encodeComponent(slip)}';
+                            final uri = Uri.parse(urlString);
+                            try {
+                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                            } catch (_) {
+                              await launchUrl(uri, mode: LaunchMode.platformDefault);
+                            }
+                          },
+                          icon: const Icon(Icons.send_rounded, size: 18),
+                          label: const Text('Share on WhatsApp'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xff25D366),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: record.generateDefaultWhatsAppSlip()));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('WhatsApp slip copied to clipboard!')),
+                          );
+                        },
+                        icon: const Icon(Icons.copy, size: 16),
+                        label: const Text('Copy'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xff075E54),
+                          side: const BorderSide(color: Color(0xff25D366)),
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           const SizedBox(height: 24),
 
           // Actions

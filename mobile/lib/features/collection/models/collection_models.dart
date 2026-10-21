@@ -127,6 +127,8 @@ class MilkCollectionRecord {
   final double netAmount;
   final bool isRejected;
   final String? rejectionReason;
+  final String? whatsappSlipText;
+  final String? whatsappUrl;
 
   const MilkCollectionRecord({
     required this.id,
@@ -146,9 +148,12 @@ class MilkCollectionRecord {
     required this.netAmount,
     this.isRejected = false,
     this.rejectionReason,
+    this.whatsappSlipText,
+    this.whatsappUrl,
   });
 
   factory MilkCollectionRecord.fromJson(Map<String, dynamic> json) {
+    final whatsappSlipObj = json['whatsapp_slip'] is Map ? json['whatsapp_slip'] as Map<String, dynamic> : null;
     return MilkCollectionRecord(
       id: json['id'] as String,
       centerId: json['center_id'] as String,
@@ -167,7 +172,18 @@ class MilkCollectionRecord {
       netAmount: (json['net_amount'] as num).toDouble(),
       isRejected: json['is_rejected'] as bool? ?? false,
       rejectionReason: json['rejection_reason'] as String?,
+      whatsappSlipText: whatsappSlipObj?['text']?.toString() ?? json['whatsapp_slip_text'] as String?,
+      whatsappUrl: whatsappSlipObj?['url']?.toString(),
     );
+  }
+
+  String generateDefaultWhatsAppSlip({String? farmerName}) {
+    if (whatsappSlipText != null && whatsappSlipText!.isNotEmpty) {
+      return whatsappSlipText!;
+    }
+    final name = farmerName ?? 'Ramesh';
+    final shiftTitle = shift == 'morning' ? 'Morning' : 'Evening';
+    return 'Namaste $name ji! $shiftTitle collection: $quantityLitres Litres | Fat: ${fatPct ?? 4.4}% | SNF: ${snfPct ?? 8.6}% | Payout: \u20B9${netAmount.toStringAsFixed(2)} credited to Milterra Wallet.';
   }
 
   Map<String, dynamic> toJson() => {
@@ -288,4 +304,57 @@ class CenterDashboard {
         'today': today,
         'alerts': alerts,
       };
+}
+
+class FarmerPassbookSummary {
+  final int totalEntries;
+  final double totalLitres;
+  final double totalNetPayout;
+  final double averageFatPct;
+  final double averageSnfPct;
+  final String currentCycleName;
+  final int cycleDaysRemaining;
+  final double cycleEstimatedPayout;
+
+  const FarmerPassbookSummary({
+    required this.totalEntries,
+    required this.totalLitres,
+    required this.totalNetPayout,
+    required this.averageFatPct,
+    required this.averageSnfPct,
+    this.currentCycleName = 'Cycle 3 (21 Oct – 31 Oct)',
+    this.cycleDaysRemaining = 10,
+    this.cycleEstimatedPayout = 0,
+  });
+
+  factory FarmerPassbookSummary.fromJson(Map<String, dynamic> json) {
+    return FarmerPassbookSummary(
+      totalEntries: (json['total_entries'] as num?)?.toInt() ?? 0,
+      totalLitres: (json['total_litres'] as num?)?.toDouble() ?? 0.0,
+      totalNetPayout: (json['total_net_payout'] as num?)?.toDouble() ?? 0.0,
+      averageFatPct: (json['average_fat_pct'] as num?)?.toDouble() ?? 0.0,
+      averageSnfPct: (json['average_snf_pct'] as num?)?.toDouble() ?? 0.0,
+      currentCycleName: json['cycle_name'] as String? ?? 'Cycle 3 (21 Oct – 31 Oct)',
+      cycleDaysRemaining: (json['cycle_days_remaining'] as num?)?.toInt() ?? 10,
+      cycleEstimatedPayout: (json['cycle_estimated_payout'] as num?)?.toDouble() ??
+          (json['total_net_payout'] as num?)?.toDouble() ??
+          0.0,
+    );
+  }
+}
+
+class FarmerPassbookData {
+  final String farmerName;
+  final String? farmerId;
+  final String? village;
+  final FarmerPassbookSummary summary;
+  final List<MilkCollectionRecord> entries;
+
+  const FarmerPassbookData({
+    required this.farmerName,
+    this.farmerId,
+    this.village,
+    required this.summary,
+    required this.entries,
+  });
 }

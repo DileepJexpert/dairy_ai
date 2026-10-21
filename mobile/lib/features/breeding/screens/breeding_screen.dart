@@ -26,7 +26,9 @@ class _BreedingScreenState extends ConsumerState<BreedingScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Breeding Tracker'),
+        title: const Text('पशु प्रजनन व गर्भधान (Breeding Tracker)'),
+        backgroundColor: const Color(0xff064e3b),
+        foregroundColor: Colors.white,
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _navigateToAddEvent(context),
@@ -64,6 +66,9 @@ class _BreedingScreenState extends ConsumerState<BreedingScreen> {
               error: (e, _) => Text('Failed to load cattle: $e'),
             ),
           ),
+
+          // -- 283-Day Gestation & Heat Alerts Banner --
+          _buildGestationAndHeatOverview(context),
 
           // -- Timeline --
           Expanded(
@@ -103,6 +108,108 @@ class _BreedingScreenState extends ConsumerState<BreedingScreen> {
       ),
     );
   }
+
+  Widget _buildGestationAndHeatOverview(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xfffdf2f8),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xfffbcfe8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.favorite, color: Color(0xffbe185d), size: 18),
+              const SizedBox(width: 8),
+              const Text(
+                '283-Day Bovine Reproduction & Heat Alerts',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Color(0xff831843)),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xfffce7f3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text('AI Protocol Active',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xffbe185d))),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // 4-Stage Pills
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _stageBadge('Day 18–21: Repeat Heat', isAlert: true),
+                const SizedBox(width: 6),
+                _stageBadge('Day 60–90: Vet PD Check', isAlert: false),
+                const SizedBox(width: 6),
+                _stageBadge('Day 210: Dry-Off Alert', isAlert: false),
+                const SizedBox(width: 6),
+                _stageBadge('Day 280: Calving Prep', isAlert: false),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xfffbcfe8)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Color(0xffbe185d), size: 18),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Missing estrus window delays conception by 21 days (~₹10,000 lost milk yield). Check morning mucus discharge daily.',
+                    style: TextStyle(fontSize: 11, color: Colors.black87),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stageBadge(String label, {required bool isAlert}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: isAlert ? const Color(0xffbe185d) : Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isAlert ? const Color(0xffbe185d) : const Color(0xfffbcfe8),
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: isAlert ? Colors.white : const Color(0xff831843),
+        ),
+      ),
+    );
+  }
+
 }
 
 // ---------------------------------------------------------------------------

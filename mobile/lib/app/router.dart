@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:url_launcher/url_launcher.dart';
 import 'shopping_navigation.dart';
 import 'store_route.dart';
 import '../features/marketplace/widgets/account_workspace.dart';
@@ -28,6 +30,7 @@ import 'package:dairy_ai/features/home/screens/farmer_home_screen.dart';
 import 'package:dairy_ai/features/herd/screens/herd_list_screen.dart';
 import 'package:dairy_ai/features/herd/screens/cattle_detail_screen.dart';
 import 'package:dairy_ai/features/herd/screens/add_cattle_screen.dart';
+import 'package:dairy_ai/features/herd/models/cattle_model.dart';
 import 'package:dairy_ai/features/health/screens/health_dashboard_screen.dart';
 import 'package:dairy_ai/features/health/screens/health_record_screen.dart';
 import 'package:dairy_ai/features/health/screens/sensor_live_screen.dart';
@@ -42,6 +45,7 @@ import 'package:dairy_ai/features/breeding/screens/breeding_screen.dart';
 import 'package:dairy_ai/features/chat/screens/chat_screen.dart';
 import 'package:dairy_ai/features/profile/screens/profile_screen.dart';
 import 'package:dairy_ai/features/notifications/screens/notifications_screen.dart';
+import 'package:dairy_ai/features/farmer_hub/screens/farm_documents_screen.dart';
 
 // Vet screens
 import 'package:dairy_ai/features/vet_doctor/screens/vet_dashboard_screen.dart';
@@ -78,6 +82,7 @@ import 'package:dairy_ai/features/collection/screens/collection_centers_screen.d
 import 'package:dairy_ai/features/collection/screens/create_center_screen.dart';
 import 'package:dairy_ai/features/collection/screens/center_dashboard_screen.dart';
 import 'package:dairy_ai/features/collection/screens/record_milk_screen.dart';
+import 'package:dairy_ai/features/collection/screens/farmer_passbook_screen.dart';
 import 'package:dairy_ai/features/collection/screens/cold_chain_screen.dart';
 
 // Milk Purity Checker (public, no auth required)
@@ -108,6 +113,10 @@ import 'package:dairy_ai/features/marketplace/screens/milterra_earth_screen.dart
 import 'package:dairy_ai/features/farmer_hub/screens/farmer_marketplace_screen.dart';
 import 'package:dairy_ai/features/farmer_hub/screens/machinery_detail_screen.dart';
 import 'package:dairy_ai/features/marketplace/screens/admin_pincodes_screen.dart';
+import 'package:dairy_ai/features/community/screens/community_feed_screen.dart';
+import 'package:dairy_ai/features/community/screens/community_post_detail_screen.dart';
+import 'package:dairy_ai/features/auth/screens/vet_register_screen.dart';
+
 
 // ---------------------------------------------------------------------------
 // Navigation keys
@@ -120,6 +129,16 @@ final _adminShellKey = GlobalKey<NavigatorState>();
 final _vendorShellKey = GlobalKey<NavigatorState>();
 final _cooperativeShellKey = GlobalKey<NavigatorState>();
 
+bool _isFarmerSubdomain() {
+  if (!kIsWeb) return false;
+  try {
+    final host = Uri.base.host.toLowerCase();
+    return host.startsWith('farmers.') || host.startsWith('farmer.');
+  } catch (_) {
+    return false;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Router provider
 // ---------------------------------------------------------------------------
@@ -129,12 +148,13 @@ final routerProvider = Provider<GoRouter>((ref) {
   // whenever auth changes resets the browser's deep link to initialLocation,
   // which previously turned an admin login URL into /shop.
   final analytics = ref.read(analyticsServiceProvider);
+  final isFarmerHost = _isFarmerSubdomain();
   late final GoRouter router;
 
   router = GoRouter(
     navigatorKey: _rootNavigatorKey,
-    // Customers should be able to browse the catalogue before creating an account.
-    initialLocation: '/shop',
+    // Customers browse the storefront; farmers land on their dedicated management shell.
+    initialLocation: isFarmerHost ? '/home' : '/shop',
     debugLogDiagnostics: false,
     observers: [AnalyticsRouteObserver(analytics)],
     redirect: (context, state) {
@@ -205,7 +225,44 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (isSeller) {
           return shoppingReturnPath(next ?? '/vendor-dashboard');
         }
+        if (userRole == 'vet' || userRole == 'veterinarian') {
+          return shoppingReturnPath(next ?? '/vet-dashboard');
+        }
+        if (userRole == 'farmer' || isFarmerHost) {
+          return shoppingReturnPath(next ?? '/home');
+        }
         return shoppingReturnPath(next);
+      }
+
+      // STRICT HOST ISOLATION:
+      // If user is on the Farmer/Veterinary subdomain (farmers.milterrafoods.com),
+      // NEVER mix or render the Milterra Foods D2C Ghee storefront inside this portal!
+      if (isFarmerHost) {
+        final isStorefrontRoute = location == '/shop' ||
+            location.startsWith('/shop/') ||
+            location == '/marketplace' ||
+            location.startsWith('/marketplace/') ||
+            location == '/cart' ||
+            location.startsWith('/cart/') ||
+            location == '/checkout' ||
+            location == '/wishlist' ||
+            location.startsWith('/product/') ||
+            location.startsWith('/machinery/') ||
+            location.startsWith('/deals') ||
+            location == '/about' ||
+            location == '/farm-story' ||
+            location == '/contact' ||
+            location == '/earth';
+
+        if (isStorefrontRoute) {
+          if (kIsWeb) {
+            launchUrl(
+              Uri.parse('https://milterrafoods.com$location'),
+              webOnlyWindowName: '_self',
+            );
+          }
+          return '/home';
+        }
       }
 
       final isAuthRoute = state.matchedLocation == '/login' ||
@@ -238,6 +295,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           location == '/profile' ||
           location == '/shop/profile' ||
           location.startsWith('/purity') ||
+          location.startsWith('/community') ||
+          location == '/vet/register' ||
           location == '/marketplace' ||
           location == '/marketplace/sell' ||
           location == '/sell' ||
@@ -261,7 +320,29 @@ final routerProvider = Provider<GoRouter>((ref) {
           location == '/marketplace/wallet' ||
           location.startsWith('/cooperative') ||
           location.startsWith('/herd/lifecycle') ||
-          location.startsWith('/vet/booking');
+          location.startsWith('/vet/booking') ||
+          location == '/home' ||
+          location.startsWith('/home/') ||
+          location == '/herd' ||
+          location.startsWith('/herd/') ||
+          location == '/health' ||
+          location.startsWith('/health/') ||
+          location == '/finance' ||
+          location.startsWith('/finance/') ||
+          location == '/more' ||
+          location.startsWith('/more/') ||
+          location == '/vet-dashboard' ||
+          location.startsWith('/vet-');
+
+      final requiresFarmerAuth = location == '/herd/add' ||
+          location == '/health/add-record' ||
+          location == '/finance/add';
+
+      if (!isAuthenticated && requiresFarmerAuth) {
+        return Uri(path: '/login', queryParameters: {
+          'next': shoppingReturnPath(state.uri.toString())
+        }).toString();
+      }
 
       if (!isAuthenticated && !isAuthRoute && !isPublicRoute) {
         return Uri(path: '/login', queryParameters: {
@@ -271,24 +352,44 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (isAuthenticated &&
           (state.matchedLocation == '/login' ||
               state.matchedLocation == '/register')) {
-        if (AppConstants.separateCustomerAuth && !isAdmin && !isSeller) {
-          final next = state.uri.queryParameters['next'];
-          return next != null && next.isNotEmpty
-              ? shoppingReturnPath(next)
-              : '/account';
-        }
         final next = state.uri.queryParameters['next'];
         if (next != null && next.isNotEmpty) {
           return shoppingReturnPath(next);
         }
         if (isAdmin) return '/admin/ecommerce';
         if (isSeller) return '/vendor-dashboard';
+        if (userRole == 'vet' || userRole == 'veterinarian') {
+          return '/vet-dashboard';
+        }
+        if (userRole == 'farmer' || isFarmerHost) {
+          return '/home';
+        }
+        if (AppConstants.separateCustomerAuth) {
+          return '/account';
+        }
         return '/shop';
       }
       return null;
     },
     routes: [
-      GoRoute(path: '/', redirect: (_, __) => '/shop'),
+      GoRoute(
+        path: '/',
+        redirect: (_, __) {
+          if (isFarmerHost) {
+            final authState = ref.read(authProvider);
+            final currentUser = authState.maybeWhen(
+              authenticated: (user) => user,
+              orElse: () => null,
+            );
+            final role = (currentUser?.role ?? '').trim().toLowerCase();
+            if (role == 'vet' || role == 'veterinarian') {
+              return '/vet-dashboard';
+            }
+            return '/home';
+          }
+          return '/shop';
+        },
+      ),
       StoreRoute(
         path: '/shop/product/:productId',
         builder: (context, state) => ProductDetailScreen(
@@ -523,6 +624,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
+      // ---- Community Cattle Social Feed & Doctor Advisory ----
+      GoRoute(
+        path: '/community',
+        builder: (context, state) => const CommunityFeedScreen(),
+      ),
+      GoRoute(
+        path: '/community/post/:id',
+        builder: (context, state) => CommunityPostDetailScreen(
+          postId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/vet/register',
+        builder: (context, state) => const VetRegisterScreen(),
+      ),
+
       // ---- Milk Purity Checker (public, no auth) ----
       GoRoute(
         path: '/purity',
@@ -557,6 +674,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const MilkIntakeScreen(),
       ),
       GoRoute(
+        path: '/passbook',
+        builder: (context, state) => const FarmerPassbookScreen(),
+      ),
+      GoRoute(
+        path: '/breeding',
+        builder: (context, state) => const BreedingScreen(),
+      ),
+      GoRoute(
         path: '/herd/lifecycle/:cattleId',
         builder: (context, state) {
           final cattleId = state.pathParameters['cattleId'] ?? 'MIL-2024-0842';
@@ -578,6 +703,38 @@ final routerProvider = Provider<GoRouter>((ref) {
           initialCategory:
               state.uri.queryParameters['category'] ?? 'All Departments',
         ),
+      ),
+      GoRoute(
+        path: '/farmer-portal',
+        redirect: (context, state) {
+          if (kIsWeb) {
+            final host = Uri.base.host.toLowerCase();
+            if (!host.startsWith('farmers.') && !host.startsWith('farmer.')) {
+              launchUrl(
+                Uri.parse('https://farmers.milterrafoods.com'),
+                webOnlyWindowName: '_self',
+              );
+              return null;
+            }
+          }
+          return '/home';
+        },
+      ),
+      GoRoute(
+        path: '/farmers',
+        redirect: (context, state) {
+          if (kIsWeb) {
+            final host = Uri.base.host.toLowerCase();
+            if (!host.startsWith('farmers.') && !host.startsWith('farmer.')) {
+              launchUrl(
+                Uri.parse('https://farmers.milterrafoods.com'),
+                webOnlyWindowName: '_self',
+              );
+              return null;
+            }
+          }
+          return '/home';
+        },
       ),
       GoRoute(
         path: '/farmer',
@@ -697,6 +854,19 @@ final routerProvider = Provider<GoRouter>((ref) {
                     },
                     routes: [
                       GoRoute(
+                        path: 'edit',
+                        builder: (context, state) {
+                          final id = state.pathParameters['cattleId']!;
+                          final farmerId = ref.read(currentUserProvider)?.id ?? '';
+                          final cattle = state.extra is Cattle ? state.extra as Cattle : null;
+                          return AddCattleScreen(
+                            farmerId: farmerId,
+                            cattle: cattle,
+                            cattleId: id,
+                          );
+                        },
+                      ),
+                      GoRoute(
                         path: 'sensors',
                         builder: (context, state) {
                           final id = state.pathParameters['cattleId']!;
@@ -781,6 +951,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'profile',
                     builder: (context, state) => const ProfileScreen(),
+                  ),
+                  GoRoute(
+                    path: 'documents',
+                    builder: (context, state) => const FarmDocumentsScreen(),
                   ),
                 ],
               ),
@@ -1073,6 +1247,11 @@ class _MoreMenuScreen extends StatelessWidget {
             icon: Icons.bar_chart,
             label: 'Milk Summary',
             onTap: () => context.go('/more/milk-summary'),
+          ),
+          _MoreTile(
+            icon: Icons.folder_shared_outlined,
+            label: 'Farm Charts & Documents',
+            onTap: () => context.go('/more/documents'),
           ),
           _MoreTile(
             icon: Icons.grass,

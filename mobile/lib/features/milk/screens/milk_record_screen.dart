@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import 'package:dairy_ai/features/health/models/health_models.dart';
 import 'package:dairy_ai/features/health/providers/health_provider.dart';
 import 'package:dairy_ai/features/milk/widgets/thermal_slip_dialog.dart';
@@ -22,101 +23,7 @@ class _MilkRecordScreenState extends ConsumerState<MilkRecordScreen>
   late TabController _tabController;
 
   // Shared date-wise archive of slips and collection records
-  final List<Map<String, dynamic>> _dateArchives = [
-    {
-      'date': '21 Oct 2026',
-      'morning': {
-        'totalLitres': 175.0,
-        'coopLitres': 100.0,
-        'hotelLitres': 50.0,
-        'retailLitres': 20.0,
-        'slipNumber': 'PARCHI-8841',
-        'slipLitres': 98.2,
-        'slipFat': 4.05,
-        'slipSnf': 8.35,
-        'slipRate': 40.50,
-        'centerName': 'सरस दुग्ध सहकारी समिति (BMC-402)',
-        'hasMismatch': true,
-        'discrepancy': '-1.8L Shortage (-₹272.90)',
-      },
-      'evening': {
-        'totalLitres': 165.0,
-        'coopLitres': 95.0,
-        'hotelLitres': 50.0,
-        'retailLitres': 20.0,
-        'slipNumber': 'PARCHI-8892',
-        'slipLitres': 95.0,
-        'slipFat': 4.30,
-        'slipSnf': 8.60,
-        'slipRate': 42.50,
-        'centerName': 'सरस दुग्ध सहकारी समिति (BMC-402)',
-        'hasMismatch': false,
-        'discrepancy': '100% Matched',
-      },
-    },
-    {
-      'date': '20 Oct 2026',
-      'morning': {
-        'totalLitres': 172.0,
-        'coopLitres': 102.0,
-        'hotelLitres': 50.0,
-        'retailLitres': 20.0,
-        'slipNumber': 'PARCHI-8710',
-        'slipLitres': 102.0,
-        'slipFat': 4.25,
-        'slipSnf': 8.55,
-        'slipRate': 42.00,
-        'centerName': 'अमूल चिलिंग सेंटर (BMC-518)',
-        'hasMismatch': false,
-        'discrepancy': '100% Matched',
-      },
-      'evening': {
-        'totalLitres': 160.0,
-        'coopLitres': 90.0,
-        'hotelLitres': 50.0,
-        'retailLitres': 20.0,
-        'slipNumber': 'PARCHI-8765',
-        'slipLitres': 89.1,
-        'slipFat': 4.10,
-        'slipSnf': 8.40,
-        'slipRate': 41.00,
-        'centerName': 'अमूल चिलिंग सेंटर (BMC-518)',
-        'hasMismatch': true,
-        'discrepancy': '-0.9L Shortage (-₹85.00)',
-      },
-    },
-    {
-      'date': '19 Oct 2026',
-      'morning': {
-        'totalLitres': 170.0,
-        'coopLitres': 100.0,
-        'hotelLitres': 50.0,
-        'retailLitres': 20.0,
-        'slipNumber': 'PARCHI-8604',
-        'slipLitres': 100.0,
-        'slipFat': 4.35,
-        'slipSnf': 8.65,
-        'slipRate': 43.00,
-        'centerName': 'सरस दुग्ध सहकारी समिति (BMC-402)',
-        'hasMismatch': false,
-        'discrepancy': '100% Matched',
-      },
-      'evening': {
-        'totalLitres': 158.0,
-        'coopLitres': 88.0,
-        'hotelLitres': 50.0,
-        'retailLitres': 20.0,
-        'slipNumber': 'PARCHI-8651',
-        'slipLitres': 88.0,
-        'slipFat': 4.30,
-        'slipSnf': 8.60,
-        'slipRate': 42.50,
-        'centerName': 'सरस दुग्ध सहकारी समिति (BMC-402)',
-        'hasMismatch': false,
-        'discrepancy': '100% Matched',
-      },
-    },
-  ];
+  final List<Map<String, dynamic>> _dateArchives = [];
 
   @override
   void initState() {
@@ -143,10 +50,10 @@ class _MilkRecordScreenState extends ConsumerState<MilkRecordScreen>
           'date': todayDate,
           'morning': newSlipData,
           'evening': {
-            'totalLitres': 160.0,
-            'coopLitres': 90.0,
-            'hotelLitres': 50.0,
-            'retailLitres': 20.0,
+            'totalLitres': 0.0,
+            'coopLitres': 0.0,
+            'hotelLitres': 0.0,
+            'retailLitres': 0.0,
             'slipNumber': 'Pending',
             'slipLitres': 0.0,
             'hasMismatch': false,
@@ -379,14 +286,16 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
   String _selectedShift = 'morning'; // 'morning', 'evening', 'full_day'
   int _selectedCattleId = 0; // 0 = All Herd Bulk
   bool _autoCalculateTotal = true; // Auto-sums channels into Total Production
-  final _totalProductionController = TextEditingController(text: '175.0');
-  final _avgFatController = TextEditingController(text: '4.30');
-  final _avgSnfController = TextEditingController(text: '8.60');
+  final _totalProductionController = TextEditingController(text: '0.0');
+  final _avgFatController = TextEditingController();
+  final _avgSnfController = TextEditingController();
 
   late List<BuyerChannelItem> _channels;
   final Map<String, TextEditingController> _litresControllers = {};
   final Map<String, TextEditingController> _rateControllers = {};
-  static const _storageKey = 'farmer_milk_buyer_channels_v2';
+  // Scoped per signed-in user so channels never leak between accounts on one device.
+  String get _storageKey =>
+      'farmer_milk_buyer_channels_v3_${ref.read(currentUserProvider)?.id ?? 'anon'}';
 
   List<BuyerChannelItem> _getDefaultChannels() {
     return [
@@ -394,20 +303,17 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
         id: '1',
         channelType: 'cooperative',
         buyerName: 'दुग्ध समिति / BMC बल्क',
-        litres: 100.0,
-        ratePerLitre: 42.50,
-        fat: 4.30,
-        snf: 8.60,
+        litres: 0.0,
+        ratePerLitre: 0.0,
         paymentMode: '10_day_cycle',
-        hasSlipAttached: true,
-        slipNumber: 'Slip #8841',
+        hasSlipAttached: false,
       ),
       BuyerChannelItem(
         id: '2',
         channelType: 'hotel',
         buyerName: 'निजी होटल व हलवाई (Private Hotel)',
-        litres: 50.0,
-        ratePerLitre: 100.00,
+        litres: 0.0,
+        ratePerLitre: 0.0,
         paymentMode: 'cash_upi',
         hasSlipAttached: false,
       ),
@@ -415,8 +321,8 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
         id: '3',
         channelType: 'retail',
         buyerName: 'घर-घर खुदरा ग्राहक (Household Retail)',
-        litres: 20.0,
-        ratePerLitre: 75.00,
+        litres: 0.0,
+        ratePerLitre: 0.0,
         paymentMode: 'udhar_khata',
         hasSlipAttached: false,
       ),
@@ -424,7 +330,7 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
         id: '4',
         channelType: 'self',
         buyerName: 'घरेलू उपयोग व बछड़े (Calf & Home)',
-        litres: 5.0,
+        litres: 0.0,
         ratePerLitre: 0.0,
         paymentMode: 'cash_upi',
         hasSlipAttached: false,
@@ -1222,10 +1128,10 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
               ),
             ),
             items: [
-              const DropdownMenuItem(
+              DropdownMenuItem(
                 value: 0,
                 child: Text(
-                  'समस्त डेरी पशु (Total Farm Herd - 18 Animals)',
+                  'समस्त डेरी पशु (Total Farm Herd - ${cattleList.length} Animals)',
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -3025,6 +2931,11 @@ class _DateWiseSlipFolderTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (archives.isEmpty) {
+      return const Center(
+        child: Text('अभी कोई पर्ची नहीं (No slips saved yet)'),
+      );
+    }
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 760),

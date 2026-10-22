@@ -34,11 +34,25 @@ const RegisterSchema = z.object({
   phone: z.string().transform(normalizePhone).refine((val) => /^[6-9][0-9]{9}$/.test(val), {
     message: 'Enter a valid 10-digit Indian mobile number',
   }),
-  password: z.string().min(8).max(72).refine((val) => val !== 'Password@123', {
+  password: z.string().min(8, 'Password must be at least 8 characters').max(72).refine((val) => val !== 'Password@123', {
     message: 'Choose a password that is not a published demo password',
   }),
-  username: z.string().min(3).max(30).regex(/^[a-z][a-z0-9._]{2,29}$/).optional().nullable(),
-  email: z.string().email().max(254).optional().nullable(),
+  username: z
+    .string()
+    .transform((v) => v.trim().toLowerCase())
+    .refine((v) => v === '' || /^[a-z0-9._-]{2,40}$/.test(v), {
+      message: 'Username must be 2-40 characters using letters, numbers, dot, dash, or underscore',
+    })
+    .optional()
+    .nullable(),
+  email: z
+    .string()
+    .transform((v) => v.trim())
+    .refine((v) => v === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), {
+      message: 'Enter a valid email address',
+    })
+    .optional()
+    .nullable(),
   display_name: z.string().max(128).optional().nullable(),
 });
 
@@ -79,7 +93,9 @@ authRouter.post('/register-password', async (c) => {
   const body = await c.req.json().catch(() => null);
   const parsed = RegisterSchema.safeParse(body);
   if (!parsed.success) {
-    return c.json({ error: 'Validation Error', details: parsed.error.format() }, 400);
+    const issues = parsed.error.issues;
+    const firstMessage = issues[0]?.message || 'Invalid registration details';
+    return c.json({ error: 'Validation Error', message: firstMessage, details: parsed.error.format() }, 400);
   }
 
   const { phone, password, username, email, display_name } = parsed.data;
@@ -325,7 +341,9 @@ authRouter.post('/forgot-password', async (c) => {
   const body = await c.req.json().catch(() => null);
   const parsed = ForgotPasswordSchema.safeParse(body);
   if (!parsed.success) {
-    return c.json({ error: 'Validation Error', details: parsed.error.format() }, 400);
+    const issues = parsed.error.issues;
+    const firstMessage = issues[0]?.message || 'Invalid registration details';
+    return c.json({ error: 'Validation Error', message: firstMessage, details: parsed.error.format() }, 400);
   }
 
   const identifier = parsed.data.identifier.trim().toLowerCase();
@@ -374,7 +392,9 @@ authRouter.post('/reset-password', async (c) => {
   const body = await c.req.json().catch(() => null);
   const parsed = ResetPasswordSchema.safeParse(body);
   if (!parsed.success) {
-    return c.json({ error: 'Validation Error', details: parsed.error.format() }, 400);
+    const issues = parsed.error.issues;
+    const firstMessage = issues[0]?.message || 'Invalid registration details';
+    return c.json({ error: 'Validation Error', message: firstMessage, details: parsed.error.format() }, 400);
   }
 
   const now = Math.floor(Date.now() / 1000);

@@ -327,6 +327,92 @@ healthRouter.get('/farmers/me/upcoming-vaccinations', async (c) => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// 3b. Active Crisis & Breeding Alerts (strictly scoped to the caller's own cattle)
+// ---------------------------------------------------------------------------
+
+healthRouter.get('/farmers/me/active-crises', async (c) => {
+  const user = await requireAuth(c);
+  const db = c.env.DB;
+
+  const farmer = await getFarmerByUserId(db, user.id);
+  if (!farmer) {
+    return c.json({ success: true, data: { crises: [], breeding_alerts: [] } });
+  }
+
+  // Unresolved collar anomalies from the last 24h on this farmer's cattle only.
+  const anomalyRows = await db.prepare(
+    `SELECT a.id, a.alert_type, a.message, a.current_value, a.threshold, a.created_at,
+            c.id AS cattle_id, c.tag_id, c.name AS cattle_name
+     FROM sensor_anomalies a
+     JOIN cattle c ON c.id = a.cattle_id
+     WHERE c.farmer_id = ? AND a.is_resolved = 0
+       AND a.alert_type != 'low_battery'
+       AND a.created_at >= datetime('now', '-24 hours')
+     ORDER BY a.created_at DESC`
+  ).bind(farmer.id).all();
+
+  const byCattle = new Map<string, any>();
+  for (const r of (anomalyRows.results || []) as any[]) {
+    let entry = byCattle.get(r.cattle_id);
+    if (!entry) {
+      entry = {
+        cattle_id: r.cattle_id,
+        tag_id: r.tag_id,
+        cattle_name: r.cattle_name || r.tag_id,
+        alerts: [],
+        last_event_at: r.created_at,
+      };
+      byCattle.set(r.cattle_id, entry);
+    }
+    // Keep only the latest anomaly per type.
+    if (!entry.alerts.some((a: any) => a.alert_type === r.alert_type)) {
+      entry.alerts.push({
+        id: r.id,
+        alert_type: r.alert_type,
+        message: r.message,
+        current_value: r.current_value,
+        threshold: r.threshold,
+        created_at: r.created_at,
+      });
+    }
+  }
+  const crises = Array.from(byCattle.values()).map((e) => ({
+    ...e,
+    alert_count: e.alerts.length,
+    severity: e.alerts.length >= 2 ? 'CRITICAL' : 'WARNING',
+  }));
+
+  // Repeat-heat window: last AI 18-24 days ago with no later pregnancy/calving record.
+  const aiRows = await db.prepare(
+    `SELECT b.cattle_id, b.date, c.tag_id, c.name AS cattle_name
+     FROM breeding_records b
+     JOIN cattle c ON c.id = b.cattle_id
+     WHERE c.farmer_id = ? AND b.event_type = 'ai_done'
+       AND b.date <= date('now', '-18 days') AND b.date >= date('now', '-24 days')
+       AND NOT EXISTS (
+         SELECT 1 FROM breeding_records p
+         WHERE p.cattle_id = b.cattle_id AND p.date >= b.date
+           AND p.event_type IN ('pregnancy_confirmed', 'calving')
+       )`
+  ).bind(farmer.id).all();
+
+  const nowMs = Date.now();
+  const breeding_alerts = ((aiRows.results || []) as any[]).map((r) => ({
+    cattle_id: r.cattle_id,
+    tag_id: r.tag_id,
+    cattle_name: r.cattle_name || r.tag_id,
+    inseminated_on: r.date,
+    days_since_ai: Math.floor((nowMs - new Date(r.date).getTime()) / 86400000),
+  }));
+
+  return c.json({
+    success: true,
+    data: { crises, breeding_alerts },
+    message: 'Active crises for your herd',
+  });
+});
+
 healthRouter.get('/health-records', async (c) => {
   const user = await requireAuth(c);
   const db = c.env.DB;

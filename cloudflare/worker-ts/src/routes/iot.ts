@@ -47,17 +47,9 @@ export async function resolveCattleRecord(db: D1Database, identifier: string): P
   cattle = (await db.prepare('SELECT id, tag_id, name, farmer_id FROM cattle WHERE tag_id = ?').bind(identifier).first()) as any;
   if (cattle) return cattle;
 
-  // 3. Name match (case-insensitive, e.g. Ganga, Yamuna, Lakshmi)
-  cattle = (await db.prepare('SELECT id, tag_id, name, farmer_id FROM cattle WHERE name = ? COLLATE NOCASE').bind(identifier).first()) as any;
-  if (cattle) return cattle;
-
-  // 4. Fallback for hardware test devices (e.g. ESP32-COLLAR-001) -> map to first active cattle
-  cattle = (await db.prepare('SELECT id, tag_id, name, farmer_id FROM cattle WHERE status = "active" ORDER BY created_at ASC LIMIT 1').first()) as any;
-  if (cattle) return cattle;
-
-  // 5. Fallback to any cattle
-  cattle = (await db.prepare('SELECT id, tag_id, name, farmer_id FROM cattle LIMIT 1').first()) as any;
-  return cattle;
+  // Names are not unique across farmers and there is deliberately NO global
+  // fallback: an unknown identifier must never be attributed to someone else's cattle.
+  return null;
 }
 
 export function normalizeSensorPayload(body: any): {
@@ -203,11 +195,14 @@ async function handleSensorIngestion(c: any, rawIdentifier?: string) {
     rawBody.device_id ||
     rawBody.deviceId ||
     rawBody.collar_id ||
-    rawBody.tag_id ||
-    'cattle-ramesh-1';
+    rawBody.tag_id;
 
-  // Resolve to cattle record (by ID, Tag ID like COW-GJ-01, Name like Ganga, or test device fallback)
-  const cattle = await resolveCattleRecord(db, identifier);
+  if (!identifier) {
+    throw new HTTPException(422, { message: 'cattle_id or tag_id is required' });
+  }
+
+  // Resolve to cattle record by exact cattle ID or unique Tag ID (e.g. COW-GJ-01)
+  const cattle = await resolveCattleRecord(db, String(identifier));
   if (!cattle) {
     throw new HTTPException(404, { message: `Cattle not found for device identifier: '${identifier}'` });
   }

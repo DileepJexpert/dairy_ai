@@ -43,7 +43,7 @@ import 'package:dairy_ai/features/milk/screens/milk_record_screen.dart';
 import 'package:dairy_ai/features/milk/screens/milk_summary_screen.dart';
 import 'package:dairy_ai/features/feed/screens/feed_plan_screen.dart';
 import 'package:dairy_ai/features/health/screens/farmer_health_triage_screen.dart';
-import 'package:dairy_ai/features/health/screens/multi_crisis_alert_screen.dart';
+import 'package:dairy_ai/features/health/screens/live_crisis_alerts_screen.dart';
 import 'package:dairy_ai/features/health/screens/livestock_disease_directory_screen.dart';
 import 'package:dairy_ai/features/feed/screens/ration_calculator_screen.dart';
 import 'package:dairy_ai/features/breeding/screens/breeding_screen.dart';
@@ -722,7 +722,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/health/emergency-crisis',
-        builder: (context, state) => const MultiCrisisAlertScreen(),
+        builder: (context, state) => const LiveCrisisAlertsScreen(),
       ),
       GoRoute(
         path: '/health/diseases',

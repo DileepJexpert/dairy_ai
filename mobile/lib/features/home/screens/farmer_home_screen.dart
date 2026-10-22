@@ -81,6 +81,7 @@ class FarmerHomeScreen extends ConsumerWidget {
               ] else ...[
                 // Authenticated Dairy Farmer ERP View
                 SliverToBoxAdapter(child: _wrapDesktopWidth(_buildStatsGrid(context, stats))),
+                SliverToBoxAdapter(child: _wrapDesktopWidth(_buildEmergencyCrisisAlertCard(context))),
                 SliverToBoxAdapter(child: _wrapDesktopWidth(_buildBreedingAlertCard(context))),
                 SliverToBoxAdapter(child: _wrapDesktopWidth(_buildQuickActions(context, farmerName: stats.farmerName))),
                 SliverToBoxAdapter(child: _wrapDesktopWidth(_buildFarmerShortcuts(context))),
@@ -1704,6 +1705,137 @@ class FarmerHomeScreen extends ConsumerWidget {
   }
 
   // ---------------------------------------------------------------------------
+  // Authenticated ERP: Multi-Crisis Emergency ICU Alert Card
+  // ---------------------------------------------------------------------------
+  Widget _buildEmergencyCrisisAlertCard(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: InkWell(
+        onTap: () => context.push('/health/emergency-crisis'),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xfffef2f2),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xfff87171), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xffdc2626).withValues(alpha: 0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Color(0xffdc2626),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.warning, color: Colors.white, size: 16),
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      '🚨 गंभीर स्वास्थ्य आपातकाल (Multi-Crisis ICU Alert)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13.5,
+                        color: Color(0xff991b1b),
+                      ),
+                    ),
+                  ),
+                  const Text(
+                    'आईसीयू देखें >',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xffdc2626),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xfffecaca)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'गंगा गाय (टैग #MIL-0842) - 5 संकट एक साथ',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xff7f1d1d),
+                          ),
+                        ),
+                        Text(
+                          '🚨 कोड रेड',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xffdc2626),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        _crisisMiniBadge('🌡️ 40.8°C बुखार', const Color(0xffdc2626)),
+                        _crisisMiniBadge('⚠️ तीव्र थनैला', const Color(0xffb91c1c)),
+                        _crisisMiniBadge('🛑 2h से अचल', const Color(0xffea580c)),
+                        _crisisMiniBadge('⏳ 5h 0 जुगाली', const Color(0xff7c3aed)),
+                        _crisisMiniBadge('🔥 हीट चक्र', const Color(0xffdb2777)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'थनैला बैक्टीरिया विषाक्तता (Endotoxemia / Septic Shock) का संदेह। तत्काल 2 घंटे में डॉक्टर व IV ड्रिप जरूरी!',
+                      style: TextStyle(fontSize: 11, color: Color(0xff450a0a), height: 1.3),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _crisisMiniBadge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   Widget _buildBreedingAlertCard(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -1864,6 +1996,12 @@ class FarmerHomeScreen extends ConsumerWidget {
                         label: 'Heat Alert',
                         color: Colors.deepOrange,
                         onTap: () => context.push('/breeding/heat-detection'),
+                      ),
+                      _QuickActionButton(
+                        icon: Icons.emergency,
+                        label: 'ICU Alert',
+                        color: const Color(0xffdc2626),
+                        onTap: () => context.push('/health/emergency-crisis'),
                       ),
                       _QuickActionButton(
                         icon: Icons.receipt_long_outlined,

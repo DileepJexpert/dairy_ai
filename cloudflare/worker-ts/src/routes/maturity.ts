@@ -393,3 +393,117 @@ maturityRouter.post('/feed/group-pools/join', async (c) => {
     delivery_date: '3 दिन बाद (सामूहिक ट्रक आगमन पर)',
   });
 });
+
+// ---------------------------------------------------------------------------
+// 7. Bovine Multi-Crisis Emergency ICU Telemetry & Health Alert
+// (Heat + High Fever 40.8°C + Acute Mastitis + 2h No Movement + 5h No Jugali)
+// ---------------------------------------------------------------------------
+maturityRouter.get('/health/multi-crisis-alert', async (c) => {
+  const crisisData = {
+    cattle_id: 'MIL-0842',
+    cattle_name: 'Ganga (गंगा - गीर गाय)',
+    tag_id: 'MIL-0842',
+    breed: 'Gir Indigenous Cow (गीर देशी गाय)',
+    age_years: 4.5,
+    lactation_stage: 'Lactation 2 (Day 72 post-calving)',
+    weight_kg: 420.0,
+    emergency_level: 'CODE_RED_CRITICAL',
+    last_updated: new Date().toISOString(),
+    vitals: {
+      temperature_c: 40.8,
+      temperature_f: 105.4,
+      normal_temp_c: 38.5,
+      temp_status: 'CRITICAL_FEVER',
+      heart_rate_bpm: 96,
+      normal_hr_bpm: 68,
+      hr_status: 'TACHYCARDIA_DISTRESS',
+      activity_level: 0,
+      activity_normal: 75,
+      no_movement_minutes: 125,
+      rumination_minutes_5h: 0,
+      rumination_normal_5h: 110,
+      rumination_status: 'RUMEN_ATONY_STASIS',
+      milk_yield_drop_pct: 45.0,
+    },
+    alerts: [
+      {
+        id: 'ALT-FEVER-01',
+        title: 'अति-गंभीर बुखार (Hyperpyrexia - 40.8°C / 105.4°F)',
+        category: 'FEVER',
+        severity: 'CRITICAL',
+        badge: '🚨 40.8°C FEVER',
+        duration: 'पिछले 4 घंटे से तापमान 105.4°F पर स्थिर',
+        clinical_finding: 'तीव्र जीवाणु विषाक्तता (Acute Bacteremia / Endotoxemia)',
+        urgency: 'तत्काल आईवी एंटीपायरेटिक आवश्यक',
+      },
+      {
+        id: 'ALT-MASTITIS-02',
+        title: 'तीव्र क्लिनिकल थनैला (Acute Toxic Mastitis - Right Hind Quarter)',
+        category: 'MASTITIS',
+        severity: 'CRITICAL',
+        badge: '⚠️ तीव्र थनैला (MASTITIS)',
+        duration: 'दाहिना पिछला थन सूजा, गर्म व कठोर; पीला पानी व थक्के',
+        clinical_finding: 'ई-कोलाई या स्ट्रेप्टोकोकस टॉक्सिन, 45% दूध उत्पादन गिरा (CMT Score 3+)',
+        urgency: 'हर 30 मिनट में थन खाली करें + एंटीबायोटिक ट्यूब',
+      },
+      {
+        id: 'ALT-RECUMBENT-03',
+        title: 'अचल पशु / डाउनर सिंड्रोम (No Movement > 2 Hours - Recumbent Cow)',
+        category: 'MOVEMENT',
+        severity: 'CRITICAL',
+        badge: '🛑 2 घंटे से 0 हलचल (0 STEPS)',
+        duration: '125 मिनट से गर्दन व पैरों में कोई गतिविधि नहीं',
+        clinical_finding: 'अत्यधिक दर्द, सेप्टिक शॉक व डिहाइड्रेशन के कारण खड़ी होने में असमर्थ',
+        urgency: 'कोमल बिछावन + आईवी ड्रिप व दर्द निवारक',
+      },
+      {
+        id: 'ALT-RUMEN-04',
+        title: 'रूमेन गतिरोध (No Jugali / Stalled Rumination > 5 Hours)',
+        category: 'RUMINATION',
+        severity: 'CRITICAL',
+        badge: '⏳ 5 घंटे से 0 जुगाली (RUMEN STASIS)',
+        duration: 'पिछले 300 मिनट में 0 मिनट जुगाली (Normal: 90-120 min)',
+        clinical_finding: 'रूमेन एटोनी (Reticulo-ruminal Atony), पेट में गैस व एसिडोसिस का भारी जोखिम',
+        urgency: 'रूमेन टोनिक्स व प्रोबायोटिक बोलस',
+      },
+      {
+        id: 'ALT-HEAT-05',
+        title: 'मद चक्र सह-उत्पत्ति (Estrus Co-occurrence / False Heat Stress)',
+        category: 'ESTRUS',
+        severity: 'WARNING',
+        badge: '🔥 21-दिवसीय हीट चक्र',
+        duration: 'दिन 21 चक्र का मद संकेत',
+        clinical_finding: 'मद के हार्मोनल लक्षण थनैला व बुखार के दर्द के साथ अत्यधिक तनाव उत्पन्न कर रहे हैं। कृत्रिम गर्भाधान (AI) तुरंत स्थगित रखें!',
+        urgency: 'गर्भाधान वर्जित - पहले थनैला व बुखार का उपचार करें',
+      },
+    ],
+    ai_clinical_triage: {
+      diagnosis: 'तीव्र विषैला थनैला व सेप्टिक शॉक (Acute Toxic Mastitis with Secondary Hypomotility & Downer Cow Syndrome)',
+      summary: 'गंगा गाय में 40.8°C बुखार, 5 घंटे से शून्य जुगाली और 2 घंटे से अचल पड़े रहना अत्यंत आपातकालीन स्थिति है। यह केवल हीट का मामला नहीं है—थनैला के विषैले बैक्टीरिया खून में फैल रहे हैं। 2 घंटे के भीतर तत्काल चिकित्सकीय उपचार न मिलने पर पशु की जान को खतरा हो सकता है।',
+      immediate_actions: [
+        'तुरंत पशु चिकित्सक को बुलाएं या पास के सरकारी/प्राइवेट वेटरनरी अस्पताल को आपातकालीन कॉल करें।',
+        'प्रभावित दाहिने पिछले थन को हर 30 मिनट में धीरे-धीरे पूरी तरह खाली (Frequent Stripping) करें।',
+        'तापमान 105.4°F से घटाने के लिए माथे व शरीर पर ठंडे पानी की पट्टी रखें।',
+        'डॉक्टर की सलाह अनुसार Flunixin Meglumine व Ringer Lactate (IV Fluid) तुरंत दें।',
+      ],
+      first_aid_medicines: [
+        { name: 'Flunixin Meglumine (Megludyne) 15-20ml IV/IM', purpose: '105.4°F बुखार व थनैला टॉक्सिन का शॉक तुरंत रोकने हेतु' },
+        { name: 'Intramammary Infusion (Cobactan LC / Pendistrin-SH)', purpose: 'सूजे हुए थन में सीधे चढ़ाने हेतु एंटीबायोटिक ट्यूब' },
+        { name: 'Ringer Lactate / Dextrose 5% (3-4 Litres IV)', purpose: 'शॉक, निर्जलीकरण (Dehydration) व डाउनर अवस्था से बाहर लाने हेतु' },
+        { name: 'Rumen Motor / Appetizer Bolus (Rumentas / Biosacc)', purpose: 'ठप पड़ी जुगाली (Rumen Motility) पुनः शुरू करने हेतु' },
+      ],
+      vet_emergency_contact: {
+        doctor_name: 'Dr. Ramesh Sharma (B.V.Sc & A.H.)',
+        clinic_name: 'अमूल वेटरनरी पॉलीक्लिनिक, आनंद',
+        phone: '+919876543210',
+        distance_km: 3.2,
+      },
+    },
+  };
+
+  return c.json({
+    success: true,
+    data: crisisData,
+  });
+});
+

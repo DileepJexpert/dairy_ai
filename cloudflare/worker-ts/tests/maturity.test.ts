@@ -119,4 +119,17 @@ describe('Enterprise Maturity Suite Endpoints', () => {
     expect(joinJson.success).toBe(true);
     expect(joinJson.total_saved_inr).toBeGreaterThan(0);
   });
+
+  it('GET /api/v1/health/multi-crisis-alert returns correlated multi-emergency bovine telemetry', async () => {
+    const res = await app.request('/api/v1/health/multi-crisis-alert');
+    expect(res.status).toBe(200);
+    const json = await res.json() as any;
+    expect(json.success).toBe(true);
+    expect(json.data.emergency_level).toBe('CODE_RED_CRITICAL');
+    expect(json.data.vitals.temperature_c).toBe(40.8);
+    expect(json.data.vitals.no_movement_minutes).toBe(125);
+    expect(json.data.vitals.rumination_minutes_5h).toBe(0);
+    expect(json.data.alerts.length).toBe(5);
+    expect(json.data.ai_clinical_triage.diagnosis).toContain('थनैला');
+  });
 });

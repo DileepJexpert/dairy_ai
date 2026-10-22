@@ -13,11 +13,32 @@ class HeatDetectionScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final alertsAsync = ref.watch(heatAlertsProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('स्मार्ट हीट अलर्ट (Heat & Estrus Detection)'),
-        elevation: 0,
-      ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('स्मार्ट हीट अलर्ट (Heat & Estrus Detection)'),
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'होम पर वापस जाएं (Back to Home)',
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
+          ),
+        ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 860),
@@ -94,6 +115,7 @@ class HeatDetectionScreen extends ConsumerWidget {
             },
           ),
         ),
+      ),
       ),
     );
   }

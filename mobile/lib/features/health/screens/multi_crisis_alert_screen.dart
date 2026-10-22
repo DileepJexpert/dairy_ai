@@ -51,21 +51,42 @@ class _MultiCrisisAlertScreenState extends State<MultiCrisisAlertScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xfff8fafc),
-      appBar: AppBar(
-        title: const Text('🚨 आपातकालीन आईसीयू मॉनिटर (ICU Telemetry)'),
-        backgroundColor: const Color(0xff991b1b),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share),
-            tooltip: 'WhatsApp पर अलर्ट भेजें',
-            onPressed: _shareOnWhatsApp,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xfff8fafc),
+        appBar: AppBar(
+          title: const Text('🚨 आपातकालीन आईसीयू मॉनिटर (ICU Telemetry)'),
+          backgroundColor: const Color(0xff991b1b),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'होम पर वापस जाएं (Back to Home)',
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
           ),
-        ],
-      ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.share),
+              tooltip: 'WhatsApp पर अलर्ट भेजें',
+              onPressed: _shareOnWhatsApp,
+            ),
+          ],
+        ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 900),
@@ -411,6 +432,7 @@ class _MultiCrisisAlertScreenState extends State<MultiCrisisAlertScreen>
             ],
           ),
         ),
+      ),
       ),
     );
   }

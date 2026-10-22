@@ -298,23 +298,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             return;
           }
 
-          if (isAdmin) {
-            context.go('/admin/commerce/orders');
+          final host = kIsWeb ? Uri.base.host.toLowerCase() : '';
+          final isFarmerPortal = !kIsWeb ||
+              host.startsWith('farmers.') ||
+              host.startsWith('farmer.') ||
+              host.contains('farmer') ||
+              (!host.contains('milterrafoods.com') && host.isNotEmpty && host != 'localhost');
+
+          // 1. If on the Farmer Portal (farmers.milterrafoods.com, mobile app, or dedicated future farmer domain):
+          // Always land on the Farmer Cattle & Herd Dashboard (/home), even if user is admin!
+          if (isFarmerPortal || role == 'farmer') {
+            context.go('/home');
             return;
           }
-          if (isSeller) {
-            context.go('/seller/portal');
-            return;
-          }
+
+          // 2. Healthcare / Veterinary portal
           if (role == 'vet' || role == 'veterinarian') {
             context.go('/vet-dashboard');
             return;
           }
-          final isFarmerPortal = kIsWeb &&
-              (Uri.base.host.toLowerCase().startsWith('farmers.') ||
-                  Uri.base.host.toLowerCase().startsWith('farmer.'));
-          if (role == 'farmer' || isFarmerPortal) {
-            context.go('/home');
+
+          // 3. Seller / Vendor portal
+          if (isSeller) {
+            context.go('/seller/portal');
+            return;
+          }
+
+          // 4. Only on Milterra Shop (milterrafoods.com) does admin go to commerce fulfillment
+          if (isAdmin) {
+            context.go('/admin/commerce/orders');
             return;
           }
 

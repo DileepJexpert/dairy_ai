@@ -140,10 +140,13 @@ final _vendorShellKey = GlobalKey<NavigatorState>();
 final _cooperativeShellKey = GlobalKey<NavigatorState>();
 
 bool _isFarmerSubdomain() {
-  if (!kIsWeb) return false;
+  if (!kIsWeb) return true;
   try {
     final host = Uri.base.host.toLowerCase();
-    return host.startsWith('farmers.') || host.startsWith('farmer.');
+    return host.startsWith('farmers.') ||
+        host.startsWith('farmer.') ||
+        host.contains('farmer') ||
+        (!host.contains('milterrafoods.com') && host.isNotEmpty && host != 'localhost');
   } catch (_) {
     return false;
   }
@@ -229,6 +232,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           (state.matchedLocation == '/otp-verify' ||
               location == '/otp-verify')) {
         final next = state.uri.queryParameters['next'];
+        if (isFarmerHost || userRole == 'farmer') {
+          return shoppingReturnPath(next ?? '/home');
+        }
         if (isAdmin) {
           return shoppingReturnPath(next ?? '/admin/ecommerce');
         }
@@ -238,14 +244,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (userRole == 'vet' || userRole == 'veterinarian') {
           return shoppingReturnPath(next ?? '/vet-dashboard');
         }
-        if (userRole == 'farmer' || isFarmerHost) {
-          return shoppingReturnPath(next ?? '/home');
-        }
         return shoppingReturnPath(next);
       }
 
       // STRICT HOST ISOLATION:
-      // If user is on the Farmer/Veterinary subdomain (farmers.milterrafoods.com),
+      // If user is on the Farmer/Veterinary subdomain (farmers.milterrafoods.com) or standalone farmer domain,
       // NEVER mix or render the Milterra Foods D2C Ghee storefront inside this portal!
       if (isFarmerHost) {
         final isStorefrontRoute = location == '/shop' ||
@@ -262,7 +265,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             location == '/about' ||
             location == '/farm-story' ||
             location == '/contact' ||
-            location == '/earth';
+            location == '/earth' ||
+            location.startsWith('/admin/commerce'); // Isolate commerce shop admin routes!
 
         if (isStorefrontRoute) {
           if (kIsWeb) {
@@ -366,13 +370,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (next != null && next.isNotEmpty) {
           return shoppingReturnPath(next);
         }
+        // 1. If on Farmer Host or user is farmer: always redirect to Farmer Dashboard /home
+        if (isFarmerHost || userRole == 'farmer') {
+          return '/home';
+        }
         if (isAdmin) return '/admin/ecommerce';
         if (isSeller) return '/vendor-dashboard';
         if (userRole == 'vet' || userRole == 'veterinarian') {
           return '/vet-dashboard';
-        }
-        if (userRole == 'farmer' || isFarmerHost) {
-          return '/home';
         }
         if (AppConstants.separateCustomerAuth) {
           return '/account';

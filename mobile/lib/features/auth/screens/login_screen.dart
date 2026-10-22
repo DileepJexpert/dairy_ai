@@ -324,7 +324,59 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           }
           context.go('/shop');
         },
-        error: (message) => showErrorDialog(context, message: message),
+        error: (message) {
+          final isAlreadyRegistered =
+              message.contains('already uses these details') ||
+                  message.contains('Sign in instead');
+          if (isAlreadyRegistered) {
+            showDialog<void>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                title: const Row(
+                  children: [
+                    Icon(Icons.account_circle, color: storeGreen),
+                    SizedBox(width: 8),
+                    Text('Account Already Exists'),
+                  ],
+                ),
+                content: const Text(
+                  'An account is already registered with this mobile number or email.\n\nTap "Sign In Instead" to switch to sign-in.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      setState(() {
+                        _createAccount = false;
+                        _submitted = false;
+                        if (_phoneController.text.trim().isEmpty) {
+                          if (_usernameController.text.trim().isNotEmpty) {
+                            _phoneController.text =
+                                _usernameController.text.trim();
+                          } else if (_emailController.text
+                              .trim()
+                              .isNotEmpty) {
+                            _phoneController.text =
+                                _emailController.text.trim();
+                          }
+                        }
+                      });
+                    },
+                    child: const Text('Sign In Instead'),
+                  ),
+                ],
+              ),
+            );
+          } else {
+            showErrorDialog(context, message: message);
+          }
+        },
         orElse: () {},
       );
     });
@@ -471,6 +523,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         color: const Color(0xff7c3aed),
                                         bgColor: const Color(0xfff5f3ff),
                                         borderColor: const Color(0xffddd6fe),
+                                      ),
+                                      _buildDemoChip(
+                                        label: '👤 Dileep (9839769808)',
+                                        phone: '9839769808',
+                                        password: 'Password@123',
+                                        color: const Color(0xff0369a1),
+                                        bgColor: const Color(0xfff0f9ff),
+                                        borderColor: const Color(0xffbae6fd),
                                       ),
                                       _buildDemoChip(
                                         label: '🛡️ Admin',

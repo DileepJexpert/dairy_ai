@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import 'package:dairy_ai/features/milk/widgets/thermal_slip_dialog.dart';
 
 /// A selectable milk slip item.
@@ -36,7 +39,7 @@ class MilkSlipOption {
 
 /// Interactive Slip Picker Modal allowing the farmer to choose which slip to print,
 /// or create an on-demand custom slip.
-class MilkSlipSelectorModal extends StatefulWidget {
+class MilkSlipSelectorModal extends ConsumerStatefulWidget {
   final String farmerName;
 
   const MilkSlipSelectorModal({
@@ -45,111 +48,71 @@ class MilkSlipSelectorModal extends StatefulWidget {
   });
 
   @override
-  State<MilkSlipSelectorModal> createState() => _MilkSlipSelectorModalState();
+  ConsumerState<MilkSlipSelectorModal> createState() =>
+      _MilkSlipSelectorModalState();
 }
 
-class _MilkSlipSelectorModalState extends State<MilkSlipSelectorModal>
+class _MilkSlipSelectorModalState extends ConsumerState<MilkSlipSelectorModal>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   // Custom Slip Form State
   String _customShift = 'MORNING';
-  final _customTagController = TextEditingController(text: 'MIL-0842 (Ganga)');
+  final _customTagController = TextEditingController();
   final _customCenterController =
-      TextEditingController(text: 'सरस दुग्ध सहकारी समिति (BMC-402)');
-  final _customLitresController = TextEditingController(text: '12.5');
-  final _customFatController = TextEditingController(text: '4.8');
-  final _customSnfController = TextEditingController(text: '8.9');
-  final _customRateController = TextEditingController(text: '42.00');
+      TextEditingController();
+  final _customLitresController = TextEditingController();
+  final _customFatController = TextEditingController();
+  final _customSnfController = TextEditingController();
+  final _customRateController = TextEditingController();
 
-  late final List<MilkSlipOption> _recentSlips;
+  List<MilkSlipOption> _recentSlips = [];
+  bool _loadingSlips = true;
+
+  /// Loads only the signed-in farmer's own collection slips from the API.
+  Future<void> _loadSlips() async {
+    try {
+      final dio = ref.read(dioProvider);
+      final response =
+          await dio.get('/collection/entries', queryParameters: {'limit': 20});
+      final body = response.data as Map<String, dynamic>;
+      final rows = (body['data'] as List?) ?? const [];
+      final slips = <int, MilkSlipOption>{};
+      for (var i = 0; i < rows.length; i++) {
+        final r = Map<String, dynamic>.from(rows[i] as Map);
+        final shift = ''.toUpperCase();
+        final date = '';
+        slips[i] = MilkSlipOption(
+          slipId: '',
+          title: ' ()',
+          shift: shift,
+          date: date,
+          tagId: '',
+          centerName: '',
+          quantityLitres: (r['quantity_litres'] as num?)?.toDouble() ?? 0,
+          fatPct: (r['fat_pct'] as num?)?.toDouble() ?? 0,
+          snfPct: (r['snf_pct'] as num?)?.toDouble() ?? 0,
+          ratePerLitre: (r['rate_per_litre'] as num?)?.toDouble() ?? 0,
+          isLatest: i == 0,
+        );
+      }
+      if (mounted) {
+        setState(() {
+          _recentSlips = slips.values.toList();
+          _loadingSlips = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingSlips = false);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
 
-    _recentSlips = [
-      const MilkSlipOption(
-        slipId: 'SLIP-TODAY-01',
-        title: 'आज प्रातः (Today Morning)',
-        shift: 'MORNING',
-        date: '22 Oct 2026',
-        tagId: 'MIL-0842 (Ganga गाय)',
-        centerName: 'सरस दुग्ध सहकारी समिति (BMC-402)',
-        quantityLitres: 12.5,
-        fatPct: 4.8,
-        snfPct: 8.9,
-        ratePerLitre: 42.00,
-        statusBadge: '✅ नवीनतम प्रविष्टि',
-        isLatest: true,
-      ),
-      const MilkSlipOption(
-        slipId: 'SLIP-TODAY-02',
-        title: 'आज सांय (Today Evening)',
-        shift: 'EVENING',
-        date: '22 Oct 2026',
-        tagId: 'MIL-1024 (Murrah भैंस)',
-        centerName: 'स्थानीय डेयरी / निजी संकलन',
-        quantityLitres: 14.0,
-        fatPct: 7.2,
-        snfPct: 9.3,
-        ratePerLitre: 62.00,
-        statusBadge: '✅ उच्च गुणवत्ता फैट',
-      ),
-      const MilkSlipOption(
-        slipId: 'PARCHI-8892',
-        title: 'कल सांय (Yesterday Evening)',
-        shift: 'EVENING',
-        date: '21 Oct 2026',
-        tagId: 'सहकारी समिति बल्क',
-        centerName: 'सरस दुग्ध सहकारी समिति (BMC-402)',
-        quantityLitres: 95.0,
-        fatPct: 4.30,
-        snfPct: 8.60,
-        ratePerLitre: 42.50,
-        statusBadge: '✅ 100% Matched',
-      ),
-      const MilkSlipOption(
-        slipId: 'PARCHI-8841',
-        title: 'कल प्रातः (Yesterday Morning)',
-        shift: 'MORNING',
-        date: '21 Oct 2026',
-        tagId: 'सहकारी समिति बल्क',
-        centerName: 'सरस दुग्ध सहकारी समिति (BMC-402)',
-        quantityLitres: 98.2,
-        fatPct: 4.05,
-        snfPct: 8.35,
-        ratePerLitre: 40.50,
-        statusBadge: '⚠️ -1.8L Shortage',
-      ),
-      const MilkSlipOption(
-        slipId: 'PARCHI-8710',
-        title: '20 Oct 2026 (प्रातः)',
-        shift: 'MORNING',
-        date: '20 Oct 2026',
-        tagId: 'अमूल चिलिंग व बल्क',
-        centerName: 'अमूल चिलिंग सेंटर (BMC-518)',
-        quantityLitres: 102.0,
-        fatPct: 4.25,
-        snfPct: 8.55,
-        ratePerLitre: 42.00,
-        statusBadge: '✅ 100% Matched',
-      ),
-      const MilkSlipOption(
-        slipId: 'PARCHI-8765',
-        title: '20 Oct 2026 (सांय)',
-        shift: 'EVENING',
-        date: '20 Oct 2026',
-        tagId: 'अमूल चिलिंग व बल्क',
-        centerName: 'अमूल चिलिंग सेंटर (BMC-518)',
-        quantityLitres: 89.1,
-        fatPct: 4.10,
-        snfPct: 8.40,
-        ratePerLitre: 41.00,
-        statusBadge: '⚠️ -0.9L Shortage',
-      ),
-    ];
+    _loadSlips();
   }
 
   @override
@@ -184,10 +147,10 @@ class _MilkSlipSelectorModalState extends State<MilkSlipSelectorModal>
   }
 
   void _printCustomSlip() {
-    final qty = double.tryParse(_customLitresController.text.trim()) ?? 10.0;
-    final fat = double.tryParse(_customFatController.text.trim()) ?? 5.0;
-    final snf = double.tryParse(_customSnfController.text.trim()) ?? 8.5;
-    final rate = double.tryParse(_customRateController.text.trim()) ?? 45.0;
+    final qty = double.tryParse(_customLitresController.text.trim()) ?? 0.0;
+    final fat = double.tryParse(_customFatController.text.trim()) ?? 0.0;
+    final snf = double.tryParse(_customSnfController.text.trim()) ?? 0.0;
+    final rate = double.tryParse(_customRateController.text.trim()) ?? 0.0;
 
     Navigator.pop(context);
     showDialog(
@@ -207,7 +170,7 @@ class _MilkSlipSelectorModalState extends State<MilkSlipSelectorModal>
         centerName: _customCenterController.text.trim().isEmpty
             ? 'MILTERRA DAIRY'
             : _customCenterController.text.trim(),
-        date: '22 Oct 2026',
+        date: DateFormat('dd MMM yyyy').format(DateTime.now()),
       ),
     );
   }
@@ -312,6 +275,20 @@ class _MilkSlipSelectorModalState extends State<MilkSlipSelectorModal>
   }
 
   Widget _buildRecentSlipsList() {
+    if (_loadingSlips) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_recentSlips.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'अभी कोई पर्ची नहीं (No slips yet). Use the Custom Slip tab to create one.',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: _recentSlips.length,

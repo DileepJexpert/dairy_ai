@@ -560,11 +560,19 @@ collectionRouter.post('/entries', async (c) => {
 // ---------------------------------------------------------------------------
 
 collectionRouter.get('/entries', async (c) => {
-  await requireAuth(c);
+  const user = await requireAuth(c);
   const db = c.env.DB;
 
   const centerId = c.req.query('center_id');
-  const farmerId = c.req.query('farmer_id');
+  let farmerId = c.req.query('farmer_id');
+  // Non-admin callers can only ever see their own farm's slips.
+  if (user.role !== 'admin') {
+    const ownFarmer = await getFarmerByUserId(db, user.id);
+    if (!ownFarmer) {
+      return c.json({ success: true, data: [], message: 'Milk collection entries' });
+    }
+    farmerId = ownFarmer.id;
+  }
   const date = c.req.query('date');
   const shift = c.req.query('shift');
   const limit = Math.min(Math.max(Number(c.req.query('limit') || 50), 1), 200);

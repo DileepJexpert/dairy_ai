@@ -5,45 +5,6 @@ import 'package:dairy_ai/core/api_client.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../models/cattle_model.dart';
 
-final demoCattleList = [
-  Cattle(
-    id: 'cattle-demo-1',
-    farmerId: 'farmer-demo',
-    tagId: 'MIL-2024-0842',
-    name: 'Gauri (Gir Cow)',
-    breed: 'Gir',
-    sex: CattleSex.female,
-    photoUrl:
-        'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?w=500&auto=format&fit=crop&q=80',
-    status: CattleStatus.active,
-    createdAt: DateTime.now().subtract(const Duration(days: 120)),
-  ),
-  Cattle(
-    id: 'cattle-demo-2',
-    farmerId: 'farmer-demo',
-    tagId: 'MIL-2024-0843',
-    name: 'Kamdhenu (Sahiwal)',
-    breed: 'Sahiwal',
-    sex: CattleSex.female,
-    photoUrl:
-        'https://images.unsplash.com/photo-1546445317-29f4545e9d53?w=500&auto=format&fit=crop&q=80',
-    status: CattleStatus.active,
-    createdAt: DateTime.now().subtract(const Duration(days: 90)),
-  ),
-  Cattle(
-    id: 'cattle-demo-3',
-    farmerId: 'farmer-demo',
-    tagId: 'MIL-2024-0844',
-    name: 'Nandi (Murrah Buffalo)',
-    breed: 'Murrah',
-    sex: CattleSex.female,
-    photoUrl:
-        'https://images.unsplash.com/photo-1527153857715-3908f2bae5e8?w=500&auto=format&fit=crop&q=80',
-    status: CattleStatus.dry,
-    createdAt: DateTime.now().subtract(const Duration(days: 60)),
-  ),
-];
-
 // ---------------------------------------------------------------------------
 // Cattle list — parameterised by farmer ID
 // ---------------------------------------------------------------------------
@@ -60,8 +21,9 @@ class CattleListNotifier extends FamilyAsyncNotifier<List<Cattle>, String> {
   }
 
   Future<List<Cattle>> _fetchCattle(String farmerId) async {
+    // No signed-in farmer yet -> genuinely empty (never demo cattle).
     if (farmerId.isEmpty) {
-      return demoCattleList;
+      return const [];
     }
 
     final dio = ref.read(dioProvider);
@@ -72,18 +34,16 @@ class CattleListNotifier extends FamilyAsyncNotifier<List<Cattle>, String> {
       final body = response.data as Map<String, dynamic>;
       if (body['success'] == true) {
         final items = body['data'] as List<dynamic>;
-        if (items.isNotEmpty) {
-          return items
-              .map((e) => Cattle.fromJson(e as Map<String, dynamic>))
-              .toList();
-        }
+        return items
+            .map((e) => Cattle.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
-    } catch (_) {
-      // In demo / unauthenticated mode, gracefully fall back to demo cattle
+      return const [];
+    } on DioException catch (e) {
+      // Surface real errors instead of silently showing demo cattle.
+      throw Exception(dioErrorMessage(e));
     }
-    return demoCattleList;
   }
-
   Future<void> refresh() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() => _fetchCattle(arg));
@@ -144,24 +104,10 @@ final cattleDetailProvider =
     if (body['success'] == true) {
       return Cattle.fromJson(body['data'] as Map<String, dynamic>);
     }
-  } catch (_) {
-    // In demo / unauthenticated mode, return matching demo cow
+    throw Exception(body['message'] ?? 'Cattle not found');
+  } on DioException catch (e) {
+    throw Exception(dioErrorMessage(e));
   }
-  return demoCattleList.firstWhere(
-    (c) => c.id == cattleId,
-    orElse: () => Cattle(
-      id: cattleId,
-      farmerId: 'farmer-demo',
-      tagId: 'MIL-2024-0842',
-      name: 'Gauri (Gir Cow)',
-      breed: 'Gir',
-      sex: CattleSex.female,
-      photoUrl:
-          'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?w=500&auto=format&fit=crop&q=80',
-      status: CattleStatus.active,
-      createdAt: DateTime.now().subtract(const Duration(days: 120)),
-    ),
-  );
 });
 
 // ---------------------------------------------------------------------------

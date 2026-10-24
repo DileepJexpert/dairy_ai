@@ -33,44 +33,9 @@ final bankDossierProvider =
       return BankDossier.fromJson(body['data'] as Map<String, dynamic>);
     }
   } catch (_) {
-    // Return sample offline dossier
+    // Return null if error or 0 cattle
   }
-  return BankDossier.fromJson({
-    'certificate_id': 'MIL-DOSSIER-2026-08492',
-    'issued_date': DateTime.now().toString().substring(0, 10),
-    'valid_until': DateTime.now().add(const Duration(days: 60)).toString().substring(0, 10),
-    'verification_hash': 'VET-HASH-9812A',
-    'issuing_authority': 'Milterra Dairy AI Fintech Underwriting Engine',
-    'farmer_kyc': {
-      'name': 'रामेश पटेल',
-      'village': 'आनंद',
-      'district': 'आनंद',
-      'phone': '+91 98397 69808',
-    },
-    'herd_health_audit': {
-      'total_active_cattle': 4,
-      'fmd_vaccine_status': '100% COMPLIANT (NADCP)',
-      'hs_bq_vaccine_status': '100% COMPLIANT (Pre-Monsoon)',
-      'chronic_disease_free': true,
-    },
-    'milk_cash_flow_audit': {
-      'total_litres_poured': 1350.0,
-      'total_net_payout': 54000.0,
-      'avg_monthly_payout': 18000.0,
-      'avg_fat_pct': 4.3,
-      'avg_snf_pct': 8.7,
-    },
-    'underwriting_recommendation': {
-      'recommended_kcc_limit': 160000.0,
-      'recommended_interest_rate_pct': 4.0,
-      'escrow_daily_deduction': 125.0,
-    },
-    'cattle_inventory': [
-      {'tag_id': 'MIL-0842', 'name': 'Ganga', 'breed': 'GIR COW', 'lactation': 2, 'health_clearance': 'CERTIFIED HEALTHY', 'estimated_daily_yield': '16 L'},
-      {'tag_id': 'MIL-0911', 'name': 'Gauri', 'breed': 'SAHIWAL COW', 'lactation': 3, 'health_clearance': 'CERTIFIED HEALTHY', 'estimated_daily_yield': '15 L'},
-      {'tag_id': 'MIL-1024', 'name': 'Murrah-1', 'breed': 'MURRAH BUFFALO', 'lactation': 2, 'health_clearance': 'CERTIFIED HEALTHY', 'estimated_daily_yield': '14 L'},
-    ],
-  });
+  return null;
 });
 
 Future<Map<String, dynamic>> applyKccLoan(

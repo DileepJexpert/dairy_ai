@@ -182,9 +182,32 @@ class FinanceDashboardScreen extends ConsumerWidget {
             transactionsAsync.when(
               data: (txns) {
                 if (txns.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(child: Text('No transactions yet')),
+                  return Card(
+                    elevation: 0,
+                    color: const Color(0xfff8fafc),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+                      child: Column(
+                        children: [
+                          Icon(Icons.receipt_long_outlined, size: 40, color: Colors.grey.shade400),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'अभी कोई लेन-देन दर्ज नहीं है',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'दूध बिक्री, चारा या दवा का खर्च जोड़ने के लिए नीचे दिए गए बटन पर टैप करें।',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
+                    ),
                   );
                 }
                 // Show latest 20

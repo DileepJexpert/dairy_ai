@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dairy_ai/core/extensions.dart';
 import 'package:dairy_ai/features/finance/models/pashu_credit_model.dart';
@@ -174,9 +175,54 @@ class _PashuCreditScoreScreenState
                     ],
                   ),
                   const SizedBox(height: 10),
-                  ...score.preApprovedOffers.map((offer) {
-                    return _buildLoanOfferCard(context, offer, score);
-                  }),
+                  if (score.preApprovedOffers.isEmpty) ...[
+                    Card(
+                      elevation: 0,
+                      color: const Color(0xfff8fafc),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          children: [
+                            Icon(Icons.lock_outline, size: 36, color: Colors.grey.shade500),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'कोई प्री-अप्रूव्ड लोन उपलब्ध नहीं',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              score.totalCattle == 0
+                                  ? 'पशुपालन लोन व 0% कोलैटरल KCC के लिए कम से कम 1 पशु पंजीकृत करें।'
+                                  : 'नियमित दुग्ध संकलन और टीकाकरण रिकॉर्ड दर्ज होने पर लोन सीमा अनलॉक होगी।',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            ),
+                            if (score.totalCattle == 0) ...[
+                              const SizedBox(height: 12),
+                              ElevatedButton.icon(
+                                onPressed: () => context.push('/herd/add'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xff059669),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                                icon: const Icon(Icons.add, size: 16),
+                                label: const Text('अपना पहला पशु जोड़ें'),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    ...score.preApprovedOffers.map((offer) {
+                      return _buildLoanOfferCard(context, offer, score);
+                    }),
+                  ],
                   const SizedBox(height: 20),
 
                   // 5 Score Pillars Breakdown
@@ -275,7 +321,7 @@ class _PashuCreditScoreScreenState
                   width: 150,
                   height: 150,
                   child: CircularProgressIndicator(
-                    value: (score.score - 300) / 600,
+                    value: score.score > 300 ? ((score.score - 300) / 600).clamp(0.0, 1.0) : 0.0,
                     strokeWidth: 14,
                     backgroundColor: Colors.white24,
                     valueColor: const AlwaysStoppedAnimation<Color>(Colors.amberAccent),
@@ -285,7 +331,7 @@ class _PashuCreditScoreScreenState
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      '${score.score}',
+                      score.score > 0 ? '${score.score}' : '0',
                       style: const TextStyle(
                         fontSize: 42,
                         fontWeight: FontWeight.bold,
@@ -294,7 +340,7 @@ class _PashuCreditScoreScreenState
                       ),
                     ),
                     Text(
-                      'अधिकतम: ${score.maxScore}',
+                      score.totalCattle > 0 ? 'अधिकतम: ${score.maxScore}' : 'पशु पंजीकृत नहीं',
                       style: const TextStyle(fontSize: 11, color: Colors.white70),
                     ),
                   ],
@@ -378,9 +424,16 @@ class _PashuCreditScoreScreenState
             ),
             ElevatedButton(
               onPressed: () {
-                dossierAsync.whenData((d) {
-                  if (d != null) _showBankDossierModal(context, d);
-                });
+                final d = dossierAsync.value;
+                if (d != null) {
+                  _showBankDossierModal(context, d);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('बैंक लोन डॉसियर के लिए कम से कम 1 पशु पंजीकृत होना अनिवार्य है।'),
+                    ),
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue.shade700,

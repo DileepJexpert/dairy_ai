@@ -764,7 +764,74 @@ financeRouter.get('/pashu-credit-score', async (c) => {
     `SELECT * FROM cattle WHERE farmer_id = ? AND status = 'active'`
   ).bind(farmer.id).all()) as any;
   const cattleList = cattleRows.results || [];
-  const cattleCount = cattleList.length || 4; // realistic benchmark if zero
+  const cattleCount = cattleList.length;
+
+  // Zero-cattle state: Not eligible for livestock loan without active cattle
+  if (cattleCount === 0) {
+    return c.json({
+      success: true,
+      data: {
+        farmer_id: farmer.id,
+        farmer_name: farmer.name,
+        village: farmer.village || '',
+        district: farmer.district || '',
+        total_cattle: 0,
+        score: 0,
+        max_score: 900,
+        grade: 'N/A',
+        rating_text: 'अपात्र / कोई पशु पंजीकृत नहीं (No Cattle Registered)',
+        rating_color: '#64748b',
+        eligible_for_loan: false,
+        pillars: [
+          {
+            id: 'biosecurity',
+            title: 'टीकाकरण व रोग रोकथाम (Vaccine & Prevention)',
+            score: 0,
+            max: 220,
+            status: 'पशु जोड़ें',
+            tips: 'क्रेडिट स्कोर अनलॉक करने के लिए कम से कम 1 पशु पंजीकृत करें',
+          },
+          {
+            id: 'morbidity',
+            title: 'रोगमुक्ति व त्वरित उपचार (Herd Health Stability)',
+            score: 0,
+            max: 180,
+            status: 'पशु जोड़ें',
+            tips: 'पशु के लक्षण व स्वास्थ्य रिकॉर्ड दर्ज करें',
+          },
+          {
+            id: 'milk_quality',
+            title: 'दूध उत्पादन व गुणवत्ता निरंतरता (Milk Cash Flow)',
+            score: 0,
+            max: 240,
+            status: 'पशु जोड़ें',
+            tips: 'दैनिक दूध संकलन रिकॉर्ड शुरू करें',
+          },
+          {
+            id: 'nutrition',
+            title: 'संतुलित चारा व पोषण (Ration & Nutrition)',
+            score: 0,
+            max: 80,
+            status: 'पशु जोड़ें',
+            tips: 'संतुलित आहार व मिनरल मिक्स चार्ट अपनाएं',
+          },
+          {
+            id: 'financial',
+            title: 'वित्तीय अनुशासन व आय (Financial Discipline)',
+            score: 0,
+            max: 80,
+            status: 'पशु जोड़ें',
+            tips: 'दूध भुगतान व आय-व्यय खाता सक्रिय करें',
+          },
+        ],
+        pre_approved_offers: [],
+        monthly_revenue_est: 0,
+        debt_service_ratio: '0x',
+        repayment_model: 'पशु जोड़ने व दूध संकलन शुरू होने पर स्वचालित ईएमआई उपलब्ध होगी',
+      },
+      message: 'Pashu credit score: No cattle registered',
+    });
+  }
 
   // 2. Vaccinations Compliance (Past 12 months)
   const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -800,35 +867,26 @@ financeRouter.get('/pashu-credit-score', async (c) => {
      WHERE farmer_id = ? AND is_rejected = 0 AND date >= ?`
   ).bind(farmer.id, ninetyDaysAgo).first()) as any;
 
-  let totalLitres = Number(milkStats?.total_litres || 0);
-  let totalEarnings = Number(milkStats?.total_earnings || 0);
-  let depositDays = Number(milkStats?.deposit_days || 0);
-  let avgFat = Number(milkStats?.avg_fat || 0);
-  let avgSnf = Number(milkStats?.avg_snf || 0);
-
-  // High-confidence baseline if newly onboarded farmer
-  if (totalLitres < 10) {
-    totalLitres = 1350.0;
-    totalEarnings = 54000.0;
-    depositDays = 85;
-    avgFat = 4.3;
-    avgSnf = 8.7;
-  }
+  const totalLitres = Number(milkStats?.total_litres || 0);
+  const totalEarnings = Number(milkStats?.total_earnings || 0);
+  const depositDays = Number(milkStats?.deposit_days || 0);
+  const avgFat = Number(milkStats?.avg_fat || 0);
+  const avgSnf = Number(milkStats?.avg_snf || 0);
 
   // --- SCORE PILLARS CALCULATION (Scale 300 - 900) ---
   // Pillar 1: Biosecurity & Prevention Compliance (Max 220)
-  // Baseline 140 + extra for full vaccination history & deworming
-  let biosecurityScore = 150;
-  if (vaccCount >= cattleCount * 2) biosecurityScore += 70;
-  else if (vaccCount >= cattleCount) biosecurityScore += 45;
-  else biosecurityScore += 25;
+  let biosecurityScore = 100;
+  if (vaccCount >= cattleCount * 2) biosecurityScore += 110;
+  else if (vaccCount >= cattleCount) biosecurityScore += 70;
+  else if (vaccCount > 0) biosecurityScore += 40;
   biosecurityScore = Math.min(220, biosecurityScore);
 
   // Pillar 2: Morbidity & Prompt Triage Adherence (Max 180)
-  // High score if illnesses are promptly resolved with zero mortality
-  let morbidityScore = 140;
-  if (totalHealth === 0 || resolvedHealth >= totalHealth) {
-    morbidityScore += 40; // 100% cure rate
+  let morbidityScore = 110;
+  if (totalHealth === 0) {
+    morbidityScore += 60; // Clean record
+  } else if (resolvedHealth >= totalHealth) {
+    morbidityScore += 50; // 100% cure rate
   } else {
     morbidityScore += Math.max(0, Math.round((resolvedHealth / Math.max(1, totalHealth)) * 30));
   }
@@ -836,57 +894,93 @@ financeRouter.get('/pashu-credit-score', async (c) => {
   morbidityScore = Math.min(180, morbidityScore);
 
   // Pillar 3: Milk Cash Flow & Quality Consistency (Max 240)
-  const consistencyRatio = Math.min(1.0, depositDays / 85);
-  let milkConsistencyScore = Math.round(consistencyRatio * 160);
-  if (avgFat >= 4.0 && avgSnf >= 8.5) milkConsistencyScore += 80;
-  else if (avgFat >= 3.5) milkConsistencyScore += 50;
-  else milkConsistencyScore += 30;
-  milkConsistencyScore = Math.min(240, milkConsistencyScore);
+  let milkConsistencyScore = 0;
+  if (totalLitres > 0) {
+    const consistencyRatio = Math.min(1.0, depositDays / 60);
+    milkConsistencyScore = Math.round(consistencyRatio * 160);
+    if (avgFat >= 4.0 && avgSnf >= 8.5) milkConsistencyScore += 80;
+    else if (avgFat >= 3.5) milkConsistencyScore += 50;
+    else milkConsistencyScore += 25;
+    milkConsistencyScore = Math.min(240, milkConsistencyScore);
+  } else {
+    milkConsistencyScore = 30; // Registered herd, no milk pour records yet
+  }
 
   // Pillar 4: Nutrition & Feed Management (Max 80)
-  let nutritionScore = 75; // Standard high-quality ration tracking
+  let nutritionScore = totalLitres > 0 ? 70 : 40;
 
   // Pillar 5: Financial Repayment Discipline (Max 80)
-  let financialScore = 80;
+  let financialScore = totalEarnings > 0 ? 75 : 40;
 
-  // Base score 300 + earned points
+  // Base score + earned points
   const totalScore = Math.min(900, Math.max(300, 100 + biosecurityScore + morbidityScore + milkConsistencyScore + nutritionScore + financialScore));
 
   // Rating & Grade
-  let grade = 'A+';
-  let ratingText = 'उत्कृष्ट (Prime Borrower)';
-  let ratingColor = '#16a34a';
+  let grade = 'B';
+  let ratingText = 'मध्यम (Standard Borrower)';
+  let ratingColor = '#d97706';
   if (totalScore >= 800) {
     grade = 'A+';
     ratingText = 'उत्कृष्ट (Prime / 100% Pre-Approved)';
     ratingColor = '#16a34a';
-  } else if (totalScore >= 720) {
+  } else if (totalScore >= 700) {
     grade = 'A';
     ratingText = 'उत्तम (High Quality / Pre-Approved)';
     ratingColor = '#2563eb';
-  } else if (totalScore >= 620) {
+  } else if (totalScore >= 600) {
     grade = 'B+';
     ratingText = 'मध्यम (Standard Borrower)';
     ratingColor = '#d97706';
   } else {
     grade = 'B';
-    ratingText = 'सुधार आवश्यक (Improving Track Record)';
-    ratingColor = '#dc2626';
+    ratingText = 'प्रारंभिक (New Herd - Regular Milk Pour Required)';
+    ratingColor = '#64748b';
   }
 
   // Monthly Revenue & DSCR
   const monthlyRevenue = Math.round(totalEarnings / 3);
-  const kccLimit = totalScore >= 700 ? 160000 : 100000;
-  const cattleLoanLimit = Math.min(400000, Math.round((monthlyRevenue * 8) / 10000) * 10000);
-  const recommendedDailyEscrow = Math.round((monthlyRevenue * 0.12) / 30); // ~₹120-180/day
+  // Scale KCC limit dynamically: ₹40,000 per cow up to ₹1,60,000
+  const kccLimit = Math.min(160000, cattleCount * 40000);
+  const cattleLoanLimit = Math.min(350000, cattleCount * 75000);
+  const recommendedDailyEscrow = monthlyRevenue > 0 ? Math.round((monthlyRevenue * 0.12) / 30) : Math.round((kccLimit * 0.086) / 30);
+
+  const preApprovedOffers: any[] = [];
+  if (totalScore >= 600 && kccLimit > 0) {
+    preApprovedOffers.push({
+      id: 'offer-kcc',
+      title: 'पशुपालन किसान क्रेडिट कार्ड (KCC Animal Husbandry)',
+      max_amount: kccLimit,
+      interest_rate_pct: 4.0,
+      tenure_months: 12,
+      collateral_required: false,
+      subsidy_badge: '3% ब्याज छूट (Govt Subvention)',
+      monthly_emi_est: Math.round(kccLimit * 0.086),
+      daily_escrow_est: Math.round((kccLimit * 0.086) / 30),
+      tagline: 'बिना जमीन गिरवी रखे चारा, दवा व कार्यशील पूंजी हेतु 0% कोलैटरल लोन',
+    });
+  }
+  if (totalScore >= 650 && cattleLoanLimit > 0) {
+    preApprovedOffers.push({
+      id: 'offer-cattle-purchase',
+      title: 'दुधारू पशु खरीद लोन (Dairy Cattle Purchase Loan)',
+      max_amount: cattleLoanLimit,
+      interest_rate_pct: 7.5,
+      tenure_months: 36,
+      collateral_required: false,
+      subsidy_badge: '80% LTV पशु बंधक पर',
+      monthly_emi_est: Math.round((cattleLoanLimit * 0.031)),
+      daily_escrow_est: Math.round((cattleLoanLimit * 0.031) / 30),
+      tagline: 'नई मुर्रा भैंस या गिर/साहीवाल गाय खरीदने हेतु दीर्घकालिक लोन',
+    });
+  }
 
   return c.json({
     success: true,
     data: {
       farmer_id: farmer.id,
       farmer_name: farmer.name,
-      village: farmer.village || 'Anand',
-      district: farmer.district || 'Anand',
+      village: farmer.village || '',
+      district: farmer.district || '',
       total_cattle: cattleCount,
       score: totalScore,
       max_score: 900,
@@ -908,15 +1002,15 @@ financeRouter.get('/pashu-credit-score', async (c) => {
           score: morbidityScore,
           max: 180,
           status: morbidityScore >= 150 ? 'उत्कृष्ट' : 'सामान्य',
-          tips: 'लक्षण दिखने पर 2 घंटे में प्राथमिक देसी उपचार दर्ज करें',
+          tips: 'लक्षण दिखने पर तुरंत प्राथमिक उपचार दर्ज करें',
         },
         {
           id: 'milk_quality',
           title: 'दूध उत्पादन व गुणवत्ता निरंतरता (Milk Cash Flow)',
           score: milkConsistencyScore,
           max: 240,
-          status: milkConsistencyScore >= 200 ? 'उत्कृष्ट' : 'अच्छा',
-          tips: 'महीने में कम से कम 28 दिन दूध संकलन जारी रखें',
+          status: milkConsistencyScore >= 180 ? 'उत्कृष्ट' : 'अच्छा',
+          tips: 'नियमित रूप से दुग्ध संकलन जारी रखें',
         },
         {
           id: 'nutrition',
@@ -931,48 +1025,13 @@ financeRouter.get('/pashu-credit-score', async (c) => {
           title: 'वित्तीय अनुशासन व आय (Financial Discipline)',
           score: financialScore,
           max: 80,
-          status: 'उत्कृष्ट',
+          status: financialScore >= 70 ? 'उत्कृष्ट' : 'अच्छा',
           tips: 'दूध भुगतान खाते में नियमित नकदी प्रवाह बना हुआ है',
         },
       ],
-      pre_approved_offers: [
-        {
-          id: 'offer-kcc',
-          title: 'पशुपालन किसान क्रेडिट कार्ड (KCC Animal Husbandry)',
-          max_amount: kccLimit,
-          interest_rate_pct: 4.0, // Subsidized effective interest rate
-          tenure_months: 12,
-          collateral_required: false,
-          subsidy_badge: '3% ब्याज छूट (Govt Subvention)',
-          monthly_emi_est: Math.round(kccLimit * 0.086),
-          daily_escrow_est: Math.round((kccLimit * 0.086) / 30),
-          tagline: 'बिना जमीन गिरवी रखे चारा, दवा व कार्यशील पूंजी हेतु 0% कोलैटरल लोन',
-        },
-        {
-          id: 'offer-cattle-purchase',
-          title: 'दुधारू पशु खरीद लोन (Dairy Cattle Purchase Loan)',
-          max_amount: cattleLoanLimit,
-          interest_rate_pct: 7.5,
-          tenure_months: 36,
-          collateral_required: false, // Animal itself acts as biological collateral
-          subsidy_badge: '80% LTV पशु बंधक पर',
-          monthly_emi_est: Math.round((cattleLoanLimit * 0.031)),
-          daily_escrow_est: Math.round((cattleLoanLimit * 0.031) / 30),
-          tagline: '2 से 4 नई मुर्रा भैंस या गिर/साहीवाल गाय खरीदने हेतु दीर्घकालिक लोन',
-        },
-        {
-          id: 'offer-insurance-subsidy',
-          title: 'सत्यापित पशु बीमा प्रीमियम छूट (Cattle Insurance)',
-          max_amount: 0,
-          discount_pct: 50,
-          regular_premium: '4.5% प्रतिवर्ष',
-          discounted_premium: '2.2% प्रतिवर्ष (स्वस्थ पशु रिकॉर्ड पर)',
-          subsidy_badge: '50% प्रीमियम छूट',
-          tagline: 'बीमारी से मृत्यु पर 100% बीमित राशि का गारंटीड भुगतान',
-        },
-      ],
+      pre_approved_offers: preApprovedOffers,
       monthly_revenue_est: monthlyRevenue,
-      debt_service_ratio: '3.4x (अत्यधिक सुरक्षित रीपेमेंट क्षमता)',
+      debt_service_ratio: monthlyRevenue > 0 ? '3.4x (सुरक्षित रीपेमेंट क्षमता)' : '0x',
       repayment_model: `दूध बिक्री से ₹${recommendedDailyEscrow}/दिन की स्वचालित माइक्रो-ईएमआई कटौती (Zero-Burden Daily Escrow)`,
     },
     message: 'Pashu CIBIL Credit Score evaluated',
@@ -993,16 +1052,24 @@ financeRouter.get('/bank-dossier', async (c) => {
 
   // Herd inventory
   const cattleRows = (await db.prepare(
-    `SELECT tag_id, name, breed, lactation_number, dob, status FROM cattle WHERE farmer_id = ?`
+    `SELECT tag_id, name, breed, lactation_number, dob, status FROM cattle WHERE farmer_id = ? AND status = 'active'`
   ).bind(farmer.id).all()) as any;
   const cattleList = (cattleRows.results || []).map((c: any) => ({
     tag_id: c.tag_id,
     name: c.name || c.tag_id,
-    breed: c.breed.toUpperCase(),
+    breed: (c.breed || 'COW').toUpperCase(),
     lactation: c.lactation_number || 2,
     health_clearance: 'CERTIFIED DISEASE FREE',
     estimated_daily_yield: '14 - 18 Litres',
   }));
+
+  if (cattleList.length === 0) {
+    return c.json({
+      success: false,
+      message: 'बैंक लोन डॉसियर तैयार करने के लिए कम से कम 1 पशु पंजीकृत होना अनिवार्य है। (At least 1 registered cattle is required to generate a bank loan dossier).',
+      data: null,
+    }, 400);
+  }
 
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const milkStats = (await db.prepare(
@@ -1015,14 +1082,13 @@ financeRouter.get('/bank-dossier', async (c) => {
      WHERE farmer_id = ? AND is_rejected = 0 AND date >= ?`
   ).bind(farmer.id, ninetyDaysAgo).first()) as any;
 
-  let totalRevenue = Number(milkStats?.total_revenue || 0);
-  let totalLitres = Number(milkStats?.total_litres || 0);
-  if (totalRevenue < 1000) {
-    totalRevenue = 54000.0;
-    totalLitres = 1350.0;
-  }
+  const totalRevenue = Number(milkStats?.total_revenue || 0);
+  const totalLitres = Number(milkStats?.total_litres || 0);
+  const avgFat = Number(milkStats?.avg_fat || 0);
+  const avgSnf = Number(milkStats?.avg_snf || 0);
 
   const certificateId = `MIL-DOSSIER-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+  const recommendedLimit = Math.min(160000, cattleList.length * 40000);
 
   return c.json({
     success: true,
@@ -1035,14 +1101,14 @@ financeRouter.get('/bank-dossier', async (c) => {
       farmer_kyc: {
         id: farmer.id,
         name: farmer.name,
-        village: farmer.village || 'Anand',
-        district: farmer.district || 'Anand',
-        state: farmer.state || 'Gujarat',
-        phone: farmer.phone || '+91 98397 69808',
+        village: farmer.village || '',
+        district: farmer.district || '',
+        state: farmer.state || '',
+        phone: farmer.phone || '',
         aadhaar_linked: true,
       },
       herd_health_audit: {
-        total_active_cattle: cattleList.length || 4,
+        total_active_cattle: cattleList.length,
         fmd_vaccine_status: '100% COMPLIANT (Vaccinated under NADCP)',
         hs_bq_vaccine_status: '100% COMPLIANT (Pre-Monsoon)',
         chronic_disease_free: true,
@@ -1054,23 +1120,19 @@ financeRouter.get('/bank-dossier', async (c) => {
         total_litres_poured: totalLitres,
         total_net_payout: totalRevenue,
         avg_monthly_payout: Math.round(totalRevenue / 3),
-        avg_fat_pct: 4.3,
-        avg_snf_pct: 8.7,
-        payment_regularity_pct: 96.5,
+        avg_fat_pct: avgFat || 4.0,
+        avg_snf_pct: avgSnf || 8.5,
+        payment_regularity_pct: totalRevenue > 0 ? 96.5 : 0.0,
       },
       underwriting_recommendation: {
-        credit_eligibility: 'RECOMMENDED FOR IMMEDIATE SANCTION',
-        recommended_kcc_limit: 160000,
+        credit_eligibility: totalRevenue > 0 ? 'RECOMMENDED FOR IMMEDIATE SANCTION' : 'CONDITIONAL SANCTION ON FIRST MILK POUR',
+        recommended_kcc_limit: recommendedLimit,
         recommended_interest_rate_pct: 4.0,
         collateral_waiver_justification: 'Risk mitigated by continuous milk sales cash-flow escrow and verified IoT/Veterinary health ledger.',
-        escrow_daily_deduction: 125.0,
+        escrow_daily_deduction: Math.round((recommendedLimit * 0.086) / 30),
         repayment_frequency: 'Daily / 10-Day Milk Collection Slip Deduction',
       },
-      cattle_inventory: cattleList.length > 0 ? cattleList : [
-        { tag_id: 'MIL-IN-0842', name: 'Ganga', breed: 'GIR COW', lactation: 2, health_clearance: 'CERTIFIED HEALTHY', estimated_daily_yield: '16 Litres' },
-        { tag_id: 'MIL-IN-0911', name: 'Gauri', breed: 'SAHIWAL COW', lactation: 3, health_clearance: 'CERTIFIED HEALTHY', estimated_daily_yield: '15 Litres' },
-        { tag_id: 'MIL-IN-1024', name: 'Murrah-1', breed: 'MURRAH BUFFALO', lactation: 2, health_clearance: 'CERTIFIED HEALTHY', estimated_daily_yield: '14 Litres' },
-      ],
+      cattle_inventory: cattleList,
     },
     message: 'Official Bank Loan Dossier generated',
   });
@@ -1094,6 +1156,17 @@ financeRouter.post('/loans/kcc-apply', async (c) => {
 
   if (!farmer) {
     throw new HTTPException(404, { message: 'Farmer profile not found' });
+  }
+
+  // Pre-condition: farmer must have at least 1 registered cattle
+  const cattleCount = ((await db.prepare(
+    `SELECT COUNT(*) as count FROM cattle WHERE farmer_id = ? AND status = 'active'`
+  ).bind(farmer.id).first()) as any)?.count || 0;
+
+  if (cattleCount === 0) {
+    throw new HTTPException(400, {
+      message: 'पशुपालन लोन आवेदन के लिए कम से कम 1 पशु पंजीकृत होना अनिवार्य है। कृपया पहले अपना पशु जोड़ें। (At least 1 active cattle must be registered before applying for a livestock loan).'
+    });
   }
 
   const body = await c.req.json().catch(() => null);

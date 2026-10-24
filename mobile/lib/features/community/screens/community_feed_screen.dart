@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:dairy_ai/core/constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
@@ -215,42 +217,44 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                 'Sign in to link your dairy farm profile and ask our verified veterinary doctors and fellow dairy farmers for advice.',
                 style: TextStyle(fontSize: 13, color: Colors.black87),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                '1-Click Demo Account Sign In:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xff047857)),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  OutlinedButton(
-                    onPressed: () async {
-                      Navigator.pop(ctx);
-                      await ref.read(authProvider.notifier).loginWithPassword('9876510001', 'Password@123');
-                      if (context.mounted) _showCreatePostSheet(context);
-                    },
-                    child: const Text('🌾 Ramesh Patel'),
-                  ),
-                  OutlinedButton(
-                    onPressed: () async {
-                      Navigator.pop(ctx);
-                      await ref.read(authProvider.notifier).loginWithPassword('9876510002', 'Password@123');
-                      if (context.mounted) _showCreatePostSheet(context);
-                    },
-                    child: const Text('🐃 Suresh Yadav'),
-                  ),
-                  OutlinedButton(
-                    onPressed: () async {
-                      Navigator.pop(ctx);
-                      await ref.read(authProvider.notifier).loginWithPassword('9825099001', 'Password@123');
-                      if (context.mounted) _showCreatePostSheet(context);
-                    },
-                    child: const Text('👨‍⚕️ Dr. Hasmukh Deshmukh (Vet)'),
-                  ),
-                ],
-              ),
+              if (kDebugMode || AppConstants.flowSimulation) ...[
+                const SizedBox(height: 16),
+                const Text(
+                  '1-Click Demo Account Sign In:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xff047857)),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        await ref.read(authProvider.notifier).loginWithPassword('9876510001', 'Password@123');
+                        if (context.mounted) _showCreatePostSheet(context);
+                      },
+                      child: const Text('🌾 Ramesh Patel'),
+                    ),
+                    OutlinedButton(
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        await ref.read(authProvider.notifier).loginWithPassword('9876510002', 'Password@123');
+                        if (context.mounted) _showCreatePostSheet(context);
+                      },
+                      child: const Text('🐃 Suresh Yadav'),
+                    ),
+                    OutlinedButton(
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        await ref.read(authProvider.notifier).loginWithPassword('9825099001', 'Password@123');
+                        if (context.mounted) _showCreatePostSheet(context);
+                      },
+                      child: const Text('👨‍⚕️ Dr. Hasmukh Deshmukh (Vet)'),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,

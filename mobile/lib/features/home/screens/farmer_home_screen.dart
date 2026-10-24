@@ -1,4 +1,6 @@
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/foundation.dart';
+import 'package:dairy_ai/core/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -357,59 +359,61 @@ class FarmerHomeScreen extends ConsumerWidget {
               height: 1.4,
             ),
           ),
-          const SizedBox(height: 16),
-          const Divider(color: Color(0xff065f46), height: 1),
-          const SizedBox(height: 12),
-          const Text(
-            '⚡ 1-Click Demo Accounts (Explore Private ERP):',
-            style: TextStyle(
-              color: Color(0xffa7f3d0),
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
+          if (kDebugMode || AppConstants.flowSimulation) ...[
+            const SizedBox(height: 16),
+            const Divider(color: Color(0xff065f46), height: 1),
+            const SizedBox(height: 12),
+            const Text(
+              '⚡ 1-Click Demo Accounts (Explore Private ERP):',
+              style: TextStyle(
+                color: Color(0xffa7f3d0),
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildDemoLoginChip(
-                context,
-                ref,
-                label: '🌾 Ramesh (Gir Dairy)',
-                phone: '9876510001',
-                password: 'Password@123',
-              ),
-              _buildDemoLoginChip(
-                context,
-                ref,
-                label: '🐃 Suresh (Murrah Buffalo)',
-                phone: '9876510002',
-                password: 'Password@123',
-              ),
-              _buildDemoLoginChip(
-                context,
-                ref,
-                label: '🥛 Priya (Dairy Co-op)',
-                phone: '9876510003',
-                password: 'Password@123',
-              ),
-              _buildDemoLoginChip(
-                context,
-                ref,
-                label: '👨‍⚕️ Dr. Deshmukh (Vet Portal)',
-                phone: '9825099001',
-                password: 'Password@123',
-              ),
-              _buildDemoLoginChip(
-                context,
-                ref,
-                label: '⚙️ Admin Portal',
-                phone: 'admin@milterra.in',
-                password: 'Admin@12345',
-              ),
-            ],
-          ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildDemoLoginChip(
+                  context,
+                  ref,
+                  label: '🌾 Ramesh (Gir Dairy)',
+                  phone: '9876510001',
+                  password: 'Password@123',
+                ),
+                _buildDemoLoginChip(
+                  context,
+                  ref,
+                  label: '🐃 Suresh (Murrah Buffalo)',
+                  phone: '9876510002',
+                  password: 'Password@123',
+                ),
+                _buildDemoLoginChip(
+                  context,
+                  ref,
+                  label: '🥛 Priya (Dairy Co-op)',
+                  phone: '9876510003',
+                  password: 'Password@123',
+                ),
+                _buildDemoLoginChip(
+                  context,
+                  ref,
+                  label: '👨‍⚕️ Dr. Deshmukh (Vet Portal)',
+                  phone: '9825099001',
+                  password: 'Password@123',
+                ),
+                _buildDemoLoginChip(
+                  context,
+                  ref,
+                  label: '⚙️ Admin Portal',
+                  phone: 'admin@milterra.in',
+                  password: 'Admin@12345',
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -919,67 +923,69 @@ class FarmerHomeScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'To link your cattle records and schedule an appointment with ${vet.name}, please sign in or choose a demo profile.',
+                'To link your cattle records and schedule an appointment with ${vet.name}, please sign in.',
                 style: const TextStyle(fontSize: 13, color: Colors.black87),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                '1-Click Quick Demo Sign In:',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  color: Color(0xff047857),
+              if (kDebugMode || AppConstants.flowSimulation) ...[
+                const SizedBox(height: 16),
+                const Text(
+                  '1-Click Quick Demo Sign In:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    color: Color(0xff047857),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  OutlinedButton(
-                    onPressed: () async {
-                      Navigator.pop(ctx);
-                      await _executeQuickLogin(
-                        context,
-                        ref,
-                        phone: '9876510001',
-                        password: 'Password@123',
-                        label: 'Ramesh Patel',
-                      );
-                      if (context.mounted) {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                ConsultationRequestScreen(vet: vet),
-                          ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        await _executeQuickLogin(
+                          context,
+                          ref,
+                          phone: '9876510001',
+                          password: 'Password@123',
+                          label: 'Ramesh Patel',
                         );
-                      }
-                    },
-                    child: const Text('🌾 Ramesh Patel'),
-                  ),
-                  OutlinedButton(
-                    onPressed: () async {
-                      Navigator.pop(ctx);
-                      await _executeQuickLogin(
-                        context,
-                        ref,
-                        phone: '9876510002',
-                        password: 'Password@123',
-                        label: 'Suresh Yadav',
-                      );
-                      if (context.mounted) {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                ConsultationRequestScreen(vet: vet),
-                          ),
+                        if (context.mounted) {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  ConsultationRequestScreen(vet: vet),
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text('🌾 Ramesh Patel'),
+                    ),
+                    OutlinedButton(
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        await _executeQuickLogin(
+                          context,
+                          ref,
+                          phone: '9876510002',
+                          password: 'Password@123',
+                          label: 'Suresh Yadav',
                         );
-                      }
-                    },
-                    child: const Text('🐃 Suresh Yadav'),
-                  ),
-                ],
-              ),
+                        if (context.mounted) {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  ConsultationRequestScreen(vet: vet),
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text('🐃 Suresh Yadav'),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,

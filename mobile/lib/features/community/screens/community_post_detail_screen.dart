@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:dairy_ai/core/constants.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../models/community_models.dart';
@@ -359,21 +362,30 @@ class _CommunityPostDetailScreenState extends ConsumerState<CommunityPostDetailS
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Sign In to Post Advice'),
-          content: const Text('Please sign in or use a demo profile to comment and advise on this cattle case.'),
+          content: const Text('Please sign in to comment and advise on this cattle case.'),
           actions: [
-            TextButton(
-              onPressed: () async {
+            if (kDebugMode || AppConstants.flowSimulation) ...[
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await ref.read(authProvider.notifier).loginWithPassword('9825099001', 'Password@123');
+                },
+                child: const Text('👨‍⚕️ Login as Dr. Deshmukh (Vet)'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await ref.read(authProvider.notifier).loginWithPassword('9876510001', 'Password@123');
+                },
+                child: const Text('🌾 Login as Ramesh (Farmer)'),
+              ),
+            ],
+            FilledButton(
+              onPressed: () {
                 Navigator.pop(ctx);
-                await ref.read(authProvider.notifier).loginWithPassword('9825099001', 'Password@123');
+                context.push('/login?next=/community');
               },
-              child: const Text('👨‍⚕️ Login as Dr. Deshmukh (Vet)'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                await ref.read(authProvider.notifier).loginWithPassword('9876510001', 'Password@123');
-              },
-              child: const Text('🌾 Login as Ramesh (Farmer)'),
+              child: const Text('Sign In'),
             ),
           ],
         ),

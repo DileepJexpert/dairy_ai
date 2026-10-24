@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../types/env.js';
+import { requireAuth } from './commerce.js';
+import { getFarmerByUserId } from './farmers.js';
 
 export const maturityRouter = new Hono<{ Bindings: Env }>();
 
@@ -125,77 +127,78 @@ https://farmers.milterrafoods.com/#/passbook
 // 2. Smart IoT Heat (Estrus) Detection & Insemination Window Countdown
 // ---------------------------------------------------------------------------
 maturityRouter.get('/breeding/heat-alerts', async (c) => {
-  const alerts = [
-    {
-      cattle_id: 'MIL-0842',
-      cattle_name: 'Ganga (गंगा)',
-      breed: 'Gir Cow (गीर गाय)',
-      lactation_stage: 'Lactation 2 (Day 68 post-calving)',
-      heat_status: 'HEAT_DETECTED',
-      confidence_pct: 96.5,
-      onset_time: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
-      activity_spike_pct: 320,
-      rumination_drop_pct: 28,
-      golden_window_start: new Date(Date.now() + 4 * 3600 * 1000).toISOString(),
-      golden_window_end: new Date(Date.now() + 14 * 3600 * 1000).toISOString(),
-      hours_remaining: 10.5,
-      rule_applied: 'AM-PM Rule: Heat observed early morning -> Inseminate this evening between 5:00 PM and 9:00 PM',
-      sire_recommendations: [
-        {
-          sire_id: 'BAIF-GIR-SHAMBHU',
-          name: 'Shambhu (शंभू)',
-          organization: 'BAIF / NDDB Certified',
-          semen_type: 'Sexed Semen (90% Female Calf Guarantee)',
-          fat_potential_pct: 5.4,
-          straw_price_inr: 450,
-          in_stock: true,
+  const db = c.env.DB;
+  const user = await requireAuth(c).catch(() => null);
+  const farmer = user ? await getFarmerByUserId(db, user.id) : null;
+
+  if (!farmer) {
+    return c.json({
+      success: true,
+      total_active_alerts: 0,
+      alerts: [],
+    });
+  }
+
+  const cattleList = (await db.prepare(
+    `SELECT id, name, tag_id, breed FROM cattle WHERE farmer_id = ? AND status = 'active'`
+  ).bind(farmer.id).all()) as any;
+
+  const cows = (cattleList.results || []) as any[];
+  if (cows.length === 0) {
+    return c.json({
+      success: true,
+      total_active_alerts: 0,
+      alerts: [],
+    });
+  }
+
+  // Look for active heat sensor anomalies or breeding records for this farmer's cattle
+  const alerts: any[] = [];
+  const cowIds = cows.map((cow) => cow.id);
+
+  if (cowIds.length > 0) {
+    const placeholders = cowIds.map(() => '?').join(',');
+    const anomalies = (await db.prepare(
+      `SELECT a.*, c.name as cattle_name, c.tag_id, c.breed
+       FROM sensor_anomalies a
+       JOIN cattle c ON c.id = a.cattle_id
+       WHERE a.cattle_id IN (${placeholders}) AND a.anomaly_type IN ('estrus_detected', 'heat_alert', 'rumination_drop') AND a.status = 'open'
+       ORDER BY a.created_at DESC`
+    ).bind(...cowIds).all()) as any;
+
+    for (const anom of (anomalies.results || [])) {
+      alerts.push({
+        cattle_id: anom.tag_id || anom.cattle_id,
+        cattle_name: anom.cattle_name || 'Cow',
+        breed: anom.breed || 'Gir Cow',
+        lactation_stage: 'Lactation Active',
+        heat_status: 'HEAT_DETECTED',
+        confidence_pct: Math.round((anom.confidence_score || 0.95) * 100),
+        onset_time: anom.created_at,
+        activity_spike_pct: 280,
+        rumination_drop_pct: 25,
+        golden_window_start: new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
+        golden_window_end: new Date(Date.now() + 12 * 3600 * 1000).toISOString(),
+        hours_remaining: 10.0,
+        rule_applied: 'AM-PM Rule: Verified estrus activity spike detected by IoT smart collar',
+        sire_recommendations: [
+          {
+            sire_id: 'BAIF-GIR-SHAMBHU',
+            name: 'Shambhu (शंभू)',
+            organization: 'BAIF / NDDB Certified',
+            semen_type: 'Sexed Semen (90% Female Calf Guarantee)',
+            fat_potential_pct: 5.4,
+            straw_price_inr: 450,
+            in_stock: true,
+          },
+        ],
+        ai_vet_contact: {
+          recommended_action: 'कृत्रिम गर्भाधान (AI) तकनीशियन को अभी बुक करें',
+          phone: '+919876543210',
         },
-        {
-          sire_id: 'NDDB-GIR-VEER',
-          name: 'Veer (वीर)',
-          organization: 'NDDB Progeny Tested',
-          semen_type: 'Conventional High-Yield (+850L)',
-          fat_potential_pct: 4.9,
-          straw_price_inr: 200,
-          in_stock: true,
-        },
-      ],
-      ai_vet_contact: {
-        recommended_action: 'कृत्रिम गर्भाधान (AI) तकनीशियन को अभी बुक करें',
-        phone: '+919876543210',
-      },
-    },
-    {
-      cattle_id: 'MIL-1024',
-      cattle_name: 'Murrah-1 (लक्ष्मी)',
-      breed: 'Murrah Buffalo (मुर्रा भैंस)',
-      lactation_stage: 'Lactation 2 (Dry Period)',
-      heat_status: 'PROESTRUS_APPROACHING',
-      confidence_pct: 78.0,
-      onset_time: null,
-      activity_spike_pct: 140,
-      rumination_drop_pct: 12,
-      golden_window_start: new Date(Date.now() + 28 * 3600 * 1000).toISOString(),
-      golden_window_end: new Date(Date.now() + 44 * 3600 * 1000).toISOString(),
-      hours_remaining: 28.0,
-      rule_applied: 'प्रारंभिक लक्षण दिखे हैं - अगले 24-36 घंटों में पूर्ण हीट संभावित',
-      sire_recommendations: [
-        {
-          sire_id: 'CIRB-MURRAH-SULTAN',
-          name: 'Sultan Lineage (सुलतान वंशज)',
-          organization: 'CIRB Hisar Certified',
-          semen_type: 'Sexed Semen',
-          fat_potential_pct: 7.8,
-          straw_price_inr: 500,
-          in_stock: true,
-        },
-      ],
-      ai_vet_contact: {
-        recommended_action: 'निगरानी रखें - गर्भाधान का समय कल दोपहर',
-        phone: '+919876543210',
-      },
-    },
-  ];
+      });
+    }
+  }
 
   return c.json({
     success: true,
@@ -246,27 +249,72 @@ maturityRouter.get('/cold-chain/bmc-status', async (c) => {
 // 4. GOBARdhan Biogas & Carbon Credit Ledger (New Farmer Income)
 // ---------------------------------------------------------------------------
 maturityRouter.get('/sustainability/gobardhan-credits', async (c) => {
+  const db = c.env.DB;
+  const user = await requireAuth(c).catch(() => null);
+  const farmer = user ? await getFarmerByUserId(db, user.id) : null;
+
+  if (!farmer) {
+    return c.json({
+      success: true,
+      data: {
+        farmer_id: user?.id || 'guest',
+        farmer_name: user?.full_name || 'किसान (Farmer)',
+        village: '',
+        total_cattle: 0,
+        daily_dung_output_kg: 0.0,
+        biogas_digester_status: 'NOT_INSTALLED (पशु जोड़ें)',
+        biogas_monthly_m3: 0.0,
+        lpg_cylinder_equivalent: 0.0,
+        monthly_lpg_savings_inr: 0,
+        bio_slurry_monthly_litres: 0,
+        bio_slurry_fertilizer_value_inr: 0,
+        carbon_mitigation: {
+          standard: 'Gold Standard & Verra Verified VM0042',
+          methane_avoidance_mt_co2e: 0.0,
+          total_carbon_credits_earned: 0.0,
+          price_per_credit_inr: 900.0,
+          total_carbon_revenue_inr: 0.0,
+          withdrawable_balance_inr: 0.0,
+        },
+        total_monthly_circular_income_inr: 0,
+      },
+    });
+  }
+
+  const cattleCountRow = (await db.prepare('SELECT count(*) as count FROM cattle WHERE farmer_id = ? AND status = "active"').bind(farmer.id).first()) as any;
+  const totalCattle = Number(cattleCountRow?.count || 0);
+
+  const dailyDung = totalCattle * 18.0;
+  const biogasM3 = Math.round(dailyDung * 0.05 * 30 * 10) / 10;
+  const lpgEquiv = Math.round((biogasM3 / 38.5) * 10) / 10;
+  const lpgSavings = Math.round(lpgEquiv * 900);
+  const bioSlurryLitres = Math.round(dailyDung * 30);
+  const bioSlurryValue = Math.round(bioSlurryLitres * 1.5);
+  const carbonCredits = Math.round(totalCattle * 1.05 * 10) / 10;
+  const carbonRevenue = Math.round(carbonCredits * 900);
+  const totalCircularIncome = lpgSavings + bioSlurryValue + carbonRevenue;
+
   const sustainabilityData = {
-    farmer_id: 'farmer-dileep-1',
-    farmer_name: 'Ramesh Patel',
-    village: 'Mogar',
-    total_cattle: 4,
-    daily_dung_output_kg: 72.0,
-    biogas_digester_status: 'OPERATIONAL (2 m³ Deenbandhu Model)',
-    biogas_monthly_m3: 108.0,
-    lpg_cylinder_equivalent: 2.8,
-    monthly_lpg_savings_inr: 2520,
-    bio_slurry_monthly_litres: 2160,
-    bio_slurry_fertilizer_value_inr: 3240,
+    farmer_id: farmer.id,
+    farmer_name: farmer.name,
+    village: farmer.village || '',
+    total_cattle: totalCattle,
+    daily_dung_output_kg: dailyDung,
+    biogas_digester_status: totalCattle > 0 ? 'OPERATIONAL (2 m³ Deenbandhu Model)' : 'NOT_INSTALLED (पशु जोड़ें)',
+    biogas_monthly_m3: biogasM3,
+    lpg_cylinder_equivalent: lpgEquiv,
+    monthly_lpg_savings_inr: lpgSavings,
+    bio_slurry_monthly_litres: bioSlurryLitres,
+    bio_slurry_fertilizer_value_inr: bioSlurryValue,
     carbon_mitigation: {
       standard: 'Gold Standard & Verra Verified VM0042',
-      methane_avoidance_mt_co2e: 4.2,
-      total_carbon_credits_earned: 4.2,
+      methane_avoidance_mt_co2e: carbonCredits,
+      total_carbon_credits_earned: carbonCredits,
       price_per_credit_inr: 900.0,
-      total_carbon_revenue_inr: 3780.0,
-      withdrawable_balance_inr: 3780.0,
+      total_carbon_revenue_inr: carbonRevenue,
+      withdrawable_balance_inr: carbonRevenue,
     },
-    total_monthly_circular_income_inr: 9540, // 2520 (LPG) + 3240 (Slurry) + 3780 (Carbon)
+    total_monthly_circular_income_inr: totalCircularIncome,
   };
 
   return c.json({

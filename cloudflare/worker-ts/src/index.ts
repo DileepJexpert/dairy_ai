@@ -36,8 +36,35 @@ const app = new Hono<{ Bindings: Env }>();
 // Global Middleware
 app.use('*', logger());
 app.use('*', cors({
-  origin: (origin) => origin || '*',
-  allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-customer-id', 'x-test-customer-id', 'x-user-id'],
+  origin: (origin, c) => {
+    if (!origin) return 'https://farmers.milterrafoods.com';
+    try {
+      const url = new URL(origin);
+      const host = url.hostname.toLowerCase();
+      const envOrigins = ((c.env as any)?.CORS_ORIGINS || '')
+        .split(',')
+        .map((s: string) => s.trim().toLowerCase())
+        .filter(Boolean);
+      if (envOrigins.includes(origin.toLowerCase())) {
+        return origin;
+      }
+      if (
+        host === 'milterrafoods.com' ||
+        host.endsWith('.milterrafoods.com') ||
+        host === 'katixo.com' ||
+        host.endsWith('.katixo.com') ||
+        host.endsWith('.pages.dev') ||
+        host === 'localhost' ||
+        host === '127.0.0.1'
+      ) {
+        return origin;
+      }
+    } catch {
+      // Invalid URL format
+    }
+    return null;
+  },
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-customer-id', 'x-farmer-id', 'x-user-id'],
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   exposeHeaders: ['Content-Length', 'X-Kuma-Revision'],
   maxAge: 600,

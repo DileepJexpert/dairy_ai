@@ -98,8 +98,9 @@ const handleRegisterVisit = async (c: any) => {
   const refType = classifyReferrer(parsed.data.referrer);
   const devType = classifyDevice(parsed.data.device_type);
 
-  // Optional customer resolution from test header or auth header
-  const testUserId = c.req.header('x-test-customer-id');
+  // Optional customer resolution from test header in test environment only
+  const allowTestAuth = c.env?.ENVIRONMENT === 'test' && c.env?.ALLOW_TEST_AUTH === 'true';
+  const testUserId = allowTestAuth ? c.req.header('x-test-customer-id') : null;
   let customerId: string | null = testUserId || null;
 
   const existing = (await db.prepare(
@@ -175,7 +176,8 @@ const handleIngestEvents = async (c: any) => {
   }
 
   const nowTs = Math.floor(Date.now() / 1000);
-  const testUserId = c.req.header('x-test-customer-id');
+  const allowTestAuth = c.env?.ENVIRONMENT === 'test' && c.env?.ALLOW_TEST_AUTH === 'true';
+  const testUserId = allowTestAuth ? c.req.header('x-test-customer-id') : null;
   const customerId = testUserId || session.customer_id;
 
   const stmts: D1PreparedStatement[] = [];

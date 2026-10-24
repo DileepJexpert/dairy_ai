@@ -471,126 +471,127 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               style: StoreType.body,
                             ),
                             const SizedBox(height: 16),
-                            // 1-Click Quick Demo & Multi-Tenant Test Accounts
-                            Container(
-                              margin: const EdgeInsets.only(bottom: 20),
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: const Color(0xfff8fafc),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                    color: const Color(0xffcbd5e1), width: 1.2),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Row(
-                                    children: [
-                                      Icon(Icons.bolt,
-                                          size: 20, color: storeDarkGreenNav),
-                                      SizedBox(width: 6),
-                                      Text(
-                                        '1-Click Instant Login (Test Accounts)',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: storeDarkGreenNav,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    'Tap any farmer or role to log in with 1 click:',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: storeMuted,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: [
-                                      _buildDemoChip(
-                                        label: '🚜 Ramesh (Farm 1)',
-                                        phone: '9876510001',
-                                        password: 'Password@123',
-                                        color: const Color(0xff047857),
-                                        bgColor: const Color(0xffecfdf5),
-                                        borderColor: const Color(0xffa7f3d0),
-                                      ),
-                                      _buildDemoChip(
-                                        label: '🐄 Suresh (Farm 2)',
-                                        phone: '9876510002',
-                                        password: 'Password@123',
-                                        color: const Color(0xff1d4ed8),
-                                        bgColor: const Color(0xffeff6ff),
-                                        borderColor: const Color(0xffbfdbfe),
-                                      ),
-                                      _buildDemoChip(
-                                        label: '🌱 Priya (New Farm)',
-                                        phone: '9876510003',
-                                        password: 'Password@123',
-                                        color: const Color(0xff7c3aed),
-                                        bgColor: const Color(0xfff5f3ff),
-                                        borderColor: const Color(0xffddd6fe),
-                                      ),
-                                      _buildDemoChip(
-                                        label: '👤 Dileep (9839769808)',
-                                        phone: '9839769808',
-                                        password: 'Password@123',
-                                        color: const Color(0xff0369a1),
-                                        bgColor: const Color(0xfff0f9ff),
-                                        borderColor: const Color(0xffbae6fd),
-                                      ),
-                                      _buildDemoChip(
-                                        label: '🛡️ Admin',
-                                        phone: '9999900000',
-                                        password: 'Password@123',
-                                        color: const Color(0xffb45309),
-                                        bgColor: const Color(0xfffffbeb),
-                                        borderColor: const Color(0xfffde68a),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.pin_outlined,
-                                          size: 14, color: storeMuted),
-                                      const SizedBox(width: 4),
-                                      const Text(
-                                        'Default PIN / Password: ',
-                                        style: TextStyle(
-                                            fontSize: 11, color: storeMuted),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xfff1f5f9),
-                                          borderRadius:
-                                              BorderRadius.circular(4),
-                                          border: Border.all(
-                                              color: const Color(0xffcbd5e1)),
-                                        ),
-                                        child: const Text(
-                                          'Password@123',
+                            // 1-Click Quick Demo & Multi-Tenant Test Accounts (gated for debug / simulation only)
+                            if (kDebugMode || AppConstants.flowSimulation || _demoUiEnabled)
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 20),
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xfff8fafc),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: const Color(0xffcbd5e1), width: 1.2),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Row(
+                                      children: [
+                                        Icon(Icons.bolt,
+                                            size: 20, color: storeDarkGreenNav),
+                                        SizedBox(width: 6),
+                                        Text(
+                                          '1-Click Instant Login (Test Accounts)',
                                           style: TextStyle(
-                                            fontSize: 11,
-                                            fontFamily: 'monospace',
                                             fontWeight: FontWeight.bold,
-                                            color: Color(0xff0f172a),
+                                            fontSize: 13,
+                                            color: storeDarkGreenNav,
                                           ),
                                         ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    const Text(
+                                      'Tap any farmer or role to log in with 1 click:',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: storeMuted,
                                       ),
-                                    ],
-                                  ),
-                                ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        _buildDemoChip(
+                                          label: '🚜 Ramesh (Farm 1)',
+                                          phone: '9876510001',
+                                          password: 'Password@123',
+                                          color: const Color(0xff047857),
+                                          bgColor: const Color(0xffecfdf5),
+                                          borderColor: const Color(0xffa7f3d0),
+                                        ),
+                                        _buildDemoChip(
+                                          label: '🐄 Suresh (Farm 2)',
+                                          phone: '9876510002',
+                                          password: 'Password@123',
+                                          color: const Color(0xff1d4ed8),
+                                          bgColor: const Color(0xffeff6ff),
+                                          borderColor: const Color(0xffbfdbfe),
+                                        ),
+                                        _buildDemoChip(
+                                          label: '🌱 Priya (New Farm)',
+                                          phone: '9876510003',
+                                          password: 'Password@123',
+                                          color: const Color(0xff7c3aed),
+                                          bgColor: const Color(0xfff5f3ff),
+                                          borderColor: const Color(0xffddd6fe),
+                                        ),
+                                        _buildDemoChip(
+                                          label: '👤 Dileep (9839769808)',
+                                          phone: '9839769808',
+                                          password: 'Password@123',
+                                          color: const Color(0xff0369a1),
+                                          bgColor: const Color(0xfff0f9ff),
+                                          borderColor: const Color(0xffbae6fd),
+                                        ),
+                                        _buildDemoChip(
+                                          label: '🛡️ Admin',
+                                          phone: '9999900000',
+                                          password: 'Password@123',
+                                          color: const Color(0xffb45309),
+                                          bgColor: const Color(0xfffffbeb),
+                                          borderColor: const Color(0xfffde68a),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.pin_outlined,
+                                            size: 14, color: storeMuted),
+                                        const SizedBox(width: 4),
+                                        const Text(
+                                          'Default PIN / Password: ',
+                                          style: TextStyle(
+                                              fontSize: 11, color: storeMuted),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xfff1f5f9),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                            border: Border.all(
+                                                color: const Color(0xffcbd5e1)),
+                                          ),
+                                          child: const Text(
+                                            'Password@123',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontFamily: 'monospace',
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xff0f172a),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            if (widget.showAdminQuickChip)
+                            if (widget.showAdminQuickChip && (kDebugMode || AppConstants.flowSimulation || _demoUiEnabled))
                               Container(
                                 margin: const EdgeInsets.only(bottom: 20),
                                 padding: const EdgeInsets.all(14),

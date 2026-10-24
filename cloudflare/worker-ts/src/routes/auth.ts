@@ -357,8 +357,17 @@ authRouter.post('/forgot-password', async (c) => {
     .bind(phone, identifier, identifier)
     .first<{ id: string; phone: string; is_active: number; email: string | null }>();
 
+  const isTest = c.env.ENVIRONMENT === 'test' && c.env.ALLOW_TEST_AUTH === 'true';
+
   if (!row || !row.is_active) {
-    return c.json({ error: 'Not Found', message: 'No registered account found matching that phone, username, or email.' }, 404);
+    // Prevent account enumeration: return identical success response
+    return c.json({
+      success: true,
+      message: 'If an account matches those details, password reset instructions have been dispatched.',
+      data: {
+        email_sent: false,
+      },
+    });
   }
 
   const token = generateRandomToken();
@@ -376,12 +385,23 @@ authRouter.post('/forgot-password', async (c) => {
   const storefrontUrl = c.env.STOREFRONT_BASE_URL || 'https://milterrafoods.com';
   const resetUrl = `${storefrontUrl.replace(/\/+$/, '')}/#/reset-password?token=${token}`;
 
+  // Only expose reset token in automated test environments
+  if (isTest) {
+    return c.json({
+      success: true,
+      message: 'If an account matches those details, password reset instructions have been dispatched.',
+      data: {
+        reset_token: token,
+        reset_url: resetUrl,
+        email_sent: false,
+      },
+    });
+  }
+
   return c.json({
     success: true,
-    message: 'Password reset token generated successfully.',
+    message: 'If an account matches those details, password reset instructions have been dispatched.',
     data: {
-      reset_token: token,
-      reset_url: resetUrl,
       email_sent: false,
     },
   });

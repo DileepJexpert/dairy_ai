@@ -37,34 +37,24 @@ const CycleCreateSchema = z.object({
 // ---------------------------------------------------------------------------
 
 async function getOrResolveFarmer(c: any, db: D1Database) {
-  // First try authenticated customer
-  const user = await requireAuth(c).catch(() => null);
-  if (user) {
-    const farmer = await getFarmerByUserId(db, user.id);
-    if (farmer) return { farmer, user };
-    // If user is not yet registered as a farmer, check if farmer_id query/param exists
-    const farmerId = c.req.query('farmer_id') || c.req.param('farmer_id');
-    if (farmerId) {
-      const f = (await db.prepare('SELECT * FROM farmers WHERE id = ?').bind(farmerId).first()) as any;
+  // Always require authenticated user
+  const user = await requireAuth(c);
+  const ownFarmer = await getFarmerByUserId(db, user.id);
+
+  // If a specific farmer_id is requested via query, header, or route param
+  const reqFarmerId = c.req.query('farmer_id') || c.req.header('x-farmer-id') || c.req.param('farmer_id');
+  if (reqFarmerId) {
+    if (user.role === 'admin') {
+      const f = (await db.prepare('SELECT * FROM farmers WHERE id = ?').bind(reqFarmerId).first()) as any;
       if (f) return { farmer: f, user };
+    } else if (ownFarmer && ownFarmer.id === reqFarmerId) {
+      return { farmer: ownFarmer, user };
+    } else {
+      throw new HTTPException(403, { message: 'Access denied to requested farmer data' });
     }
-    // Return first farmer or mock fallback for development/demo
-    const fallbackFarmer = (await db.prepare('SELECT * FROM farmers ORDER BY created_at ASC LIMIT 1').first()) as any;
-    if (fallbackFarmer) return { farmer: fallbackFarmer, user };
   }
 
-  // Check query param farmer_id or x-farmer-id header
-  const farmerIdHeader = c.req.header('x-farmer-id') || c.req.query('farmer_id') || c.req.param('farmer_id');
-  if (farmerIdHeader) {
-    const f = (await db.prepare('SELECT * FROM farmers WHERE id = ?').bind(farmerIdHeader).first()) as any;
-    if (f) return { farmer: f, user: null };
-  }
-
-  // Fallback to first farmer in DB
-  const firstFarmer = (await db.prepare('SELECT * FROM farmers ORDER BY created_at ASC LIMIT 1').first()) as any;
-  if (firstFarmer) return { farmer: firstFarmer, user: null };
-
-  return { farmer: null, user };
+  return { farmer: ownFarmer, user };
 }
 
 // Compute farmer wallet balances from collection entries and ledger
@@ -715,6 +705,14 @@ financeRouter.get('/loans', async (c) => {
 financeRouter.get('/ledger/:farmer_id', async (c) => {
   const farmerId = c.req.param('farmer_id');
   const db = c.env.DB;
+  const user = await requireAuth(c);
+
+  if (user.role !== 'admin') {
+    const ownFarmer = await getFarmerByUserId(db, user.id);
+    if (!ownFarmer || ownFarmer.id !== farmerId) {
+      throw new HTTPException(403, { message: 'Access denied to this financial ledger' });
+    }
+  }
 
   const wallet = await computeFarmerWallet(db, farmerId);
 

@@ -1,6 +1,6 @@
 import { Hono, type Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { decode } from 'hono/jwt';
+import { verify } from 'hono/jwt';
 import { z } from 'zod';
 import type { Env } from '../types/env.js';
 import { hmacSha256 } from '../utils/crypto.js';
@@ -81,11 +81,11 @@ export async function requireAuth(
   c: Context<{ Bindings: Env }>,
   allowedRoles?: string[]
 ): Promise<{ id: string; role: string; phone: string; full_name: string }> {
-  const isTest = c.env?.ENVIRONMENT === 'test';
+  const allowTestAuth = c.env?.ENVIRONMENT === 'test' && c.env?.ALLOW_TEST_AUTH === 'true';
   const testUserId = c.req.header('x-test-customer-id');
   let customerId: string | null = null;
 
-  if (isTest && testUserId) {
+  if (allowTestAuth && testUserId) {
     customerId = testUserId;
   } else {
     const authHeader = c.req.header('authorization') || '';
@@ -93,9 +93,13 @@ export async function requireAuth(
       throw new HTTPException(401, { message: 'Authentication required' });
     }
     const token = authHeader.substring(7).trim();
-    const secret = c.env?.AUTH_SECRET || c.env?.JWT_SECRET || 'milterra-super-secret-auth-key-at-least-32-chars-long';
+    const secret = c.env?.AUTH_SECRET || c.env?.JWT_SECRET;
+    if (!secret && c.env?.ENVIRONMENT === 'production') {
+      throw new HTTPException(500, { message: 'Authentication secret misconfigured on server' });
+    }
+    const effectiveSecret = secret || 'milterra-super-secret-auth-key-at-least-32-chars-long';
 
-    const accessHash = await hmacSha256(secret, token);
+    const accessHash = await hmacSha256(effectiveSecret, token);
     const now = Math.floor(Date.now() / 1000);
 
     const session = await c.env?.DB?.prepare(
@@ -106,12 +110,12 @@ export async function requireAuth(
       customerId = session.customer_id;
     } else {
       try {
-        const decoded = decode(token);
-        if (decoded && decoded.payload && (decoded.payload.sub || (decoded.payload as any).user_id)) {
-          customerId = (decoded.payload.sub || (decoded.payload as any).user_id) as string;
+        const verified = await verify(token, effectiveSecret, 'HS256');
+        if (verified && (verified.sub || (verified as any).user_id)) {
+          customerId = (verified.sub || (verified as any).user_id) as string;
         }
       } catch {
-        // ignore
+        // Token signature verification failed or token is malformed
       }
     }
   }

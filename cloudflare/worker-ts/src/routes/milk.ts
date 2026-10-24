@@ -111,27 +111,18 @@ milkRouter.post('/milk-records', async (c) => {
 
   let cattleId = parsed.data.cattle_id ? String(parsed.data.cattle_id) : '';
 
-  // If no cattleId or cattle doesn't exist, resolve first cattle for this farmer or create one
+  // Validate or resolve cattle for this farmer
   if (cattleId) {
     const cattleCheck = (await db.prepare('SELECT id, name, tag_id FROM cattle WHERE id = ? AND farmer_id = ?').bind(cattleId, farmer.id).first()) as any;
     if (!cattleCheck) {
-      const anyCattle = (await db.prepare('SELECT id, name, tag_id FROM cattle WHERE farmer_id = ? LIMIT 1').bind(farmer.id).first()) as any;
-      if (anyCattle) {
-        cattleId = anyCattle.id;
-      }
+      throw new HTTPException(404, { message: 'Cattle not found for this farmer profile' });
     }
   } else {
-    const firstCattle = (await db.prepare('SELECT id, name, tag_id FROM cattle WHERE farmer_id = ? LIMIT 1').bind(farmer.id).first()) as any;
-    if (firstCattle) {
-      cattleId = firstCattle.id;
-    } else {
-      // Auto-provision initial cow for this tenant
-      cattleId = `cattle-${crypto.randomUUID().slice(0, 8)}`;
-      await db.prepare(
-        `INSERT INTO cattle (id, farmer_id, tag_id, name, breed, status)
-         VALUES (?, ?, ?, ?, 'gir', 'active')`
-      ).bind(cattleId, farmer.id, `TAG-${Math.floor(1000 + Math.random() * 9000)}`, 'Milterra Cow 1').run();
+    const firstCattle = (await db.prepare('SELECT id, name, tag_id FROM cattle WHERE farmer_id = ? AND status = "active" LIMIT 1').bind(farmer.id).first()) as any;
+    if (!firstCattle) {
+      throw new HTTPException(400, { message: 'No cattle registered yet. Please add a cow or buffalo before recording milk yield.' });
     }
+    cattleId = firstCattle.id;
   }
 
   const cattleInfo = (await db.prepare('SELECT name, tag_id FROM cattle WHERE id = ?').bind(cattleId).first()) as any;

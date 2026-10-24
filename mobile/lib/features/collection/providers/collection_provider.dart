@@ -241,8 +241,8 @@ final farmerPassbookProvider =
     FutureProvider.autoDispose<FarmerPassbookData>((ref) async {
   final dio = ref.watch(dioProvider);
   final user = ref.watch(currentUserProvider);
-  final userName = user?.name ?? 'Ramesh Patel';
-  final userVillage = 'Anand Rural';
+  final userName = user?.name ?? 'दूध उत्पादक किसान';
+  const userVillage = 'आनंद ग्रामीण';
 
   try {
     if (user != null) {
@@ -259,13 +259,42 @@ final farmerPassbookProvider =
         return FarmerPassbookData(
           farmerName: farmerObj['name'] as String? ?? userName,
           farmerId: farmerObj['id'] as String?,
-          village: farmerObj['village'] as String? ?? userVillage,
+          village: farmerObj['village'] as String? ?? '',
           summary: FarmerPassbookSummary.fromJson(summaryObj),
           entries: entriesList,
         );
       }
+      return FarmerPassbookData(
+        farmerName: userName,
+        farmerId: null,
+        village: '',
+        summary: const FarmerPassbookSummary(
+          totalEntries: 0,
+          totalLitres: 0.0,
+          totalNetPayout: 0.0,
+          averageFatPct: 0.0,
+          averageSnfPct: 0.0,
+        ),
+        entries: const [],
+      );
     }
-  } catch (_) {}
+  } catch (_) {
+    if (user != null) {
+      return FarmerPassbookData(
+        farmerName: userName,
+        farmerId: null,
+        village: '',
+        summary: const FarmerPassbookSummary(
+          totalEntries: 0,
+          totalLitres: 0.0,
+          totalNetPayout: 0.0,
+          averageFatPct: 0.0,
+          averageSnfPct: 0.0,
+        ),
+        entries: const [],
+      );
+    }
+  }
 
   // High-fidelity fallback / demo passbook data
   final demoEntries = [

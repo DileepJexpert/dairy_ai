@@ -1059,13 +1059,7 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
 
   Widget _buildHerdProductionCard(
       BuildContext context, AsyncValue<List<CattleRef>> cattleAsync) {
-    final cattleList = cattleAsync.value ??
-        const [
-          CattleRef(id: 1, name: 'Ganga (गाय)', tagId: 'MIL-0842'),
-          CattleRef(id: 2, name: 'Gauri (गाय)', tagId: 'MIL-0911'),
-          CattleRef(id: 3, name: 'Murrah (भैंस)', tagId: 'MIL-1024'),
-          CattleRef(id: 4, name: 'Radha (गाय)', tagId: 'MIL-0765'),
-        ];
+    final cattleList = cattleAsync.value ?? const <CattleRef>[];
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -2079,10 +2073,10 @@ class _SlipScanAndMismatchTab extends StatefulWidget {
 }
 
 class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
-  // Dispatched reference from dairy vat
-  final double _dairyDispatchedLitres = 100.0;
-  final double _dairyExpectedFat = 4.30;
-  final double _dairyExpectedSnf = 8.60;
+  // Dispatched reference from dairy vat / farm entry (editable reference)
+  final _dispatchedLitresController = TextEditingController();
+  final _dispatchedFatController = TextEditingController();
+  final _dispatchedSnfController = TextEditingController();
 
   // Controllers for all extracted/autofilled slip data (100% editable by user!)
   late final TextEditingController _litresController;
@@ -2093,8 +2087,8 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
   late final TextEditingController _slipNumberController;
 
   bool _isScanning = false;
-  bool _hasAutofilled = true;
-  String? _uploadedFileName = 'saras_parchi_8841.jpg';
+  bool _hasAutofilled = false;
+  String? _uploadedFileName;
 
   // Preset Slips for realistic 1-tap testing
   final List<Map<String, dynamic>> _presetSlips = [
@@ -2106,6 +2100,9 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
       'fat': 4.05,
       'snf': 8.35,
       'rate': 40.50,
+      'dispatchedLitres': 100.0,
+      'dispatchedFat': 4.30,
+      'dispatchedSnf': 8.60,
       'tag': '1.8L Shortage (कटौती)',
       'isShortage': true,
     },
@@ -2117,6 +2114,9 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
       'fat': 4.30,
       'snf': 8.60,
       'rate': 42.50,
+      'dispatchedLitres': 100.0,
+      'dispatchedFat': 4.30,
+      'dispatchedSnf': 8.60,
       'tag': '100% Match (सटीक)',
       'isShortage': false,
     },
@@ -2128,6 +2128,9 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
       'fat': 3.90,
       'snf': 8.20,
       'rate': 39.20,
+      'dispatchedLitres': 100.0,
+      'dispatchedFat': 4.30,
+      'dispatchedSnf': 8.60,
       'tag': '2.5L Shortage (बड़ा अंतर)',
       'isShortage': true,
     },
@@ -2136,13 +2139,13 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
   @override
   void initState() {
     super.initState();
-    _litresController = TextEditingController(text: '98.2');
-    _fatController = TextEditingController(text: '4.05');
-    _snfController = TextEditingController(text: '8.35');
-    _rateController = TextEditingController(text: '40.50');
-    _centerNameController = TextEditingController(
-        text: 'सरस दुग्ध उत्पादक सहकारी समिति (BMC-402)');
-    _slipNumberController = TextEditingController(text: 'PARCHI-8841');
+    // Default controllers start completely empty for production readiness
+    _litresController = TextEditingController();
+    _fatController = TextEditingController();
+    _snfController = TextEditingController();
+    _rateController = TextEditingController();
+    _centerNameController = TextEditingController();
+    _slipNumberController = TextEditingController();
   }
 
   @override
@@ -2153,10 +2156,20 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
     _rateController.dispose();
     _centerNameController.dispose();
     _slipNumberController.dispose();
+    _dispatchedLitresController.dispose();
+    _dispatchedFatController.dispose();
+    _dispatchedSnfController.dispose();
     super.dispose();
   }
 
   // Dynamic values parsed from user-editable controllers
+  double get _dairyDispatchedLitres =>
+      double.tryParse(_dispatchedLitresController.text.trim()) ?? 0.0;
+  double get _dairyExpectedFat =>
+      double.tryParse(_dispatchedFatController.text.trim()) ?? 0.0;
+  double get _dairyExpectedSnf =>
+      double.tryParse(_dispatchedSnfController.text.trim()) ?? 0.0;
+
   double get _slipLitres =>
       double.tryParse(_litresController.text.trim()) ?? 0.0;
   double get _slipFat => double.tryParse(_fatController.text.trim()) ?? 0.0;
@@ -2167,9 +2180,12 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
   String get _slipNumber => _slipNumberController.text.trim();
 
   // Real-time Discrepancy Calculations
-  double get _volumeDifference => _slipLitres - _dairyDispatchedLitres;
-  double get _fatDifference => _slipFat - _dairyExpectedFat;
-  double get _snfDifference => _slipSnf - _dairyExpectedSnf;
+  double get _volumeDifference =>
+      _dairyDispatchedLitres > 0 ? _slipLitres - _dairyDispatchedLitres : 0.0;
+  double get _fatDifference =>
+      _dairyExpectedFat > 0 ? _slipFat - _dairyExpectedFat : 0.0;
+  double get _snfDifference =>
+      _dairyExpectedSnf > 0 ? _slipSnf - _dairyExpectedSnf : 0.0;
 
   double get _dairyExpectedAmount =>
       _dairyDispatchedLitres *
@@ -2178,7 +2194,7 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
   double get _slipActualAmount => _slipLitres * _slipRatePerLitre;
 
   double get _financialDiscrepancy =>
-      _slipActualAmount - _dairyExpectedAmount;
+      _dairyDispatchedLitres > 0 ? _slipActualAmount - _dairyExpectedAmount : 0.0;
 
   Future<void> _simulateOcrScan({Map<String, dynamic>? preset}) async {
     setState(() => _isScanning = true);
@@ -2196,6 +2212,15 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
       _fatController.text = (data['fat'] as double).toStringAsFixed(2);
       _snfController.text = (data['snf'] as double).toStringAsFixed(2);
       _rateController.text = (data['rate'] as double).toStringAsFixed(2);
+      if (data['dispatchedLitres'] != null && _dispatchedLitresController.text.isEmpty) {
+        _dispatchedLitresController.text = (data['dispatchedLitres'] as double).toStringAsFixed(1);
+      }
+      if (data['dispatchedFat'] != null && _dispatchedFatController.text.isEmpty) {
+        _dispatchedFatController.text = (data['dispatchedFat'] as double).toStringAsFixed(2);
+      }
+      if (data['dispatchedSnf'] != null && _dispatchedSnfController.text.isEmpty) {
+        _dispatchedSnfController.text = (data['dispatchedSnf'] as double).toStringAsFixed(2);
+      }
       _hasAutofilled = true;
     });
 
@@ -2226,23 +2251,47 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
     }
   }
 
+  void _clearScannedSlip() {
+    setState(() {
+      _uploadedFileName = null;
+      _hasAutofilled = false;
+      _litresController.clear();
+      _fatController.clear();
+      _snfController.clear();
+      _rateController.clear();
+      _centerNameController.clear();
+      _slipNumberController.clear();
+      _dispatchedLitresController.clear();
+      _dispatchedFatController.clear();
+      _dispatchedSnfController.clear();
+    });
+  }
+
   void _submitAndSaveVerifiedSlip() {
-    final hasShortage = _volumeDifference < -0.1 || _fatDifference < -0.05;
-    final discrepancyText = hasShortage
-        ? '${_volumeDifference.toStringAsFixed(1)}L Shortage (-₹${_financialDiscrepancy.abs().toStringAsFixed(0)})'
-        : '100% Matched';
+    final hasShortage = _dairyDispatchedLitres > 0.0 &&
+        (_volumeDifference < -0.1 || _fatDifference < -0.05);
+    final discrepancyText = _dairyDispatchedLitres > 0.0
+        ? (hasShortage
+            ? '${_volumeDifference.toStringAsFixed(1)}L Shortage (-₹${_financialDiscrepancy.abs().toStringAsFixed(0)})'
+            : '100% Matched')
+        : 'सत्यापित पर्ची (No Discrepancy)';
+
+    final slipNum = _slipNumber.isNotEmpty
+        ? _slipNumber
+        : 'PARCHI-${DateTime.now().millisecondsSinceEpoch % 10000}';
+    final center = _centerName.isNotEmpty ? _centerName : 'दुग्ध सहकारी समिति';
 
     final slipData = {
-      'totalLitres': 175.0,
+      'totalLitres': _slipLitres,
       'coopLitres': _slipLitres,
-      'hotelLitres': 50.0,
-      'retailLitres': 20.0,
-      'slipNumber': _slipNumber,
+      'hotelLitres': 0.0,
+      'retailLitres': 0.0,
+      'slipNumber': slipNum,
       'slipLitres': _slipLitres,
       'slipFat': _slipFat,
       'slipSnf': _slipSnf,
       'slipRate': _slipRatePerLitre,
-      'centerName': _centerName,
+      'centerName': center,
       'hasMismatch': hasShortage,
       'discrepancy': discrepancyText,
     };
@@ -2264,7 +2313,7 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('पर्ची क्रमांक: $_slipNumber',
+            Text('पर्ची क्रमांक: $slipNum',
                 style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
             Text('सत्यापित मात्रा: ${_slipLitres.toStringAsFixed(1)} Litres'),
@@ -2314,8 +2363,8 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
 
   Future<void> _raiseDisputeOnWhatsApp() async {
     final message = '''*⚠️ दुग्ध पर्ची व डिस्पैच मिलान आपत्ति (Dairy AI Dispute)*
-समिति/केंद्र: $_centerName
-पर्ची संख्या: $_slipNumber | दिनांक: ${DateFormat('dd MMM yyyy').format(DateTime.now())} (प्रातः)
+समिति/केंद्र: ${_centerName.isNotEmpty ? _centerName : 'दुग्ध समिति'}
+पर्ची संख्या: ${_slipNumber.isNotEmpty ? _slipNumber : 'N/A'} | दिनांक: ${DateFormat('dd MMM yyyy').format(DateTime.now())} (प्रातः)
 
 *तुलनात्मक मिलान विवरण:*
 • डेयरी से भेजा दूध: ${_dairyDispatchedLitres.toStringAsFixed(1)} L | पर्ची में दर्ज: ${_slipLitres.toStringAsFixed(1)} L
@@ -2334,6 +2383,10 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
 
   @override
   Widget build(BuildContext context) {
+    final hasSlip = _hasAutofilled || _litresController.text.trim().isNotEmpty;
+    final hasShortage = _dairyDispatchedLitres > 0.0 &&
+        (_volumeDifference < -0.1 || _fatDifference < -0.05);
+
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 760),
@@ -2347,65 +2400,128 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
 
               const SizedBox(height: 12),
 
-              // 2. Physical Thermal Slip Preview / User-Editable Form
-              _buildScannedSlipDataCard(context),
+              if (!hasSlip)
+                // Clean Zero-State Prompt
+                _buildZeroStatePrompt(context)
+              else ...[
+                // 2. Physical Thermal Slip Preview / User-Editable Form
+                _buildScannedSlipDataCard(context),
 
-              const SizedBox(height: 12),
+                const SizedBox(height: 12),
 
-              // 3. Cross-Verification & Mismatch Comparison Table
-              _buildMismatchComparisonCard(context),
+                // 3. Cross-Verification & Mismatch Comparison Table
+                _buildMismatchComparisonCard(context),
 
-              const SizedBox(height: 14),
+                const SizedBox(height: 14),
 
-              // 4. Primary Action: Submit & Save Verified Slip
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton.icon(
-                  onPressed: _submitAndSaveVerifiedSlip,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xff064e3b),
-                    foregroundColor: Colors.white,
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                // 4. Primary Action: Submit & Save Verified Slip
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed: _submitAndSaveVerifiedSlip,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xff064e3b),
+                      foregroundColor: Colors.white,
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.verified_rounded, size: 20),
+                    label: const Text(
+                      '✅ सत्यापित पर्ची सुरक्षित करें (Submit Slip)',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                   ),
-                  icon: const Icon(Icons.verified_rounded, size: 20),
-                  label: const Text(
-                    '✅ सत्यापित पर्ची सुरक्षित करें (Submit Slip)',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
                 ),
-              ),
 
-              const SizedBox(height: 10),
+                if (hasShortage) ...[
+                  const SizedBox(height: 10),
 
-              // 5. Secondary Action: Raise WhatsApp Dispute
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: _raiseDisputeOnWhatsApp,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xffb91c1c),
-                    side: const BorderSide(color: Color(0xffb91c1c), width: 1.5),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  // 5. Secondary Action: Raise WhatsApp Dispute
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: _raiseDisputeOnWhatsApp,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xffb91c1c),
+                        side: const BorderSide(color: Color(0xffb91c1c), width: 1.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.warning_amber_rounded, size: 18),
+                      label: const Text(
+                        'समिति पर आपत्ति दर्ज करें (WhatsApp Dispute)',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
                     ),
                   ),
-                  icon: const Icon(Icons.warning_amber_rounded, size: 18),
-                  label: const Text(
-                    'समिति पर आपत्ति दर्ज करें (WhatsApp Dispute)',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                ),
-              ),
+                ],
+              ],
 
               const SizedBox(height: 36),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildZeroStatePrompt(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xffe2e8f0)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xff047857).withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.receipt_long_outlined,
+              size: 44,
+              color: Color(0xff047857),
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'अभी कोई पर्ची स्कैन नहीं की गई',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: Color(0xff1e293b),
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'दूध समिति (BMC/डेयरी) से मिली मुद्रित पर्ची की फोटो लें या अपलोड करें।\nएआई पर्ची से मात्रा, फैट व दर स्वतः पढ़ लेगा।',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: Color(0xff64748b), height: 1.4),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: _pickSlipFromFile,
+            icon: const Icon(Icons.camera_alt_outlined, size: 18),
+            label: const Text('पर्ची फोटो अपलोड करें'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xff047857),
+              side: const BorderSide(color: Color(0xff047857)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2482,7 +2598,7 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
 
           // 1-Click Preset Test Slips
           const Text(
-            'त्वरित परीक्षण पर्चियां (1-Click Test Scans):',
+            'परीक्षण पर्ची डेमो (Test OCR Demo):',
             style: TextStyle(
                 fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xff334155)),
           ),
@@ -2525,12 +2641,23 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
               children: [
                 const Icon(Icons.check_circle, size: 14, color: Colors.green),
                 const SizedBox(width: 6),
-                Text(
-                  'स्कैन फ़ाइल: $_uploadedFileName (OCR Verified)',
-                  style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xff166534)),
+                Expanded(
+                  child: Text(
+                    'स्कैन फ़ाइल: $_uploadedFileName (OCR Verified)',
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xff166534)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                TextButton(
+                  onPressed: _clearScannedSlip,
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: const Color(0xffb91c1c),
+                  ),
+                  child: const Text('✕ हटाएं (Clear)', style: TextStyle(fontSize: 11)),
                 ),
               ],
             ),
@@ -2733,12 +2860,139 @@ class _SlipScanAndMismatchTabState extends State<_SlipScanAndMismatchTab> {
               ),
             ],
           ),
+
+          const SizedBox(height: 14),
+          const Divider(height: 1),
+          const SizedBox(height: 10),
+          const Row(
+            children: [
+              Icon(Icons.compare_arrows_rounded, size: 16, color: Color(0xff047857)),
+              SizedBox(width: 6),
+              Text(
+                'डेयरी पर भेजा गया दूध (तुलना हेतु - Optional Reference)',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: Color(0xff1e293b),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _dispatchedLitresController,
+                  decoration: InputDecoration(
+                    labelText: 'भेजा दूध (L)',
+                    hintText: 'उदा. 100.0',
+                    suffixText: 'L',
+                    isDense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    fillColor: Colors.white,
+                    filled: true,
+                    border:
+                        OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextFormField(
+                  controller: _dispatchedFatController,
+                  decoration: InputDecoration(
+                    labelText: 'डेयरी फैट %',
+                    hintText: 'उदा. 4.30',
+                    suffixText: '%',
+                    isDense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    fillColor: Colors.white,
+                    filled: true,
+                    border:
+                        OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextFormField(
+                  controller: _dispatchedSnfController,
+                  decoration: InputDecoration(
+                    labelText: 'डेयरी SNF %',
+                    hintText: 'उदा. 8.60',
+                    suffixText: '%',
+                    isDense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    fillColor: Colors.white,
+                    filled: true,
+                    border:
+                        OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
   Widget _buildMismatchComparisonCard(BuildContext context) {
+    if (_dairyDispatchedLitres <= 0.0) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xfff0fdf4),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xffbbf7d0)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle_outline, color: Color(0xff16a34a), size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'पर्ची विवरण तैयार (Slip Data Ready)',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Color(0xff166534),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'कुल राशि: ₹${_slipActualAmount.toStringAsFixed(1)} (${_slipLitres.toStringAsFixed(1)}L @ ₹${_slipRatePerLitre.toStringAsFixed(2)}/L) | फैट ${_slipFat.toStringAsFixed(2)}%',
+                    style: const TextStyle(fontSize: 11, color: Color(0xff14532d)),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'डेयरी पर भेजे दूध से तुलना करने हेतु ऊपर "डेयरी पर भेजा गया दूध" दर्ज करें।',
+                    style: TextStyle(fontSize: 10, color: Color(0xff15803d)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final hasShortage = _volumeDifference < -0.1;
     final hasFatCut = _fatDifference < -0.05;
 

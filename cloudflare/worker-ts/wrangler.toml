@@ -24,3 +24,30 @@ migrations_dir = "migrations"
 [[services]]
 binding = "PASSWORD_HASHER"
 service = "milterra-password-hasher"
+
+# ============================================================================
+# DEV ENVIRONMENT (Development & Testing)
+# ============================================================================
+[env.dev]
+name = "milterra-api-dev"
+workers_dev = true
+
+[env.dev.vars]
+ENVIRONMENT = "development"
+ALLOW_TEST_AUTH = "true"
+CORS_ORIGINS = "http://localhost:3000,http://localhost:8080,http://127.0.0.1:8000,http://localhost:5000,http://localhost:8000,https://milterra-staging.pages.dev,https://farmers.milterrafoods.com"
+CUSTOMER_AUTH_ENABLED = "true"
+TEST_COMMERCE_ENABLED = "true"
+LIVE_COD_ENABLED = "true"
+SIMULATION_ENABLED = "true"
+STOREFRONT_BASE_URL = "http://localhost:3000"
+
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "milterra-dev"
+database_id = "ebf84151-b3b0-494c-810d-32a453ccc13a"
+migrations_dir = "migrations"
+
+[[env.dev.services]]
+binding = "PASSWORD_HASHER"
+service = "milterra-password-hasher"

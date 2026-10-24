@@ -264,7 +264,7 @@ class CattleRef {
 
   factory CattleRef.fromJson(Map<String, dynamic> json) {
     return CattleRef(
-      id: json['id'] as int,
+      id: json['id'] is int ? json['id'] as int : int.tryParse('${json['id']}') ?? json['id'].hashCode,
       tagId: json['tag_id'] as String?,
       name: json['name'] as String? ?? 'Unnamed',
       breed: json['breed'] as String?,

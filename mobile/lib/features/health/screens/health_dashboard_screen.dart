@@ -4,7 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dairy_ai/core/extensions.dart';
 import 'package:dairy_ai/features/health/models/health_models.dart';
-import 'package:dairy_ai/features/health/providers/health_provider.dart';
+import 'package:dairy_ai/features/health/providers/health_provider.dart'
+    hide cattleListProvider;
+import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
+import 'package:dairy_ai/features/herd/providers/cattle_provider.dart';
+import 'package:dairy_ai/features/herd/models/cattle_model.dart';
+import 'package:dairy_ai/features/health/providers/active_crises_provider.dart';
 
 /// Herd health filter categories for traffic-light triage.
 enum HerdFilter { all, critical, watchlist, healthy }
@@ -33,6 +38,32 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final isAuthenticated = authState.maybeWhen(
+      authenticated: (_) => true,
+      orElse: () => false,
+    );
+    final farmerUser = authState.maybeWhen(
+      authenticated: (user) => user,
+      orElse: () => null,
+    );
+
+    final cattleAsync = ref.watch(cattleListProvider(farmerUser?.id ?? ''));
+    final crisesAsync = ref.watch(activeCrisesProvider);
+    final allCattle = cattleAsync.asData?.value ?? const <Cattle>[];
+    final activeCrises = crisesAsync.asData?.value ?? const ActiveCrises();
+
+    final criticalCattle = allCattle
+        .where((c) => activeCrises.crises.any((cr) => cr.cattleId == c.id && cr.isCritical))
+        .toList();
+    final watchlistCattle = allCattle
+        .where((c) =>
+            activeCrises.crises.any((cr) => cr.cattleId == c.id && !cr.isCritical) ||
+            activeCrises.breedingAlerts.any((b) => b.cattleId == c.id))
+        .toList();
+    final healthyCattle = allCattle
+        .where((c) => !criticalCattle.contains(c) && !watchlistCattle.contains(c))
+        .toList();
     return PopScope(
       canPop: context.canPop(),
       onPopInvokedWithResult: (didPop, result) {
@@ -76,21 +107,46 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  // --- 100-Cow Unified Herd Triage Control Center ---
-                  _buildHerdTriageHeader(context),
-                  const SizedBox(height: 12),
+                  if (!isAuthenticated) ...[
+                    _buildUnauthenticatedHealthCard(context),
+                    const SizedBox(height: 16),
+                  ] else if (allCattle.isEmpty) ...[
+                    _buildEmptyHerdHealthCard(context),
+                    const SizedBox(height: 16),
+                  ] else ...[
+                    // --- Unified Dynamic Herd Triage Control Center ---
+                    _buildHerdTriageHeader(
+                      context,
+                      total: allCattle.length,
+                      critical: criticalCattle.length,
+                      watchlist: watchlistCattle.length,
+                      healthy: healthyCattle.length,
+                    ),
+                    const SizedBox(height: 12),
 
-                  // --- Collapsible Architecture & Telemetry Timing Card ---
-                  _buildArchitectureCard(context),
-                  const SizedBox(height: 16),
+                    // --- Collapsible Architecture & Telemetry Timing Card ---
+                    _buildArchitectureCard(context),
+                    const SizedBox(height: 16),
 
-                  // --- Filter Chips & Tag Search Bar ---
-                  _buildFilterAndSearchBar(context),
-                  const SizedBox(height: 14),
+                    // --- Filter Chips & Tag Search Bar ---
+                    _buildFilterAndSearchBar(
+                      context,
+                      total: allCattle.length,
+                      critical: criticalCattle.length,
+                      watchlist: watchlistCattle.length,
+                      healthy: healthyCattle.length,
+                    ),
+                    const SizedBox(height: 14),
 
-                  // --- Triage Cattle Cards (Ganga, Radha, Murrah, Healthy herd) ---
-                  ..._buildTriageCattleCards(context),
-                  const SizedBox(height: 20),
+                    // --- Dynamic Triage Cattle Cards (Farmer's Own Cattle Only) ---
+                    ..._buildTriageCattleCards(
+                      context: context,
+                      allCattle: allCattle,
+                      crises: activeCrises.crises,
+                      breedingAlerts: activeCrises.breedingAlerts,
+                    ),
+                    const SizedBox(height: 20),
+                  ],
 
                   // --- AI Triage Quick Access ---
                   _TriageQuickAccessCard(),
@@ -149,10 +205,119 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
     );
   }
 
+  Widget _buildUnauthenticatedHealthCard(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xfff8fafc),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xffcbd5e1), width: 1.2),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.health_and_safety_outlined, color: Color(0xff2563eb), size: 36),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'पशु झुंड स्वास्थ्य और क्राइसिस मॉनिटर',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xff0f172a),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'अपने पशुओं के वास्तविक समय के आईओटी कॉलर अलर्ट, तापमान, जुगाली व आपातकालीन स्वास्थ्य स्थिति देखने के लिए लॉगिन करें।',
+            style: TextStyle(fontSize: 12.5, color: Color(0xff64748b), height: 1.4),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () => context.push('/login'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xff2563eb),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            icon: const Icon(Icons.login, size: 18),
+            label: const Text('लॉगिन करें या नया खाता बनाएं', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyHerdHealthCard(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xfff8fafc),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xffe2e8f0), width: 1.2),
+      ),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xff059669).withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.pets_outlined, color: Color(0xff059669), size: 40),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'आपके झुंड में अभी कोई पशु दर्ज नहीं है',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xff0f172a),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'आईओटी कॉलर टेलीमेट्री, क्राइसिस मॉनिटर और क्लिनिकल अलर्ट केवल आपके पंजीकृत पशुओं के लिए दिखाए जाते हैं।',
+            style: TextStyle(fontSize: 12.5, color: Color(0xff64748b), height: 1.4),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () => context.push('/herd/add'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xff059669),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('+ अपना पहला पशु जोड़ें (Register Cattle)', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ---------------------------------------------------------------------------
-  // Top 100-Cow Herd Triage Summary Banner
+  // Top Herd Triage Summary Banner
   // ---------------------------------------------------------------------------
-  Widget _buildHerdTriageHeader(BuildContext context) {
+  Widget _buildHerdTriageHeader(
+    BuildContext context, {
+    required int total,
+    required int critical,
+    required int watchlist,
+    required int healthy,
+  }) {
+    final safePercent = total > 0 ? ((healthy / total) * 100).round() : 100;
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -182,14 +347,14 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.blue.shade400, width: 0.8),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.hub, color: Colors.blueAccent, size: 14),
-                    SizedBox(width: 6),
+                    const Icon(Icons.hub, color: Colors.blueAccent, size: 14),
+                    const SizedBox(width: 6),
                     Text(
-                      '100 पशु झुंड ट्रायज (100-Cow Herd Triage)',
-                      style: TextStyle(
+                      '$total पशु झुंड ट्रायज ($total-Cow Herd Triage)',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -205,9 +370,9 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
                   color: const Color(0xff22c55e).withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Text(
-                  '94% Herd Safe',
-                  style: TextStyle(
+                child: Text(
+                  '$safePercent% Herd Safe',
+                  style: const TextStyle(
                     color: Color(0xff4ade80),
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
@@ -227,7 +392,9 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            '100 पशुओं में से केवल 6 को तत्काल ध्यान की आवश्यकता है। 94 पशु सामान्य हैं।',
+            total > 0
+                ? 'कुल $total पशुओं में से ${critical + watchlist} को ध्यान की आवश्यकता है। $healthy पशु सुरक्षित व सामान्य हैं।'
+                : 'वर्तमान में झुंड सुरक्षित है।',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.8),
               fontSize: 12,
@@ -240,8 +407,8 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
               Expanded(
                 child: _buildTriageCounterPill(
                   label: '🔴 ICU क्रिटिकल',
-                  count: '2',
-                  subtext: 'गंगा व राधा (तत्काल)',
+                  count: '$critical',
+                  subtext: critical > 0 ? '$critical पशु तत्काल' : 'कोई केस नहीं',
                   bgColor: Colors.red.shade900.withValues(alpha: 0.4),
                   borderColor: Colors.redAccent,
                   textColor: Colors.redAccent.shade100,
@@ -254,8 +421,8 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
               Expanded(
                 child: _buildTriageCounterPill(
                   label: '🟡 वॉचलिस्ट/हीट',
-                  count: '4',
-                  subtext: 'मुर्रा + 3 पशु',
+                  count: '$watchlist',
+                  subtext: watchlist > 0 ? '$watchlist पशु निगरानी' : 'कोई अलर्ट नहीं',
                   bgColor: Colors.amber.shade900.withValues(alpha: 0.4),
                   borderColor: Colors.amber,
                   textColor: Colors.amber.shade200,
@@ -268,7 +435,7 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
               Expanded(
                 child: _buildTriageCounterPill(
                   label: '🟢 स्वस्थ झुंड',
-                  count: '94',
+                  count: '$healthy',
                   subtext: 'सामान्य चराई',
                   bgColor: Colors.green.shade900.withValues(alpha: 0.4),
                   borderColor: Colors.greenAccent,
@@ -461,7 +628,13 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
   // ---------------------------------------------------------------------------
   // Interactive Filter Chips & Search Bar
   // ---------------------------------------------------------------------------
-  Widget _buildFilterAndSearchBar(BuildContext context) {
+  Widget _buildFilterAndSearchBar(
+    BuildContext context, {
+    required int total,
+    required int critical,
+    required int watchlist,
+    required int healthy,
+  }) {
     return Column(
       children: [
         // Filter Chips Row
@@ -469,13 +642,13 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              _buildFilterChip('सभी (100)', HerdFilter.all, Colors.blueGrey),
+              _buildFilterChip('सभी ($total)', HerdFilter.all, Colors.blueGrey),
               const SizedBox(width: 8),
-              _buildFilterChip('🚨 आपातकाल ICU (2)', HerdFilter.critical, Colors.red),
+              _buildFilterChip('🚨 आपातकाल ICU ($critical)', HerdFilter.critical, Colors.red),
               const SizedBox(width: 8),
-              _buildFilterChip('🟡 हीट व वॉचलिस्ट (4)', HerdFilter.watchlist, Colors.amber.shade800),
+              _buildFilterChip('🟡 हीट व वॉचलिस्ट ($watchlist)', HerdFilter.watchlist, Colors.amber.shade800),
               const SizedBox(width: 8),
-              _buildFilterChip('🟢 स्वस्थ पशु (94)', HerdFilter.healthy, Colors.green),
+              _buildFilterChip('🟢 स्वस्थ पशु ($healthy)', HerdFilter.healthy, Colors.green),
             ],
           ),
         ),
@@ -540,142 +713,123 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
   // ---------------------------------------------------------------------------
   // Dynamic Cattle Cards Based on Triage Filter & Search
   // ---------------------------------------------------------------------------
-  List<Widget> _buildTriageCattleCards(BuildContext context) {
+  List<Widget> _buildTriageCattleCards({
+    required BuildContext context,
+    required List<Cattle> allCattle,
+    required List<CattleCrisis> crises,
+    required List<BreedingAlert> breedingAlerts,
+  }) {
     final cards = <Widget>[];
 
     bool matchesSearch(String name, String tag, String note) {
       if (_searchQuery.isEmpty) return true;
-      return name.toLowerCase().contains(_searchQuery) ||
-          tag.toLowerCase().contains(_searchQuery) ||
-          note.toLowerCase().contains(_searchQuery);
+      final q = _searchQuery.toLowerCase();
+      return name.toLowerCase().contains(q) ||
+          tag.toLowerCase().contains(q) ||
+          note.toLowerCase().contains(q);
     }
 
-    // 1. Critical Cattle: Ganga
-    if ((_selectedFilter == HerdFilter.all || _selectedFilter == HerdFilter.critical) &&
-        matchesSearch('Ganga (गाय)', 'MIL-0842', 'Hyperpyrexia Mastitis Downer')) {
-      cards.add(
-        _buildCriticalCattleCard(
-          context: context,
-          name: 'गंगा (Ganga) - गाय',
-          tagId: 'MIL-0842',
-          urgencyBadge: '🔴 CRITICAL ICU (5 संकट एक साथ)',
-          vitalsBadges: [
-            '🌡️ बुखार 40.8°C (अति-तीव्र)',
-            '🥛 एक्यूट थनैला (SCC 1.8M)',
-            '🦽 डाउनर (0 कदम 2h)',
-            '⏳ जुगाली बंद (5h स्टैसिस)',
-            '🛑 गर्भाधान स्थगित (21 दिन)',
-          ],
-          aiDiagnosis:
-              'AI क्लिनिकल सिंथेसिस: एंडोटॉक्सिक कोलॉर्म मैस्टाइटिस व हाइपरपाइरेक्सिया। तुरंत वेन में एंटीबायोटिक, फ्लुइड व एनएसएआईडी आवश्यक।',
-          onTapIcu: () => context.push('/health/emergency-crisis'),
-          onTapSosVet: () async {
-            final uri = Uri.parse('tel:+919876543210');
-            if (await canLaunchUrl(uri)) await launchUrl(uri);
-          },
-        ),
-      );
-      cards.add(const SizedBox(height: 12));
+    // 1. Critical Cattle (Scoped to farmer's own cattle)
+    if (_selectedFilter == HerdFilter.all || _selectedFilter == HerdFilter.critical) {
+      for (final cattle in allCattle) {
+        final cattleCrises = crises.where((cr) => cr.cattleId == cattle.id && cr.isCritical).toList();
+        if (cattleCrises.isEmpty) continue;
+        final crisis = cattleCrises.first;
+        final vitalsBadges = crisis.alerts.map((a) {
+          final valStr = a.currentValue != null ? ' (${a.currentValue})' : '';
+          return '${a.alertType}$valStr: ${a.message}';
+        }).toList();
+
+        if (!matchesSearch(cattle.name, cattle.tagId, crisis.alerts.map((a) => a.message).join(' '))) {
+          continue;
+        }
+
+        cards.add(
+          _buildCriticalCattleCard(
+            context: context,
+            name: '${cattle.name} (${cattle.breed})',
+            tagId: cattle.tagId,
+            urgencyBadge: '🔴 CRITICAL ICU (${crisis.alerts.length} संकट अलर्ट)',
+            vitalsBadges: vitalsBadges.isNotEmpty ? vitalsBadges : ['🚨 आपातकालीन क्लिनिकल अलर्ट'],
+            aiDiagnosis: crisis.alerts.isNotEmpty
+                ? 'AI क्लिनिकल सिंथेसिस: ${crisis.alerts.map((a) => a.message).join(' • ')}'
+                : 'AI क्लिनिकल सिंथेसिस: पशु के वाइटल्स असामान्य हैं, तत्काल पशुचिकित्सक जांच की आवश्यकता है।',
+            onTapIcu: () => context.push('/health/emergency-crisis?cattleId=${cattle.id}'),
+            onTapSosVet: () async {
+              final uri = Uri.parse('tel:+919876543210');
+              if (await canLaunchUrl(uri)) await launchUrl(uri);
+            },
+          ),
+        );
+        cards.add(const SizedBox(height: 12));
+      }
     }
 
-    // 2. Critical Cattle: Radha
-    if ((_selectedFilter == HerdFilter.all || _selectedFilter == HerdFilter.critical) &&
-        matchesSearch('Radha (गाय)', 'MIL-0914', 'Ketosis Downer Stasis')) {
-      cards.add(
-        _buildCriticalCattleCard(
-          context: context,
-          name: 'राधा (Radha) - गाय',
-          tagId: 'MIL-0914',
-          urgencyBadge: '🔴 CRITICAL ICU (गंभीर कीटोसिस व डाउनर)',
-          vitalsBadges: [
-            '🦽 0 हलचल 75 मिनट',
-            '📉 जुगाली -82% गिरावट',
-            '🌡️ शारीरिक तापमान 39.9°C',
-            '🥛 दूध उत्पादन -60%',
-          ],
-          aiDiagnosis:
-              'AI क्लिनिकल सिंथेसिस: टाइप-1 क्लिनिकल कीटोसिस व ऊर्जा संकट। ओरल प्रोपलीन ग्लाइकोल व 40% डेक्सट्रोज़ ड्रिप की आवश्यकता।',
-          onTapIcu: () => context.push('/health/emergency-crisis'),
-          onTapSosVet: () async {
-            final uri = Uri.parse('tel:+919876543210');
-            if (await canLaunchUrl(uri)) await launchUrl(uri);
-          },
-        ),
-      );
-      cards.add(const SizedBox(height: 12));
+    // 2. Watchlist Cattle (Non-critical crises or breeding alerts)
+    if (_selectedFilter == HerdFilter.all || _selectedFilter == HerdFilter.watchlist) {
+      for (final cattle in allCattle) {
+        final nonCritical = crises.where((cr) => cr.cattleId == cattle.id && !cr.isCritical).toList();
+        final bAlerts = breedingAlerts.where((b) => b.cattleId == cattle.id).toList();
+
+        if (nonCritical.isEmpty && bAlerts.isEmpty) continue;
+
+        if (bAlerts.isNotEmpty) {
+          final b = bAlerts.first;
+          if (matchesSearch(cattle.name, cattle.tagId, 'हीट गर्भाधान breeding heat')) {
+            cards.add(
+              _buildWatchlistCattleCard(
+                context: context,
+                name: '${cattle.name} (${cattle.breed})',
+                tagId: cattle.tagId,
+                statusBadge: '🔥 गर्भाधान निगरानी (Day ${b.daysSinceAi})',
+                badgeColor: Colors.amber.shade900,
+                vitalsBadges: [
+                  'AI गर्भाधान दिनांक: ${b.inseminatedOn}',
+                  'दिन पूर्ण: ${b.daysSinceAi} दिन',
+                  'हीट / रिपीट जांच आवश्यक',
+                ],
+                actionText: 'प्रजनन रिकॉर्ड देखें',
+                onTapAction: () => context.push('/breeding'),
+              ),
+            );
+            cards.add(const SizedBox(height: 12));
+          }
+        }
+
+        if (nonCritical.isNotEmpty) {
+          final nc = nonCritical.first;
+          if (matchesSearch(cattle.name, cattle.tagId, nc.alerts.map((a) => a.message).join(' '))) {
+            cards.add(
+              _buildWatchlistCattleCard(
+                context: context,
+                name: '${cattle.name} (${cattle.breed})',
+                tagId: cattle.tagId,
+                statusBadge: '🟡 स्वास्थ्य वॉचलिस्ट पूर्व चेतावनी',
+                badgeColor: Colors.orange.shade800,
+                vitalsBadges: nc.alerts.map((a) => '${a.alertType}: ${a.message}').toList(),
+                actionText: 'हेल्थ रिकॉर्ड व उपचार देखें',
+                onTapAction: () => context.push('/health/add-record'),
+              ),
+            );
+            cards.add(const SizedBox(height: 12));
+          }
+        }
+      }
     }
 
-    // 3. Watchlist Cattle: Murrah Buffalo
-    if ((_selectedFilter == HerdFilter.all || _selectedFilter == HerdFilter.watchlist) &&
-        matchesSearch('Murrah (भैंस)', 'MIL-1024', 'Heat Detection Breeding')) {
-      cards.add(
-        _buildWatchlistCattleCard(
-          context: context,
-          name: 'मुर्रा (Murrah) - भैंस',
-          tagId: 'MIL-1024',
-          statusBadge: '🔥 चरम गर्भाधान स्वर्णिम समय (Peak Heat)',
-          badgeColor: Colors.amber.shade900,
-          vitalsBadges: [
-            '⏰ अगले 4 घंटे में सीमेन गर्भाधान अनिवार्य',
-            '📈 सक्रियता +180% (890 कदम)',
-            '🥛 हल्का दूध ड्रॉप (-1.2L)',
-            '❤️ हीट स्कोर 94/100',
-          ],
-          actionText: 'AI गर्भाधान टाइमर खोलें',
-          onTapAction: () => context.push('/breeding/heat-detection'),
-        ),
-      );
-      cards.add(const SizedBox(height: 12));
-    }
+    // 3. Healthy Herd Block
+    if (_selectedFilter == HerdFilter.all || _selectedFilter == HerdFilter.healthy) {
+      final healthyCattle = allCattle.where((c) =>
+          !crises.any((cr) => cr.cattleId == c.id) &&
+          !breedingAlerts.any((b) => b.cattleId == c.id)).toList();
 
-    // 4. Watchlist Cattle: Lakshmi
-    if ((_selectedFilter == HerdFilter.all || _selectedFilter == HerdFilter.watchlist) &&
-        matchesSearch('Lakshmi (गाय)', 'MIL-0721', 'Subclinical Mastitis')) {
-      cards.add(
-        _buildWatchlistCattleCard(
-          context: context,
-          name: 'लक्ष्मी (Lakshmi) - गाय',
-          tagId: 'MIL-0721',
-          statusBadge: '🟡 सब-क्लिनिकल थनैला पूर्व चेतावनी',
-          badgeColor: Colors.orange.shade800,
-          vitalsBadges: [
-            '⚠️ दूध सोमैटिक सेल काउंट (SCC) प्रारंभिक वृद्धि',
-            '🥛 बायाँ पिछला थन हल्का कठोर',
-            '🌡️ तापमान 38.9°C (हल्का बढ़ा)',
-          ],
-          actionText: 'देसी हर्बल लेप व उपचार देखें',
-          onTapAction: () => context.push('/health/diseases'),
-        ),
-      );
-      cards.add(const SizedBox(height: 12));
-    }
-
-    // 5. Watchlist Cattle: Shama
-    if ((_selectedFilter == HerdFilter.all || _selectedFilter == HerdFilter.watchlist) &&
-        matchesSearch('Shama (गाय)', 'MIL-0512', 'Acidosis SARA Feed')) {
-      cards.add(
-        _buildWatchlistCattleCard(
-          context: context,
-          name: 'श्यामा (Shama) - गाय',
-          tagId: 'MIL-0512',
-          statusBadge: '🟡 चारा सेवन ड्रॉप (SARA एसिडोसिस निगरानी)',
-          badgeColor: Colors.orange.shade800,
-          vitalsBadges: [
-            '📉 चारा सेवन 25% कम',
-            '⏳ दैनिक जुगाली 280 मिनट (नॉर्मल 480m)',
-            '🧪 रूमेन बफरिंग पाउडर आवश्यक',
-          ],
-          actionText: 'हेल्थ रिकॉर्ड विवरण देखें',
-          onTapAction: () => context.push('/health/add-record'),
-        ),
-      );
-      cards.add(const SizedBox(height: 12));
-    }
-
-    // 6. Healthy Herd Block (94 Cattle)
-    if ((_selectedFilter == HerdFilter.all || _selectedFilter == HerdFilter.healthy) &&
-        (_searchQuery.isEmpty || 'healthy स्वस्थ herd झुंड 94'.contains(_searchQuery))) {
-      cards.add(_buildHealthyHerdBlock(context));
+      if (healthyCattle.isNotEmpty) {
+        final matchingHealthy = healthyCattle.where((c) =>
+            matchesSearch(c.name, c.tagId, 'healthy स्वस्थ herd झुंड')).toList();
+        if (matchingHealthy.isNotEmpty) {
+          cards.add(_buildHealthyHerdBlock(context, matchingHealthy));
+        }
+      }
     }
 
     if (cards.isEmpty) {
@@ -684,7 +838,7 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
           child: Padding(
             padding: EdgeInsets.symmetric(vertical: 30),
             child: Text(
-              'कोई पशु मेल नहीं खाया (No matching cattle found)',
+              'इस फ़िल्टर में कोई पशु नहीं है (No matching cattle in this view)',
               style: TextStyle(color: Colors.grey, fontSize: 13),
             ),
           ),
@@ -975,7 +1129,7 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
     );
   }
 
-  Widget _buildHealthyHerdBlock(BuildContext context) {
+  Widget _buildHealthyHerdBlock(BuildContext context, List<Cattle> healthyCattle) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xfff0fdf4),
@@ -997,20 +1151,20 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
                 child: const Icon(Icons.check_circle, color: Color(0xff16a34a), size: 24),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '94 पशु पूरी तरह स्वस्थ और सामान्य हैं',
-                      style: TextStyle(
+                      '${healthyCattle.length} पशु पूरी तरह स्वस्थ और सामान्य हैं',
+                      style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                         color: Color(0xff14532d),
                       ),
                     ),
-                    SizedBox(height: 2),
-                    Text(
+                    const SizedBox(height: 2),
+                    const Text(
                       'सामान्य चारा, जुगाली व दुग्ध उत्पादन • शून्य क्राइसिस अलर्ट',
                       style: TextStyle(fontSize: 11, color: Color(0xff166534)),
                     ),
@@ -1038,7 +1192,7 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'स्वस्थ पशु टैग सूचकांक (Tags 0001 to 0094):',
+            'स्वस्थ पशु (${healthyCattle.length}):',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.bold,
@@ -1049,25 +1203,17 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
           Wrap(
             spacing: 6,
             runSpacing: 6,
-            children: [
-              '#MIL-0001',
-              '#MIL-0002',
-              '#MIL-0003',
-              '#MIL-0004',
-              '#MIL-0005',
-              '#MIL-0006',
-              '#MIL-0007',
-              '... +87 और स्वस्थ पशु',
-            ]
+            children: healthyCattle
+                .take(12)
                 .map(
-                  (t) => Container(
+                  (c) => Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       color: const Color(0xffdcfce7),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      t,
+                      '#${c.tagId} (${c.name})',
                       style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
@@ -1076,7 +1222,28 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
                     ),
                   ),
                 )
-                .toList(),
+                .toList()
+              ..addAll(
+                healthyCattle.length > 12
+                    ? [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xffdcfce7),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '... +${healthyCattle.length - 12} और स्वस्थ पशु',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xff15803d),
+                            ),
+                          ),
+                        ),
+                      ]
+                    : [],
+              ),
           ),
         ],
       ),

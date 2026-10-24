@@ -210,15 +210,10 @@ final farmerCattleListProvider =
       final items = (body['data'] as List<dynamic>)
           .map((e) => CattleRef.fromJson(e as Map<String, dynamic>))
           .toList();
-      if (items.isNotEmpty) return items;
+      return items;
     }
   } catch (_) {}
-  return const [
-    CattleRef(id: 1, name: 'Ganga (गाय)', tagId: 'MIL-0842'),
-    CattleRef(id: 2, name: 'Gauri (गाय)', tagId: 'MIL-0911'),
-    CattleRef(id: 3, name: 'Murrah (भैंस)', tagId: 'MIL-1024'),
-    CattleRef(id: 4, name: 'Radha (गाय)', tagId: 'MIL-0765'),
-  ];
+  return const <CattleRef>[];
 });
 
 // ---------------------------------------------------------------------------

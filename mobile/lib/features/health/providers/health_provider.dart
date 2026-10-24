@@ -25,90 +25,13 @@ final cattleListProvider =
       final items = (body['data'] as List<dynamic>)
           .map((e) => CattleRef.fromJson(e as Map<String, dynamic>))
           .toList();
-      if (items.isNotEmpty) return items;
+      return items;
     }
   } catch (_) {
-    // Return robust offline / unauthenticated demo fallback
+    // Return empty list on failure or unauthenticated
   }
-  return const [
-    CattleRef(id: 1, name: 'Ganga (गाय)', tagId: 'MIL-0842'),
-    CattleRef(id: 2, name: 'Gauri (गाय)', tagId: 'MIL-0911'),
-    CattleRef(id: 3, name: 'Murrah (भैंस)', tagId: 'MIL-1024'),
-    CattleRef(id: 4, name: 'Radha (गाय)', tagId: 'MIL-0765'),
-  ];
+  return const <CattleRef>[];
 });
-
-// ---------------------------------------------------------------------------
-// Demo data fallbacks for offline and unauthenticated states.
-// ---------------------------------------------------------------------------
-final _demoHealthRecords = [
-  HealthRecord(
-    id: 101,
-    cattleId: 1,
-    cattleName: 'Ganga (गाय)',
-    cattleTagId: 'MIL-0842',
-    date: DateTime.now().subtract(const Duration(days: 3)),
-    type: HealthRecordType.checkup,
-    symptoms: const ['Routine inspection', 'Normal rumination'],
-    diagnosis: 'Healthy and active',
-    treatment: 'Multivitamin supplement administered',
-  ),
-  HealthRecord(
-    id: 102,
-    cattleId: 2,
-    cattleName: 'Gauri (गाय)',
-    cattleTagId: 'MIL-0911',
-    date: DateTime.now().subtract(const Duration(days: 14)),
-    type: HealthRecordType.treatment,
-    symptoms: const ['Mild fever', 'Reduced feed intake'],
-    diagnosis: 'Mild indigestion / Bloat',
-    treatment: 'Digestive tonic + carminative mixture given. Fully recovered.',
-  ),
-  HealthRecord(
-    id: 103,
-    cattleId: 3,
-    cattleName: 'Murrah (भैंस)',
-    cattleTagId: 'MIL-1024',
-    date: DateTime.now().subtract(const Duration(days: 28)),
-    type: HealthRecordType.checkup,
-    symptoms: const ['Post-calving recovery check'],
-    diagnosis: 'Normal uterine involution',
-    treatment: 'Calcium & mineral bolus prescribed',
-  ),
-];
-
-final _demoVaccinations = [
-  Vaccination(
-    id: 201,
-    cattleId: 1,
-    cattleName: 'Ganga (गाय)',
-    cattleTagId: 'MIL-0842',
-    vaccineName: 'FMD (खुरपका-मुँहपका)',
-    dateGiven: DateTime.now().subtract(const Duration(days: 90)),
-    nextDue: DateTime.now().add(const Duration(days: 20)),
-    administeredBy: 'Dr. Rajesh Sharma',
-  ),
-  Vaccination(
-    id: 202,
-    cattleId: 2,
-    cattleName: 'Gauri (गाय)',
-    cattleTagId: 'MIL-0911',
-    vaccineName: 'HS & BQ Combined (गलघोंटू-लंगड़ा)',
-    dateGiven: DateTime.now().subtract(const Duration(days: 120)),
-    nextDue: DateTime.now().add(const Duration(days: 15)),
-    administeredBy: 'Government Vet Hospital',
-  ),
-  Vaccination(
-    id: 203,
-    cattleId: 3,
-    cattleName: 'Murrah (भैंस)',
-    cattleTagId: 'MIL-1024',
-    vaccineName: 'Brucellosis (ब्रूसीलोसिस)',
-    dateGiven: DateTime.now().subtract(const Duration(days: 180)),
-    nextDue: DateTime.now().add(const Duration(days: 45)),
-    administeredBy: 'Dr. Sunita Patil',
-  ),
-];
 
 // ---------------------------------------------------------------------------
 // Health records — per cattle (pass cattleId as family param).
@@ -126,13 +49,10 @@ final healthRecordsProvider = FutureProvider.autoDispose
       final items = (body['data'] as List<dynamic>)
           .map((e) => HealthRecord.fromJson(e as Map<String, dynamic>))
           .toList();
-      if (items.isNotEmpty) return items;
+      return items;
     }
   } catch (_) {}
-  if (cattleId != null) {
-    return _demoHealthRecords.where((r) => r.cattleId == cattleId).toList();
-  }
-  return _demoHealthRecords;
+  return const <HealthRecord>[];
 });
 
 // ---------------------------------------------------------------------------
@@ -170,13 +90,10 @@ final vaccinationsProvider = FutureProvider.autoDispose
       final items = (body['data'] as List<dynamic>)
           .map((e) => Vaccination.fromJson(e as Map<String, dynamic>))
           .toList();
-      if (items.isNotEmpty) return items;
+      return items;
     }
   } catch (_) {}
-  if (cattleId != null) {
-    return _demoVaccinations.where((v) => v.cattleId == cattleId).toList();
-  }
-  return _demoVaccinations;
+  return const <Vaccination>[];
 });
 
 // ---------------------------------------------------------------------------
@@ -193,10 +110,10 @@ final upcomingVaccinationsProvider =
       final items = (body['data'] as List<dynamic>)
           .map((e) => Vaccination.fromJson(e as Map<String, dynamic>))
           .toList();
-      if (items.isNotEmpty) return items;
+      return items;
     }
   } catch (_) {}
-  return _demoVaccinations.where((v) => v.isUpcoming || v.isOverdue).toList();
+  return const <Vaccination>[];
 });
 
 // ---------------------------------------------------------------------------

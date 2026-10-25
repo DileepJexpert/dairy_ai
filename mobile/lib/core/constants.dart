@@ -16,9 +16,22 @@ class AppConstants {
   static const String _envAuthApiOrigin =
       String.fromEnvironment('AUTH_API_BASE_URL', defaultValue: '');
 
+  static bool get isDevEnv {
+    if (!kIsWeb) return false;
+    try {
+      final qp = Uri.base.queryParameters['env']?.toLowerCase();
+      if (qp == 'dev') return true;
+      if (Uri.base.fragment.contains('env=dev')) return true;
+    } catch (_) {}
+    return false;
+  }
+
   static String get authApiOrigin {
     if (_envAuthApiOrigin.isNotEmpty) return _envAuthApiOrigin;
     if (kIsWeb) {
+      if (isDevEnv) {
+        return 'https://milterra-api-dev.todileepmaurya.workers.dev';
+      }
       final host = Uri.base.host.toLowerCase();
       if (host.contains('milterrafoods.com') ||
           host.contains('katixo.com') ||
@@ -36,6 +49,9 @@ class AppConstants {
   static String get apiBaseUrl {
     if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
     if (kIsWeb) {
+      if (isDevEnv) {
+        return 'https://milterra-api-dev.todileepmaurya.workers.dev';
+      }
       final host = Uri.base.host.toLowerCase();
       if (host.contains('milterrafoods.com') ||
           host.contains('katixo.com') ||

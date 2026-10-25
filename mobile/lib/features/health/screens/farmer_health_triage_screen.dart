@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:dairy_ai/features/feed/providers/feed_provider.dart' show cattleListProvider;
 
 class FarmerHealthTriageScreen extends ConsumerStatefulWidget {
   const FarmerHealthTriageScreen({super.key});
@@ -14,33 +15,19 @@ class FarmerHealthTriageScreen extends ConsumerStatefulWidget {
 class _FarmerHealthTriageScreenState
     extends ConsumerState<FarmerHealthTriageScreen> {
   String _selectedAnimalType = 'cow'; // 'cow' or 'buffalo'
-  final Set<String> _selectedSymptoms = {'swelling', 'udder_clot'};
-  String? _selectedCattleTag = 'Ganga (#0842)';
-  bool _hasAnalyzed = true;
+  final Set<String> _selectedSymptoms = <String>{};
+  String? _selectedCattleTag;
+  bool _hasAnalyzed = false;
 
   // Active diagnosis display
-  String _diagnosedCondition = 'तीव्र थनैला रोग (Acute Bovine Mastitis)';
-  String _severityLevel = 'high'; // 'low', 'medium', 'high', 'emergency'
-  double _confidence = 0.92;
-  String _clinicalSummary =
-      'थन में सूजन व दूध में छीछड़े आना जीवाणु संक्रमण (Bacterial Mastitis) का स्पष्ट संकेत है। तत्काल देसी लेप लगाएं व दूध पूरी तरह निकालें।';
-
-  List<String> _firstAidIngredients = [
-    'ताजा घृतकुमारी (Aloe Vera) - 200 ग्राम (गूदा)',
-    'शुद्ध हल्दी पाउडर (Turmeric) - 50 ग्राम',
-    'बुझा हुआ चूना (Slaked Lime/Chuna) - 10-15 ग्राम',
-  ];
-
-  String _firstAidPreparation =
-      'घृतकुमारी, हल्दी और चूने को सिलबट्टे या मिक्सी में पीसकर गाढ़ा लाल/नारंगी लेप बना लें। आवश्यकतानुसार थोड़ा पानी मिलाएँ।';
-
-  String _firstAidApplication =
-      '1. पहले संक्रमित थन से सारा खराब दूध अलग बर्तन में दुहकर नष्ट कर दें (जमीन पर न गिराएँ)।\n'
-      '2. थन को गुनगुने पानी से धोकर सुखाएँ।\n'
-      '3. तैयार देसी लेप को पूरे थन व बाड़े पर दिन में 3 से 4 बार अच्छी तरह लगाएँ। लगातार 3-5 दिन तक दोहराएँ।';
-
-  String _vitalPrecaution =
-      'सावधानी: इस गाय को सबसे अंत में दुहें ताकि अन्य स्वस्थ पशुओं में संक्रमण न फैले। यदि 24 घंटे में बुखार या सूजन कम न हो तो तुरंत पशु चिकित्सक को बुलाएँ।';
+  String _diagnosedCondition = '';
+  String _severityLevel = 'low'; // 'low', 'medium', 'high', 'emergency'
+  double _confidence = 0.0;
+  String _clinicalSummary = '';
+  List<String> _firstAidIngredients = [];
+  String _firstAidPreparation = '';
+  String _firstAidApplication = '';
+  String _vitalPrecaution = '';
 
   final List<Map<String, dynamic>> _quickDiseaseCards = [
     {
@@ -192,6 +179,15 @@ class _FarmerHealthTriageScreenState
   }
 
   void _analyzeSymptoms() {
+    if (_selectedSymptoms.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('कृपया जांच के लिए कम से कम 1 लक्षण चुनें (Select at least 1 symptom)'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
     setState(() {
       _hasAnalyzed = true;
       if (_selectedSymptoms.contains('bloat') ||
@@ -570,28 +566,38 @@ $_vitalPrecaution
                       color: const Color(0xfff1f5f9),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedCattleTag,
-                        isExpanded: true,
-                        items: const [
-                          DropdownMenuItem(
-                              value: 'Ganga (#0842)',
-                              child: Text('Ganga (#0842)')),
-                          DropdownMenuItem(
-                              value: 'Gauri (#0911)',
-                              child: Text('Gauri (#0911)')),
-                          DropdownMenuItem(
-                              value: 'Murrah (#1024)',
-                              child: Text('Murrah (#1024)')),
-                          DropdownMenuItem(
-                              value: 'Guest Animal',
-                              child: Text('अन्य पशु (Guest)')),
-                        ],
-                        onChanged: (v) {
-                          if (v != null) setState(() => _selectedCattleTag = v);
-                        },
-                      ),
+                    child: Builder(
+                      builder: (context) {
+                        final cattleAsync = ref.watch(cattleListProvider);
+                        final cattleList = cattleAsync.value ?? [];
+                        final items = <DropdownMenuItem<String>>[
+                          ...cattleList.map((c) => DropdownMenuItem(
+                                value: '${c.name} (${c.tagId})',
+                                child: Text('${c.name} (${c.tagId})'),
+                              )),
+                          const DropdownMenuItem(
+                            value: 'Guest Animal',
+                            child: Text('अन्य / नया पशु (Guest Animal)'),
+                          ),
+                        ];
+                        final currentValue = (_selectedCattleTag != null &&
+                                items.any((it) => it.value == _selectedCattleTag))
+                            ? _selectedCattleTag
+                            : (cattleList.isNotEmpty
+                                ? '${cattleList.first.name} (${cattleList.first.tagId})'
+                                : 'Guest Animal');
+
+                        return DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: currentValue,
+                            isExpanded: true,
+                            items: items,
+                            onChanged: (v) {
+                              if (v != null) setState(() => _selectedCattleTag = v);
+                            },
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),

@@ -820,7 +820,7 @@ class _MilterraWalletScreenState extends ConsumerState<MilterraWalletScreen> {
     final wallet = ref.read(milterraWalletProvider);
     final available = wallet.milkPayoutBalance;
     final upiController = TextEditingController(
-      text: wallet.upiId.isNotEmpty ? wallet.upiId : 'ramesh@okhdfcbank',
+      text: wallet.upiId,
     );
     final amountController = TextEditingController(
       text: available > 0

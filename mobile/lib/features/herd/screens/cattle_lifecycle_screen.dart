@@ -160,7 +160,7 @@ class _CattleLifecycleScreenState extends State<CattleLifecycleScreen> {
                 Row(
                   children: [
                     Text(
-                      'Gauri · #${widget.cattleId}',
+                      'Cattle #${widget.cattleId}',
                       style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: storeGreen),
                     ),
                     const SizedBox(width: 10),
@@ -277,8 +277,8 @@ class _CattleLifecycleScreenState extends State<CattleLifecycleScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
-            '💡 Milterra Advisory: Gauri is in late-stage peak lactation. Maintain high bypass protein pellets (20%) and liquid calcium to prevent negative energy balance.',
+          Text(
+            '💡 Milterra Advisory: Cattle #${widget.cattleId} is in healthy lactation. Maintain high bypass protein pellets (20%) and liquid calcium to prevent negative energy balance.',
             style: TextStyle(fontSize: 12, color: storeGreen, height: 1.4),
           ),
         ],
@@ -524,11 +524,11 @@ class _CattleLifecycleScreenState extends State<CattleLifecycleScreen> {
             child: const Icon(Icons.medical_services_outlined, color: storeAmber, size: 26),
           ),
           const SizedBox(width: 16),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Need an immediate Vet Checkup for Gauri?',
+                Text('Need an immediate Vet Checkup for #${widget.cattleId}?',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
                 SizedBox(height: 3),
                 Text('Consult verified bovine veterinarians via video call or book an on-farm diagnostic visit.',

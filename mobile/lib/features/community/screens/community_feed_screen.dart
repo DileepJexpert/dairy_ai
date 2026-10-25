@@ -231,19 +231,21 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                     OutlinedButton(
                       onPressed: () async {
                         Navigator.pop(ctx);
-                        await ref.read(authProvider.notifier).loginWithPassword('9876510001', 'Password@123');
+                        await ref.read(authProvider.notifier).loginWithPassword('9839769808', 'Password@123');
                         if (context.mounted) _showCreatePostSheet(context);
                       },
-                      child: const Text('🌾 Ramesh Patel'),
+                      child: const Text('👤 Dileep Kumar'),
                     ),
-                    OutlinedButton(
-                      onPressed: () async {
-                        Navigator.pop(ctx);
-                        await ref.read(authProvider.notifier).loginWithPassword('9876510002', 'Password@123');
-                        if (context.mounted) _showCreatePostSheet(context);
-                      },
-                      child: const Text('🐃 Suresh Yadav'),
-                    ),
+                    if (AppConstants.isDevEnv) ...[
+                      OutlinedButton(
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          await ref.read(authProvider.notifier).loginWithPassword('9876510001', 'Password@123');
+                          if (context.mounted) _showCreatePostSheet(context);
+                        },
+                        child: const Text('🌾 Ramesh (Dev)'),
+                      ),
+                    ],
                     OutlinedButton(
                       onPressed: () async {
                         Navigator.pop(ctx);

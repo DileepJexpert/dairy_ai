@@ -22,41 +22,7 @@ final heatAlertsProvider = FutureProvider<List<HeatAlert>>((ref) async {
     }
   } catch (_) {}
 
-  // High-fidelity fallback
-  return [
-    HeatAlert(
-      cattleId: 'MIL-0842',
-      cattleName: 'Ganga (गंगा)',
-      breed: 'Gir Cow (गीर गाय)',
-      lactationStage: 'Lactation 2 (Day 68 post-calving)',
-      heatStatus: 'HEAT_DETECTED',
-      confidencePct: 96.5,
-      activitySpikePct: 320,
-      ruminationDropPct: 28,
-      hoursRemaining: 10.5,
-      ruleApplied: 'AM-PM Rule: Heat observed early morning -> Inseminate this evening between 5:00 PM and 9:00 PM',
-      sires: [
-        SireRecommendation(
-          sireId: 'BAIF-GIR-SHAMBHU',
-          name: 'Shambhu (शंभू)',
-          organization: 'BAIF / NDDB Certified',
-          semenType: 'Sexed Semen (90% Female Calf Guarantee)',
-          fatPotentialPct: 5.4,
-          strawPriceInr: 450,
-          inStock: true,
-        ),
-        SireRecommendation(
-          sireId: 'NDDB-GIR-VEER',
-          name: 'Veer (वीर)',
-          organization: 'NDDB Progeny Tested',
-          semenType: 'Conventional High-Yield (+850L)',
-          fatPotentialPct: 4.9,
-          strawPriceInr: 200,
-          inStock: true,
-        ),
-      ],
-    ),
-  ];
+  return const <HeatAlert>[];
 });
 
 // ---------------------------------------------------------------------------
@@ -101,17 +67,17 @@ final gobardhanDataProvider = FutureProvider<GobardhanData>((ref) async {
     }
   } catch (_) {}
 
-  return GobardhanData(
-    dailyDungKg: 72.0,
-    monthlyBiogasM3: 108.0,
-    monthlyLpgSavingsInr: 2520,
-    bioSlurryLitres: 2160,
-    bioSlurryValueInr: 3240,
-    co2eMitigationTons: 4.2,
-    carbonCreditsEarned: 4.2,
-    carbonRevenueInr: 3780,
-    withdrawableBalanceInr: 3780,
-    totalMonthlyCircularIncomeInr: 9540,
+  return const GobardhanData(
+    dailyDungKg: 0.0,
+    monthlyBiogasM3: 0.0,
+    monthlyLpgSavingsInr: 0,
+    bioSlurryLitres: 0,
+    bioSlurryValueInr: 0,
+    co2eMitigationTons: 0.0,
+    carbonCreditsEarned: 0.0,
+    carbonRevenueInr: 0,
+    withdrawableBalanceInr: 0,
+    totalMonthlyCircularIncomeInr: 0,
   );
 });
 

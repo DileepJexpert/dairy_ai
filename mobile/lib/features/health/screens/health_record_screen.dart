@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dairy_ai/core/extensions.dart';
@@ -100,26 +101,45 @@ class _HealthRecordScreenState extends ConsumerState<HealthRecordScreen> {
             const SizedBox(height: 8),
             cattleAsync.when(
               loading: () => const LinearProgressIndicator(),
-              error: (_, __) => DropdownButtonFormField<int>(
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  hintText: 'Choose cattle',
-                  prefixIcon: const Icon(Icons.pets),
+              error: (_, __) => Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey.shade300),
                 ),
-                value: _selectedCattleId,
-                items: const [
-                  DropdownMenuItem(value: 1, child: Text('Ganga (गाय) (MIL-0842)')),
-                  DropdownMenuItem(value: 2, child: Text('Gauri (गाय) (MIL-0911)')),
-                  DropdownMenuItem(value: 3, child: Text('Murrah (भैंस) (MIL-1024)')),
-                  DropdownMenuItem(value: 4, child: Text('Radha (गाय) (MIL-0765)')),
-                ],
-                onChanged: (val) {
-                  setState(() => _selectedCattleId = val);
-                },
+                child: const Text(
+                  'पशु सूची लोड करने में असमर्थ',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
               ),
               data: (cattleList) {
+                if (cattleList.isEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.amber.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline, color: Colors.amber, size: 20),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'कोई पशु पंजीकृत नहीं है। स्वास्थ्य रिकॉर्ड के लिए पहले पशु जोड़ें।',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => context.push('/herd/add'),
+                          child: const Text('पशु जोड़ें +'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
                 return DropdownButtonFormField<int>(
                   decoration: InputDecoration(
                     border: OutlineInputBorder(

@@ -17,7 +17,7 @@ class _VoiceEntryDialogState extends State<VoiceEntryDialog>
   String _recognizedText = 'बोलिए... (Listening...)';
   double? _parsedQuantity;
   double? _parsedFat;
-  String _parsedCattle = 'Ganga (गंगा)';
+  String? _parsedCattle;
   String _parsedShift = 'सुबह (Morning)';
 
   final List<String> _voicePresets = [
@@ -35,12 +35,7 @@ class _VoiceEntryDialogState extends State<VoiceEntryDialog>
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
 
-    // Simulate speech recognition listening after 1.5s
-    Future.delayed(const Duration(milliseconds: 1400), () {
-      if (mounted) {
-        _simulateRecognized('गंगा गाय ने सुबह 8.5 लीटर दूध दिया, फैट 6.8 है');
-      }
-    });
+    // Ready to listen for speech input
   }
 
   void _simulateRecognized(String text) {
@@ -66,8 +61,8 @@ class _VoiceEntryDialogState extends State<VoiceEntryDialog>
     showDialog(
       context: context,
       builder: (_) => ThermalSlipDialog(
-        farmerName: widget.farmerName ?? 'Suresh Kumar',
-        tagId: _parsedCattle,
+        farmerName: widget.farmerName ?? 'Dileep Kumar',
+        tagId: _parsedCattle ?? 'Unassigned',
         shift: 'MORNING',
         quantityLitres: _parsedQuantity ?? 8.5,
         fatPct: _parsedFat ?? 6.8,
@@ -179,7 +174,7 @@ class _VoiceEntryDialogState extends State<VoiceEntryDialog>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _badge('पशु', _parsedCattle),
+                      _badge('पशु', _parsedCattle ?? 'पशु चुनें'),
                       _badge('मात्रा', '${_parsedQuantity!} L'),
                       _badge('फैट', '${_parsedFat!}%'),
                       _badge('समय', _parsedShift),

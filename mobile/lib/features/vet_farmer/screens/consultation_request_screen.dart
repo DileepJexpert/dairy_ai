@@ -1,13 +1,10 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:dairy_ai/core/constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dairy_ai/core/extensions.dart';
 import 'package:dairy_ai/features/health/models/health_models.dart';
 import 'package:dairy_ai/features/vet_farmer/models/vet_farmer_models.dart';
 import 'package:dairy_ai/features/vet_farmer/providers/vet_farmer_provider.dart';
 import 'package:dairy_ai/features/vet_farmer/screens/consultation_chat_screen.dart';
-import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 
 /// Screen where a farmer creates a consultation request:
 /// select cattle, describe symptoms, optionally attach a photo,
@@ -109,43 +106,6 @@ class _ConsultationRequestScreenState
                       ],
                     ),
                     const SizedBox(height: 6),
-                    if (kDebugMode || AppConstants.flowSimulation) ...[
-                    const Text(
-                      'Choose a demo profile or type your cattle tag below:',
-                      style: TextStyle(fontSize: 12, color: Color(0xff1e40af)),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () async {
-                            await ref.read(authProvider.notifier).loginWithPassword('9876510001', 'Password@123');
-                            ref.invalidate(farmerCattleListProvider);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xff047857),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          ),
-                          child: const Text('🌾 Ramesh Patel (Gir) >', style: TextStyle(fontSize: 11)),
-                        ),
-                        ElevatedButton(
-                          onPressed: () async {
-                            await ref.read(authProvider.notifier).loginWithPassword('9876510002', 'Password@123');
-                            ref.invalidate(farmerCattleListProvider);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xff1d4ed8),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          ),
-                          child: const Text('🐃 Suresh Yadav (Murrah) >', style: TextStyle(fontSize: 11)),
-                        ),
-                      ],
-                    ),
-                    ],
                     const SizedBox(height: 12),
                     TextFormField(
                       decoration: const InputDecoration(

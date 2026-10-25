@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../cart/providers/cart_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
+import '../providers/vet_farmer_provider.dart' show farmerCattleListProvider;
 
 class TeleVetBookingScreen extends ConsumerStatefulWidget {
   const TeleVetBookingScreen({super.key, this.initialCattleId});
@@ -17,30 +18,10 @@ class _TeleVetBookingScreenState extends ConsumerState<TeleVetBookingScreen> {
   int _activeView = 0; // 0 = Book Consultation, 1 = Active E-Prescription (Rx)
 
   // Selected Cattle
-  late String _selectedCattle;
-  final List<Map<String, String>> _cattles = [
-    {
-      'id': 'MIL-2024-0842',
-      'name': 'Gauri',
-      'breed': 'Murrah Buffalo (4.5 yrs)',
-      'lactation': '3rd Lactation (Day 112)'
-    },
-    {
-      'id': 'MIL-2024-0891',
-      'name': 'Lakshmi',
-      'breed': 'Holstein Friesian Cross (3.8 yrs)',
-      'lactation': '2nd Lactation (Day 84)'
-    },
-    {
-      'id': 'MIL-2024-0915',
-      'name': 'Nandini',
-      'breed': 'Gir Purebred (5.1 yrs)',
-      'lactation': '4th Lactation (Day 198)'
-    },
-  ];
+  String? _selectedCattle;
 
   // Symptoms Selection
-  final Set<String> _selectedSymptoms = {'Mastitis / Udder Swelling'};
+  final Set<String> _selectedSymptoms = <String>{};
 
   final List<Map<String, dynamic>> _symptomList = [
     {
@@ -148,7 +129,7 @@ class _TeleVetBookingScreenState extends ConsumerState<TeleVetBookingScreen> {
     super.initState();
     _selectedCattle = widget.initialCattleId != null && widget.initialCattleId!.isNotEmpty
         ? widget.initialCattleId!
-        : 'MIL-2024-0842';
+        : null;
   }
 
   @override
@@ -402,59 +383,109 @@ class _TeleVetBookingScreenState extends ConsumerState<TeleVetBookingScreen> {
             ],
           ),
           const SizedBox(height: 14),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: _cattles.map((cattle) {
-              final isSelected = _selectedCattle == cattle['id'];
-              return InkWell(
-                onTap: () => setState(() => _selectedCattle = cattle['id']!),
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  width: 270,
-                  padding: const EdgeInsets.all(14),
+          Builder(
+            builder: (context) {
+              final cattleAsync = ref.watch(farmerCattleListProvider);
+              final cattleList = cattleAsync.value ?? [];
+              if (cattleList.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: isSelected ? storeGreen.withValues(alpha: 0.05) : Colors.white,
+                    color: Colors.amber.shade50,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isSelected ? storeGreen : storeBorder,
-                      width: isSelected ? 2 : 1,
-                    ),
+                    border: Border.all(color: Colors.amber.shade200),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(cattle['name']!,
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w800, color: storeGreen)),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: isSelected ? storeGreen : storeBorder,
-                              borderRadius: BorderRadius.circular(6),
+                      const Icon(Icons.pets, color: Colors.amber, size: 28),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'कोई पशु पंजीकृत नहीं है (No Cattle Registered)',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                             ),
-                            child: Text(cattle['id']!,
-                                style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: isSelected ? Colors.white : storeMuted)),
-                          ),
-                        ],
+                            SizedBox(height: 2),
+                            Text(
+                              'परामर्श के लिए अपना पशु जोड़ें या नया पशु पंजीकृत करें।',
+                              style: TextStyle(fontSize: 12, color: Colors.black87),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(cattle['breed']!,
-                          style: const TextStyle(fontSize: 12, color: Colors.black87)),
-                      const SizedBox(height: 2),
-                      Text(cattle['lactation']!,
-                          style: const TextStyle(fontSize: 11, color: storeMuted)),
+                      ElevatedButton(
+                        onPressed: () => context.push('/herd/add'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xff064e3b),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        ),
+                        child: const Text('पशु जोड़ें +', style: TextStyle(fontSize: 12)),
+                      ),
                     ],
                   ),
-                ),
+                );
+              }
+
+              if (_selectedCattle == null && cattleList.isNotEmpty) {
+                _selectedCattle = cattleList.first.tagId ?? cattleList.first.id.toString();
+              }
+
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: cattleList.map((cattle) {
+                  final tag = cattle.tagId ?? cattle.id.toString();
+                  final isSelected = _selectedCattle == tag;
+                  return InkWell(
+                    onTap: () => setState(() => _selectedCattle = tag),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: 270,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isSelected ? storeGreen.withValues(alpha: 0.05) : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected ? storeGreen : storeBorder,
+                          width: isSelected ? 2 : 1,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(cattle.name,
+                                  style: const TextStyle(
+                                      fontSize: 16, fontWeight: FontWeight.w800, color: storeGreen)),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? storeGreen : storeBorder,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(tag,
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: isSelected ? Colors.white : storeMuted)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(cattle.breed ?? '',
+                              style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
               );
-            }).toList(),
+            },
           ),
         ],
       ),
@@ -966,7 +997,7 @@ class _TeleVetBookingScreenState extends ConsumerState<TeleVetBookingScreen> {
                         style: const TextStyle(
                             fontSize: 12, fontWeight: FontWeight.w800, color: storeGreen)),
                     const SizedBox(height: 4),
-                    Text('Animal: Gauri (Tag: $_selectedCattle)',
+                    Text('Animal Tag: ${_selectedCattle ?? 'General'}',
                         style: const TextStyle(fontSize: 12, color: Colors.black87)),
                     Text('Doctor: ${doc['name']} (${doc['degree']})',
                         style: const TextStyle(fontSize: 12, color: Colors.black87)),
@@ -1152,7 +1183,7 @@ class _TeleVetBookingScreenState extends ConsumerState<TeleVetBookingScreen> {
                         const Text('PATIENT ANIMAL:',
                             style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: storeMuted)),
                         const SizedBox(height: 3),
-                        Text('Gauri (Tag: $_selectedCattle)',
+                        Text('Animal Tag: ${_selectedCattle ?? 'General'}',
                             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: storeGreen)),
                         const Text('Murrah Buffalo (4.5 yrs) | Day 112 in Milk',
                             style: TextStyle(fontSize: 11, color: storeMuted)),

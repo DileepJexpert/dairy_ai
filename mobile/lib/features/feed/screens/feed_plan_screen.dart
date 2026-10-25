@@ -61,24 +61,52 @@ class _FeedPlanScreenState extends ConsumerState<FeedPlanScreen>
           Padding(
             padding: const EdgeInsets.all(16),
             child: cattleAsync.when(
-              data: (cattleList) => DropdownButtonFormField<String>(
-                initialValue: _selectedCattleId,
-                decoration: const InputDecoration(
-                  labelText: 'Select Cattle',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.pets),
-                ),
-                items: cattleList
-                    .map((c) => DropdownMenuItem(
-                          value: c.id,
-                          child: Text('${c.name} (${c.tagId})'),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() => _selectedCattleId = value);
-                },
-                hint: const Text('Choose an animal'),
-              ),
+              data: (cattleList) {
+                if (cattleList.isEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.amber.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline, color: Colors.amber, size: 20),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'कोई पशु पंजीकृत नहीं है। आहार योजना के लिए पशु जोड़ें।',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => context.push('/herd/add'),
+                          child: const Text('पशु जोड़ें +'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                return DropdownButtonFormField<String>(
+                  initialValue: _selectedCattleId,
+                  decoration: const InputDecoration(
+                    labelText: 'Select Cattle',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.pets),
+                  ),
+                  items: cattleList
+                      .map((c) => DropdownMenuItem(
+                            value: c.id,
+                            child: Text('${c.name} (${c.tagId})'),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() => _selectedCattleId = value);
+                  },
+                  hint: const Text('Choose an animal'),
+                );
+              },
               loading: () => const LinearProgressIndicator(),
               error: (_, __) => const SizedBox.shrink(),
             ),

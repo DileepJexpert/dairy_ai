@@ -492,8 +492,24 @@ class _PashuCreditPromoCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final creditAsync = ref.watch(pashuCreditScoreProvider);
-    final score = creditAsync.value?.score ?? 835;
-    final rating = creditAsync.value?.grade ?? 'A+ Prime';
+    final scoreData = creditAsync.value;
+    final hasCattle = (scoreData?.totalCattle ?? 0) > 0 && (scoreData?.score ?? 0) > 0;
+    final offers = scoreData?.preApprovedOffers ?? [];
+    final firstOffer = offers.isNotEmpty ? offers.first : null;
+
+    final scoreText = hasCattle
+        ? 'PASHU CIBIL: ${scoreData!.score} ★ ${scoreData.grade}'
+        : 'पशु पंजीकृत नहीं (Unrated)';
+    final promoTitle = firstOffer != null
+        ? 'पूर्व-स्वीकृत ${firstOffer.title}: ₹${firstOffer.maxAmount.toStringAsFixed(0)} @ ${firstOffer.interestRatePct}%'
+        : (hasCattle
+            ? 'पशु स्वास्थ्य स्कोर सक्रिय (${scoreData!.score}/900)'
+            : 'पशु जोड़ें व पशु क्रेडिट स्कोर अनलॉक करें');
+    final promoSubtitle = firstOffer != null
+        ? (firstOffer.tagline.isNotEmpty ? firstOffer.tagline : 'टीकाकरण व दूध पर्ची समर्थित बिना गारंटी बैंक लोन')
+        : (hasCattle
+            ? 'नियमित दुग्ध संकलन दर्ज होने पर बिना गारंटी बैंक लोन सीमा अनलॉक होगी'
+            : 'पशु पंजीकरण और दैनिक दूध संकलन के आधार पर बैंक लोन सीमा उपलब्ध होगी');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -516,7 +532,7 @@ class _PashuCreditPromoCard extends ConsumerWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => context.push('/finance/pashu-credit'),
+          onTap: () => context.push(hasCattle ? '/finance/pashu-credit' : '/herd/add'),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -531,8 +547,8 @@ class _PashuCreditPromoCard extends ConsumerWidget {
                         color: Colors.white.withValues(alpha: 0.15),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
-                        Icons.verified_outlined,
+                      child: Icon(
+                        hasCattle ? Icons.verified_outlined : Icons.pets_outlined,
                         color: Colors.amberAccent,
                         size: 26,
                       ),
@@ -548,15 +564,15 @@ class _PashuCreditPromoCard extends ConsumerWidget {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: Colors.amber.shade400,
+                                  color: hasCattle ? Colors.amber.shade400 : Colors.grey.shade300,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
-                                  'PASHU CIBIL: $score ★ $rating',
-                                  style: const TextStyle(
+                                  scoreText,
+                                  style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xff78350f),
+                                    color: hasCattle ? const Color(0xff78350f) : Colors.black87,
                                   ),
                                 ),
                               ),
@@ -569,9 +585,9 @@ class _PashuCreditPromoCard extends ConsumerWidget {
                             ],
                           ),
                           const SizedBox(height: 6),
-                          const Text(
-                            'पूर्व-स्वीकृत KCC लोन: ₹1,60,000 @ 4%',
-                            style: TextStyle(
+                          Text(
+                            promoTitle,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -580,7 +596,7 @@ class _PashuCreditPromoCard extends ConsumerWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'टीकाकरण व दूध पर्ची समर्थित बिना गारंटी बैंक लोन',
+                            promoSubtitle,
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.9),
                               fontSize: 12,
@@ -604,11 +620,18 @@ class _PashuCreditPromoCard extends ConsumerWidget {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.water_drop,
-                              size: 14, color: Colors.lightBlueAccent),
+                          Icon(
+                            hasCattle ? Icons.water_drop : Icons.add_circle_outline,
+                            size: 14,
+                            color: Colors.lightBlueAccent,
+                          ),
                           const SizedBox(width: 6),
                           Text(
-                            'दैनिक दूध एस्क्रो: ₹125/दिन',
+                            firstOffer != null
+                                ? 'दैनिक दूध एस्क्रो: ₹${firstOffer.dailyEscrowEst.toStringAsFixed(0)}/दिन'
+                                : (hasCattle
+                                    ? 'पशु स्वास्थ्य रिकॉर्ड सक्रिय'
+                                    : 'कम से कम 1 पशु जोड़ें'),
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.95),
                               fontSize: 12,
@@ -624,9 +647,9 @@ class _PashuCreditPromoCard extends ConsumerWidget {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Text(
-                          'लोन व स्कोर देखें →',
-                          style: TextStyle(
+                        child: Text(
+                          hasCattle ? 'लोन व स्कोर देखें →' : 'पशु जोड़ें →',
+                          style: const TextStyle(
                             color: Color(0xff064e3b),
                             fontSize: 11.5,
                             fontWeight: FontWeight.bold,

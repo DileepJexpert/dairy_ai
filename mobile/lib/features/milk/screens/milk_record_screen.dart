@@ -10,6 +10,11 @@ import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import 'package:dairy_ai/features/health/models/health_models.dart';
 import 'package:dairy_ai/features/health/providers/health_provider.dart';
 import 'package:dairy_ai/features/milk/widgets/thermal_slip_dialog.dart';
+import 'package:dairy_ai/features/milk/providers/milk_provider.dart';
+import 'package:dairy_ai/features/home/providers/home_provider.dart';
+import 'package:dairy_ai/features/finance/providers/finance_provider.dart';
+import 'package:dairy_ai/features/finance/providers/pashu_credit_provider.dart';
+import 'package:dairy_ai/features/finance/providers/wallet_provider.dart';
 
 class MilkRecordScreen extends ConsumerStatefulWidget {
   const MilkRecordScreen({super.key});
@@ -29,6 +34,11 @@ class _MilkRecordScreenState extends ConsumerState<MilkRecordScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.index == 3) {
+        ref.invalidate(milkSummaryProvider);
+      }
+    });
   }
 
   @override
@@ -106,6 +116,7 @@ class _MilkRecordScreenState extends ConsumerState<MilkRecordScreen>
         children: [
           _DailyMultiBuyerTab(
             onNavigateToScanner: () => _tabController.animateTo(1),
+            onNavigateToSummary: () => _tabController.animateTo(3),
           ),
           _SlipScanAndMismatchTab(
             onSaveSlip: _onSlipSaved,
@@ -273,8 +284,12 @@ class BuyerChannelItem {
 
 class _DailyMultiBuyerTab extends ConsumerStatefulWidget {
   final VoidCallback onNavigateToScanner;
+  final VoidCallback? onNavigateToSummary;
 
-  const _DailyMultiBuyerTab({required this.onNavigateToScanner});
+  const _DailyMultiBuyerTab({
+    required this.onNavigateToScanner,
+    this.onNavigateToSummary,
+  });
 
   @override
   ConsumerState<_DailyMultiBuyerTab> createState() =>
@@ -289,6 +304,7 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
   final _totalProductionController = TextEditingController(text: '0.0');
   final _avgFatController = TextEditingController();
   final _avgSnfController = TextEditingController();
+  bool _isSaving = false;
 
   late List<BuyerChannelItem> _channels;
   final Map<String, TextEditingController> _litresControllers = {};
@@ -895,16 +911,111 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
     if (picked != null) setState(() => _selectedDate = picked);
   }
 
-  void _saveEntry() {
-    _saveChannelsToStorage();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '✅ ${_selectedShift.toUpperCase()} संकलन सुरक्षित: कुल ${_totalDispatched.toStringAsFixed(1)}L (आय: ₹${_totalRevenue.toStringAsFixed(0)})',
+  Future<void> _saveEntry() async {
+    final totalDispatched = _totalDispatched;
+    final totalProduced = _totalProduced;
+    final effectiveLitres = totalDispatched > 0 ? totalDispatched : totalProduced;
+
+    if (effectiveLitres <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ कृपया दूध की मात्रा (Litres) दर्ज करें'),
+          backgroundColor: Color(0xffb91c1c),
         ),
-        backgroundColor: const Color(0xff064e3b),
-      ),
-    );
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      final dio = ref.read(dioProvider);
+      final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
+      final sessionStr = _selectedShift == 'evening' ? 'evening' : 'morning';
+      final fat = double.tryParse(_avgFatController.text.trim());
+      final snf = double.tryParse(_avgSnfController.text.trim());
+
+      // Save channels to local persistent storage
+      await _saveChannelsToStorage();
+
+      // Resolve selected cattle UUID if any specific cow was selected
+      final cattleList = ref.read(cattleListProvider).value ?? const <CattleRef>[];
+      final selectedCattle = _selectedCattleId != 0
+          ? cattleList.where((c) => c.id == _selectedCattleId).firstOrNull
+          : null;
+      final cattleUuid = selectedCattle?.uuid;
+
+      final activeChannels = _channels.where((c) => c.litres > 0).toList();
+
+      if (activeChannels.isNotEmpty) {
+        for (final channel in activeChannels) {
+          await dio.post('/milk-records', data: {
+            'date': dateStr,
+            'session': sessionStr,
+            'quantity_litres': channel.litres,
+            'price_per_litre': channel.ratePerLitre > 0 ? channel.ratePerLitre : 42.0,
+            'buyer_name': channel.buyerName,
+            'buyer': channel.channelType,
+            if (fat != null && fat > 0) 'fat_pct': fat,
+            if (snf != null && snf > 0) 'snf_pct': snf,
+            if (cattleUuid != null && cattleUuid.isNotEmpty) 'cattle_id': cattleUuid,
+          });
+        }
+      } else {
+        // Single bulk collection entry
+        await dio.post('/milk-records', data: {
+          'date': dateStr,
+          'session': sessionStr,
+          'quantity_litres': effectiveLitres,
+          'price_per_litre': 42.0,
+          'buyer_name': 'दुग्ध संकलन (Bulk Dairy)',
+          'buyer': 'cooperative',
+          if (fat != null && fat > 0) 'fat_pct': fat,
+          if (snf != null && snf > 0) 'snf_pct': snf,
+          if (cattleUuid != null && cattleUuid.isNotEmpty) 'cattle_id': cattleUuid,
+        });
+      }
+
+      // Invalidate all milk, finance, and dashboard analytics
+      ref.invalidate(milkSummaryProvider);
+      ref.invalidate(milkRecordsProvider(null));
+      ref.invalidate(dashboardStatsProvider);
+      ref.invalidate(financeSummaryProvider(null));
+      ref.invalidate(transactionsProvider(null));
+      ref.invalidate(milterraWalletProvider);
+      ref.invalidate(pashuCreditScoreProvider);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✅ ${_selectedShift.toUpperCase()} संकलन सुरक्षित: कुल ${effectiveLitres.toStringAsFixed(1)}L (आय: ₹${_totalRevenue > 0 ? _totalRevenue.toStringAsFixed(0) : (effectiveLitres * 42).toStringAsFixed(0)})',
+            ),
+            backgroundColor: const Color(0xff064e3b),
+            action: SnackBarAction(
+              label: 'दूध सारांश देखें >',
+              textColor: Colors.amberAccent,
+              onPressed: () {
+                widget.onNavigateToSummary?.call();
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ दूध प्रविष्टि सुरक्षित करने में त्रुटि: $e'),
+            backgroundColor: const Color(0xffb91c1c),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   @override
@@ -944,7 +1055,7 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton.icon(
-                  onPressed: _saveEntry,
+                  onPressed: _isSaving ? null : _saveEntry,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xff064e3b),
                     foregroundColor: Colors.white,
@@ -953,10 +1064,21 @@ class _DailyMultiBuyerTabState extends ConsumerState<_DailyMultiBuyerTab> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  icon: const Icon(Icons.check_circle_rounded, size: 22),
-                  label: const Text(
-                    '✅ दैनिक दूध प्रविष्टि सुरक्षित करें (Save)',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  icon: _isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.check_circle_rounded, size: 22),
+                  label: Text(
+                    _isSaving
+                        ? 'सुरक्षित किया जा रहा है...'
+                        : '✅ दैनिक दूध प्रविष्टि सुरक्षित करें (Save)',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                 ),
               ),

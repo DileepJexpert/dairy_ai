@@ -112,9 +112,11 @@ milkRouter.post('/milk-records', async (c) => {
   let cattleId = parsed.data.cattle_id ? String(parsed.data.cattle_id) : '';
 
   // Validate or resolve cattle for this farmer
-  if (cattleId) {
-    const cattleCheck = (await db.prepare('SELECT id, name, tag_id FROM cattle WHERE id = ? AND farmer_id = ?').bind(cattleId, farmer.id).first()) as any;
-    if (!cattleCheck) {
+  if (cattleId && cattleId !== '0' && cattleId !== 'all') {
+    const cattleCheck = (await db.prepare('SELECT id, name, tag_id FROM cattle WHERE (id = ? OR tag_id = ?) AND farmer_id = ?').bind(cattleId, cattleId, farmer.id).first()) as any;
+    if (cattleCheck) {
+      cattleId = cattleCheck.id;
+    } else {
       throw new HTTPException(404, { message: 'Cattle not found for this farmer profile' });
     }
   } else {

@@ -251,20 +251,25 @@ class SensorAlert {
 @immutable
 class CattleRef {
   final int id;
+  final String? uuid;
   final String? tagId;
   final String name;
   final String? breed;
 
   const CattleRef({
     required this.id,
+    this.uuid,
     this.tagId,
     required this.name,
     this.breed,
   });
 
   factory CattleRef.fromJson(Map<String, dynamic> json) {
+    final rawId = json['id'];
+    final strId = rawId?.toString();
     return CattleRef(
-      id: json['id'] is int ? json['id'] as int : int.tryParse('${json['id']}') ?? json['id'].hashCode,
+      id: rawId is int ? rawId : int.tryParse('$strId') ?? (strId?.hashCode ?? 0),
+      uuid: strId,
       tagId: json['tag_id'] as String?,
       name: json['name'] as String? ?? 'Unnamed',
       breed: json['breed'] as String?,

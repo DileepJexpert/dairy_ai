@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dairy_ai/core/api_client.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../models/cattle_model.dart';
+import 'package:dairy_ai/features/home/providers/home_provider.dart';
 
 // ---------------------------------------------------------------------------
 // Cattle list — parameterised by farmer ID
@@ -59,6 +60,7 @@ class CattleListNotifier extends FamilyAsyncNotifier<List<Cattle>, String> {
         final created = Cattle.fromJson(body['data'] as Map<String, dynamic>);
         // Append to current list optimistically
         state = AsyncData([...state.value ?? [], created]);
+        ref.invalidate(dashboardStatsProvider);
         return created;
       }
       throw Exception(body['message'] ?? 'Failed to add cattle');
@@ -82,9 +84,30 @@ class CattleListNotifier extends FamilyAsyncNotifier<List<Cattle>, String> {
           for (final c in state.value ?? [])
             if (c.id == cattleId) updated else c,
         ]);
+        ref.invalidate(dashboardStatsProvider);
         return updated;
       }
       throw Exception(body['message'] ?? 'Failed to update cattle');
+    } on DioException catch (e) {
+      throw Exception(dioErrorMessage(e));
+    }
+  }
+
+  /// Deletes an existing cattle entry and refreshes stats.
+  Future<void> deleteCattle(String cattleId) async {
+    final dio = ref.read(dioProvider);
+    try {
+      final response = await dio.delete('/cattle/$cattleId');
+      final body = response.data as Map<String, dynamic>;
+      if (body['success'] == true) {
+        state = AsyncData([
+          for (final c in state.value ?? [])
+            if (c.id != cattleId) c,
+        ]);
+        ref.invalidate(dashboardStatsProvider);
+        return;
+      }
+      throw Exception(body['message'] ?? 'Failed to delete cattle');
     } on DioException catch (e) {
       throw Exception(dioErrorMessage(e));
     }

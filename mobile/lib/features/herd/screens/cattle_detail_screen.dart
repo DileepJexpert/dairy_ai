@@ -6,6 +6,7 @@ import 'package:dairy_ai/core/api_client.dart';
 
 import '../providers/cattle_provider.dart';
 import '../models/cattle_model.dart';
+import 'package:dairy_ai/features/home/providers/home_provider.dart';
 
 /// Detailed view of a single cattle with tabs for Overview, Health, Milk,
 /// and Breeding records.
@@ -53,13 +54,13 @@ class CattleDetailScreen extends ConsumerWidget {
   }
 }
 
-class _CattleDetailBody extends StatelessWidget {
+class _CattleDetailBody extends ConsumerWidget {
   const _CattleDetailBody({required this.cattle});
 
   final Cattle cattle;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final dateFormat = DateFormat('dd MMM yyyy');
 
@@ -81,8 +82,42 @@ class _CattleDetailBody extends StatelessWidget {
                       context.push('/herd/${cattle.id}/edit', extra: cattle),
                 ),
                 PopupMenuButton<String>(
-                  onSelected: (value) {
-                    // Handle menu actions (share, remove)
+                  onSelected: (value) async {
+                    if (value == 'delete') {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Remove Cattle'),
+                          content: Text('Are you sure you want to remove ${cattle.name} (${cattle.tagId})?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                              onPressed: () => Navigator.of(ctx).pop(true),
+                              child: const Text('Remove'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed == true && context.mounted) {
+                        try {
+                          await ref.read(cattleListProvider(cattle.farmerId).notifier).deleteCattle(cattle.id);
+                          ref.invalidate(dashboardStatsProvider);
+                          if (context.mounted) {
+                            context.pop();
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Failed to remove: $e')),
+                            );
+                          }
+                        }
+                      }
+                    }
                   },
                   itemBuilder: (context) => const [
                     PopupMenuItem(

@@ -5,6 +5,9 @@ import 'package:intl/intl.dart';
 
 import '../providers/cattle_provider.dart';
 import '../models/cattle_model.dart';
+import 'package:dairy_ai/features/home/providers/home_provider.dart';
+import 'package:dairy_ai/features/finance/providers/pashu_credit_provider.dart';
+import 'package:dairy_ai/features/vet_farmer/providers/vet_farmer_provider.dart';
 
 /// Indian dairy cattle breeds for the breed dropdown.
 const List<String> _indianBreeds = [
@@ -131,6 +134,13 @@ class _AddCattleScreenState extends ConsumerState<AddCattleScreen> {
           ),
         );
       }
+
+      // Proactively invalidate dashboard & dependent herd/finance providers
+      ref.invalidate(dashboardStatsProvider);
+      ref.invalidate(pashuCreditScoreProvider);
+      ref.invalidate(bankDossierProvider);
+      ref.invalidate(farmerCattleListProvider);
+      ref.invalidate(cattleListProvider(widget.farmerId));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

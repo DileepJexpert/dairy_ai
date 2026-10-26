@@ -347,6 +347,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           location.startsWith('/finance/') ||
           location == '/more' ||
           location.startsWith('/more/') ||
+          location == '/passbook' ||
+          location.startsWith('/passbook') ||
           location == '/vet-dashboard' ||
           location.startsWith('/vet-');
 
@@ -1335,7 +1337,7 @@ class _MoreMenuScreen extends ConsumerWidget {
                           width: 42,
                           height: 42,
                           decoration: BoxDecoration(
-                            color: const Color(0xff064e3b).withOpacity(0.12),
+                            color: const Color(0xff064e3b).withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -1422,6 +1424,12 @@ class _MoreMenuScreen extends ConsumerWidget {
                 label: 'संतुलित चारा योजना (Feed & Ration Optimizer)',
                 subtitle: 'साइलेज, मिनरल मिक्स व पोषण कैलकुलेटर',
                 onTap: () => context.go('/more/feed'),
+              ),
+              _MoreTile(
+                icon: Icons.receipt_long,
+                label: 'दूध दर सूची कैलकुलेटर व KCC पासबुक (Rate Chart & Passbook)',
+                subtitle: 'अमूल, मदर डेयरी व TS फॉर्मूला दरें और KCC लोन विवरण',
+                onTap: () => context.push('/passbook'),
               ),
               _MoreTile(
                 icon: Icons.favorite,

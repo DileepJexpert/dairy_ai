@@ -24,8 +24,13 @@ class MilkSummaryScreen extends StatelessWidget {
               ? 'दूध सारांश'
               : 'दूध सारांश व इतिहास (Milk Summary)',
         ),
-        actions: const [
-          FarmerAuthAction(nextRoute: '/more/milk-summary'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calculate_outlined),
+            tooltip: 'दूध दर कैलकुलेटर व KCC पासबुक',
+            onPressed: () => context.push('/passbook'),
+          ),
+          const FarmerAuthAction(nextRoute: '/more/milk-summary'),
         ],
       ),
       body: const MilkSummaryView(),
@@ -172,6 +177,10 @@ class _SummaryContent extends StatelessWidget {
           avgFat: summary.avgFatPct,
           avgSnf: summary.avgSnfPct,
         ),
+        const SizedBox(height: 14),
+
+        // --- Rate Calculator & KCC Passbook Banner ---
+        const _RateAndPassbookBanner(),
         const SizedBox(height: 24),
 
         // --- Bar chart ---
@@ -578,6 +587,101 @@ class _MilkQualityOptimizerCard extends StatelessWidget {
                 onPressed: () => context.push('/shop?category=Animal nutrition'),
                 icon: const Icon(Icons.storefront, size: 16),
                 label: const Text('Visit Agri-Hub Store'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RateAndPassbookBanner extends StatelessWidget {
+  const _RateAndPassbookBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xff064e3b), Color(0xff047857)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1a000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.calculate, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'दूध दर सूची कैलकुलेटर व KCC पासबुक',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'अमूल, मदर डेयरी, BMC व मिलटेरा दर तुलना + 2D फैट-SNF चार्ट',
+                      style: TextStyle(
+                        color: Color(0xffa7f3d0),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'अपने दूध के फैट व SNF के आधार पर सर्वाधिक खरीद मूल्य जानें और किसान क्रेडिट कार्ड (KCC) बैंक प्रमाणित मासिक पासबुक 1-क्लिक में डाउनलोड करें।',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xff064e3b),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  textStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                onPressed: () => context.push('/passbook'),
+                icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                label: const Text('दर कैलकुलेटर व पासबुक खोलें'),
               ),
             ],
           ),

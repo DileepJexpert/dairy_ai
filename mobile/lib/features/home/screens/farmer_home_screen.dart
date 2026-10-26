@@ -15,6 +15,7 @@ import 'package:dairy_ai/features/milk/widgets/milk_slip_selector_modal.dart';
 import '../models/dashboard_model.dart';
 import '../providers/home_provider.dart';
 import 'package:dairy_ai/features/health/providers/active_crises_provider.dart';
+import 'package:dairy_ai/shared/widgets/farmer_auth_action.dart';
 
 /// The main Milterra Home Screen.
 ///
@@ -182,27 +183,7 @@ class FarmerHomeScreen extends ConsumerWidget {
         ),
       ),
       actions: [
-        if (!isAuthenticated)
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: TextButton.icon(
-              onPressed: () => context.push('/login?next=/home'),
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: Colors.white.withOpacity(0.18),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              ),
-              icon: const Icon(Icons.login, size: 16),
-              label: const Text(
-                'Sign In',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          )
-        else ...[
+        if (isAuthenticated)
           IconButton(
             tooltip: 'Notifications',
             onPressed: () => context.push('/home/notifications'),
@@ -211,71 +192,9 @@ class FarmerHomeScreen extends ConsumerWidget {
               color: Colors.white,
             ),
           ),
-          IconButton(
-            tooltip: 'Profile',
-            onPressed: () => context.push('/more/profile'),
-            icon: const Icon(
-              Icons.person_outline,
-              color: Colors.white,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: ElevatedButton.icon(
-              onPressed: () => _confirmSignOut(context, ref),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xffdc2626),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                elevation: 0,
-              ),
-              icon: const Icon(Icons.logout, size: 16),
-              label: const Text(
-                'Sign Out',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-            ),
-          ),
-        ],
+        const FarmerAuthAction(nextRoute: '/home', color: Colors.white),
       ],
     );
-  }
-
-  Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.logout, color: Color(0xffdc2626)),
-            SizedBox(width: 8),
-            Text('Sign Out'),
-          ],
-        ),
-        content: const Text(
-          'Are you sure you want to sign out from your Dairy ERP account? You will return to the open portal.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xffdc2626)),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Sign Out'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      await ref.read(authProvider.notifier).logout();
-      ref.invalidate(dashboardStatsProvider);
-    }
   }
 
   // ---------------------------------------------------------------------------

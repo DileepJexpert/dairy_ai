@@ -15,6 +15,8 @@ import 'package:dairy_ai/features/home/providers/home_provider.dart';
 import 'package:dairy_ai/features/finance/providers/finance_provider.dart';
 import 'package:dairy_ai/features/finance/providers/pashu_credit_provider.dart';
 import 'package:dairy_ai/features/finance/providers/wallet_provider.dart';
+import 'package:dairy_ai/shared/widgets/farmer_auth_action.dart';
+import 'package:dairy_ai/shared/widgets/farmer_responsive.dart';
 
 class MilkRecordScreen extends ConsumerStatefulWidget {
   const MilkRecordScreen({super.key});
@@ -79,7 +81,14 @@ class _MilkRecordScreenState extends ConsumerState<MilkRecordScreen>
     return Scaffold(
       backgroundColor: const Color(0xfff8fafc),
       appBar: AppBar(
-        title: const Text('दैनिक दूध संकलन, बहु-विक्री व पर्ची मिलान'),
+        title: Text(
+          FarmerBreakpoints.isMobile(context)
+              ? 'दूध संकलन व बिक्री'
+              : 'दैनिक दूध संकलन, बहु-विक्री व पर्ची मिलान',
+        ),
+        actions: const [
+          FarmerAuthAction(nextRoute: '/more/milk', color: Colors.white),
+        ],
         backgroundColor: const Color(0xff064e3b),
         foregroundColor: Colors.white,
         bottom: TabBar(

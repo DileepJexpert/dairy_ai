@@ -10,6 +10,8 @@ import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import 'package:dairy_ai/features/herd/providers/cattle_provider.dart';
 import 'package:dairy_ai/features/herd/models/cattle_model.dart';
 import 'package:dairy_ai/features/health/providers/active_crises_provider.dart';
+import 'package:dairy_ai/shared/widgets/farmer_auth_action.dart';
+import 'package:dairy_ai/shared/widgets/farmer_responsive.dart';
 
 /// Herd health filter categories for traffic-light triage.
 enum HerdFilter { all, critical, watchlist, healthy }
@@ -82,16 +84,22 @@ class _HealthDashboardScreenState extends ConsumerState<HealthDashboardScreen> {
                   icon: const Icon(Icons.home),
                   onPressed: () => context.go('/home'),
                 ),
-          title: const Text('Herd Health & Crisis Monitor'),
+          title: Text(
+            FarmerBreakpoints.isMobile(context)
+                ? 'Herd Health'
+                : 'Herd Health & Crisis Monitor',
+          ),
           actions: [
             IconButton(
               icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh',
               onPressed: () {
                 ref.invalidate(activeHealthIssuesProvider);
                 ref.invalidate(upcomingVaccinationsProvider);
                 ref.invalidate(sensorAlertsProvider);
               },
             ),
+            const FarmerAuthAction(nextRoute: '/health'),
           ],
         ),
         body: Center(

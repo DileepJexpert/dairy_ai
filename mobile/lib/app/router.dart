@@ -126,6 +126,8 @@ import 'package:dairy_ai/features/marketplace/screens/admin_pincodes_screen.dart
 import 'package:dairy_ai/features/community/screens/community_feed_screen.dart';
 import 'package:dairy_ai/features/community/screens/community_post_detail_screen.dart';
 import 'package:dairy_ai/features/auth/screens/vet_register_screen.dart';
+import 'package:dairy_ai/shared/widgets/farmer_auth_action.dart';
+import 'package:dairy_ai/shared/widgets/farmer_responsive.dart';
 
 
 // ---------------------------------------------------------------------------
@@ -1289,19 +1291,108 @@ final routerProvider = Provider<GoRouter>((ref) {
 // More menu — list of additional features
 // ---------------------------------------------------------------------------
 
-class _MoreMenuScreen extends StatelessWidget {
+class _MoreMenuScreen extends ConsumerWidget {
   const _MoreMenuScreen();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+    final isAuthenticated = authState.maybeWhen(
+      authenticated: (_) => true,
+      orElse: () => false,
+    );
+
     return Scaffold(
-      appBar: AppBar(title: const Text('More Features & Tools')),
+      appBar: AppBar(
+        title: Text(
+          FarmerBreakpoints.isMobile(context)
+              ? 'More Features'
+              : 'More Features & Tools',
+        ),
+        actions: const [
+          FarmerAuthAction(nextRoute: '/more'),
+        ],
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             children: [
+              if (!isAuthenticated) ...[
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: Color(0xffcbd5e1)),
+                  ),
+                  color: const Color(0xfff0fdf4),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: const Color(0xff064e3b).withOpacity(0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.person_outline,
+                            color: Color(0xff064e3b),
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'अतिथि किसान (Guest Mode)',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: Color(0xff064e3b),
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'अपने पशु, दूध व लेन-देन का हिसाब सुरक्षित करने के लिए लॉगिन करें।',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: Color(0xff475569),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xff064e3b),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                          ),
+                          onPressed: () => context.push('/login?next=/more'),
+                          child: const Text(
+                            'लॉगिन करें',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               _MoreTile(
                 icon: Icons.water_drop,
                 label: 'दैनिक दूध संकलन व बहु-विक्री (Milk Sales & Slips)',

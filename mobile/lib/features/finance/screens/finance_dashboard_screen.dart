@@ -8,12 +8,19 @@ import 'package:dairy_ai/features/finance/providers/finance_provider.dart';
 import 'package:dairy_ai/features/finance/providers/pashu_credit_provider.dart';
 import 'package:dairy_ai/features/finance/screens/add_transaction_screen.dart';
 import 'package:dairy_ai/features/finance/screens/finance_report_screen.dart';
+import 'package:dairy_ai/shared/widgets/farmer_auth_action.dart';
+import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 
 class FinanceDashboardScreen extends ConsumerWidget {
   const FinanceDashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+    final isAuthenticated = authState.maybeWhen(
+      authenticated: (_) => true,
+      orElse: () => false,
+    );
     final summaryAsync = ref.watch(financeSummaryProvider(null));
     final transactionsAsync = ref.watch(transactionsProvider(null));
     final currencyFormat =
@@ -23,6 +30,7 @@ class FinanceDashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Finance'),
         actions: [
+          const FarmerAuthAction(nextRoute: '/finance'),
           IconButton(
             icon: const Icon(Icons.bar_chart),
             tooltip: 'Reports',
@@ -52,6 +60,10 @@ class FinanceDashboardScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            if (!isAuthenticated) ...[
+              const _UnauthenticatedFinanceCard(),
+              const SizedBox(height: 16),
+            ],
             // -- Pashu CIBIL Credit Score & KCC Banner --
             const _PashuCreditPromoCard(),
 
@@ -662,6 +674,79 @@ class _PashuCreditPromoCard extends ConsumerWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+
+class _UnauthenticatedFinanceCard extends StatelessWidget {
+  const _UnauthenticatedFinanceCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Color(0xffcbd5e1)),
+      ),
+      color: const Color(0xfff8fafc),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xff064e3b).withOpacity(0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.account_balance_wallet_outlined,
+                size: 36,
+                color: Color(0xff064e3b),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'वित्तीय खाता व लेजर (Farmer Ledger & Accounts)',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+                color: Color(0xff064e3b),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'दूध भुगतान, दैनिक खर्च, बैंक KCC लोन व मुनाफा-नुकसान का हिसाब रखने के लिए लॉगिन करें।',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: Color(0xff64748b),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xff064e3b),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+              ),
+              onPressed: () => context.push('/login?next=/finance'),
+              icon: const Icon(Icons.login, size: 16),
+              label: const Text(
+                'लॉगिन करें / Sign In',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
         ),
       ),
     );

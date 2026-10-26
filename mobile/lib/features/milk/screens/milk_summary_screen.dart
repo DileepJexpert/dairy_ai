@@ -7,6 +7,8 @@ import 'package:intl/intl.dart';
 import 'package:dairy_ai/core/extensions.dart';
 import 'package:dairy_ai/features/milk/models/milk_models.dart';
 import 'package:dairy_ai/features/milk/providers/milk_provider.dart';
+import 'package:dairy_ai/shared/widgets/farmer_auth_action.dart';
+import 'package:dairy_ai/shared/widgets/farmer_responsive.dart';
 
 /// Milk analytics screen with daily/weekly/monthly totals,
 /// a production bar chart, per-cattle breakdown, and revenue summary.
@@ -17,7 +19,14 @@ class MilkSummaryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('दूध सारांश व इतिहास (Milk Summary)'),
+        title: Text(
+          FarmerBreakpoints.isMobile(context)
+              ? 'दूध सारांश'
+              : 'दूध सारांश व इतिहास (Milk Summary)',
+        ),
+        actions: const [
+          FarmerAuthAction(nextRoute: '/more/milk-summary'),
+        ],
       ),
       body: const MilkSummaryView(),
     );

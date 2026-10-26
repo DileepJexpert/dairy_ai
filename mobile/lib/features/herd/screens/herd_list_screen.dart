@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:dairy_ai/shared/widgets/cattle_list_tile.dart';
+import 'package:dairy_ai/shared/widgets/farmer_auth_action.dart';
+import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import '../providers/cattle_provider.dart';
 import '../models/cattle_model.dart';
 
@@ -54,6 +56,7 @@ class _HerdListScreenState extends ConsumerState<HerdListScreen> {
               });
             },
           ),
+          const FarmerAuthAction(nextRoute: '/herd'),
         ],
       ),
       body: Center(
@@ -61,85 +64,85 @@ class _HerdListScreenState extends ConsumerState<HerdListScreen> {
           constraints: const BoxConstraints(maxWidth: 860),
           child: Column(
             children: [
-          // Status filter chips
-          _StatusFilterBar(
-            selected: activeFilter,
-            onSelected: (status) {
-              ref.read(cattleStatusFilterProvider.notifier).state = status;
-            },
-          ),
-
-          // Quick Shortcuts: 305-Day Lactation Curves & Tele-Vet Clinic
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: Colors.grey.shade50,
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    onPressed: () => context.push('/herd/lifecycle/MIL-2024-0842'),
-                    icon: const Icon(Icons.analytics_outlined, size: 16),
-                    label: const Text('Lactation Analytics',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    onPressed: () => context.push('/vet/booking'),
-                    icon: const Icon(Icons.video_call_outlined, size: 16),
-                    label: const Text('Tele-Vet Clinic',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Cattle list
-          Expanded(
-            child: filteredAsync.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
-              error: (err, _) => _ErrorBody(
-                message: err.toString(),
-                onRetry: () => ref
-                    .read(cattleListProvider(widget.farmerId).notifier)
-                    .refresh(),
+              // Status filter chips
+              _StatusFilterBar(
+                selected: activeFilter,
+                onSelected: (status) {
+                  ref.read(cattleStatusFilterProvider.notifier).state = status;
+                },
               ),
-              data: (cattle) {
-                if (cattle.isEmpty) {
-                  return const _EmptyHerd();
-                }
-                return RefreshIndicator(
-                  onRefresh: () => ref
-                      .read(cattleListProvider(widget.farmerId).notifier)
-                      .refresh(),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.only(top: 8, bottom: 80),
-                    itemCount: cattle.length,
-                    itemBuilder: (context, index) {
-                      final animal = cattle[index];
-                      return CattleListTile(
-                        cattle: animal,
-                        onTap: () =>
-                            context.push('/herd/${animal.id}'),
-                      );
-                    },
+
+              // Quick Shortcuts: 305-Day Lactation Curves & Tele-Vet Clinic
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                color: Colors.grey.shade50,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () => context.push('/herd/lifecycle/MIL-2024-0842'),
+                        icon: const Icon(Icons.analytics_outlined, size: 16),
+                        label: const Text('Lactation Analytics',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () => context.push('/vet/booking'),
+                        icon: const Icon(Icons.video_call_outlined, size: 16),
+                        label: const Text('Tele-Vet Clinic',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Cattle list
+              Expanded(
+                child: filteredAsync.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (err, _) => _ErrorBody(
+                    message: err.toString(),
+                    onRetry: () => ref
+                        .read(cattleListProvider(widget.farmerId).notifier)
+                        .refresh(),
                   ),
-                );
-              },
-            ),
+                  data: (cattle) {
+                    if (cattle.isEmpty) {
+                      return const _EmptyHerd();
+                    }
+                    return RefreshIndicator(
+                      onRefresh: () => ref
+                          .read(cattleListProvider(widget.farmerId).notifier)
+                          .refresh(),
+                      child: ListView.builder(
+                        padding: const EdgeInsets.only(top: 8, bottom: 80),
+                        itemCount: cattle.length,
+                        itemBuilder: (context, index) {
+                          final animal = cattle[index];
+                          return CattleListTile(
+                            cattle: animal,
+                            onTap: () =>
+                                context.push('/herd/${animal.id}'),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -218,11 +221,102 @@ class _StatusFilterBar extends StatelessWidget {
   }
 }
 
-class _EmptyHerd extends StatelessWidget {
+class _EmptyHerd extends ConsumerWidget {
   const _EmptyHerd();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+    final isAuthenticated = authState.maybeWhen(
+      authenticated: (_) => true,
+      orElse: () => false,
+    );
+
+    if (!isAuthenticated) {
+      return Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xff064e3b).withOpacity(0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.lock_outline,
+                  size: 56,
+                  color: Color(0xff064e3b),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'लॉगिन आवश्यक है (Sign In Required)',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xff064e3b),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'अपने पंजीकृत पशु, दूध उत्पादन, टीकाकरण व स्वास्थ्य रिकॉर्ड देखने व प्रबंधित करने के लिए कृपया लॉगिन करें।',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xff475569),
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xff064e3b),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () => context.push('/login?next=/herd'),
+                icon: const Icon(Icons.login),
+                label: const Text(
+                  'लॉगिन करें / Sign In',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xff064e3b),
+                  side: const BorderSide(color: Color(0xff064e3b)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () => context.push('/register'),
+                icon: const Icon(Icons.person_add_alt_1),
+                label: const Text('नया किसान खाता बनाएं (Register)'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,

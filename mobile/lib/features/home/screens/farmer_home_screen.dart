@@ -53,6 +53,15 @@ class FarmerHomeScreen extends ConsumerWidget {
     );
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/more/chat'),
+        backgroundColor: const Color(0xff047857),
+        icon: const Icon(Icons.smart_toy_outlined, color: Colors.white),
+        label: const Text(
+          'पशु मित्र AI',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      ),
       body: dashboardAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => _ErrorView(
@@ -77,6 +86,7 @@ class FarmerHomeScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+                SliverToBoxAdapter(child: _wrapDesktopWidth(_buildKisanSahayataSection(context))),
                 SliverToBoxAdapter(child: _wrapDesktopWidth(_buildCommerceSection(context))),
                 SliverToBoxAdapter(child: _wrapDesktopWidth(_buildCommunitySocialSection(context, ref, isAuthenticated: isAuthenticated))),
                 SliverToBoxAdapter(child: _wrapDesktopWidth(_buildCommunityBulletin(context))),
@@ -97,6 +107,7 @@ class FarmerHomeScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+                SliverToBoxAdapter(child: _wrapDesktopWidth(_buildKisanSahayataSection(context))),
                 SliverToBoxAdapter(child: _wrapDesktopWidth(_buildCommunitySocialSection(context, ref, isAuthenticated: isAuthenticated))),
                 SliverToBoxAdapter(
                   child: _wrapDesktopWidth(
@@ -819,6 +830,128 @@ class FarmerHomeScreen extends ConsumerWidget {
     required bool isAuthenticated,
   }) {
     context.push('/vet/booking');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Kisan Sahayata Kendra & Pashu Mitra AI Section
+  // ---------------------------------------------------------------------------
+
+  Widget _buildKisanSahayataSection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xffa7f3d0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xffecfdf5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.support_agent,
+                    color: Color(0xff047857),
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'किसान सहायता केंद्र',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Color(0xff0f172a),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xff047857),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              '24/7 LIVE',
+                              style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Pashu Mitra AI, KCC 4% लोन, गोकुल मिशन व 1962 एम्बुलेंस',
+                        style: TextStyle(fontSize: 12, color: Color(0xff64748b)),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => context.push('/more/chat'),
+                  child: const Text('सभी देखें'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _SahayataPill(
+                    icon: Icons.chat_bubble_outline,
+                    label: '💬 AI से पूछें',
+                    color: const Color(0xff047857),
+                    onTap: () => context.push('/more/chat'),
+                  ),
+                  const SizedBox(width: 8),
+                  _SahayataPill(
+                    icon: Icons.account_balance_outlined,
+                    label: '🏛️ KCC लोन (4%)',
+                    color: Colors.blue.shade700,
+                    onTap: () => context.push('/more/chat'),
+                  ),
+                  const SizedBox(width: 8),
+                  _SahayataPill(
+                    icon: Icons.verified_outlined,
+                    label: '🧬 गोकुल मिशन',
+                    color: Colors.purple.shade700,
+                    onTap: () => context.push('/more/chat'),
+                  ),
+                  const SizedBox(width: 8),
+                  _SahayataPill(
+                    icon: Icons.emergency_outlined,
+                    label: '🚑 1962 एम्बुलेंस',
+                    color: Colors.red.shade700,
+                    onTap: () => launchUrl(Uri.parse('tel:1962')),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -1849,6 +1982,12 @@ class FarmerHomeScreen extends ConsumerWidget {
                         onTap: () => context.push('/feed/calculator'),
                       ),
                       _QuickActionButton(
+                        icon: Icons.smart_toy_outlined,
+                        label: 'Pashu Mitra',
+                        color: const Color(0xff047857),
+                        onTap: () => context.push('/more/chat'),
+                      ),
+                      _QuickActionButton(
                         icon: Icons.video_call_outlined,
                         label: 'Tele-Vet',
                         color: Colors.green,
@@ -2214,6 +2353,52 @@ class _ErrorView extends StatelessWidget {
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+class _SahayataPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _SahayataPill({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),

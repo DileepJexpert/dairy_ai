@@ -1,3 +1,5 @@
+import 'package:url_launcher/url_launcher.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:dairy_ai/app/theme.dart';
@@ -70,7 +72,7 @@ class ChatBubble extends StatelessWidget {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              'DairyAI',
+                              'पशु मित्र (Pashu Mitra AI)',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: DairyTheme.primaryGreen,
                                 fontWeight: FontWeight.w600,
@@ -79,7 +81,7 @@ class ChatBubble extends StatelessWidget {
                           ],
                         ),
                       ),
-                    _buildMessageContent(theme),
+                    _buildMessageContent(context, theme),
                   ],
                 ),
               ),
@@ -101,15 +103,57 @@ class ChatBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildMessageContent(ThemeData theme) {
-    // For AI messages, render with basic markdown-like formatting.
+  Widget _buildMessageContent(BuildContext context, ThemeData theme) {
     if (!_isUser) {
-      return _MarkdownText(
-        text: message.content,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: DairyTheme.darkText,
-          height: 1.4,
-        ),
+      final text = message.content;
+      final showTeleVet = text.contains('Tele-Vet') || text.contains('टेली-क्लिनिक') || text.contains('वीडियो') || text.contains('डॉक्टर');
+      final show1962 = text.contains('1962');
+      final showKisanCall = text.contains('1800-180-1551');
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _MarkdownText(
+            text: text,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: DairyTheme.darkText,
+              height: 1.4,
+            ),
+          ),
+          if (showTeleVet || show1962 || showKisanCall) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                if (showTeleVet)
+                  ActionChip(
+                    avatar: const Icon(Icons.video_call, size: 16, color: Colors.white),
+                    label: const Text('📹 Tele-Vet (डॉक्टर परामर्श)', style: TextStyle(color: Colors.white, fontSize: 11)),
+                    backgroundColor: const Color(0xff047857),
+                    padding: EdgeInsets.zero,
+                    onPressed: () => context.push('/vet/booking'),
+                  ),
+                if (show1962)
+                  ActionChip(
+                    avatar: const Icon(Icons.emergency, size: 16, color: Colors.white),
+                    label: const Text('🚑 कॉल 1962 (एम्बुलेंस)', style: TextStyle(color: Colors.white, fontSize: 11)),
+                    backgroundColor: Colors.red.shade700,
+                    padding: EdgeInsets.zero,
+                    onPressed: () => launchUrl(Uri.parse('tel:1962')),
+                  ),
+                if (showKisanCall)
+                  ActionChip(
+                    avatar: const Icon(Icons.call, size: 16, color: Colors.white),
+                    label: const Text('🌾 कॉल 1800-180-1551', style: TextStyle(color: Colors.white, fontSize: 11)),
+                    backgroundColor: Colors.orange.shade800,
+                    padding: EdgeInsets.zero,
+                    onPressed: () => launchUrl(Uri.parse('tel:18001801551')),
+                  ),
+              ],
+            ),
+          ],
+        ],
       );
     }
 

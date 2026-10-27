@@ -1469,9 +1469,9 @@ class _MoreMenuScreen extends ConsumerWidget {
               ),
               _MoreTile(
                 icon: Icons.local_hospital,
-                label: 'पशु चिकित्सक खोजें व परामर्श (Find Vet / Tele-Clinic)',
-                subtitle: 'सत्यापित डेयरी डॉक्टर्स से ऑनलाइन वीडियो परामर्श',
-                onTap: () => context.go('/more/vet'),
+                label: 'पशु चिकित्सालय व टेली-परामर्श (Tele-Vet Clinic)',
+                subtitle: '24/7 वीडियो कॉल, इमरजेंसी डॉक्टर व डिजिटल ई-पर्चा (Rx)',
+                onTap: () => context.push('/vet/booking'),
               ),
               _MoreTile(
                 icon: Icons.menu_book,

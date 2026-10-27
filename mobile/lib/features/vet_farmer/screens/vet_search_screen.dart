@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:dairy_ai/core/extensions.dart';
+import 'package:dairy_ai/shared/widgets/farmer_auth_action.dart';
 import 'package:dairy_ai/features/vet_farmer/models/vet_farmer_models.dart';
 import 'package:dairy_ai/features/vet_farmer/providers/vet_farmer_provider.dart';
-import 'package:dairy_ai/features/vet_farmer/screens/consultation_request_screen.dart';
 
 /// Farmer-side screen to search for available verified vets.
 class VetSearchScreen extends ConsumerStatefulWidget {
@@ -72,7 +73,17 @@ class _VetSearchScreenState extends ConsumerState<VetSearchScreen> {
     final vetsAsync = ref.watch(vetSearchProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Find a Vet')),
+      appBar: AppBar(
+        title: const Text('पशु चिकित्सक खोजें (Find a Vet)'),
+        actions: [
+          TextButton.icon(
+            onPressed: () => context.push('/vet/booking'),
+            icon: const Icon(Icons.videocam_outlined),
+            label: const Text('टेली-क्लिनिक'),
+          ),
+          const FarmerAuthAction(nextRoute: '/more/vet'),
+        ],
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 860),
@@ -249,12 +260,7 @@ class _VetSearchScreenState extends ConsumerState<VetSearchScreen> {
                         vet: vets[index],
                         sortBy: filters.sortBy,
                         onRequestConsultation: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  ConsultationRequestScreen(vet: vets[index]),
-                            ),
-                          );
+                          context.push('/vet/booking');
                         },
                       );
                     },

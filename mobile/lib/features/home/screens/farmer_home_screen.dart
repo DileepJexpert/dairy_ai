@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import 'package:dairy_ai/features/auth/providers/auth_provider.dart';
 import 'package:dairy_ai/features/vet_farmer/models/vet_farmer_models.dart';
 import 'package:dairy_ai/features/vet_farmer/providers/vet_farmer_provider.dart';
-import 'package:dairy_ai/features/vet_farmer/screens/consultation_request_screen.dart';
 import 'package:dairy_ai/shared/widgets/stat_card.dart';
 import 'package:dairy_ai/features/home/widgets/voice_entry_dialog.dart';
 import 'package:dairy_ai/features/milk/widgets/milk_slip_selector_modal.dart';
@@ -89,6 +88,15 @@ class FarmerHomeScreen extends ConsumerWidget {
                 SliverToBoxAdapter(child: _wrapDesktopWidth(_buildBreedingAlertCard(context, ref))),
                 SliverToBoxAdapter(child: _wrapDesktopWidth(_buildQuickActions(context, farmerName: stats.farmerName))),
                 SliverToBoxAdapter(child: _wrapDesktopWidth(_buildFarmerShortcuts(context))),
+                SliverToBoxAdapter(
+                  child: _wrapDesktopWidth(
+                    _buildVeterinaryPortalSection(
+                      context,
+                      ref,
+                      isAuthenticated: isAuthenticated,
+                    ),
+                  ),
+                ),
                 SliverToBoxAdapter(child: _wrapDesktopWidth(_buildCommunitySocialSection(context, ref, isAuthenticated: isAuthenticated))),
                 SliverToBoxAdapter(
                   child: _wrapDesktopWidth(
@@ -502,32 +510,54 @@ class FarmerHomeScreen extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.health_and_safety, color: Color(0xff047857), size: 20),
-                      SizedBox(width: 6),
-                      Text(
-                        'Certified Bovine Veterinarians',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.health_and_safety, color: Color(0xff047857), size: 20),
+                        SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'पशु चिकित्सालय व टेली-क्लिनिक (Tele-Vet)',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'सत्यापित पशु चिकित्सकों से वीडियो कॉल, इमरजेंसी परामर्श व डिजिटल पर्चा',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Row(
+                children: [
+                  FilledButton.icon(
+                    onPressed: () => context.push('/vet/booking'),
+                    icon: const Icon(Icons.video_call, size: 16),
+                    label: const Text('वीडियो कॉल'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xff047857),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      visualDensity: VisualDensity.compact,
+                      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
                   ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Browse verified bovine doctors & tele-consultations',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  const SizedBox(width: 6),
+                  TextButton(
+                    onPressed: () => context.push('/more/vet'),
+                    child: const Text('सभी देखें'),
                   ),
                 ],
-              ),
-              TextButton(
-                onPressed: () => context.push('/more/vet'),
-                child: const Text('View All'),
               ),
             ],
           ),
@@ -788,144 +818,7 @@ class FarmerHomeScreen extends ConsumerWidget {
     VetProfile vet, {
     required bool isAuthenticated,
   }) {
-    if (isAuthenticated) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => ConsultationRequestScreen(vet: vet),
-        ),
-      );
-    } else {
-      _showAppointmentLoginModal(context, ref, vet);
-    }
-  }
-
-  void _showAppointmentLoginModal(
-    BuildContext context,
-    WidgetRef ref,
-    VetProfile vet,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            20,
-            20,
-            MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.lock_outline, color: Color(0xff047857)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Sign In to Book Appointment',
-                      style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'To link your cattle records and schedule an appointment with ${vet.name}, please sign in.',
-                style: const TextStyle(fontSize: 13, color: Colors.black87),
-              ),
-              if (kDebugMode || AppConstants.flowSimulation) ...[
-                const SizedBox(height: 16),
-                const Text(
-                  '1-Click Quick Demo Sign In:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    color: Color(0xff047857),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    OutlinedButton(
-                      onPressed: () async {
-                        Navigator.pop(ctx);
-                        await _executeQuickLogin(
-                          context,
-                          ref,
-                          phone: '9876510001',
-                          password: 'Password@123',
-                          label: 'Ramesh Patel',
-                        );
-                        if (context.mounted) {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  ConsultationRequestScreen(vet: vet),
-                            ),
-                          );
-                        }
-                      },
-                      child: const Text('🌾 Ramesh Patel'),
-                    ),
-                    OutlinedButton(
-                      onPressed: () async {
-                        Navigator.pop(ctx);
-                        await _executeQuickLogin(
-                          context,
-                          ref,
-                          phone: '9876510002',
-                          password: 'Password@123',
-                          label: 'Suresh Yadav',
-                        );
-                        if (context.mounted) {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  ConsultationRequestScreen(vet: vet),
-                            ),
-                          );
-                        }
-                      },
-                      child: const Text('🐃 Suresh Yadav'),
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    context.push('/login?next=/home');
-                  },
-                  icon: const Icon(Icons.login),
-                  label: const Text('Sign In with Phone / Password'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xff047857),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    context.push('/vet/booking');
   }
 
   // ---------------------------------------------------------------------------
@@ -1604,7 +1497,7 @@ class FarmerHomeScreen extends ConsumerWidget {
               ),
               StatCard(
                 icon: Icons.receipt_long,
-                label: "Dugdha Passbook",
+                label: 'Dugdha Passbook',
                 value: '${stats.todayMilkLitres.toStringAsFixed(1)} L',
                 color: Colors.blue,
                 onTap: () => context.push('/passbook'),
@@ -1957,9 +1850,9 @@ class FarmerHomeScreen extends ConsumerWidget {
                       ),
                       _QuickActionButton(
                         icon: Icons.video_call_outlined,
-                        label: 'Call Vet',
+                        label: 'Tele-Vet',
                         color: Colors.green,
-                        onTap: () => context.push('/more/vet'),
+                        onTap: () => context.push('/vet/booking'),
                       ),
                       _QuickActionButton(
                         icon: Icons.verified_outlined,

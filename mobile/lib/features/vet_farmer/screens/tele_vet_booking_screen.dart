@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:dairy_ai/shared/widgets/farmer_auth_action.dart';
 import '../../cart/providers/cart_provider.dart';
 import '../../marketplace/widgets/store_design.dart';
-import '../providers/vet_farmer_provider.dart' show farmerCattleListProvider;
+import '../providers/vet_farmer_provider.dart';
 
 class TeleVetBookingScreen extends ConsumerStatefulWidget {
   const TeleVetBookingScreen({super.key, this.initialCattleId});
@@ -26,43 +28,43 @@ class _TeleVetBookingScreenState extends ConsumerState<TeleVetBookingScreen> {
   final List<Map<String, dynamic>> _symptomList = [
     {
       'id': 'Mastitis / Udder Swelling',
-      'title': 'Clinical Mastitis',
-      'desc': 'Hot/swollen quarter, clots or blood in milk, drop in yield',
+      'title': 'थनैला रोग (Mastitis)',
+      'desc': 'अयन/थन में सूजन या गर्मी, दूध में छिछड़े या खून, दूध में अचानक गिरावट',
       'severity': 'HIGH',
       'icon': Icons.water_drop_outlined,
     },
     {
       'id': 'Rumen Bloat / Acidosis',
-      'title': 'Rumen Acidosis / Bloat',
-      'desc': 'Distended left flank, kicking abdomen, no cud chewing',
+      'title': 'अफारा व एसिडोसिस (Bloat)',
+      'desc': 'बायाँ पेट फूला हुआ, बेचैनी, लात मारना, जुगाली बंद व सांस फूलना',
       'severity': 'EMERGENCY',
       'icon': Icons.warning_amber_rounded,
     },
     {
       'id': 'High Fever (>104°F)',
-      'title': 'Bovine Ephemeral Fever',
-      'desc': 'High body temperature, shivering, stiff gait, shivering',
+      'title': 'तेज़ बुखार (Bovine Fever)',
+      'desc': 'शरीर अत्यधिक गर्म, कांपना, सुस्ती, कान ठंडे या सुस्त खड़े रहना',
       'severity': 'MODERATE',
       'icon': Icons.thermostat_outlined,
     },
     {
       'id': 'Foot Rot / Lameness',
-      'title': 'Foot Rot / Lameness',
-      'desc': 'Swelling between claws, foul odor, reluctant to walk',
+      'title': 'खुरपका व लंगड़ापन (Foot Rot)',
+      'desc': 'खुरों के बीच घाव या सूजन, चलने में दर्द, बदबू व ज़मीन पर बैठना',
       'severity': 'MODERATE',
       'icon': Icons.airline_stops_outlined,
     },
     {
       'id': 'Off-Feed & Low Rumination',
-      'title': 'Off-Feed / Indigestion',
-      'desc': 'Refusing grain concentrates, dull eyes, low rumen activity',
+      'title': 'भूख न लगना व अपच (Off-Feed)',
+      'desc': 'दाना या चारा छोड़ना, सुस्त आंखें, रूमेन में धीमी हलचल',
       'severity': 'MILD',
       'icon': Icons.grass_outlined,
     },
     {
       'id': 'Respiratory Distress',
-      'title': 'Pneumonia / Breathing',
-      'desc': 'Heavy panting, nasal discharge, audible wheezing/cough',
+      'title': 'सांस तकलीफ़ व निमोनिया (Pneumonia)',
+      'desc': 'मुंह खोलकर हांफना, नाक से स्राव, सीने से घुरघुराहट या खांसी',
       'severity': 'HIGH',
       'icon': Icons.air_outlined,
     },
@@ -82,6 +84,8 @@ class _TeleVetBookingScreenState extends ConsumerState<TeleVetBookingScreen> {
       'fee': 250,
       'vciReg': 'VCI-RAJ-44821',
       'available': 'Online Now (Instant Slot)',
+      'phone': '+919825099001',
+      'whatsapp': '919825099001',
     },
     {
       'name': 'Dr. Shalini Mehta',
@@ -94,6 +98,8 @@ class _TeleVetBookingScreenState extends ConsumerState<TeleVetBookingScreen> {
       'fee': 250,
       'vciReg': 'VCI-GUJ-29103',
       'available': 'Next in 25 mins',
+      'phone': '+919825099002',
+      'whatsapp': '919825099002',
     },
     {
       'name': 'Dr. Rajesh Patel',
@@ -106,6 +112,8 @@ class _TeleVetBookingScreenState extends ConsumerState<TeleVetBookingScreen> {
       'fee': 200,
       'vciReg': 'VCI-MAH-38190',
       'available': 'Today 05:00 PM',
+      'phone': '+919825099003',
+      'whatsapp': '919825099003',
     },
   ];
 
@@ -175,9 +183,12 @@ class _TeleVetBookingScreenState extends ConsumerState<TeleVetBookingScreen> {
     return Scaffold(
       backgroundColor: storeCream,
       appBar: AppBar(
-        title: const Text('Tele-Veterinary Clinic Consultation'),
+        title: const Text('पशु चिकित्सालय व टेली-परामर्श (Tele-Vet Clinic)'),
         backgroundColor: const Color(0xff064e3b),
         foregroundColor: Colors.white,
+        actions: const [
+          FarmerAuthAction(nextRoute: '/vet/booking', color: Colors.white),
+        ],
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -387,50 +398,112 @@ class _TeleVetBookingScreenState extends ConsumerState<TeleVetBookingScreen> {
             builder: (context) {
               final cattleAsync = ref.watch(farmerCattleListProvider);
               final cattleList = cattleAsync.value ?? [];
-              if (cattleList.isEmpty) {
-                return Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.amber.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.pets, color: Colors.amber, size: 28),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'कोई पशु पंजीकृत नहीं है (No Cattle Registered)',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'परामर्श के लिए अपना पशु जोड़ें या नया पशु पंजीकृत करें।',
-                              style: TextStyle(fontSize: 12, color: Colors.black87),
-                            ),
-                          ],
-                        ),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => context.push('/herd/add'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xff064e3b),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        ),
-                        child: const Text('पशु जोड़ें +', style: TextStyle(fontSize: 12)),
-                      ),
-                    ],
-                  ),
-                );
+
+              final genericAnimals = [
+                {'tag': 'गाय (Cow - General)', 'name': 'गाय (Cow)', 'breed': 'देशी/क्रॉस गाय', 'icon': Icons.pets},
+                {'tag': 'भैंस (Buffalo - General)', 'name': 'भैंस (Buffalo)', 'breed': 'मुर्रा/देशी भैंस', 'icon': Icons.pets},
+                {'tag': 'बछड़ा/बछिया (Calf/Heifer)', 'name': 'बछड़ा/बछिया', 'breed': 'छोटी बछिया', 'icon': Icons.child_care},
+                {'tag': 'बकरा/बकरी (Goat/Sheep)', 'name': 'बकरा/बकरी', 'breed': 'बकरी/भेड़', 'icon': Icons.grass},
+              ];
+
+              if (_selectedCattle == null) {
+                if (cattleList.isNotEmpty) {
+                  _selectedCattle = cattleList.first.tagId ?? cattleList.first.id.toString();
+                } else {
+                  _selectedCattle = 'गाय (Cow - General)';
+                }
               }
 
-              if (_selectedCattle == null && cattleList.isNotEmpty) {
-                _selectedCattle = cattleList.first.tagId ?? cattleList.first.id.toString();
+              if (cattleList.isEmpty) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      margin: const EdgeInsets.only(bottom: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.amber.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline, color: Colors.amber, size: 20),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              'त्वरित परामर्श मोड: नीचे से पशु चुनें अथवा अपने झुंड में पशु जोड़ें।',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xff92400e)),
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => context.push('/herd/add'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xff064e3b),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            child: const Text('पशु जोड़ें +', style: TextStyle(fontSize: 11)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: genericAnimals.map((item) {
+                        final tag = item['tag'] as String;
+                        final isSelected = _selectedCattle == tag;
+                        return InkWell(
+                          onTap: () => setState(() => _selectedCattle = tag),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            width: 200,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isSelected ? storeGreen.withValues(alpha: 0.08) : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSelected ? storeGreen : storeBorder,
+                                width: isSelected ? 2 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: isSelected ? storeGreen : const Color(0xffe2e8f0),
+                                  child: Icon(item['icon'] as IconData, size: 18, color: isSelected ? Colors.white : const Color(0xff475569)),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item['name'] as String,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: isSelected ? storeGreen : Colors.black87,
+                                        ),
+                                      ),
+                                      Text(
+                                        item['breed'] as String,
+                                        style: const TextStyle(fontSize: 11, color: storeMuted),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                );
               }
 
               return Wrap(
@@ -953,9 +1026,29 @@ class _TeleVetBookingScreenState extends ConsumerState<TeleVetBookingScreen> {
     );
   }
 
+  void _openDoctorWhatsApp(Map<String, dynamic> doc, String slot, String appointmentId) {
+    final text = 'नमस्ते ${doc['name']} जी, मैंने Milterra Tele-Vet पर परामर्श बुक किया है।\n'
+        '• अप्वाइंटमेंट ID: $appointmentId\n'
+        '• पशु: ${_selectedCattle ?? 'गाय/भैंस'}\n'
+        '• मुख्य लक्षण: ${_selectedSymptoms.isEmpty ? 'सामान्य स्वास्थ्य जांच' : _selectedSymptoms.join(', ')}\n'
+        '• समय स्लॉट: $slot\n'
+        'कृपया वीडियो परामर्श लिंक अथवा प्राथमिक उपचार सलाह साझा करें।';
+    final phone = (doc['whatsapp'] ?? '919825099001').toString();
+    launchUrl(
+      Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(text)}'),
+      mode: LaunchMode.externalApplication,
+    );
+  }
+
+  void _callDoctor(Map<String, dynamic> doc) {
+    final phone = (doc['phone'] ?? '+919825099001').toString();
+    launchUrl(Uri.parse('tel:$phone'));
+  }
+
   void _showBookingConfirmationDialog() {
     final doc = _doctors[_selectedDoctorIndex];
     final slot = _timeSlots[_selectedSlotIndex];
+    final appointmentId = 'VET-2026-${9182 + _selectedDoctorIndex}';
 
     showDialog(
       context: context,
@@ -974,44 +1067,85 @@ class _TeleVetBookingScreenState extends ConsumerState<TeleVetBookingScreen> {
               ),
               const SizedBox(width: 12),
               const Expanded(
-                child: Text('Consultation Confirmed',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: storeGreen)),
+                child: Text('परामर्श बुक हो गया (Confirmed)',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: storeGreen)),
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: storeCream,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: storeBorder),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: storeCream,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: storeBorder),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Appointment ID: $appointmentId',
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w800, color: storeGreen)),
+                      const SizedBox(height: 4),
+                      Text('पशु (Animal): ${_selectedCattle ?? 'General'}',
+                          style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                      Text('चिकित्सक (Doctor): ${doc['name']} (${doc['degree']})',
+                          style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                      Text('समय (Slot): $slot',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: storeAmber)),
+                      if (_selectedSymptoms.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text('लक्षण (Symptoms): ${_selectedSymptoms.join(', ')}',
+                            style: const TextStyle(fontSize: 11, color: storeMuted)),
+                      ],
+                    ],
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: 14),
+                const Text(
+                  'आपका वीडियो कंसल्टेशन रूम सक्रिय है। डॉक्टर आपसे जुड़ने के लिए तैयार हैं। आप सीधे WhatsApp या फ़ोन कॉल पर भी बात कर सकते हैं:',
+                  style: TextStyle(fontSize: 12, color: storeMuted),
+                ),
+                const SizedBox(height: 12),
+                Row(
                   children: [
-                    Text('Appointment ID: VET-2026-${9182 + _selectedDoctorIndex}',
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w800, color: storeGreen)),
-                    const SizedBox(height: 4),
-                    Text('Animal Tag: ${_selectedCattle ?? 'General'}',
-                        style: const TextStyle(fontSize: 12, color: Colors.black87)),
-                    Text('Doctor: ${doc['name']} (${doc['degree']})',
-                        style: const TextStyle(fontSize: 12, color: Colors.black87)),
-                    Text('Slot: $slot',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: storeAmber)),
+                    Expanded(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xff25d366),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () {
+                          _openDoctorWhatsApp(doc, slot, appointmentId);
+                        },
+                        icon: const Icon(Icons.chat, size: 16),
+                        label: const Text('WhatsApp चैट', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xff064e3b),
+                          side: const BorderSide(color: Color(0xff064e3b)),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () => _callDoctor(doc),
+                        icon: const Icon(Icons.call, size: 16),
+                        label: const Text('कॉल करें', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Your veterinary triage video room is ready. Dr. Arvind Sharma will join the call shortly.',
-                style: TextStyle(fontSize: 12, color: storeMuted),
-              ),
-            ],
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -1019,7 +1153,7 @@ class _TeleVetBookingScreenState extends ConsumerState<TeleVetBookingScreen> {
                 Navigator.pop(ctx);
                 setState(() => _activeView = 1); // Switch to e-prescription view
               },
-              child: const Text('View Sample E-Prescription', style: TextStyle(color: storeGreen)),
+              child: const Text('डिजिटल ई-पर्चा (Rx) देखें', style: TextStyle(color: storeGreen, fontWeight: FontWeight.bold)),
             ),
             FilledButton.icon(
               style: FilledButton.styleFrom(
@@ -1036,7 +1170,7 @@ class _TeleVetBookingScreenState extends ConsumerState<TeleVetBookingScreen> {
                 );
               },
               icon: const Icon(Icons.video_camera_front_outlined, size: 18),
-              label: const Text('Join Video Room'),
+              label: const Text('वीडियो रूम खोलें'),
             ),
           ],
         );

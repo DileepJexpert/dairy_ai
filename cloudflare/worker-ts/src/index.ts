@@ -185,6 +185,7 @@ app.route('/api/v1', breedingRouter);
 app.route('/api/v1/breeding', breedingRouter);
 app.route('/api/v1/health', healthRouter);
 app.route('/api/v1', healthRouter);
+app.route('/api/v1/feed', feedRouter);
 app.route('/api/v1', feedRouter);
 app.route('/api/v1/collection', collectionRouter);
 app.route('/api/v1', collectionRouter);

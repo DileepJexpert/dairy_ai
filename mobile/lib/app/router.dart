@@ -52,6 +52,7 @@ import 'package:dairy_ai/features/collection/screens/bmc_cold_chain_screen.dart'
 import 'package:dairy_ai/features/finance/screens/gobardhan_carbon_screen.dart';
 import 'package:dairy_ai/features/health/screens/cattle_insurance_claim_screen.dart';
 import 'package:dairy_ai/features/feed/screens/group_feed_pool_screen.dart';
+import 'package:dairy_ai/features/feed/screens/cattle_feed_store_screen.dart';
 import 'package:dairy_ai/features/chat/screens/chat_screen.dart';
 import 'package:dairy_ai/features/profile/screens/profile_screen.dart';
 import 'package:dairy_ai/features/notifications/screens/notifications_screen.dart';
@@ -337,6 +338,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           location == '/marketplace/wallet' ||
           location.startsWith('/collection') ||
           location.startsWith('/cooperative') ||
+          location.startsWith('/feed') ||
           location.startsWith('/herd/lifecycle') ||
           location.startsWith('/vet/booking') ||
           location == '/home' ||
@@ -717,6 +719,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/health/insurance-claim',
         builder: (context, state) => const CattleInsuranceClaimScreen(),
+      ),
+      GoRoute(
+        path: '/feed/store',
+        builder: (context, state) {
+          final cat = state.uri.queryParameters['category'] ?? 'all';
+          return CattleFeedStoreScreen(initialCategory: cat);
+        },
+      ),
+      GoRoute(
+        path: '/feed/nutrition',
+        builder: (context, state) {
+          final cat = state.uri.queryParameters['category'] ?? 'all';
+          return CattleFeedStoreScreen(initialCategory: cat);
+        },
       ),
       GoRoute(
         path: '/feed/group-buying',
@@ -1447,6 +1463,12 @@ class _MoreMenuScreen extends ConsumerWidget {
                 label: 'फार्म चार्ट्स व दस्तावेज (Farm Documents & Rate Cards)',
                 subtitle: 'टीकाकरण चार्ट, दर सूची व लैब रिपोर्ट्स',
                 onTap: () => context.go('/more/documents'),
+              ),
+              _MoreTile(
+                icon: Icons.grain,
+                label: 'पशुआहार व खनिज मिश्रण बाज़ार (Feed & Minerals Store)',
+                subtitle: 'चिलेटेड मिनरल मिक्स, कैल्शियम, बाईपास फैट, साइलेज व 13x ROI',
+                onTap: () => context.push('/feed/store'),
               ),
               _MoreTile(
                 icon: Icons.grass,

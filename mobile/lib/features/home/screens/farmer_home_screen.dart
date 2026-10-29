@@ -926,6 +926,13 @@ class FarmerHomeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(width: 8),
                   _SahayataPill(
+                    icon: Icons.grain_outlined,
+                    label: '🌾 मिनरल मिक्स व दाना',
+                    color: const Color(0xffb45309),
+                    onTap: () => context.push('/feed/store'),
+                  ),
+                  const SizedBox(width: 8),
+                  _SahayataPill(
                     icon: Icons.chat_bubble_outline,
                     label: '💬 AI से पूछें',
                     color: const Color(0xff047857),
@@ -1482,6 +1489,15 @@ class FarmerHomeScreen extends ConsumerWidget {
                 ),
                 const Divider(height: 18),
                 _buildBulletinRow(
+                  icon: Icons.grain_outlined,
+                  color: const Color(0xffb45309),
+                  title: 'खनिज मिश्रण व पशुआहार बाज़ार (13x ROI)',
+                  subtitle: '50g चिलेटेड मिनरल मिक्स से पाएँ +1.3L अतिरिक्त दूध। FPO व डीलर से सीधे आर्डर या दूध बिल से भुगतान।',
+                  actionLabel: 'दाना बाज़ार >',
+                  onTap: () => context.push('/feed/store'),
+                ),
+                const Divider(height: 18),
+                _buildBulletinRow(
                   icon: Icons.grass,
                   color: const Color(0xffb45309),
                   title: 'संतुलित पशुआहार व चारा कैलकुलेटर',
@@ -1996,6 +2012,12 @@ class FarmerHomeScreen extends ConsumerWidget {
                         label: 'Feed Calc',
                         color: const Color(0xffb45309),
                         onTap: () => context.push('/feed/calculator'),
+                      ),
+                      _QuickActionButton(
+                        icon: Icons.grain_outlined,
+                        label: 'Feed Store',
+                        color: const Color(0xffb45309),
+                        onTap: () => context.push('/feed/store'),
                       ),
                       _QuickActionButton(
                         icon: Icons.hub_outlined,

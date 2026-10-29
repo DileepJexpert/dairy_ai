@@ -919,6 +919,13 @@ class FarmerHomeScreen extends ConsumerWidget {
               child: Row(
                 children: [
                   _SahayataPill(
+                    icon: Icons.hub_outlined,
+                    label: '🏢 समिति ERP',
+                    color: const Color(0xff065f46),
+                    onTap: () => context.push('/collection/operator'),
+                  ),
+                  const SizedBox(width: 8),
+                  _SahayataPill(
                     icon: Icons.chat_bubble_outline,
                     label: '💬 AI से पूछें',
                     color: const Color(0xff047857),
@@ -1431,6 +1438,15 @@ class FarmerHomeScreen extends ConsumerWidget {
             ),
             child: Column(
               children: [
+                _buildBulletinRow(
+                  icon: Icons.hub_outlined,
+                  color: const Color(0xff065f46),
+                  title: 'डेयरी सहकारी समिति व बीएमसी ऑपरेटर ERP',
+                  subtitle: 'ग्राम वीएलसीसी दूध संकलन, डिजिटल वजन, 10-दिवसीय पखवाड़ा बिलिंग व डायरेक्ट बैंक भुगतान।',
+                  actionLabel: 'ऑपरेटर कंसोल >',
+                  onTap: () => context.push('/collection/operator'),
+                ),
+                const Divider(height: 18),
                 _buildBulletinRow(
                   icon: Icons.vaccines_outlined,
                   color: Colors.orange,
@@ -1980,6 +1996,12 @@ class FarmerHomeScreen extends ConsumerWidget {
                         label: 'Feed Calc',
                         color: const Color(0xffb45309),
                         onTap: () => context.push('/feed/calculator'),
+                      ),
+                      _QuickActionButton(
+                        icon: Icons.hub_outlined,
+                        label: 'Society ERP',
+                        color: const Color(0xff065f46),
+                        onTap: () => context.push('/collection/operator'),
                       ),
                       _QuickActionButton(
                         icon: Icons.smart_toy_outlined,

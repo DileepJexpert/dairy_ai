@@ -94,6 +94,7 @@ import 'package:dairy_ai/features/collection/screens/center_dashboard_screen.dar
 import 'package:dairy_ai/features/collection/screens/record_milk_screen.dart';
 import 'package:dairy_ai/features/collection/screens/farmer_passbook_screen.dart';
 import 'package:dairy_ai/features/collection/screens/cold_chain_screen.dart';
+import 'package:dairy_ai/features/collection/screens/society_operator_screen.dart';
 
 // Milk Purity Checker (public, no auth required)
 import 'package:dairy_ai/features/milk_purity/screens/purity_home_screen.dart';
@@ -334,6 +335,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           location == '/shop/wallet' ||
           location == '/marketplace/balance' ||
           location == '/marketplace/wallet' ||
+          location.startsWith('/collection') ||
           location.startsWith('/cooperative') ||
           location.startsWith('/herd/lifecycle') ||
           location.startsWith('/vet/booking') ||
@@ -1212,6 +1214,20 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // ---- Collection Center routes ----
       GoRoute(
+        path: '/collection/operator',
+        builder: (context, state) {
+          final centerId = state.uri.queryParameters['centerId'] ?? 'c-dhartiputra-01';
+          return SocietyOperatorScreen(centerId: centerId);
+        },
+      ),
+      GoRoute(
+        path: '/cooperative/operator',
+        builder: (context, state) {
+          final centerId = state.uri.queryParameters['centerId'] ?? 'c-dhartiputra-01';
+          return SocietyOperatorScreen(centerId: centerId);
+        },
+      ),
+      GoRoute(
         path: '/collection/centers',
         builder: (context, state) => const CollectionCentersScreen(),
       ),
@@ -1226,6 +1242,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           return CenterDashboardScreen(centerId: centerId);
         },
         routes: [
+          GoRoute(
+            path: 'operator',
+            builder: (context, state) {
+              final centerId = state.pathParameters['centerId']!;
+              return SocietyOperatorScreen(centerId: centerId);
+            },
+          ),
           GoRoute(
             path: 'record-milk',
             builder: (context, state) {
@@ -1395,6 +1418,12 @@ class _MoreMenuScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
               ],
+              _MoreTile(
+                icon: Icons.hub,
+                label: 'डेयरी समिति व बीएमसी ऑपरेटर ERP (Society & BMC ERP)',
+                subtitle: 'त्वरित दूध एंट्री, 10-दिवसीय पखवाड़ा बिलिंग, बैंक NEFT व डिस्पैच',
+                onTap: () => context.push('/collection/operator'),
+              ),
               _MoreTile(
                 icon: Icons.water_drop,
                 label: 'दैनिक दूध संकलन व बहु-विक्री (Milk Sales & Slips)',

@@ -71,4 +71,31 @@ make_seamless_panoramic(
     'panoramic-paneer-hero.jpg'
 )
 
-print('All 4 panoramic banners generated successfully!')
+# 5. A2 Sahiwal Milk Bottle (1920x340)
+def make_milk_bottle_panoramic():
+    im = Image.open('mobile/assets/store/milk-cow-bottle-1l.jpg').convert('RGB')
+    cropped = im.crop((72, 80, 952, 960))
+    target_w, target_h = 1920, 340
+    scene_h, scene_w = 340, 340
+    scaled = cropped.resize((scene_w, scene_h), Image.Resampling.LANCZOS)
+    arr = np.array(scaled)
+    edge_profile = (arr[:, :20, :].mean(axis=1) + arr[:, -20:, :].mean(axis=1)) / 2.0
+    canvas_arr = np.zeros((target_h, target_w, 3), dtype=np.uint8)
+    for y in range(target_h):
+        canvas_arr[y, :, :] = edge_profile[y].astype(np.uint8)
+    canvas = Image.fromarray(canvas_arr)
+    feather_px = 80
+    marr = np.ones((scene_h, scene_w), dtype=np.float32)
+    for x in range(feather_px):
+        fade = 0.5 - 0.5 * np.cos(np.pi * x / feather_px)
+        marr[:, x] = fade
+        marr[:, scene_w - 1 - x] = fade
+    mask = Image.fromarray((marr * 255).astype(np.uint8))
+    center_x = int((target_w - scene_w) / 2)
+    canvas.paste(scaled, (center_x, 0), mask)
+    canvas.save('mobile/assets/store/panoramic-milk-bottle-hero.jpg', quality=95)
+    print('Generated seamless panoramic: panoramic-milk-bottle-hero.jpg')
+
+make_milk_bottle_panoramic()
+
+print('All panoramic banners generated successfully!')

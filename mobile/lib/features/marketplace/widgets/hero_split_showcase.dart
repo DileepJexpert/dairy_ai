@@ -349,18 +349,19 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
           cursor: SystemMouseCursors.click,
           child: InkWell(
             onTap: navigateToProduct,
-            child: SizedBox(
-          width: double.infinity,
-          height: double.infinity,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // 1. Panoramic 16:9 Studio Background with 3D Tilted Product in Center
-              Image.asset(
-                item.panoramicImage,
-                fit: BoxFit.cover,
-                alignment: Alignment.center,
-              ),
+            child: ClipRect(
+              child: SizedBox(
+                width: double.infinity,
+                height: double.infinity,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // 1. Panoramic 16:9 Studio Background with 3D Tilted Product in Center
+                    Image.asset(
+                      item.panoramicImage,
+                      fit: BoxFit.cover,
+                      alignment: Alignment.center,
+                    ),
 
               // 2. Subtle soft studio light vignette for guaranteed text contrast
               Container(
@@ -385,8 +386,9 @@ class HeroSplitShowcaseState extends State<HeroSplitShowcase> {
                     ? _buildMobileHeroSlide(item)
                     : _buildDesktopHeroSlide(item),
               ),
-            ],
-          ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),

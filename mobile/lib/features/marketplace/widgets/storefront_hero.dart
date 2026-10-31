@@ -27,6 +27,12 @@ class StorefrontHero extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Pre-cache first hero banner image for instant LCP rendering
+    precacheImage(
+      const AssetImage('assets/store/panoramic-cow-ghee-hero.jpg'),
+      context,
+    );
+
     final config = ref.watch(homeHeroConfigProvider).valueOrNull;
     final products = ref.watch(productsProvider(null)).valueOrNull;
     final placements =
@@ -136,12 +142,15 @@ class StorefrontHero extends ConsumerWidget {
       }
     }
 
+    final effectiveSlides =
+        slides.isNotEmpty ? slides : defaultHeroProductSlides;
+
     return HeroSplitShowcase(
       key: showcaseKey,
       screenWidth: screenWidth,
       onExploreCategory: onExploreCategory,
       onAddToCart: onAddToCart,
-      productSlides: slides,
+      productSlides: effectiveSlides,
     );
   }
 }

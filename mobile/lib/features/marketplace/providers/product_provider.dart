@@ -22,6 +22,11 @@ final staticCatalogueReaderProvider =
     };
   }
   return () async {
+    try {
+      final local = await rootBundle.loadString(StaticCatalogue.assetPath);
+      return StaticCatalogue.parse(local);
+    } catch (_) {}
+
     final client = Dio(BaseOptions(
       connectTimeout: const Duration(seconds: 3),
       receiveTimeout: const Duration(seconds: 3),
@@ -136,7 +141,7 @@ final productsProvider = FutureProvider.family<List<Product>, ProductCategory?>(
     (ref, category) async {
   final snapshot = await ref.watch(staticCatalogueProvider.future);
   if (snapshot != null) {
-    final live = await ref.watch(liveInventoryProvider.future);
+    final live = ref.watch(liveInventoryProvider).valueOrNull ?? const {};
     final items = snapshot.products
         .where((p) => live[p.id]?['storefront_visible'] != false)
         .where((p) => category == null || p.category == category)
@@ -187,7 +192,7 @@ final productDetailProvider =
     FutureProvider.family<Product, String>((ref, id) async {
   final snapshot = await ref.watch(staticCatalogueProvider.future);
   if (snapshot != null) {
-    final live = await ref.watch(liveInventoryProvider.future);
+    final live = ref.watch(liveInventoryProvider).valueOrNull ?? const {};
     final conceptSlug = _legacyConceptSlugs[id];
     final family = conceptSlug != null
         ? snapshot.familyBySlug(conceptSlug)

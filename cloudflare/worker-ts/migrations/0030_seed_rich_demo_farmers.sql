@@ -30,56 +30,38 @@ INSERT OR REPLACE INTO collection_centers (
 -- ============================================================================
 -- 2. FARMER PROFILES & BANK / UPI CREDENTIALS
 -- ============================================================================
+-- Ensure customer accounts exist for Ramesh, Suresh, Priya
+INSERT OR IGNORE INTO customers (id, phone, full_name, role, is_active) VALUES
+('cust-farmer-ramesh', '9876510001', 'Ramesh Patel', 'farmer', 1),
+('cust-farmer-suresh', '9876510002', 'Suresh Kumar', 'farmer', 1),
+('cust-farmer-priya', '9876510003', 'Priya Sharma', 'farmer', 1);
+
+INSERT OR IGNORE INTO customer_credentials (customer_id, username, email, password_hash) VALUES
+('cust-farmer-ramesh', 'ramesh.dairy', 'ramesh@milterrafoods.com', 'pbkdf2_sha256$600000$MTIzNDU2Nzg5MDEyMzQ1Ng==$v-o0X3aQFvP4wfkFobSSFTuVswjAP9t37wO9Mo-cS2k='),
+('cust-farmer-suresh', 'suresh.dairy', 'suresh@milterrafoods.com', 'pbkdf2_sha256$600000$MTIzNDU2Nzg5MDEyMzQ1Ng==$v-o0X3aQFvP4wfkFobSSFTuVswjAP9t37wO9Mo-cS2k='),
+('cust-farmer-priya', 'priya.dairy', 'priya@milterrafoods.com', 'pbkdf2_sha256$600000$MTIzNDU2Nzg5MDEyMzQ1Ng==$v-o0X3aQFvP4wfkFobSSFTuVswjAP9t37wO9Mo-cS2k=');
+
 -- Farmer 1: Ramesh Patel (Progressive Commercial Dairy Farmer - Anand, Gujarat)
-UPDATE farmers SET
-    name = 'Ramesh Patel',
-    phone = '9876510001',
-    village = 'Mogar, Anand',
-    district = 'Anand',
-    state = 'Gujarat',
-    upi_id = 'ramesh@okhdfcbank',
-    bank_account = '501004589214',
-    bank_ifsc = 'HDFC0000123',
-    bank_name = 'HDFC Bank, Anand Main Branch',
-    total_cattle = 4,
-    lat = 22.5645,
-    lng = 72.9289,
-    profile_photo_url = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80'
-WHERE id = 'farmer-ramesh';
-
--- Farmer 2: Suresh Kumar (Smallholder Traditional Dairy - Karnal, Haryana)
-UPDATE farmers SET
-    name = 'Suresh Kumar',
-    phone = '9876510002',
-    village = 'Uchana, Karnal',
-    district = 'Karnal',
-    state = 'Haryana',
-    upi_id = 'suresh@okaxis',
-    bank_account = '918010045612',
-    bank_ifsc = 'UTIB0000412',
-    bank_name = 'Axis Bank, Karnal GT Road',
-    total_cattle = 2,
-    lat = 29.6857,
-    lng = 76.9905,
-    profile_photo_url = 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80'
-WHERE id = 'farmer-suresh';
-
--- Farmer 3: Priya Sharma (Sunrise Organic A2 Dairy - Baramati, Maharashtra)
-UPDATE farmers SET
-    name = 'Priya Sharma',
-    phone = '9876510003',
-    village = 'Malegaon Budruk, Baramati',
-    district = 'Pune',
-    state = 'Maharashtra',
-    upi_id = 'priya@oksbi',
-    bank_account = '30894561234',
-    bank_ifsc = 'SBIN0001245',
-    bank_name = 'State Bank of India, Baramati Agri Branch',
-    total_cattle = 3,
-    lat = 18.1517,
-    lng = 74.5768,
-    profile_photo_url = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80'
-WHERE id = 'farmer-priya';
+INSERT OR REPLACE INTO farmers (
+    id, user_id, name, phone, village, district, state,
+    upi_id, bank_account, bank_ifsc, bank_name, total_cattle,
+    lat, lng, profile_photo_url
+) VALUES
+(
+    'farmer-ramesh', 'cust-farmer-ramesh', 'Ramesh Patel', '9876510001', 'Mogar, Anand', 'Anand', 'Gujarat',
+    'ramesh@okhdfcbank', '501004589214', 'HDFC0000123', 'HDFC Bank, Anand Main Branch', 4,
+    22.5645, 72.9289, 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80'
+),
+(
+    'farmer-suresh', 'cust-farmer-suresh', 'Suresh Kumar', '9876510002', 'Uchana, Karnal', 'Karnal', 'Haryana',
+    'suresh@okaxis', '918010045612', 'UTIB0000412', 'Axis Bank, Karnal GT Road', 2,
+    29.6857, 76.9905, 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80'
+),
+(
+    'farmer-priya', 'cust-farmer-priya', 'Priya Sharma', '9876510003', 'Malegaon Budruk, Baramati', 'Pune', 'Maharashtra',
+    'priya@oksbi', '30894561234', 'SBIN0001245', 'State Bank of India, Baramati Agri Branch', 3,
+    18.1517, 74.5768, 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80'
+);
 
 -- ============================================================================
 -- 3. HERD REGISTRY (Cattle with Photos, Breeds, Weights, and Calving Dates)

@@ -64,6 +64,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         next.contains('vendor');
   }
 
+  bool get _isFarmerContext {
+    final next = (widget.nextPath ?? '').toLowerCase();
+    final heading = widget.heading.toLowerCase();
+    if (next.contains('herd') ||
+        next.contains('farmer') ||
+        next.contains('health') ||
+        next.contains('finance') ||
+        next.contains('passbook') ||
+        heading.contains('farmer')) {
+      return true;
+    }
+    if (kIsWeb) {
+      try {
+        final host = Uri.base.host.toLowerCase();
+        if (host.startsWith('farmers.') ||
+            host.startsWith('farmer.') ||
+            host.contains('farmer') ||
+            Uri.base.queryParameters['portal'] == 'farmer') {
+          return true;
+        }
+      } catch (_) {}
+    }
+    return false;
+  }
+
   bool get _usesOtp => _isStaffRoute && !AppConstants.separateCustomerAuth;
 
   @override
@@ -397,9 +422,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       backgroundColor: storeCream,
       body: Column(
         children: [
-          if (kIsWeb &&
+          if (_isFarmerContext || (kIsWeb &&
               (Uri.base.host.toLowerCase().startsWith('farmers.') ||
-                  Uri.base.host.toLowerCase().startsWith('farmer.')))
+                  Uri.base.host.toLowerCase().startsWith('farmer.'))))
             _buildFarmerHeader(context)
           else
             const StoreHeader(currentCategory: 'All', search: SizedBox.shrink()),
@@ -426,9 +451,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             const Icon(Icons.lock_outline,
                                 color: storeGreen, size: 42),
                             const SizedBox(height: 16),
-                            if (kIsWeb &&
+                            if (_isFarmerContext || (kIsWeb &&
                                 (Uri.base.host.toLowerCase().startsWith('farmers.') ||
-                                    Uri.base.host.toLowerCase().startsWith('farmer.'))) ...[
+                                    Uri.base.host.toLowerCase().startsWith('farmer.')))) ...[
                               Center(
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
@@ -471,6 +496,90 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               style: StoreType.body,
                             ),
                             const SizedBox(height: 16),
+                            // Demo Farmer Account Quick Fill for farmer presentations
+                            if (_isFarmerContext)
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 20),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xfff0fdf4),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                      color: const Color(0xff86efac),
+                                      width: 1.2),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                            Icons.verified_user_outlined,
+                                            size: 18,
+                                            color: Color(0xff16a34a)),
+                                        const SizedBox(width: 8),
+                                        const Expanded(
+                                          child: Text(
+                                            'Demo Farmer Account',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xff166534),
+                                            ),
+                                          ),
+                                        ),
+                                        InkWell(
+                                          onTap: () {
+                                            setState(() {
+                                              _phoneController.text =
+                                                  '9876543210';
+                                              _passwordController.text =
+                                                  'Farmer@123';
+                                            });
+                                          },
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 10, vertical: 5),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xff16a34a),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.bolt,
+                                                    size: 14,
+                                                    color: Colors.white),
+                                                SizedBox(width: 3),
+                                                Text(
+                                                  'Auto Fill',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    const Text(
+                                      'Phone: 9876543210 (or demo.farmer)  •  Pass: Farmer@123\nLive multi-tenant account: 5 registered cattle & real milk records.',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xff15803d),
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             // 1-Click Quick Demo & Multi-Tenant Test Accounts (gated for debug / simulation only)
                             if (kDebugMode || AppConstants.flowSimulation || _demoUiEnabled)
                               Container(
@@ -490,12 +599,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         Icon(Icons.bolt,
                                             size: 20, color: storeDarkGreenNav),
                                         SizedBox(width: 6),
-                                        Text(
-                                          '1-Click Instant Login (Test Accounts)',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 13,
-                                            color: storeDarkGreenNav,
+                                        Expanded(
+                                          child: Text(
+                                            '1-Click Instant Login (Test Accounts)',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: storeDarkGreenNav,
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -558,11 +669,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       ],
                                     ),
                                     const SizedBox(height: 10),
-                                    Row(
+                                    Wrap(
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      spacing: 4,
+                                      runSpacing: 4,
                                       children: [
                                         const Icon(Icons.pin_outlined,
                                             size: 14, color: storeMuted),
-                                        const SizedBox(width: 4),
                                         const Text(
                                           'Default PIN / Password: ',
                                           style: TextStyle(

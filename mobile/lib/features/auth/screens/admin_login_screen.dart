@@ -13,8 +13,8 @@ class AdminLoginScreen extends StatelessWidget {
         heading: 'Milterra Administration',
         description:
             'Sign in to access order fulfillment, dispatch, and shipment management.',
-        initialPhone: '9876543210',
-        initialPassword: 'TestAdmin@2026',
+        initialPhone: '9839769808',
+        initialPassword: 'Password@123',
         showAdminQuickChip: true,
       );
 }
